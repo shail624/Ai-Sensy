@@ -22,9 +22,11 @@ from app.models.contact import (
     OPT_IN_OPTED_OUT,
     Contact,
 )
+from app.models.contact_event import EVENT_CONTACT_CREATED, EVENT_OPTIN_CHANGED
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.contact_event_service import ContactEventService
 
 
 def wa_id_from_e164(phone_e164: str) -> str:
@@ -44,6 +46,7 @@ class ContactService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._contacts = ContactRepository(session)
+        self._events = ContactEventService(session)
         self._audit = AuditService(session)
 
     @staticmethod
@@ -123,6 +126,12 @@ class ContactService:
         )
         self._apply_opt_in(contact, opt_in_status, now)
         await self._contacts.add(contact)
+        await self._events.record(
+            organization_id=organization_id,
+            contact_id=contact.id,
+            event_type=EVENT_CONTACT_CREATED,
+            payload={"source": source},
+        )
         await self._audit.record(
             AuditAction.CONTACT_CREATED,
             actor_user_id=actor.id,
@@ -132,6 +141,9 @@ class ContactService:
             after={"wa_id": wa_id, "phone_e164": phone_e164},
         )
         await self._session.commit()
+        # A newly created row never loaded its relationships; populate them here (in the
+        # async context) so serialization never triggers a lazy load.
+        await self._session.refresh(contact, ["tags"])
         return contact
 
     async def update_contact(
@@ -150,7 +162,14 @@ class ContactService:
         for key, value in fields.items():
             setattr(contact, key, value)
         if opt_in_status is not None and opt_in_status != contact.opt_in_status:
+            previous = contact.opt_in_status
             self._apply_opt_in(contact, opt_in_status, utcnow())
+            await self._events.record(
+                organization_id=organization_id,
+                contact_id=contact.id,
+                event_type=EVENT_OPTIN_CHANGED,
+                payload={"from": previous, "to": opt_in_status},
+            )
         contact.updated_by = actor.id
         contact.row_version += 1
         await self._contacts.flush()

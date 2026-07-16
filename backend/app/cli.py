@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.config import settings
 from app.core.security import hash_password, validate_password_policy
+from app.crm.seeding import sync_default_pipeline
 from app.db.session import dispose_engine, get_sessionmaker
 from app.models.organization import Organization
 from app.models.user import User
@@ -64,6 +65,8 @@ async def bootstrap_owner(
         await sync_permissions(session)
         roles = await sync_system_roles(session, organization.id)
         owner_role = next(role for role in roles if role.name == ROLE_OWNER)
+        # The platform ships a default lead pipeline (Doc 07 §19.2).
+        await sync_default_pipeline(session, organization.id)
 
         user_repo = UserRepository(session)
         existing = await user_repo.get_by_email(normalized_email)

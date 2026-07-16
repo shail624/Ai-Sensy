@@ -46,6 +46,17 @@ class AuditAction:
     CONTACT_CREATED = "contact.created"
     CONTACT_UPDATED = "contact.updated"
     CONTACT_DELETED = "contact.deleted"
+    CONTACT_TAGGED = "contact.tagged"
+    CONTACT_UNTAGGED = "contact.untagged"
+    TAG_CREATED = "tag.created"
+    TAG_UPDATED = "tag.updated"
+    TAG_DELETED = "tag.deleted"
+    LEAD_PIPELINE_CREATED = "lead_pipeline.created"
+    LEAD_PIPELINE_UPDATED = "lead_pipeline.updated"
+    LEAD_PIPELINE_DELETED = "lead_pipeline.deleted"
+    LEAD_STAGE_CREATED = "lead_stage.created"
+    LEAD_STAGE_UPDATED = "lead_stage.updated"
+    LEAD_STAGE_DELETED = "lead_stage.deleted"
 
 
 class AuditService:

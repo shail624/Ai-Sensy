@@ -14,9 +14,11 @@ from app.api.v1.endpoints import (
     audit,
     auth,
     contacts,
+    leads,
     organization,
     roles,
     settings,
+    tags,
     users,
 )
 
@@ -31,5 +33,7 @@ api_router.include_router(settings.router, tags=["Settings"])
 api_router.include_router(api_keys.router, tags=["API Keys"])
 api_router.include_router(audit.router, tags=["Audit"])
 
-# Module 2 — Contacts (Doc 04 §14).
+# Module 2 — Contacts CRM (Doc 04 §14; Doc 07 §19/§23 lead model).
 api_router.include_router(contacts.router, tags=["Contacts"])
+api_router.include_router(tags.router, tags=["Tags"])
+api_router.include_router(leads.router, tags=["Leads"])

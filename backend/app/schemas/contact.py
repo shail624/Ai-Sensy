@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.api.pagination import Page
 from app.models.contact import OPT_IN_STATUSES, Contact
+from app.schemas.tag import TagSummary
 
 # E.164: '+' then 8–15 digits, first digit non-zero (Doc 04 §14 validation).
 _E164 = re.compile(r"^\+[1-9]\d{7,14}$")
@@ -47,6 +48,7 @@ class ContactResponse(BaseModel):
     last_outbound_at: datetime | None
     last_contacted_at: datetime | None
     source: str | None
+    tags: list[TagSummary]
     created_at: datetime
     updated_at: datetime
     row_version: int
@@ -54,6 +56,7 @@ class ContactResponse(BaseModel):
     @classmethod
     def from_contact(cls, contact: Contact) -> ContactResponse:
         return cls(
+            tags=[TagSummary.from_tag(tag) for tag in contact.tags],
             id=contact.public_id,
             wa_id=contact.wa_id,
             phone_e164=contact.phone_e164,

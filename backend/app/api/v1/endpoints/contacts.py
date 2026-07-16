@@ -17,7 +17,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit
+from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.repositories.contact import ContactRepository
@@ -27,7 +27,11 @@ from app.schemas.contact import (
     ContactsPage,
     ContactUpdateRequest,
 )
+from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
+from app.schemas.tag import ContactTagsRequest
+from app.services.contact_event_service import ContactEventService
 from app.services.contact_service import ContactService
+from app.services.tag_service import TagService
 
 router = APIRouter()
 
@@ -183,4 +187,74 @@ async def delete_contact(
 ) -> None:
     await ContactService(session).delete_contact(
         organization_id=actor.organization_id, actor=actor, public_id=contact_id
+    )
+
+
+# --- Contact sub-resources: tags & timeline (Doc 04 §14.1) ------------------
+@router.post(
+    "/contacts/{contact_id}/tags",
+    response_model=ContactResponse,
+    summary="Add tags to a contact",
+)
+async def add_contact_tags(
+    contact_id: uuidlib.UUID,
+    payload: ContactTagsRequest,
+    session: SessionDep,
+    actor: ContactsWriteActor,
+) -> ContactResponse:
+    contact = await TagService(session).add_tags_to_contact(
+        organization_id=actor.organization_id,
+        actor=actor,
+        contact_uuid=contact_id,
+        tag_uuids=payload.tags,
+    )
+    return ContactResponse.from_contact(contact)
+
+
+@router.delete(
+    "/contacts/{contact_id}/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a tag from a contact",
+)
+async def remove_contact_tag(
+    contact_id: uuidlib.UUID,
+    tag_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: ContactsWriteActor,
+) -> None:
+    await TagService(session).remove_tag_from_contact(
+        organization_id=actor.organization_id,
+        actor=actor,
+        contact_uuid=contact_id,
+        tag_uuid=tag_id,
+    )
+
+
+@router.get(
+    "/contacts/{contact_id}/timeline",
+    response_model=ContactTimelinePage,
+    summary="Contact activity timeline",
+)
+async def contact_timeline(
+    contact_id: uuidlib.UUID,
+    request: Request,
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> ContactTimelinePage:
+    contact = await ContactService(session).get_contact(actor.organization_id, contact_id)
+    params = request.query_params
+    limit = clamp_limit(params.get("limit"))
+    raw_cursor = params.get("cursor")
+    events, has_more, total = await ContactEventService(session).list_for_contact(
+        contact.id,
+        limit=limit,
+        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        event_type=params.get("filter[event_type][eq]"),
+    )
+    next_cursor = (
+        encode_cursor(events[-1].created_at, events[-1].id) if has_more and events else None
+    )
+    return ContactTimelinePage(
+        data=[ContactEventResponse.from_event(e) for e in events],
+        page=Page(limit=limit, has_more=has_more, next_cursor=next_cursor, total=total),
     )

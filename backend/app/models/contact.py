@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import CHAR, JSON, Boolean, CheckConstraint, ForeignKey, Index, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.mixins import (
@@ -23,6 +23,7 @@ from app.db.mixins import (
     VersionMixin,
 )
 from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6
+from app.models.tag import Tag, contact_tags
 
 OPT_IN_UNKNOWN = "unknown"
 OPT_IN_OPTED_IN = "opted_in"
@@ -80,6 +81,16 @@ class Contact(
     last_contacted_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     source: Mapped[str | None] = mapped_column(String(40), nullable=True)
     attributes_cache: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # Eager-loaded so a fetched/listed contact always carries its tags (Doc 04 §14 schema);
+    # selectin issues one extra query per page, avoiding N+1. Writes go through contact_tags.
+    tags: Mapped[list[Tag]] = relationship(
+        Tag,
+        secondary=contact_tags,
+        lazy="selectin",
+        order_by=Tag.name,
+        viewonly=True,
+    )
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<Contact id={self.id} wa_id={self.wa_id!r}>"

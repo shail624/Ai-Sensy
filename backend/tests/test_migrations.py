@@ -34,6 +34,11 @@ _EXPECTED_TABLES = {
     "feature_flags",
     "api_keys",
     "contacts",
+    "tags",
+    "contact_tags",
+    "contact_events",
+    "lead_pipelines",
+    "lead_stages",
 }
 
 
@@ -73,7 +78,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0005_contacts"
+        assert version == "0006_tags_events_leads"
     finally:
         con.close()
 
