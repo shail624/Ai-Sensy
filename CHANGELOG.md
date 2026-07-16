@@ -47,6 +47,31 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## Module releases
 
+### 2026-07-16 — **Storage Foundation** FROZEN (`v0.4.0-storage-foundation`)
+**Scope delivered (migration 0010):** storage abstraction + provider registry (Doc 8 §14,
+FR-MED-06, DD16) with a **local volume provider** (default) and an **S3-compatible provider
+contract** that registers without touching callers — selecting an unregistered backend fails
+loudly rather than degrading; **signed URL framework** (FR-MED-09: HMAC binds media id to
+expiry, constant-time verify, expired→410 distinct from invalid→403); **media validation**
+(FR-MED-01..04: per-type MIME allow-lists + Cloud API size ceilings → 413/415/422 *before* any
+bytes are stored); **virus scan interface** (Doc 8 §26 — contract + hook only, no scanner ships,
+fail-closed if a configured scanner errors); **upload/download services** (validate → scan →
+hash → dedup → store → record; SHA-256 dedup per org, FR-MED-05). `media_assets` (Doc 3 §7.2)
+holds metadata + a reference — **never blobs**. APIs: `POST /media/upload`, `GET /media`,
+`GET /media/{id}`, `GET /media/{id}/content` (signed URL), `GET /media/{id}/download`
+(signature-authenticated), `DELETE /media/{id}`. RBAC `media:read`/`media:write`; audited.
+
+**Security fix (found by test):** the local provider stripped `..` textually, which could yield
+an absolute path that re-rooted the join and escaped the storage root. Keys are now resolved and
+required to stay under the root.
+
+**State at freeze:** 203 backend tests passing, ruff clean, migrations 0001–0010 reversible,
+zero drift.
+
+**Not built (their own modules):** media processing (thumbnails/transcode), Meta media-id
+refresh/caching (FR-MED-07), retention sweeps (FR-MED-08), a concrete S3 provider, a concrete
+virus scanner.
+
 ### 2026-07-16 — **Module 6 — Queue Engine Foundation** FROZEN (`v0.3.0-queue-foundation`)
 **Scope delivered (branch `feature/module6-queue-engine`, migration 0009):** Celery application
 (Redis broker/backend; `task_acks_late` + `task_reject_on_worker_lost` + `prefetch_multiplier=1`
