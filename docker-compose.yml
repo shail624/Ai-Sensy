@@ -1,0 +1,47 @@
+# Local development infrastructure (Doc 08 §6/§10/§11).
+# Provides the stateful dependencies (MySQL 8, Redis 7) the backend needs to run
+# locally. In development the backend (uvicorn) and frontend (vite) run on the host;
+# full app containerization + Nginx is delivered in the deployment step.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: wa_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-wa_platform}
+      MYSQL_USER: ${DB_USER:-wa_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-wa_app}
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_0900_ai_ci
+      --default-authentication-plugin=caching_sha2_password
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: wa_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:
+  redis-data:
