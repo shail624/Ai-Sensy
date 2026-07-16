@@ -121,6 +121,40 @@ def error_report_csv(errors: list[RowError]) -> bytes:
     return buffer.getvalue().encode("utf-8")
 
 
+def bulk_error_report_csv(errors: list[dict[str, Any]]) -> bytes:
+    """Render per-item bulk failures as a downloadable report (Doc 04 §29 ``error_report_url``).
+
+    Distinct from :func:`error_report_csv`: a bulk item is identified by its contact id, not by a
+    spreadsheet row number.
+    """
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["contact_id", "code", "message"])
+    for item in errors:
+        writer.writerow([item.get("id") or "", item.get("code", ""), item.get("message", "")])
+    return buffer.getvalue().encode("utf-8")
+
+
+#: Columns of the duplicate-scan report (FR-CON-06 ``mode=report``).
+DEDUP_REPORT_COLUMNS = ("key", "value", "duplicate_count", "primary_id", "duplicate_ids")
+
+
+def dedup_report_header() -> bytes:
+    """Header of the dedup report, written once before streaming groups."""
+    buffer = io.StringIO()
+    csv.writer(buffer).writerow(DEDUP_REPORT_COLUMNS)
+    return buffer.getvalue().encode("utf-8")
+
+
+def dedup_report_rows(groups: list[dict[str, Any]]) -> bytes:
+    """Render one batch of duplicate groups — called per batch so a large scan streams."""
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=DEDUP_REPORT_COLUMNS, extrasaction="ignore")
+    for group in groups:
+        writer.writerow(group)
+    return buffer.getvalue().encode("utf-8")
+
+
 #: Columns written by a contact export, in order (FR-CON-15).
 EXPORT_COLUMNS = (
     "phone_e164",

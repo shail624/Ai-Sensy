@@ -21,6 +21,7 @@ from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6
 # Canonical event types recorded by this module (Doc 03 §6.5 examples).
 EVENT_CONTACT_CREATED = "contact_created"
 EVENT_CONTACT_UPDATED = "contact_updated"
+EVENT_CONTACT_MERGED = "contact_merged"
 EVENT_OPTIN_CHANGED = "optin_changed"
 EVENT_TAG_ADDED = "tag_added"
 EVENT_TAG_REMOVED = "tag_removed"

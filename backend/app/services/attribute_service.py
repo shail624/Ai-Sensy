@@ -180,8 +180,12 @@ class AttributeService:
         await self._session.commit()
 
     # --- Values on a contact -------------------------------------------------
-    async def _refresh_cache(self, contact: Contact) -> None:
-        """Mirror indexed (hot) attributes into ``contacts.attributes_cache`` (Doc 03 §6.3)."""
+    async def refresh_cache(self, contact: Contact) -> None:
+        """Mirror indexed (hot) attributes into ``contacts.attributes_cache`` (Doc 03 §6.3).
+
+        Public because any writer that moves attribute values (e.g. a duplicate merge) must
+        rebuild the cache by the same rule rather than restating it.
+        """
         rows = await self._values.list_for_contact(contact.id)
         cache: dict[str, Any] = {}
         for row in rows:
@@ -236,7 +240,7 @@ class AttributeService:
             setattr(row, VALUE_COLUMN[definition.data_type], value)
         await self._session.flush()
 
-        await self._refresh_cache(contact)
+        await self.refresh_cache(contact)
         contact.updated_by = actor.id
         contact.row_version += 1
         await self._contacts.flush()

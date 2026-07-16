@@ -47,6 +47,44 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## Module releases
 
+### 2026-07-17 — **Module 2 — Step 5C: bulk operations & duplicate merge** (migration 0013)
+**Scope delivered:** the last CRM items deferred to the Queue Engine (CHANGELOG 2026-07-16 deferral
+table) — **bulk update** (FR-CON-07: `add_tags` / `remove_tags` / `set_attributes`), **bulk delete**
+(FR-CON-08, soft), and **duplicate scan / merge** (FR-CON-06, `report` or `merge`). All three are
+async-only per Doc 04 §14.1: `POST /contacts/bulk-update`, `POST /contacts/bulk-delete`,
+`POST /contacts/deduplicate` return **`202` + job** and run on the Queue Engine; progress and the
+**§29 partial-success envelope** are polled at `GET /contacts/bulk/{uuid}`. RBAC `contacts:write`
+(already seeded — no catalog change); every operation audited (`bulk.started`, `bulk.completed`,
+`contact.merged`).
+
+**Design decisions (each traceable to a frozen doc):**
+- **Addressing** follows Doc 04 §30's two mutually-exclusive modes — explicit `ids` or a `filter` —
+  with the optional **`expected_count` safety guard** (resolved count differs → **409**, act on
+  nothing). Filters reuse the **same rule compiler** segments/search/export use, so one audience
+  definition serves all four.
+- **Per-item commit** (Doc 04 §29): a rejected contact lands in `errors[]` (capped at 100) plus a
+  signed, downloadable `error_report_url`, and never rolls back the rest.
+- **Idempotent by construction** (Doc 06 §8): attaching a present tag, deleting a deleted contact and
+  merging an already-merged group are all no-ops, so at-least-once redelivery converges without
+  snapshotting a million-row selection. Every action is applied **through the CRM's own services**, so
+  a bulk edit obeys the same validation/timeline/audit rules as the single-contact endpoints.
+- **Merge semantics** (FR-CON-06): the **oldest** contact of a group survives; blanks are filled from
+  duplicates (a set primary field is never overwritten), tags and attribute values move across, the
+  duplicate is soft-deleted, and the merge is recorded on the survivor's timeline (`contact_merged`).
+  `wa_id`/`phone_e164` are never merged — they are the survivor's identity.
+- **Memory-bounded**: the audience is walked in keyset batches and the dedup scan pages over *groups*,
+  so a 1M-row table never materialises.
+
+**State:** 237 backend tests passing (+16), ruff clean, migrations 0001–0013 reversible, zero
+model↔migration drift, OpenAPI 3.1.0 valid (62 paths / 87 operations).
+
+**Deferred (unchanged by this step):** `Idempotency-Key` (Doc 04 §8) and the `bulk`/`read`/`write`
+rate classes (Doc 04 §9) are **cross-cutting** and remain unbuilt — import/export shipped without
+them too. They should be retrofitted across every side-effectful POST in one step, not bolted onto
+contacts alone. Doc 04 §30's wider bulk family (`/contacts/bulk` create, `/contacts/bulk-tag`,
+`/contacts/bulk-attributes`, `/campaigns/bulk-action`, `/templates/bulk`) belongs to its own module;
+this step delivers only the three endpoints Doc 04 §14.1 scopes to contacts.
+
 ### 2026-07-16 — **Storage Foundation** FROZEN (`v0.4.0-storage-foundation`)
 **Scope delivered (migration 0010):** storage abstraction + provider registry (Doc 8 §14,
 FR-MED-06, DD16) with a **local volume provider** (default) and an **S3-compatible provider
@@ -127,6 +165,45 @@ designated modules: password reset (email), MFA (Doc 12 §56 "Future"), user act
 ---
 
 ## Change log entries
+
+### 2026-07-17 — Implementation order: frontend (M2) deferred — backend-first until the APIs are complete
+**Reason:** Owner ruling. The frontend is deliberately deferred until the backend API surface is
+complete, so the SPA is built once against a settled contract rather than chased across modules.
+**Deviation from:** Doc 12 §15 / §42, which order delivery **M1 → M2 (Frontend Shell + Auth UI) →
+M3 (Contacts) → M4 …**. Implementation has instead run M1 → M3 (Contacts) → Queue Engine → Storage
+→ M3 async completion, leaving **M2 unbuilt** (`frontend/` holds only the scaffold committed with
+M1: shell, theme, React Query, two routes — no login, no protected routing).
+**Why this is safe:** Doc 12 §14's dependency graph is **not** violated — M2 depends on M1 (built),
+and nothing built so far depends on M2. Only the *order* changed, not the dependency rule. The
+Queue Engine and Storage Foundation were likewise built ahead of their manifest position because
+M3's import/export/bulk items depend on them (Doc 04 §14.1 mandates `202 + job`).
+**Impact:** No frozen document edited. §15/§42 remain the canonical order; this entry records the
+approved departure. M2 re-enters the sequence once the backend APIs are complete.
+**Naming note (no code impact):** commit/tag labels do not match the Doc 12 §56 manifest — "Module 2"
+in git history is manifest **M3 (Contacts)**, and "Module 6 — Queue Engine" is the async fabric, not
+manifest **M6 (Campaigns)**, which is not started. The manifest remains authoritative.
+
+### 2026-07-17 — Module 2 Step 5C — additive deviations required to deliver bulk operations
+**Reason:** Delivering Doc 04 §14.1's `bulk-update` / `bulk-delete` / `deduplicate` surfaced two gaps
+in the frozen set. Recorded here per the §27 change-management rule; **no frozen document edited**.
+1. **New table `bulk_jobs`** (migration 0013), additive, reversible, sitting beside `imports`/`exports`
+   in the Doc 03 §11.6 job-record family. *Why:* Doc 04 §30 says async bulk ops report
+   `processed/total/succeeded/failed`, but Doc 03 §11.7's `job_metadata` has **no progress columns
+   and no `organization_id`**, and `imports` cannot be reused (`format` is `NOT NULL`, and its
+   `source_key`/`mapping_json` are file-import specific). Doc 12 §56 lists no bulk table for M3
+   because §30 assumed `job_metadata` would carry this; it cannot.
+2. **Poll endpoint `GET /contacts/bulk/{uuid}`** (`contacts:write`) instead of Doc 04 §30's
+   "poll `GET /jobs/{uuid}`". *Why:* §22 gates `/jobs/{uuid}` behind **`system:read`** and
+   `job_metadata` is organization-blind, so that route can serve neither a `contacts:write` operator
+   nor tenant scoping — §30 and §22 contradict each other. The chosen shape is the one §14.1 already
+   defines for the import/export progress endpoints.
+3. **Queue placement:** bulk work runs on the existing **`imports`** queue — Doc 06 §2.3 scopes it to
+   long-running CRM "parse, validate, dedup, upsert" work (P3, Jobs pool, 300s/600s,
+   `job=failed + error report`), and Doc 12 §56 grants M3 no other write queue. **No queue was added**
+   to the frozen §2.3 taxonomy; the three operations stay independently traceable via distinct task
+   names.
+**Impact:** Additive only. Docs 3/4/6/12 unedited; if the owner wants the frozen text reconciled to
+match, that is a separate documentation pass.
 
 ### 2026-07-16 — FINAL architecture additive pass (A–E) — architecture PERMANENTLY FROZEN
 **Reason:** Owner-approved final enterprise additions (A–E). Purely additive; existing content, numbering,

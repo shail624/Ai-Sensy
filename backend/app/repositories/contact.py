@@ -23,6 +23,19 @@ _SORT_COLUMNS = {
 }
 _NULLABLE_SORTS = {"full_name", "last_inbound_at"}
 
+#: Columns a dedup scan may group on (FR-CON-06). Values are compared case-insensitively and
+#: trimmed, so "A@x.com " and "a@x.com" are one group.
+_DEDUP_COLUMNS = {
+    "wa_id": Contact.wa_id,
+    "phone_e164": Contact.phone_e164,
+    "email": Contact.email,
+    "full_name": Contact.full_name,
+}
+
+
+def _normalized(column):
+    return func.lower(func.trim(column))
+
 
 class ContactRepository(BaseRepository[Contact]):
     model = Contact
@@ -59,6 +72,69 @@ class ContactRepository(BaseRepository[Contact]):
             Contact.organization_id == organization_id, Contact.wa_id == wa_id
         )
         return (await self.session.scalars(stmt)).first() is not None
+
+    async def get_active_by_uuids(
+        self, organization_id: int, public_ids: list[bytes]
+    ) -> list[Contact]:
+        """Resolve an explicit selection (Doc 04 §30 ``ids`` addressing mode)."""
+        if not public_ids:
+            return []
+        stmt = select(Contact).where(
+            Contact.organization_id == organization_id,
+            Contact.uuid.in_(public_ids),
+            Contact.deleted_at.is_(None),
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    # --- Duplicate detection (FR-CON-06) -------------------------------------
+    @staticmethod
+    def dedup_column(key: str):
+        """The contact column a dedup scan groups on; raises 400 for anything else."""
+        if key not in _DEDUP_COLUMNS:
+            raise BadRequestError(f"Cannot deduplicate by {key!r}.")
+        return _DEDUP_COLUMNS[key]
+
+    async def duplicate_key_values(
+        self, organization_id: int, key: str, *, limit: int, offset: int
+    ) -> list[str]:
+        """One page of key values held by **more than one** live contact.
+
+        Paginating the *groups* (not the contacts) keeps a scan over a 1M-row table bounded:
+        the worker holds one group at a time, never the whole duplicate set.
+        """
+        column = self.dedup_column(key)
+        normalized = _normalized(column)
+        stmt = (
+            select(normalized)
+            .where(
+                Contact.organization_id == organization_id,
+                Contact.deleted_at.is_(None),
+                column.isnot(None),
+                func.trim(column) != "",
+            )
+            .group_by(normalized)
+            .having(func.count() > 1)
+            .order_by(normalized)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [row for row in (await self.session.scalars(stmt)).all() if row is not None]
+
+    async def list_active_by_key(
+        self, organization_id: int, key: str, value: str
+    ) -> list[Contact]:
+        """Every live contact sharing ``value`` on ``key``, oldest first (the merge primary)."""
+        column = self.dedup_column(key)
+        stmt = (
+            select(Contact)
+            .where(
+                Contact.organization_id == organization_id,
+                Contact.deleted_at.is_(None),
+                _normalized(column) == value,
+            )
+            .order_by(Contact.created_at.asc(), Contact.id.asc())
+        )
+        return list((await self.session.scalars(stmt)).all())
 
     def _filters(
         self,

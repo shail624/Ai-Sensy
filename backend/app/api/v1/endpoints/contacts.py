@@ -2,9 +2,8 @@
 
 Reads require ``contacts:read``; writes require ``contacts:write`` (Owner superuser bypasses).
 Contacts are organization-scoped. Listing supports keyset pagination, quick search (``q``),
-filters (``filter[...]``), and whitelisted sorting. Import and export are async only: they
-return ``202`` with a poll URL and run on the Queue Engine. Bulk operations and duplicate
-merge are later steps and are not implemented here.
+filters (``filter[...]``), and whitelisted sorting. Import, export, bulk operations and duplicate
+merge are async only: they return ``202`` with a poll URL and run on the Queue Engine.
 """
 
 from __future__ import annotations
@@ -24,6 +23,12 @@ from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.schemas.attribute import ContactAttributesRequest
+from app.schemas.bulk import (
+    BulkDeleteRequest,
+    BulkProgressResponse,
+    BulkUpdateRequest,
+    DeduplicateRequest,
+)
 from app.schemas.contact import (
     ContactCreateRequest,
     ContactResponse,
@@ -41,6 +46,7 @@ from app.schemas.import_job import (
 from app.schemas.search import ContactSearchRequest
 from app.schemas.tag import ContactTagsRequest
 from app.services.attribute_service import AttributeService
+from app.services.bulk_service import BulkService
 from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
@@ -417,3 +423,109 @@ async def export_progress(
     service = ExportService(session)
     job = await service.get(actor.organization_id, export_id)
     return ExportProgressResponse.from_job(job, await service.download_url(job))
+
+
+# --- Bulk operations & duplicate merge (Doc 04 §14.1/§30) — async only, always 202 ---
+def _accepted(job) -> JobAcceptedResponse:
+    return JobAcceptedResponse(
+        job=JobEnvelope(
+            id=job.public_id,
+            type=job.operation,
+            status="queued",
+            poll_url=f"{settings.api_v1_prefix}/contacts/bulk/{job.public_id}",
+        )
+    )
+
+
+@router.post(
+    "/contacts/bulk-update",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Bulk edit tags/attributes over a selection or filter (async)",
+)
+async def bulk_update_contacts(
+    payload: BulkUpdateRequest, session: SessionDep, actor: ContactsWriteActor
+) -> JobAcceptedResponse:
+    """Enqueue the edit and return immediately — no contact is touched on this path."""
+    from app.crm.tasks import run_contact_bulk_update
+
+    job = await BulkService(session).start_bulk_update(
+        organization_id=actor.organization_id,
+        actor=actor,
+        action=payload.action,
+        payload=payload.payload,
+        ids=payload.ids,
+        filters=payload.filter.model_dump() if payload.filter else None,
+        expected_count=payload.expected_count,
+        dispatch=lambda bulk_id, task_id: run_contact_bulk_update.apply_async(
+            args=[bulk_id], task_id=task_id
+        ),
+    )
+    return _accepted(job)
+
+
+@router.post(
+    "/contacts/bulk-delete",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Bulk soft-delete over a selection or filter (async)",
+)
+async def bulk_delete_contacts(
+    payload: BulkDeleteRequest, session: SessionDep, actor: ContactsWriteActor
+) -> JobAcceptedResponse:
+    from app.crm.tasks import run_contact_bulk_delete
+
+    job = await BulkService(session).start_bulk_delete(
+        organization_id=actor.organization_id,
+        actor=actor,
+        ids=payload.ids,
+        filters=payload.filter.model_dump() if payload.filter else None,
+        expected_count=payload.expected_count,
+        dispatch=lambda bulk_id, task_id: run_contact_bulk_delete.apply_async(
+            args=[bulk_id], task_id=task_id
+        ),
+    )
+    return _accepted(job)
+
+
+@router.post(
+    "/contacts/deduplicate",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Run a duplicate scan — report or merge (async)",
+)
+async def deduplicate_contacts(
+    payload: DeduplicateRequest, session: SessionDep, actor: ContactsWriteActor
+) -> JobAcceptedResponse:
+    from app.crm.tasks import run_contact_deduplicate
+
+    job = await BulkService(session).start_deduplicate(
+        organization_id=actor.organization_id,
+        actor=actor,
+        keys=payload.keys,
+        mode=payload.mode,
+        dispatch=lambda bulk_id, task_id: run_contact_deduplicate.apply_async(
+            args=[bulk_id], task_id=task_id
+        ),
+    )
+    return _accepted(job)
+
+
+@router.get(
+    "/contacts/bulk/{bulk_id}",
+    response_model=BulkProgressResponse,
+    summary="Bulk job progress + partial-success result",
+)
+async def bulk_progress(
+    bulk_id: uuidlib.UUID, session: SessionDep, actor: ContactsWriteActor
+) -> BulkProgressResponse:
+    """The §29 partial-success envelope.
+
+    Bulk progress lives here rather than on ``GET /jobs/{uuid}`` (Doc 04 §30): that surface is
+    gated by ``system:read`` (§22) and ``job_metadata`` carries no organization, so it can serve
+    neither a ``contacts:write`` operator nor tenant scoping. This mirrors the import/export
+    poll endpoints §14.1 already defines.
+    """
+    service = BulkService(session)
+    job = await service.get(actor.organization_id, bulk_id)
+    return BulkProgressResponse.from_job(job, await service.error_report_url(job))
