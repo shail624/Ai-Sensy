@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, roles, users
+from app.api.v1.endpoints import auth, organization, roles, users
 
 api_router = APIRouter()
 
-# Module 1 — Authentication & RBAC (Doc 04 §11–§12).
+# Module 1 — Authentication & RBAC (Doc 04 §11–§13).
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(users.router, tags=["Users"])
 api_router.include_router(roles.router, tags=["RBAC"])
+api_router.include_router(organization.router, tags=["Organization"])
