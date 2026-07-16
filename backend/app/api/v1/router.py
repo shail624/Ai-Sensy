@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     api_keys,
     audit,
     auth,
+    contacts,
     organization,
     roles,
     settings,
@@ -29,3 +30,6 @@ api_router.include_router(organization.router, tags=["Organization"])
 api_router.include_router(settings.router, tags=["Settings"])
 api_router.include_router(api_keys.router, tags=["API Keys"])
 api_router.include_router(audit.router, tags=["Audit"])
+
+# Module 2 — Contacts (Doc 04 §14).
+api_router.include_router(contacts.router, tags=["Contacts"])

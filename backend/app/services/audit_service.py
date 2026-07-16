@@ -43,6 +43,9 @@ class AuditAction:
     PREFERENCES_UPDATED = "preferences.updated"
     API_KEY_CREATED = "api_key.created"
     API_KEY_REVOKED = "api_key.revoked"
+    CONTACT_CREATED = "contact.created"
+    CONTACT_UPDATED = "contact.updated"
+    CONTACT_DELETED = "contact.deleted"
 
 
 class AuditService:
