@@ -85,6 +85,19 @@ class Settings(BaseSettings):
     #: How long a generated export stays downloadable (Doc 03 §11.6 exports.expires_at).
     storage_export_ttl_days: int = 7
 
+    # ---- Meta Cloud API — Channel 1 (Doc 07 §5; Doc 01 CMP-01) -----------
+    # Credentials are environment-only (Doc 01 §5.4: no secrets in code). Per-WABA tokens are
+    # stored on `whatsapp_business_accounts` when that module is built; these are the process
+    # defaults an adapter falls back to.
+    meta_api_base_url: str = "https://graph.facebook.com"
+    meta_api_version: str = "v21.0"
+    meta_access_token: str = ""
+    meta_phone_number_id: str = ""
+    meta_waba_id: str = ""
+    #: Per-request timeout. Matches the send queues' 15s soft timeout (Doc 06 §2.3) so a hung
+    #: Meta call fails inside the task rather than pinning a worker to its hard timeout.
+    meta_timeout_seconds: float = 15.0
+
     # ---- CORS (Doc 04 §25) ------------------------------------------------
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
