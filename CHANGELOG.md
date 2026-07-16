@@ -47,7 +47,54 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## Module releases
 
-### 2026-07-17 — **Module 2 — Step 5C: bulk operations & duplicate merge** (migration 0013)
+### 2026-07-17 — **Module 2 — CRM COMPLETE** FROZEN (`v0.5.4-module2-foundation`)
+Closes the module opened by `v0.2.0-crm-foundation`, whose async half was deferred by dependency to
+the Queue Engine + Storage. **Every mandatory SRS contact requirement is now built:** FR-CON-01/02
+(CRUD, keyset pagination at 1M+), **03/04** (CSV **and Excel** import with column mapping + per-row
+validation), **05** (async import: progress + downloadable error report), **06** (duplicate detection
+with `skip`/`merge`/`overwrite` on import, plus a standalone dedup scan/merge), **07/08** (bulk edit
+and bulk soft-delete over a selection or filter), **09** (tags), **10** (segments), **11** (typed
+custom attributes), **12** (advanced AND/OR search), **14** (activity timeline), **15** (export to
+**CSV / Excel / JSON**).
+
+**Steps:** 1–4 = `v0.2.0-crm-foundation` (sync surface) · 5A `v0.5.0-module2-import` · 5B
+`v0.5.1-module2-export` · 5C `v0.5.2-module2-bulk` · 5D `v0.5.3-module2-formats`.
+**Migrations:** 0005–0008 (contacts, tags/events/leads, segments, custom attributes), 0011 (imports),
+0012 (exports), 0013 (bulk_jobs).
+**State at freeze:** 249 backend tests passing, ruff clean, migrations 0001–0013 reversible, zero
+model↔migration drift, OpenAPI 3.1.0 valid (62 paths / 87 operations). RBAC uses only seeded catalog
+permissions (`contacts:*`, `segments:*`).
+
+**Architectural note.** The async CRM is deliberately thin: every bulk path (import, export,
+bulk-update/delete, merge) resolves its audience through the **same rule compiler** as segments and
+search, walks it in **keyset batches**, and applies each item **through the CRM's own services** — so
+a row created by an import and a row edited in bulk obey exactly the same validation, timeline and
+audit rules as one touched through the single-contact API. Format is only a rendering choice
+(`app/crm/formats.py`); the audience and columns are shared.
+
+**Still deferred (unchanged, by dependency — NOT missing):**
+| Deferred | Reason | Lands with |
+|---|---|---|
+| Auto opt-out on "STOP" (FR-CON-13, the requirement's second half; status field itself is built) | Needs inbound message handling | Messaging (M4) |
+| Internal notes, contact assignment, `conversation_lead`/`lead_stage_transitions` | Frozen docs scope these to `conversations` | Inbox (M7) |
+| `Idempotency-Key` (Doc 04 §8), `bulk`/`read`/`write` rate classes (Doc 04 §9) | **Cross-cutting** — belong to every side-effectful POST, not to contacts alone; import/export/bulk all shipped without them | Own hardening step |
+| Doc 04 §30's wider bulk family (`/contacts/bulk` create, `bulk-tag`, `bulk-attributes`, `/campaigns/bulk-action`, `/templates/bulk`) | Out of §14.1's contact scope | Their own modules |
+
+### 2026-07-17 — **Module 2 — Step 5D: Excel import, Excel & JSON export** (`v0.5.3-module2-formats`)
+**Scope delivered (no migration, no new endpoint):** **`.xlsx` import** (FR-CON-04) and **Excel/JSON
+export** (FR-CON-15) — the last two mandatory CRM requirements, and ones the schema already promised:
+`exports.format`'s `ck_exports_format` constraint (Doc 03 §11.6) and Doc 06 §2.3 (`exports` =
+"CSV/Excel/JSON") declared all three formats while the services accepted only CSV.
+
+**Reuse over reimplementation:** `read_xlsx` returns the **same header-keyed rows** as `read_csv`, so
+the import pipeline's mapping, validation and error report are format-agnostic and untouched; the
+export gains a per-format **writer** while the audience, `EXPORT_COLUMNS` and keyset streaming loop
+stay shared. CSV output is byte-for-byte unchanged (asserted by test). Excel quirks handled at the
+reader: a phone typed as a number renders as `14155550001`, never `1.4155550001e+10`; blank trailing
+rows are dropped. Adds `openpyxl` (read-only / write-only modes, so neither direction builds a full
+cell graph). **State:** 249 tests passing (+11), ruff clean.
+
+### 2026-07-17 — **Module 2 — Step 5C: bulk operations & duplicate merge** (`v0.5.2-module2-bulk`, migration 0013)
 **Scope delivered:** the last CRM items deferred to the Queue Engine (CHANGELOG 2026-07-16 deferral
 table) — **bulk update** (FR-CON-07: `add_tags` / `remove_tags` / `set_attributes`), **bulk delete**
 (FR-CON-08, soft), and **duplicate scan / merge** (FR-CON-06, `report` or `merge`). All three are
@@ -84,6 +131,34 @@ them too. They should be retrofitted across every side-effectful POST in one ste
 contacts alone. Doc 04 §30's wider bulk family (`/contacts/bulk` create, `/contacts/bulk-tag`,
 `/contacts/bulk-attributes`, `/campaigns/bulk-action`, `/templates/bulk`) belongs to its own module;
 this step delivers only the three endpoints Doc 04 §14.1 scopes to contacts.
+
+### 2026-07-16 — **Module 2 — Step 5B: contact export (async)** (`v0.5.1-module2-export`, migration 0012)
+*(Backfilled 2026-07-17: the tag shipped without its changelog entry, which the governance policy
+above requires.)*
+**Scope delivered:** `exports` (Doc 03 §11.6) + `POST /contacts/export` → **`202` + job** and
+`GET /contacts/export/{uuid}` → progress + **signed, expiring download URL** (FR-CON-15, CSV at this
+step; Excel/JSON landed in 5D). Runs on the Doc 06 §2.3 `exports` queue. The filter resolves through
+the **same compiler** segments/search use, so an export returns exactly what its preview showed, and
+the result is walked in **keyset batches** rendered incrementally — a 1M-row export never
+materialises 1M ORM objects. The artifact is written through the **Storage** abstraction and bounded
+by `expires_at` (an expired export stops serving a URL). Re-running regenerates rather than
+duplicating (Doc 06 §8). RBAC `contacts:export`; audited (`export.started` / `export.completed`).
+**State at the time:** 213 tests passing, ruff clean, zero drift.
+
+### 2026-07-16 — **Module 2 — Step 5A: contact import (async)** (`v0.5.0-module2-import`, migration 0011)
+*(Backfilled 2026-07-17: the tag shipped without its changelog entry, which the governance policy
+above requires.)*
+**Scope delivered:** `imports` (Doc 03 §11.6) + `POST /contacts/import` → **`202` + job** and
+`GET /contacts/import/{uuid}` → progress + **downloadable error report** (FR-CON-03/05/06). The
+request path never parses a byte: the file is uploaded first via Media (§16) and referenced by
+`upload_id`; the work runs on the Doc 06 §2.3 `imports` queue. Rows stream through the CRM's own
+`ContactService`, so an imported contact is validated, deduped, timelined and audited by exactly the
+same rules as one created through the API — no duplicated business logic. A bad row is collected
+into the error report and **never aborts the import**; progress is committed as it goes and
+already-imported rows are no-ops under `skip`/`merge`, so a retried task converges (Doc 06 §8).
+Dedup `skip`/`merge`/`overwrite` on normalized `wa_id` (FR-CON-06). RBAC `contacts:import`; audited
+(`import.started` / `import.completed`).
+**State at the time:** 203 → 213 tests passing, ruff clean, zero drift.
 
 ### 2026-07-16 — **Storage Foundation** FROZEN (`v0.4.0-storage-foundation`)
 **Scope delivered (migration 0010):** storage abstraction + provider registry (Doc 8 §14,
