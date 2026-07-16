@@ -16,17 +16,21 @@ from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
 from app.models.user import User
 from app.schemas.user import (
+    PreferencesResponse,
+    PreferencesUpdateRequest,
     UserCreateRequest,
     UserResponse,
     UsersPage,
     UserUpdateRequest,
 )
+from app.services.settings_service import SettingsService
 from app.services.user_service import UserService
 
 router = APIRouter()
 
 UsersReadActor = Annotated[User, Depends(require_permissions("users:read"))]
 UsersManageActor = Annotated[User, Depends(require_permissions("users:manage"))]
+SelfActor = Annotated[User, Depends(require_permissions("auth:self"))]
 
 
 def _bool_param(value: str | None) -> bool | None:
@@ -84,6 +88,30 @@ async def create_user(
         roles=payload.roles,
     )
     return UserResponse.from_user(user, roles)
+
+
+@router.get(
+    "/users/me/preferences",
+    response_model=PreferencesResponse,
+    summary="Get own preferences",
+)
+async def get_preferences(session: SessionDep, actor: SelfActor) -> PreferencesResponse:
+    prefs = await SettingsService(session).get_preferences(actor)
+    return PreferencesResponse(preferences=prefs)
+
+
+@router.put(
+    "/users/me/preferences",
+    response_model=PreferencesResponse,
+    summary="Update own preferences",
+)
+async def update_preferences(
+    payload: PreferencesUpdateRequest, session: SessionDep, actor: SelfActor
+) -> PreferencesResponse:
+    prefs = await SettingsService(session).update_preferences(
+        user=actor, preferences=payload.preferences
+    )
+    return PreferencesResponse(preferences=prefs)
 
 
 @router.get("/users/{user_id}", response_model=UserResponse, summary="Get a user")

@@ -38,6 +38,11 @@ class AuditAction:
     USER_DEACTIVATED = "user.deactivated"
     USER_DELETED = "user.deleted"
     ORGANIZATION_UPDATED = "organization.updated"
+    SETTING_UPDATED = "setting.updated"
+    FEATURE_FLAG_UPDATED = "feature_flag.updated"
+    PREFERENCES_UPDATED = "preferences.updated"
+    API_KEY_CREATED = "api_key.created"
+    API_KEY_REVOKED = "api_key.revoked"
 
 
 class AuditService:

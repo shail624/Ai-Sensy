@@ -153,6 +153,19 @@ def new_jti() -> str:
     return str(uuid.uuid4())
 
 
+API_KEY_PREFIX_LEN = 12
+
+
+def generate_api_key() -> tuple[str, str]:
+    """Return ``(secret, key_prefix)`` for a new API key.
+
+    The full secret is shown to the caller **once**; only its SHA-256 hash and the short
+    ``key_prefix`` (for identification in the UI) are persisted (Doc 03 §4.4).
+    """
+    secret = "sk_live_" + secrets.token_urlsafe(36)
+    return secret, secret[:API_KEY_PREFIX_LEN]
+
+
 # --- IP address packing (Doc 03 §4.4 — VARBINARY(16)) -----------------------
 def pack_ip(ip: str | None) -> bytes | None:
     """Pack an IPv4/IPv6 string into its network-order bytes, or None if absent/invalid."""

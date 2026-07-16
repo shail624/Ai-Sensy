@@ -30,6 +30,9 @@ _EXPECTED_TABLES = {
     "refresh_tokens",
     "user_sessions",
     "audit_logs",
+    "settings",
+    "feature_flags",
+    "api_keys",
 }
 
 
@@ -69,7 +72,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0002_seed_permissions"
+        assert version == "0004_api_keys"
     finally:
         con.close()
 

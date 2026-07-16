@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -80,3 +81,11 @@ class UserUpdateRequest(BaseModel):
     is_active: bool | None = None
     roles: list[str] | None = None
     row_version: int | None = None
+
+
+class PreferencesResponse(BaseModel):
+    preferences: dict[str, Any]
+
+
+class PreferencesUpdateRequest(BaseModel):
+    preferences: dict[str, Any] = Field(min_length=1)
