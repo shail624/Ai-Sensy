@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # ---- Redis (Doc 06 §12; Doc 08 §11) ----------------------------------
     redis_url: str = "redis://localhost:6379/0"
 
+    # ---- Queue engine (Doc 06) -------------------------------------------
+    celery_result_expires_seconds: int = 86400  # 24h; job_metadata is the durable record
+    #: Worker heartbeat TTL — a worker missing this long is considered dead (Doc 06 §3.4).
+    worker_heartbeat_ttl_seconds: int = 60
+    worker_heartbeat_interval_seconds: int = 15
+
     # ---- CORS (Doc 04 §25) ------------------------------------------------
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 

@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     audit,
     auth,
     contacts,
+    jobs,
     leads,
     organization,
     roles,
@@ -41,3 +42,6 @@ api_router.include_router(tags.router, tags=["Tags"])
 api_router.include_router(attributes.router, tags=["Custom Attributes"])
 api_router.include_router(segments.router, tags=["Segments"])
 api_router.include_router(leads.router, tags=["Leads"])
+
+# Module 6 — Queue Engine (Doc 04 §22; Doc 06).
+api_router.include_router(jobs.router, tags=["Queue"])

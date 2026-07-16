@@ -13,6 +13,7 @@ from app.models.attribute import ContactAttributeValue, CustomAttributeDefinitio
 from app.models.audit import AuditLog
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
+from app.models.job import DeadLetter, JobMetadata
 from app.models.lead import LeadPipeline, LeadStage
 from app.models.organization import Organization
 from app.models.role import Permission, Role, UserRole, role_permissions
@@ -29,7 +30,9 @@ __all__ = [
     "ContactAttributeValue",
     "ContactEvent",
     "CustomAttributeDefinition",
+    "DeadLetter",
     "FeatureFlag",
+    "JobMetadata",
     "LeadPipeline",
     "LeadStage",
     "Organization",
