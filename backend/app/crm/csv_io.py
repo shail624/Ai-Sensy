@@ -119,3 +119,37 @@ def error_report_csv(errors: list[RowError]) -> bytes:
     for item in errors:
         writer.writerow([item.row_number, item.error, str(item.raw)])
     return buffer.getvalue().encode("utf-8")
+
+
+#: Columns written by a contact export, in order (FR-CON-15).
+EXPORT_COLUMNS = (
+    "phone_e164",
+    "wa_id",
+    "full_name",
+    "first_name",
+    "last_name",
+    "email",
+    "locale",
+    "country_code",
+    "opt_in_status",
+    "source",
+    "tags",
+    "created_at",
+)
+
+
+def export_header() -> bytes:
+    """The CSV header row, written once before streaming batches."""
+    buffer = io.StringIO()
+    csv.writer(buffer).writerow(EXPORT_COLUMNS)
+    return buffer.getvalue().encode("utf-8")
+
+
+def export_rows(rows: list[dict[str, Any]]) -> bytes:
+    """Render one batch of contact rows — called repeatedly so a large export never
+    materialises every row at once."""
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS, extrasaction="ignore")
+    for row in rows:
+        writer.writerow(row)
+    return buffer.getvalue().encode("utf-8")

@@ -47,6 +47,7 @@ _EXPECTED_TABLES = {
     "dead_letter",
     "media_assets",
     "imports",
+    "exports",
 }
 
 
@@ -86,7 +87,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0011_imports"
+        assert version == "0012_exports"
     finally:
         con.close()
 

@@ -54,6 +54,8 @@ class AuditAction:
     LEAD_PIPELINE_CREATED = "lead_pipeline.created"
     LEAD_PIPELINE_UPDATED = "lead_pipeline.updated"
     LEAD_PIPELINE_DELETED = "lead_pipeline.deleted"
+    EXPORT_STARTED = "export.started"
+    EXPORT_COMPLETED = "export.completed"
     IMPORT_STARTED = "import.started"
     IMPORT_COMPLETED = "import.completed"
     MEDIA_UPLOADED = "media.uploaded"

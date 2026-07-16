@@ -2,8 +2,9 @@
 
 Reads require ``contacts:read``; writes require ``contacts:write`` (Owner superuser bypasses).
 Contacts are organization-scoped. Listing supports keyset pagination, quick search (``q``),
-filters (``filter[...]``), and whitelisted sorting. Tags/attributes/timeline/import/export/
-bulk are later steps and are not implemented here.
+filters (``filter[...]``), and whitelisted sorting. Import and export are async only: they
+return ``202`` with a poll URL and run on the Queue Engine. Bulk operations and duplicate
+merge are later steps and are not implemented here.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from app.schemas.contact import (
     ContactUpdateRequest,
 )
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
+from app.schemas.export_job import ExportCreateRequest, ExportProgressResponse
 from app.schemas.import_job import (
     ImportCreateRequest,
     ImportProgressResponse,
@@ -42,6 +44,7 @@ from app.services.attribute_service import AttributeService
 from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
+from app.services.export_service import ExportService
 from app.services.import_service import ImportService
 from app.services.tag_service import TagService
 
@@ -50,6 +53,7 @@ router = APIRouter()
 ContactsReadActor = Annotated[User, Depends(require_permissions("contacts:read"))]
 ContactsWriteActor = Annotated[User, Depends(require_permissions("contacts:write"))]
 ContactsImportActor = Annotated[User, Depends(require_permissions("contacts:import"))]
+ContactsExportActor = Annotated[User, Depends(require_permissions("contacts:export"))]
 
 _DT_SORTS = {"created_at", "last_inbound_at"}
 
@@ -367,3 +371,49 @@ async def import_progress(
     service = ImportService(session)
     job = await service.get(actor.organization_id, import_id)
     return ImportProgressResponse.from_job(job, await service.error_report_url(job))
+
+
+# --- Contact export (Doc 04 §14.1) — async only, always 202 -----------------
+@router.post(
+    "/contacts/export",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start an export (async)",
+)
+async def start_export(
+    payload: ExportCreateRequest, session: SessionDep, actor: ContactsExportActor
+) -> JobAcceptedResponse:
+    """Enqueue the export and return immediately — no contacts are read on this path."""
+    from app.crm.tasks import run_contact_export
+
+    job = await ExportService(session).start(
+        organization_id=actor.organization_id,
+        actor=actor,
+        file_format=payload.format,
+        match_type=payload.match_type,
+        rules=[r.model_dump() for r in payload.rules],
+        dispatch=lambda export_id, task_id: run_contact_export.apply_async(
+            args=[export_id], task_id=task_id
+        ),
+    )
+    return JobAcceptedResponse(
+        job=JobEnvelope(
+            id=job.public_id,
+            type="export",
+            status="queued",
+            poll_url=f"{settings.api_v1_prefix}/contacts/export/{job.public_id}",
+        )
+    )
+
+
+@router.get(
+    "/contacts/export/{export_id}",
+    response_model=ExportProgressResponse,
+    summary="Export progress + signed download link",
+)
+async def export_progress(
+    export_id: uuidlib.UUID, session: SessionDep, actor: ContactsExportActor
+) -> ExportProgressResponse:
+    service = ExportService(session)
+    job = await service.get(actor.organization_id, export_id)
+    return ExportProgressResponse.from_job(job, await service.download_url(job))

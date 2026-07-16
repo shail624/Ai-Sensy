@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     #: Signed, expiring access only — never a public bucket (Doc 08 §14, FR-MED-09).
     storage_signed_url_ttl_seconds: int = 300
     storage_public_base_url: str = ""
+    #: How long a generated export stays downloadable (Doc 03 §11.6 exports.expires_at).
+    storage_export_ttl_days: int = 7
 
     # ---- CORS (Doc 04 §25) ------------------------------------------------
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])

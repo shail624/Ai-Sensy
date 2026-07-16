@@ -13,7 +13,8 @@ from typing import Any
 
 from app.db.session import get_sessionmaker
 from app.queue.base_task import register_task
-from app.queue.registry import IMPORTS
+from app.queue.registry import EXPORTS, IMPORTS
+from app.services.export_service import ExportService
 from app.services.import_service import ImportService
 
 
@@ -34,6 +35,22 @@ def run_contact_import(self, import_id: str) -> dict[str, Any]:  # noqa: ANN001 
     """Execute a contact import. Retries are classified/backed off by the queue framework."""
     try:
         return asyncio.run(_run_import(import_id))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+
+async def _run_export(export_id: str) -> dict[str, Any]:
+    async with get_sessionmaker()() as session:
+        job = await ExportService(session).run(export_id)
+        return {"export_id": job.public_id, "status": job.status, "row_count": job.row_count}
+
+
+@register_task(queue=EXPORTS, name="app.crm.tasks.run_contact_export")
+def run_contact_export(self, export_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+    """Generate a contact export. Retries are classified/backed off by the queue framework."""
+    try:
+        return asyncio.run(_run_export(export_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise

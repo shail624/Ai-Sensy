@@ -14,7 +14,7 @@ from app.models.audit import AuditLog
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
 from app.models.job import DeadLetter, JobMetadata
-from app.models.job_records import ImportJob
+from app.models.job_records import ExportJob, ImportJob
 from app.models.lead import LeadPipeline, LeadStage
 from app.models.media import MediaAsset
 from app.models.organization import Organization
@@ -33,6 +33,7 @@ __all__ = [
     "ContactEvent",
     "CustomAttributeDefinition",
     "DeadLetter",
+    "ExportJob",
     "FeatureFlag",
     "ImportJob",
     "JobMetadata",
