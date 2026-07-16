@@ -16,11 +16,12 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError
-from app.crm.segment_compiler import compile_rules, validate_rule
+from app.crm.segment_compiler import AttributeSpec, compile_rules, validate_rule
 from app.db.mixins import utcnow
 from app.models.contact import Contact
 from app.models.segment import MATCH_ALL, Segment, SegmentRule
 from app.models.user import User
+from app.repositories.attribute import AttributeDefinitionRepository
 from app.repositories.segment import SegmentRepository
 from app.services.audit_service import AuditAction, AuditService
 
@@ -36,7 +37,19 @@ class SegmentService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._segments = SegmentRepository(session)
+        self._attributes = AttributeDefinitionRepository(session)
         self._audit = AuditService(session)
+
+    async def attribute_specs(self, organization_id: int) -> dict[str, AttributeSpec]:
+        """Resolve the org's custom attributes for rule validation/compilation."""
+        return {
+            definition.key_name: AttributeSpec(
+                attribute_id=definition.id,
+                data_type=definition.data_type,
+                enum_values=definition.enum_values_json,
+            )
+            for definition in await self._attributes.list_for_org(organization_id)
+        }
 
     # --- Helpers -------------------------------------------------------------
     @staticmethod
@@ -52,11 +65,12 @@ class SegmentService:
             for rule in segment.rules
         ]
 
-    def _condition(self, segment: Segment) -> Any | None:
+    async def _condition(self, segment: Segment) -> Any | None:
         return compile_rules(
             organization_id=segment.organization_id,
             match_type=segment.match_type,
             rules=self._rule_dicts(segment),
+            attributes=await self.attribute_specs(segment.organization_id),
         )
 
     @staticmethod
@@ -78,12 +92,17 @@ class SegmentService:
             ],
         }
 
-    def _apply_rules(
+    async def _apply_rules(
         self, segment: Segment, match_type: str, rules: list[dict[str, Any]]
     ) -> None:
+        specs = await self.attribute_specs(segment.organization_id)
         for rule in rules:
             validate_rule(
-                rule["field_source"], rule["field_key"], rule["operator"], rule.get("value")
+                rule["field_source"],
+                rule["field_key"],
+                rule["operator"],
+                rule.get("value"),
+                specs,
             )
         segment.match_type = match_type
         segment.rules = [
@@ -131,7 +150,7 @@ class SegmentService:
             match_type=match_type or MATCH_ALL,
             created_by=actor.id,
         )
-        self._apply_rules(segment, segment.match_type, rules)
+        await self._apply_rules(segment, segment.match_type, rules)
         await self._segments.add(segment)
         await self._audit.record(
             AuditAction.SEGMENT_CREATED,
@@ -165,10 +184,10 @@ class SegmentService:
         if description is not None:
             segment.description = description
         if rules is not None:
-            self._apply_rules(segment, match_type or segment.match_type, rules)
+            await self._apply_rules(segment, match_type or segment.match_type, rules)
         elif match_type is not None and match_type != segment.match_type:
             # Match type alone changes the compiled tree and invalidates the cached size.
-            self._apply_rules(segment, match_type, self._rule_dicts(segment))
+            await self._apply_rules(segment, match_type, self._rule_dicts(segment))
         await self._segments.flush()
         await self._audit.record(
             AuditAction.SEGMENT_UPDATED,
@@ -209,7 +228,7 @@ class SegmentService:
         cursor: tuple[datetime, int] | None,
     ) -> SegmentPreview:
         segment = await self.get_segment(organization_id, public_id)
-        condition = self._condition(segment)
+        condition = await self._condition(segment)
         contacts, has_more = await self._segments.paginate_matching(
             organization_id, condition, limit=limit, cursor=cursor
         )
@@ -222,7 +241,7 @@ class SegmentService:
         """Recompute and cache the segment size (Doc 04 §14.3 refresh)."""
         segment = await self.get_segment(organization_id, public_id)
         segment.cached_count = await self._segments.count_matching(
-            organization_id, self._condition(segment)
+            organization_id, await self._condition(segment)
         )
         segment.last_evaluated_at = utcnow()
         await self._segments.flush()

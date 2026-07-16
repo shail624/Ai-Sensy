@@ -11,6 +11,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     api_keys,
+    attributes,
     audit,
     auth,
     contacts,
@@ -37,5 +38,6 @@ api_router.include_router(audit.router, tags=["Audit"])
 # Module 2 — Contacts CRM (Doc 04 §14; Doc 07 §19/§23 lead model).
 api_router.include_router(contacts.router, tags=["Contacts"])
 api_router.include_router(tags.router, tags=["Tags"])
+api_router.include_router(attributes.router, tags=["Custom Attributes"])
 api_router.include_router(segments.router, tags=["Segments"])
 api_router.include_router(leads.router, tags=["Leads"])

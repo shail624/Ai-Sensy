@@ -41,6 +41,8 @@ _EXPECTED_TABLES = {
     "lead_stages",
     "segments",
     "segment_rules",
+    "custom_attribute_definitions",
+    "contact_attribute_values",
 }
 
 
@@ -80,7 +82,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0007_segments"
+        assert version == "0008_custom_attributes"
     finally:
         con.close()
 

@@ -175,7 +175,7 @@ class TagService:
         await self._session.commit()
         # Reload the association eagerly: the instance was loaded before the attach, so its
         # cached tag collection is stale until refreshed (and must not lazy-load later).
-        await self._session.refresh(contact, ["tags"])
+        await self._session.refresh(contact, ["tags", "attribute_values"])
         return contact
 
     async def remove_tag_from_contact(

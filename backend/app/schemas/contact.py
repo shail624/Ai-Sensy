@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.api.pagination import Page
 from app.models.contact import OPT_IN_STATUSES, Contact
+from app.schemas.attribute import attributes_map
 from app.schemas.tag import TagSummary
 
 # E.164: '+' then 8–15 digits, first digit non-zero (Doc 04 §14 validation).
@@ -49,6 +51,7 @@ class ContactResponse(BaseModel):
     last_contacted_at: datetime | None
     source: str | None
     tags: list[TagSummary]
+    attributes: dict[str, Any]
     created_at: datetime
     updated_at: datetime
     row_version: int
@@ -57,6 +60,7 @@ class ContactResponse(BaseModel):
     def from_contact(cls, contact: Contact) -> ContactResponse:
         return cls(
             tags=[TagSummary.from_tag(tag) for tag in contact.tags],
+            attributes=attributes_map(contact.attribute_values),
             id=contact.public_id,
             wa_id=contact.wa_id,
             phone_e164=contact.phone_e164,

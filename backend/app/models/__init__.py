@@ -9,6 +9,7 @@ rely on import side effects elsewhere.
 from __future__ import annotations
 
 from app.models.api_key import ApiKey
+from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
 from app.models.audit import AuditLog
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
@@ -25,7 +26,9 @@ __all__ = [
     "ApiKey",
     "AuditLog",
     "Contact",
+    "ContactAttributeValue",
     "ContactEvent",
+    "CustomAttributeDefinition",
     "FeatureFlag",
     "LeadPipeline",
     "LeadStage",

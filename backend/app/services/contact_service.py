@@ -143,7 +143,7 @@ class ContactService:
         await self._session.commit()
         # A newly created row never loaded its relationships; populate them here (in the
         # async context) so serialization never triggers a lazy load.
-        await self._session.refresh(contact, ["tags"])
+        await self._session.refresh(contact, ["tags", "attribute_values"])
         return contact
 
     async def update_contact(

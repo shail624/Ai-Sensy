@@ -21,6 +21,7 @@ from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.repositories.contact import ContactRepository
+from app.schemas.attribute import ContactAttributesRequest
 from app.schemas.contact import (
     ContactCreateRequest,
     ContactResponse,
@@ -28,8 +29,11 @@ from app.schemas.contact import (
     ContactUpdateRequest,
 )
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
+from app.schemas.search import ContactSearchRequest
 from app.schemas.tag import ContactTagsRequest
+from app.services.attribute_service import AttributeService
 from app.services.contact_event_service import ContactEventService
+from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
 from app.services.tag_service import TagService
 
@@ -190,7 +194,56 @@ async def delete_contact(
     )
 
 
-# --- Contact sub-resources: tags & timeline (Doc 04 §14.1) ------------------
+@router.post(
+    "/contacts/search",
+    response_model=ContactsPage,
+    summary="Advanced AND/OR search (JSON body)",
+)
+async def search_contacts(
+    payload: ContactSearchRequest, session: SessionDep, actor: ContactsReadActor
+) -> ContactsPage:
+    limit = clamp_limit(str(payload.limit) if payload.limit is not None else None)
+    result = await ContactSearchService(session).search(
+        actor.organization_id,
+        match_type=payload.match_type,
+        rules=[r.model_dump() for r in payload.rules],
+        limit=limit,
+        cursor=decode_cursor(payload.cursor) if payload.cursor else None,
+    )
+    next_cursor = (
+        encode_cursor(result.contacts[-1].created_at, result.contacts[-1].id)
+        if result.has_more and result.contacts
+        else None
+    )
+    return ContactsPage(
+        data=[ContactResponse.from_contact(c) for c in result.contacts],
+        page=Page(
+            limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total
+        ),
+    )
+
+
+# --- Contact sub-resources: attributes, tags & timeline (Doc 04 §14.1) ------
+@router.put(
+    "/contacts/{contact_id}/attributes",
+    response_model=ContactResponse,
+    summary="Set custom attribute values",
+)
+async def set_contact_attributes(
+    contact_id: uuidlib.UUID,
+    payload: ContactAttributesRequest,
+    session: SessionDep,
+    actor: ContactsWriteActor,
+) -> ContactResponse:
+    contact = await AttributeService(session).set_contact_attributes(
+        organization_id=actor.organization_id,
+        actor=actor,
+        contact_uuid=contact_id,
+        values=payload.attributes,
+    )
+    return ContactResponse.from_contact(contact)
+
+
 @router.post(
     "/contacts/{contact_id}/tags",
     response_model=ContactResponse,

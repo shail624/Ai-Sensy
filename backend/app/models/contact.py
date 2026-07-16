@@ -23,6 +23,7 @@ from app.db.mixins import (
     VersionMixin,
 )
 from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6
+from app.models.attribute import ContactAttributeValue
 from app.models.tag import Tag, contact_tags
 
 OPT_IN_UNKNOWN = "unknown"
@@ -90,6 +91,14 @@ class Contact(
         lazy="selectin",
         order_by=Tag.name,
         viewonly=True,
+    )
+
+    # Typed custom attribute values (Doc 03 §6.3); eager-loaded for the contact schema's
+    # `attributes` map. Writes go through the attribute service.
+    attribute_values: Mapped[list[ContactAttributeValue]] = relationship(
+        ContactAttributeValue,
+        lazy="selectin",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
