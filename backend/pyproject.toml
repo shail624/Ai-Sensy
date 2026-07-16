@@ -24,6 +24,7 @@ dependencies = [
     "httpx>=0.27",               # Meta Cloud API client (later modules) + test client
     "python-multipart>=0.0.12",  # multipart/form uploads
     "email-validator>=2.2",      # Pydantic EmailStr validation
+    "openpyxl>=3.1",             # .xlsx import/export (FR-CON-04/15)
 ]
 
 [project.optional-dependencies]

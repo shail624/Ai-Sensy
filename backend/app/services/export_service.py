@@ -7,9 +7,12 @@ Mirrors the import split:
   a contact.
 * :meth:`ExportService.run` — the worker body. Resolves the filter through the **same compiler**
   the segments/search use (so an export returns exactly what its preview showed), then walks the
-  result **in keyset batches**, rendering CSV incrementally rather than loading every contact —
-  a 1M-row export never materialises 1M ORM objects. The artifact is written through the
-  **Storage** abstraction and handed back as a signed, expiring URL.
+  result **in keyset batches**, handing each batch to a per-format writer rather than loading
+  every contact — a 1M-row export never materialises 1M ORM objects. The artifact is written
+  through the **Storage** abstraction and handed back as a signed, expiring URL.
+
+CSV, Excel and JSON differ only in the writer (:mod:`app.crm.formats`); the audience, the columns
+and the streaming loop are shared, so every format exports exactly the same rows (FR-CON-15).
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
-from app.crm.csv_io import export_header, export_rows
+from app.crm.formats import CONTENT_TYPES, EXPORT_FORMATS, export_writer
 from app.crm.segment_compiler import AttributeSpec, compile_rules, validate_rule
 from app.db.mixins import utcnow
 from app.models.contact import Contact
@@ -45,7 +48,8 @@ from app.storage.base import get_provider
 
 #: Rows pulled per keyset batch while streaming (bounded memory, Doc 06 §2.3 exports).
 _BATCH = 500
-SUPPORTED_FORMATS = ("csv",)
+#: CSV, Excel and JSON (FR-CON-15) — matches ``exports.format``'s check constraint (Doc 03 §11.6).
+SUPPORTED_FORMATS = EXPORT_FORMATS
 
 
 class ExportService:
@@ -191,7 +195,7 @@ class ExportService:
                 rules=filters.get("rules", []),
                 attributes=await self._specs(job.organization_id),
             )
-            chunks: list[bytes] = [export_header()]
+            writer = export_writer(job.format)
             cursor: tuple[Any, int] | None = None
             written = 0
             while True:
@@ -200,7 +204,7 @@ class ExportService:
                 )
                 if not batch:
                     break
-                chunks.append(export_rows([self._row(c) for c in batch]))
+                writer.add([self._row(c) for c in batch])
                 written += len(batch)
                 # Progress is visible while a long export runs.
                 job.row_count = written
@@ -210,9 +214,9 @@ class ExportService:
                     break
                 cursor = (batch[-1].created_at, batch[-1].id)
 
-            key = f"org-{job.organization_id}/exports/{job.public_id}.csv"
+            key = f"org-{job.organization_id}/exports/{job.public_id}.{job.format}"
             await get_provider(settings.storage_backend).put(
-                key, b"".join(chunks), content_type="text/csv"
+                key, writer.finish(), content_type=CONTENT_TYPES[job.format]
             )
             job.storage_key = key
             job.row_count = written

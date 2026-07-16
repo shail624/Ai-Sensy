@@ -84,7 +84,7 @@ async def test_export_validation_422_and_unknown_job_404(client, make_user) -> N
     await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
     h = await _headers(client, "owner@vi.co")
     for body in (
-        {"format": "xlsx"},  # csv only, this step
+        {"format": "pdf"},  # csv/xlsx/json only
         {"format": "csv", "match_type": "nonsense"},
         {
             "format": "csv",

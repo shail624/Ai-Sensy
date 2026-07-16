@@ -32,6 +32,7 @@ from app.crm.csv_io import (
     map_and_validate,
     read_csv,
 )
+from app.crm.formats import IMPORT_FORMATS, read_xlsx
 from app.db.mixins import utcnow
 from app.models.job_records import (
     DEDUP_OVERWRITE,
@@ -106,11 +107,15 @@ class ImportService:
     ) -> ImportJob:
         """Create the import record and enqueue it. Never processes inline."""
         self._validate_mapping(mapping, dedup_strategy)
-        if file_format != "csv":
+        if file_format not in IMPORT_FORMATS:
             raise ValidationError(
                 "Unsupported import format.",
                 errors=[
-                    {"field": "format", "code": "unsupported", "message": "only 'csv' is supported"}
+                    {
+                        "field": "format",
+                        "code": "unsupported",
+                        "message": f"supported: {list(IMPORT_FORMATS)}",
+                    }
                 ],
             )
         asset = await self._media.get_active_by_uuid(organization_id, upload_id.bytes)
@@ -230,7 +235,10 @@ class ImportService:
         try:
             provider = get_provider(settings.storage_backend)
             data = await provider.get(job.source_key or "")
-            parsed = map_and_validate(read_csv(data), job.mapping_json or {})
+            # Both readers yield the same header-keyed rows, so mapping/validation/error
+            # reporting below are format-agnostic (FR-CON-03/04).
+            raw = read_xlsx(data) if job.format == "xlsx" else read_csv(data)
+            parsed = map_and_validate(raw, job.mapping_json or {})
             job.total_rows = parsed.total
             job.error_rows = len(parsed.errors)
             await self._imports.flush()

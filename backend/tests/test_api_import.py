@@ -104,7 +104,7 @@ async def test_import_validation_422_and_unknown_upload_404(client, make_user) -
         {"upload_id": upload_id, "mapping": {"Name": "full_name"}},  # no phone target
         {"upload_id": upload_id, "mapping": {"P": "bogus"}},  # unknown target
         {"upload_id": upload_id, "mapping": MAPPING, "dedup_strategy": "nope"},
-        {"upload_id": upload_id, "mapping": MAPPING, "format": "xlsx"},  # csv only, this step
+        {"upload_id": upload_id, "mapping": MAPPING, "format": "json"},  # csv/xlsx only
     ):
         assert (await client.post("/api/v1/contacts/import", headers=h, json=body)).status_code == 422
     missing = await client.post(
