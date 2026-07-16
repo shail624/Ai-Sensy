@@ -47,6 +47,28 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## Module releases
 
+### 2026-07-16 — **Module 6 — Queue Engine Foundation** FROZEN (`v0.3.0-queue-foundation`)
+**Scope delivered (branch `feature/module6-queue-engine`, migration 0009):** Celery application
+(Redis broker/backend; `task_acks_late` + `task_reject_on_worker_lost` + `prefetch_multiplier=1`
+= at-least-once with no hoarding, Doc 6 §3.4/D7); **queue registry** encoding the Doc 6 §2.3
+master specification as data (18 queues with purpose/priority/pool/retry/timeouts/failure
+destination) — routing, worker pools and the Queue Monitor all read this one source; **smart
+retry framework** (Doc 6 §6: failure classes, per-class attempt caps, exponential backoff with
+full jitter, pluggable per-channel error maps); **worker framework** (`TrackedTask`: durable
+`job_metadata` state, structured logging, smart retry, terminal DLQ park); **DLQ foundation**
+(Doc 6 §7: durable parked-task store, fingerprint grouping, replay through the same idempotent
+processor, discard — all audited); **Redis worker registry + TTL heartbeat** (§3.4); **queue
+health** from live broker depth + fleet (§13.2). APIs: `GET /jobs`, `GET /jobs/{id}`,
+`POST /jobs/{id}/cancel`, `GET /queues` (`system:read`/`system:manage`).
+
+**State at freeze:** 180 backend tests passing, ruff clean, migrations 0001–0009 reversible,
+zero drift, OpenAPI 49 paths. Celery added to the environment (was declared, not installed).
+
+**Deliberately not built (they bind to this fabric in their own modules):** domain tasks for
+sends, webhooks, imports, exports, media, AI and the Support Connector; Celery Beat schedules;
+rate gate / circuit breaker (Doc 6 §5/§6.4 — belong with the send pipeline);
+`monitoring_metrics` time-series (Doc 3 §11.7 — Monitoring module).
+
 ### 2026-07-16 — **Module 2 — CRM Foundation** FROZEN (`v0.2.0-crm-foundation`)
 **Scope delivered (branch `feature/module2-contacts-crm`, migrations 0005–0008):**
 - **Step 1** (`v0.2.0-module2-step1`) — `contacts` (Doc 3 §6.1): CRUD, dedup by `(org, wa_id)`, E.164
