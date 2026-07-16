@@ -15,6 +15,7 @@ from app.models.contact_event import ContactEvent
 from app.models.lead import LeadPipeline, LeadStage
 from app.models.organization import Organization
 from app.models.role import Permission, Role, UserRole, role_permissions
+from app.models.segment import Segment, SegmentRule
 from app.models.settings import FeatureFlag, Setting
 from app.models.tag import Tag, contact_tags
 from app.models.token import RefreshToken, UserSession
@@ -32,6 +33,8 @@ __all__ = [
     "Permission",
     "RefreshToken",
     "Role",
+    "Segment",
+    "SegmentRule",
     "Setting",
     "Tag",
     "User",
