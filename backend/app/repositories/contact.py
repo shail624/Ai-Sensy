@@ -44,6 +44,15 @@ class ContactRepository(BaseRepository[Contact]):
         )
         return (await self.session.scalars(stmt)).first()
 
+    async def get_active_by_wa_id(self, organization_id: int, wa_id: str) -> Contact | None:
+        """Fetch a live contact by its dedup key (import merge/overwrite path)."""
+        stmt = select(Contact).where(
+            Contact.organization_id == organization_id,
+            Contact.wa_id == wa_id,
+            Contact.deleted_at.is_(None),
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def wa_id_exists(self, organization_id: int, wa_id: str) -> bool:
         """Dedup guard — matches the ``(organization_id, wa_id)`` unique key incl. soft-deleted."""
         stmt = select(Contact.id).where(

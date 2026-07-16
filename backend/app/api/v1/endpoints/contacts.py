@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.core.config import settings
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.repositories.contact import ContactRepository
@@ -29,18 +30,26 @@ from app.schemas.contact import (
     ContactUpdateRequest,
 )
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
+from app.schemas.import_job import (
+    ImportCreateRequest,
+    ImportProgressResponse,
+    JobAcceptedResponse,
+    JobEnvelope,
+)
 from app.schemas.search import ContactSearchRequest
 from app.schemas.tag import ContactTagsRequest
 from app.services.attribute_service import AttributeService
 from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
+from app.services.import_service import ImportService
 from app.services.tag_service import TagService
 
 router = APIRouter()
 
 ContactsReadActor = Annotated[User, Depends(require_permissions("contacts:read"))]
 ContactsWriteActor = Annotated[User, Depends(require_permissions("contacts:write"))]
+ContactsImportActor = Annotated[User, Depends(require_permissions("contacts:import"))]
 
 _DT_SORTS = {"created_at", "last_inbound_at"}
 
@@ -311,3 +320,50 @@ async def contact_timeline(
         data=[ContactEventResponse.from_event(e) for e in events],
         page=Page(limit=limit, has_more=has_more, next_cursor=next_cursor, total=total),
     )
+
+
+# --- Contact import (Doc 04 §14.1) — async only, always 202 -----------------
+@router.post(
+    "/contacts/import",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start a CSV import (async)",
+)
+async def start_import(
+    payload: ImportCreateRequest, session: SessionDep, actor: ContactsImportActor
+) -> JobAcceptedResponse:
+    """Enqueue the import and return immediately — no bytes are parsed on this path."""
+    from app.crm.tasks import run_contact_import
+
+    job = await ImportService(session).start(
+        organization_id=actor.organization_id,
+        actor=actor,
+        upload_id=payload.upload_id,
+        file_format=payload.format,
+        mapping=payload.mapping,
+        dedup_strategy=payload.dedup_strategy,
+        dispatch=lambda import_id, task_id: run_contact_import.apply_async(
+            args=[import_id], task_id=task_id
+        ),
+    )
+    return JobAcceptedResponse(
+        job=JobEnvelope(
+            id=job.public_id,
+            type="import",
+            status="queued",
+            poll_url=f"{settings.api_v1_prefix}/contacts/import/{job.public_id}",
+        )
+    )
+
+
+@router.get(
+    "/contacts/import/{import_id}",
+    response_model=ImportProgressResponse,
+    summary="Import progress + error report link",
+)
+async def import_progress(
+    import_id: uuidlib.UUID, session: SessionDep, actor: ContactsImportActor
+) -> ImportProgressResponse:
+    service = ImportService(session)
+    job = await service.get(actor.organization_id, import_id)
+    return ImportProgressResponse.from_job(job, await service.error_report_url(job))

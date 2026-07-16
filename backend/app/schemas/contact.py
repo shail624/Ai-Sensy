@@ -17,7 +17,7 @@ from app.schemas.tag import TagSummary
 _E164 = re.compile(r"^\+[1-9]\d{7,14}$")
 
 
-def _validate_e164(value: str) -> str:
+def validate_e164(value: str) -> str:
     value = value.strip()
     if not _E164.match(value):
         raise ValueError("phone_e164 must be E.164, e.g. +14155552671")
@@ -104,7 +104,7 @@ class ContactCreateRequest(BaseModel):
     @field_validator("phone_e164")
     @classmethod
     def _phone(cls, value: str) -> str:
-        return _validate_e164(value)
+        return validate_e164(value)
 
     @field_validator("opt_in_status")
     @classmethod
