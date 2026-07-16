@@ -17,6 +17,7 @@ from app.api.v1.endpoints import (
     contacts,
     jobs,
     leads,
+    media,
     organization,
     roles,
     segments,
@@ -45,3 +46,6 @@ api_router.include_router(leads.router, tags=["Leads"])
 
 # Module 6 — Queue Engine (Doc 04 §22; Doc 06).
 api_router.include_router(jobs.router, tags=["Queue"])
+
+# Storage foundation (Doc 04 §16; Doc 08 §14).
+api_router.include_router(media.router, tags=["Media"])

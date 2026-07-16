@@ -54,6 +54,8 @@ class AuditAction:
     LEAD_PIPELINE_CREATED = "lead_pipeline.created"
     LEAD_PIPELINE_UPDATED = "lead_pipeline.updated"
     LEAD_PIPELINE_DELETED = "lead_pipeline.deleted"
+    MEDIA_UPLOADED = "media.uploaded"
+    MEDIA_DELETED = "media.deleted"
     JOB_CANCELLED = "job.cancelled"
     DEAD_LETTER_REPLAYED = "dead_letter.replayed"
     DEAD_LETTER_DISCARDED = "dead_letter.discarded"

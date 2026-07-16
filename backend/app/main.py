@@ -22,6 +22,7 @@ from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
 from app.core.redis import close_redis
 from app.db.session import dispose_engine
+from app.storage import local as _local_storage  # noqa: F401 - registers the 'local' backend
 
 logger = get_logger(__name__)
 

@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     worker_heartbeat_ttl_seconds: int = 60
     worker_heartbeat_interval_seconds: int = 15
 
+    # ---- Storage (Doc 08 §14; FR-MED-06/09) ------------------------------
+    #: Pluggable backend: 'local' volume by default, S3-compatible optional (FR-MED-06).
+    storage_backend: str = "local"
+    storage_local_path: str = "./var/media"
+    #: Signed, expiring access only — never a public bucket (Doc 08 §14, FR-MED-09).
+    storage_signed_url_ttl_seconds: int = 300
+    storage_public_base_url: str = ""
+
     # ---- CORS (Doc 04 §25) ------------------------------------------------
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
