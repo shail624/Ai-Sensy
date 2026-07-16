@@ -45,6 +45,40 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ---
 
+## Module releases
+
+### 2026-07-16 — **Module 2 — CRM Foundation** FROZEN (`v0.2.0-crm-foundation`)
+**Scope delivered (branch `feature/module2-contacts-crm`, migrations 0005–0008):**
+- **Step 1** (`v0.2.0-module2-step1`) — `contacts` (Doc 3 §6.1): CRUD, dedup by `(org, wa_id)`, E.164
+  validation, opt-in transitions, optimistic concurrency, soft delete, keyset pagination, search,
+  filters, whitelisted sorting.
+- **Step 2** (`v0.2.0-module2-step2`) — `tags` + `contact_tags` (Doc 3 §6.2, FR-CON-09),
+  `contact_events` timeline (Doc 3 §6.5, FR-CON-14), `lead_pipelines` + `lead_stages`
+  configuration with the default pipeline (Doc 7 §19.2, §23.2).
+- **Step 3** (`v0.2.0-module2-step3`) — `segments` + `segment_rules` (Doc 3 §6.4, FR-CON-10):
+  saved dynamic filters, rule tree, preview, cached counts.
+- **Step 4** (`v0.2.0-module2-step4`) — `custom_attribute_definitions` + `contact_attribute_values`
+  (Doc 3 §6.3, FR-CON-11) and `POST /contacts/search` (FR-CON-12).
+
+**State at freeze:** 153 backend tests passing, ruff clean, migrations 0001–0008 reversible, zero
+model↔migration drift. RBAC uses only seeded catalog permissions (`contacts:*`, `segments:*`).
+
+**Deferred by dependency (owner-approved; NOT missing — scheduled to their prerequisite module):**
+| Deferred | Reason | Lands with |
+|---|---|---|
+| Contact Import / Export | Doc 4 §14.1 mandates async `202 + job`; FR-CON-05 requires async progress + error report | Queue Engine + Storage |
+| Bulk update / delete, Duplicate merge | Doc 4 §14.1 `202 + job` (bulk class) | Queue Engine |
+| Internal Notes, Contact Assignment, `conversation_lead`/`lead_stage_transitions` | Frozen docs scope these to `conversations` (Doc 3 §9.5 `internal_notes.conversation_id NOT NULL`; SRS FR-INB-03/05) | Inbox / Messaging |
+| Auto opt-out on "STOP" (FR-CON-13) | Requires inbound message handling | Messaging |
+
+### 2026-07-16 — **Module 1 — Foundation** FROZEN (`v0.1.0-foundation`)
+Auth, RBAC, users, organization, settings/feature-flags, API keys, audit read API, preferences.
+110 tests, 91% coverage, migrations 0001–0004 reversible, OpenAPI 3.1.0 valid. Deferred to their
+designated modules: password reset (email), MFA (Doc 12 §56 "Future"), user activity feed
+(`activity_logs`), inbound API-key authentication (future public API).
+
+---
+
 ## Change log entries
 
 ### 2026-07-16 — FINAL architecture additive pass (A–E) — architecture PERMANENTLY FROZEN
