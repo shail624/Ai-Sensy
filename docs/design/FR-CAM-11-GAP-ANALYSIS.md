@@ -1,7 +1,21 @@
 # FR-CAM-11 (Cost Engine) — Specification Gap Analysis
 
-> **Status:** Blocking. Phase 6 Step 5 implementation is **stopped** pending amendment of the frozen
-> design documents. This note documents the gap only; it proposes no implementation.
+> ## RESOLVED 2026-07-17 — superseded by the amendment; retained as the rationale record.
+>
+> **Blocking gaps 1–2 and all four contradictions are closed** by Doc 3 §8.5 (`rate_cards` entity,
+> schema, money rules, country resolution), Doc 3 §12.4a (relationships), and Doc 4 §17/§17.1
+> (estimate contract + `rate_card_not_configured` + the operator update mechanism). See the
+> **2026-07-17 amendment** entry in `CHANGELOG.md`. Docs 3 → v1.2 and 4 → v1.1 are re-frozen.
+>
+> **Gaps 3–4 remain open by decision, not oversight** — `pricing_model`, `is_billable`,
+> `messages.cost_*` and `campaigns.actual_cost` population are **deferred** and enumerated in
+> Doc 3 §8.5.5. Phase 6 Step 5 is unblocked for **estimation only**.
+>
+> This note is historical from here down; where it disagrees with Docs 3/4, **the amended docs win**.
+
+> **Status (at time of writing):** Blocking. Phase 6 Step 5 implementation is **stopped** pending
+> amendment of the frozen design documents. This note documents the gap only; it proposes no
+> implementation.
 >
 > **Requirement under analysis:** FR-CAM-11 — *"Cost calculator: pre-send estimated spend from the
 > rate card (by category/country)"* (Doc 01 §FR, priority **M**, Phase 6).

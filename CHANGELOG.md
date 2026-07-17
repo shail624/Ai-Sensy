@@ -11,6 +11,68 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-17 — Amendment: FR-CAM-11 rate card & cost estimation (Doc 3 → v1.2, Doc 4 → v1.1) — **FROZEN**
+**Reason:** Phase 6 Step 5 (Cost Engine) was **blocked**. The frozen set defined the cost engine's
+*consumers* (`campaigns.estimated_cost`, `messages.cost_*`, `pricing_model`, `is_billable`) but never
+its *source*: no rate-card entity or schema existed in Doc 3, Doc 7 contained no pricing content, and
+Doc 12 §53 places Meta's pricing under "External … not restated here". Doc 4 §17 specified
+`estimate-cost` by sample response only, with a bare `422` and no machine code. Gap analysis:
+`docs/design/FR-CAM-11-GAP-ANALYSIS.md`.
+
+**Decision (owner):** amend with the **minimum** required to unblock **pre-send estimation only**.
+Invent no pricing data and no billing semantics.
+
+**Changed — Doc 3 (Database Design) v1.1 → v1.2**
+- **New §8.5 `rate_cards`** — entity, storage model, schema, resolution & money rules, country
+  resolution, and an explicit deferred list. Global (no `organization_id`, per Doc 4 §17's "no
+  reseller markup"), operator-managed, **ships empty**, versioned by effective dating (supersede,
+  never mutate).
+- **New §12.4a** — `rate_cards` value joins (no FK to contacts/templates/campaigns) + tenancy note.
+- **§12.2** — `users` → `rate_cards` (`created_by`), the card's only FK.
+- **§13.2** — rate-card lookup + uniqueness indexes.
+- **§16 entity map** — Rate Card row added.
+
+**Changed — Doc 4 (API Design) v1.0 → v1.1**
+- **§17** — `POST /campaigns/{uuid}/estimate-cost` upgraded from sample to full contract: request,
+  `200` shape with the `recipients == Σ breakdown[].count + unresolved.count` invariant, money
+  serialization, the `campaigns.estimated_cost` side effect, and errors.
+- **§17 route table** — bare `422` → `422(rate_card_not_configured)`, `404`.
+- **New §17.1** — rate-card administration (the operator update mechanism); platform-admin scoped.
+- **§31** — bulk `/estimate` cross-reference pinned to §17 as the single rate-card contract.
+
+**Money rules fixed:** single-currency card (no FX); `unit_price DECIMAL(12,6)`; subtotals exact
+(no intermediate rounding); total rounded **once** to 4 dp **ROUND_HALF_UP** at the storage boundary.
+
+**Country resolution fixed:** `contacts.country_code IS NULL` ⇒ recipient is *unresolved* — counted
+and reported, excluded from the total, **never** silently dropped and **never** derived from the
+`wa_id` E.164 prefix (no prefix→country dataset is specified).
+
+**Contradictions resolved:**
+1. `messages.category` permits `service` while `ck_tpl_category` permits only three categories — a
+   campaign always sends a template, so `service` is unreachable from an estimate. Doc 4 §17's sample
+   note referencing free-tier **service** conversations was incorrect and is **corrected**.
+2. Rate card treated as internal authority but declared external (Doc 12 §53) — resolved by making it
+   operator-managed data that ships empty, with the platform restating no Meta pricing.
+3. "No reseller markup" (global card) vs per-row `cost_currency` (per-tenant currency) — resolved by
+   the single-currency invariant: `cost_currency` *records* the card's currency, it does not select one.
+4. Precision mismatch (`DECIMAL(12,6)` per message vs `DECIMAL(14,4)` per campaign) — resolved by the
+   round-once-at-the-boundary rule.
+
+**Explicitly DEFERRED / OUT OF SCOPE** (unchanged, still undefined — Doc 3 §8.5.5):
+`messages.pricing_model`, `messages.is_billable`, `messages.cost_*`, `campaign_recipients.cost_amount`,
+**`campaigns.actual_cost` population**, the Meta pricing **webhook payload**, billing reconciliation,
+and finance reporting.
+
+> **Rationale — `campaigns.actual_cost` remains unset:** `campaigns.actual_cost` must represent the
+> provider-authoritative charge. Computing it from the local rate card would produce another estimate
+> rather than the provider's billed amount. Estimated and actual values may legitimately diverge due
+> to provider pricing rules, discounts, credits, or future pricing changes. Therefore
+> `campaigns.actual_cost` remains unset until an authoritative provider pricing source and contract
+> are defined.
+
+**Impact:** documentation only — no code, schema migration, or pricing data in this change. Docs 1, 2,
+5–12 unedited. Implementation of Phase 6 Step 5 resumes from this amended specification on approval.
+
 ### Design documents — status
 - **Doc 12 — Enterprise Governance** — `v1.1` (`12-ENTERPRISE-GOVERNANCE.md`; §1–§55 = v1.0 baseline, §56–§66 added in the governance-handbook enhancement pass; 66 sections, 22 diagrams). Master governance / single entry point referencing Docs 1–11 without duplication.
 - **Doc 11 — Operations Runbook** — delivered, awaiting owner approval (`11-OPERATIONS-RUNBOOK.md`; 85 sections, 15 diagrams, OD1–OD40). Operational-only; references Docs 1–10 without redefining them.
@@ -18,8 +80,8 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 - **Doc 10 — Testing & QA Architecture** — `v1.1` **FROZEN** on 2026-07-15 (`10-TESTING-QA-ARCHITECTURE.md`; §1–§60 = v1.0 baseline, §61–§72 added in pass; 72 sections, 18 diagrams, TD1–TD65). Additive; references Docs 1–9 without duplication.
 - **Doc 1 — SRS** — `v1.0` **FROZEN** on 2026-07-15 (authoritative specification).
 - **Doc 2 — Expanded Feature Matrix** — `v1.0` **FROZEN** on 2026-07-15.
-- **Doc 3 — Database Design** — `v1.1` **FROZEN** (v1.0 baseline; **§21 Business Event Ledger & Enterprise Event Taxonomy** added in the final additive pass).
-- **Doc 4 — API Design Specification** — `v1.0` **FROZEN** on 2026-07-15 (incl. enhancement pass: §29–§36 + subsections §23.1/§24.1/§27.1/§27.2).
+- **Doc 3 — Database Design** — `v1.2` **FROZEN** on 2026-07-17 (v1.0 baseline; **§21 Business Event Ledger & Enterprise Event Taxonomy** added in the final additive pass → v1.1; **§8.5 `rate_cards`** + §12.4a/§12.2/§13.2/§16 rate-card entries added in the FR-CAM-11 estimation amendment → v1.2).
+- **Doc 4 — API Design Specification** — `v1.1` **FROZEN** on 2026-07-17 (v1.0 on 2026-07-15 incl. enhancement pass: §29–§36 + subsections §23.1/§24.1/§27.1/§27.2; **§17 estimate-cost contract** + **§17.1 rate-card administration** + §31 cross-reference added in the FR-CAM-11 estimation amendment → v1.1).
 - **Doc 5 — UI/UX Design Specification** — `v1.1` **FROZEN** (v1.0 = Parts A–F incl. F1–F15; **Part G Executive Business Dashboard** added in the final additive pass).
 - **Doc 6 — Queue & Scheduler Design** — `v1.2` **FROZEN** (pass 1 §21–§34 at v1.0; pass 2 §35–§46 → v1.1; final additive pass **§47 Enterprise Domain Event Bus** + **§48 Business KPI Metric Catalog** → v1.2).
 - **Doc 7 — Integrations & Channel Architecture** — delivered, awaiting owner approval. Realizes the dual-channel / Support Connector spec that frozen Doc 6 forward-references as "Doc 6.5" (content in `07-INTEGRATIONS-CHANNEL-ARCHITECTURE.md`; Doc 6 unedited). Defines new **additive** entities (connector registry/session/health, lead pipelines/stages, conversation tags, assignment rules) and additive columns (`connector_id`, lead references) to be applied via migration when built — no frozen doc edited.

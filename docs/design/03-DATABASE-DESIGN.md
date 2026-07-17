@@ -896,6 +896,116 @@ implements exponential backoff; `attempt` caps retries; exhausted rows mark the 
 *Note:* the **live send queue** itself is Celery/Redis; these MySQL tables are the **durable**
 checkpoint/retry state so nothing is lost on a Redis flush (NFR-DR-06).
 
+### 8.5 `rate_cards` — the pricing authority for estimation (FR-CAM-11)
+> **Amendment 2026-07-17 (v1.2).** Added to unblock Phase 6 Step 5. Scope is **pre-send estimation
+> only**; see §8.5.5 for what remains deliberately undefined.
+
+FR-CAM-11 and Doc 4 §17/§31 compute from "the rate card" as an existing authority, but no entity
+owned it. This is that entity, and nothing more: it answers **one** question — *what does one
+message to country X in category Y cost?* — for the estimator to multiply by a count.
+
+#### 8.5.1 Storage model
+- **Global, not per-tenant.** Doc 4 §17 states the estimate is Meta's real rate card with **"no
+  reseller markup"**, so the same card applies to every organization. The table carries **no
+  `organization_id`**: a per-org card would imply markup the API contract forbids, and would let two
+  tenants see different "exact" costs for the same send. Per-tenant pricing is **not** in scope.
+- **Operator-managed data, not code and not seed.** The platform ships with the table **empty**. No
+  default, sample, or bundled rates exist — Doc 12 §53 places Meta's pricing **outside** the frozen
+  set, so the codebase must not restate it. An unpopulated card is a normal state that the API
+  reports explicitly (§8.5.4), never a condition the engine guesses around.
+- **Versioned by effective dating, never mutated in place.** A rate change is a **new row** that
+  supersedes the old one; historical rows are retained. Editing a rate in place would silently
+  rewrite what past estimates meant.
+
+#### 8.5.2 Schema
+```sql
+CREATE TABLE rate_cards (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  uuid           BINARY(16)      NOT NULL,
+  country_code   CHAR(2)         NOT NULL,            -- ISO-3166-1 alpha-2; matches contacts.country_code
+  category       VARCHAR(16)     NOT NULL,            -- marketing/utility/authentication (template categories only)
+  unit_price     DECIMAL(12,6)   NOT NULL,            -- per-message price; scale matches messages.cost_amount
+  currency       CHAR(3)         NOT NULL,            -- ISO-4217; single-currency invariant (§8.5.3)
+  effective_from DATETIME(6)     NOT NULL,            -- UTC; the row applies from this instant
+  effective_to   DATETIME(6)     NULL,                -- UTC; NULL = currently in force (open-ended)
+  created_at     DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at     DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  created_by     BIGINT UNSIGNED NULL,                -- operator who authored the rate (audit trail)
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ratecard_uuid (uuid),
+  UNIQUE KEY uq_ratecard_slot (country_code, category, effective_from),  -- one rate per pair per instant
+  KEY ix_ratecard_lookup (country_code, category, effective_from, effective_to), -- the estimator's scan
+  CONSTRAINT fk_ratecard_author FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT ck_ratecard_category CHECK (category IN ('marketing','utility','authentication')),
+  CONSTRAINT ck_ratecard_price CHECK (unit_price >= 0),
+  CONSTRAINT ck_ratecard_window CHECK (effective_to IS NULL OR effective_to > effective_from)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+*Rows:* small (hundreds). *Access:* read-mostly, cacheable. *Repository:* a rate-card repository
+resolves `(country_code, category, at)` → at most one row, and lists the card for administration.
+
+**`ck_ratecard_category` admits only the three template categories.** `messages.category` also
+permits `service` (§9.2), but a campaign always sends a **template**, and `ck_tpl_category` (§7.1)
+permits only these three — so `service` is unreachable from an estimate by construction. Pricing for
+`service` belongs to the conversation/billing semantics that remain out of scope (§8.5.5).
+
+#### 8.5.3 Resolution & money rules
+- **Rate lookup.** For `(country_code, category)` at instant `T`, the applicable row is the one where
+  `effective_from <= T` and (`effective_to IS NULL` or `effective_to > T`). `uq_ratecard_slot`
+  guarantees at most one.
+- **Estimation instant.** An estimate resolves rates at **estimate time** (`now`). It is a
+  point-in-time quote, not a promise about send time; a card amended between quote and send changes
+  the cost, and reconciling that is out of scope (§8.5.5).
+- **Single-currency invariant.** Every row in force at a given instant **MUST** share one `currency`.
+  The card is authored in exactly one currency (Meta publishes USD), so an estimate never mixes
+  currencies and **no FX conversion exists**. Multi-currency cards and FX are out of scope. This
+  resolves the ambiguity between Doc 4 §17's "no reseller markup" (one global card) and the
+  per-row `cost_currency` columns: `cost_currency` **records** the card's currency, it does not
+  select one.
+- **Precision.** `unit_price` is `DECIMAL(12,6)`, matching `messages.cost_amount` and
+  `campaign_recipients.cost_amount`. `campaigns.estimated_cost` is `DECIMAL(14,4)`.
+- **Rounding policy.** `unit_price × count` is **exact** in decimal (an integer count times a 6-dp
+  decimal), so group subtotals are computed and summed at **full precision with no intermediate
+  rounding**. The sum is rounded **once**, at the storage boundary, to 4 dp using **ROUND_HALF_UP**,
+  to fit `campaigns.estimated_cost`. Rounding per recipient or per group would drift by cents across
+  a 250k-recipient send — on the number FR-CAM-11 calls exact.
+
+#### 8.5.4 Country resolution (including `NULL`)
+The country dimension is **`contacts.country_code CHAR(2) NULL`** — it is nullable, so a recipient
+may have no country.
+
+- A recipient with a non-NULL `country_code` is **resolved** and priced from the card.
+- A recipient with `country_code IS NULL` is **unresolved**: it is **not** priced, **not** included
+  in `estimated_total`, and reported as an explicit count the caller can see (Doc 4 §17).
+- **No derivation from `wa_id`.** Deriving country from the E.164 prefix is **not** specified and
+  **MUST NOT** be implemented: prefixes are not 1:1 with countries (`+1` spans the NANP), so it needs
+  a prefix→country dataset that no frozen document defines. Deferred.
+- **Unresolved recipients are surfaced, never silently dropped.** Excluding them from the total
+  while hiding the count would understate the headline number.
+
+#### 8.5.5 Deferred — explicitly out of scope
+This amendment covers **pre-send estimation only**. The following remain **undefined and MUST NOT be
+implemented or inferred** until a specification defines them:
+
+| Deferred | Status |
+|---|---|
+| `messages.pricing_model` (PMP/CBP) | Column frozen; **determination rule undefined**. Do not populate. |
+| `messages.is_billable` | Column frozen (`DEFAULT 0`); **rule undefined** (free tier, free entry points, service conversations). Do not populate. |
+| `messages.cost_amount` / `cost_currency` | Do not populate. |
+| `campaign_recipients.cost_amount` | Do not populate. |
+| **`campaigns.actual_cost` population** | Do not populate; leave at its `DEFAULT 0`. See rationale below. |
+| Meta pricing **webhook payload** | Not specified in Doc 7; **do not parse**. |
+| Billing reconciliation (estimated vs actual) | Undefined. |
+| Finance reporting / cost analytics | Doc 6 §41 / FR-AN-03 — a later phase. |
+| Free tier, per-tenant pricing, reseller markup, FX | Undefined. |
+
+**Rationale — why `actual_cost` stays unset:** `campaigns.actual_cost` must represent the
+provider-authoritative charge. Computing it from the local rate card would produce another estimate
+rather than the provider's billed amount. Estimated and actual values may legitimately diverge due
+to provider pricing rules, discounts, credits, or future pricing changes. Therefore
+`campaigns.actual_cost` remains unset until an authoritative provider pricing source and contract
+are defined.
+
 ---
 
 ## 9. Domain: Messaging & Inbox (Phase 4 & 7)
@@ -1553,6 +1663,7 @@ future modules in §Scalability).
 | `messages` → `message_status_history` | Each message accrues multiple status transitions. |
 | `message_templates` → `template_versions` | Version history per template. |
 | `ai_knowledge_base` → `ai_knowledge_chunks` | A KB doc is split into many embeddable chunks. |
+| `users` → `rate_cards` (`created_by`) | Which operator authored a rate; the card's only FK (§8.5.2). |
 
 ### 12.3 Many-to-many (M:N) — via junction tables
 | Relationship | Junction | Why M:N |
@@ -1563,6 +1674,22 @@ future modules in §Scalability).
 
 Junction tables use a **composite primary key** of the two FK columns (natural uniqueness, no surrogate
 id needed) plus a **reverse secondary index** to make lookups fast in both directions.
+
+### 12.4a Value joins (no FK) — `rate_cards` (FR-CAM-11)
+> **Amendment 2026-07-17 (v1.2).**
+
+`rate_cards` is a **lookup dimension**, not a child of anything it prices. It is joined **by value**,
+never by key, and holds **no FK** to campaigns, contacts or templates:
+
+| Joined to | On | Why it is not an FK |
+|---|---|---|
+| `contacts` | `contacts.country_code` = `rate_cards.country_code` | The card is priced per **country**, not per contact; `contacts` is a 10M+ tenant table and the card is a small global one. `country_code` is **nullable** — the unresolved case is a documented outcome (§8.5.4), not a broken reference. |
+| `message_templates` | `message_templates.category` = `rate_cards.category` | The card is priced per **category**, not per template. Both sides are `VARCHAR + CHECK` (§1.4), so the shared vocabulary is the contract. |
+| `campaigns` | resolved via the campaign's roster + template | The estimate is **derived**, not stored as a link. Only the rounded result lands on `campaigns.estimated_cost`. |
+
+An FK on either column would tie a global, effective-dated price list to tenant rows and forbid the
+NULL country the schema already permits. **Tenancy:** `rate_cards` has no `organization_id` and is
+therefore the one campaign-domain table outside tenant scoping — deliberate, per §8.5.1.
 
 ### 12.4 Soft references (no DB FK) — partitioned tables
 `messages`, `message_status_history`, `campaign_recipients`, `contact_events`, `webhook_events`,
@@ -1600,6 +1727,8 @@ tables). Integrity is enforced in the service layer; every such column is indexe
 | `campaign_recipients` | `uq (campaign_id, contact_id, created_at)` | Idempotent, one-send-per-contact |
 | `campaign_schedules` | `(is_active, next_run_at)` | Beat scan for due campaigns |
 | `campaign_retry_queue` | `(status, next_attempt_at)` | Smart-retry due scan |
+| `rate_cards` | `(country_code, category, effective_from, effective_to)` | Cost-estimate rate lookup (FR-CAM-11) |
+| `rate_cards` | `uq (country_code, category, effective_from)` | One rate per pair per instant |
 | `conversations` | `(org, status, last_message_at)` | Inbox list ordering/filtering |
 | `conversations` | `(is_window_open, window_expires_at)` | Window-expiry sweeps |
 | `audit_logs` | `(entity_type, entity_id, created_at)` | Entity history |
@@ -1717,6 +1846,7 @@ duplication" directive):
 | Contacts / Tags / Segments / Custom Attributes / Segment Rules | `contacts`, `tags` (+`contact_tags`), `segments`, `custom_attribute_definitions` (+`contact_attribute_values`), `segment_rules` | — |
 | Templates / Media | `message_templates` (+`template_versions`), `media_assets` | — |
 | Campaigns / Campaign Recipients / Campaign Queue / Campaign Schedule / Campaign Retry Queue | `campaigns`, `campaign_recipients`, `campaign_batches` (+ Redis/Celery for the live queue), `campaign_schedules`, `campaign_retry_queue` | "Campaign Queue" = durable checkpoint (`campaign_batches`) + transient Redis queue |
+| Rate Card | `rate_cards` | Global (no tenancy), operator-managed, effective-dated; **estimation only** (§8.5) |
 | Message Ledger / Messages / Message Status History | `messages` (unified ledger) + `message_status_history` | Ledger & Messages unified (§9.2) |
 | Conversations | `conversations` | — |
 | Webhook Events / Dead Letter | `webhook_events`, `webhook_dead_letter` | — |

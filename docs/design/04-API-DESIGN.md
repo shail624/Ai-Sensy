@@ -601,7 +601,7 @@ read sub-resources.
 | PATCH | `/campaigns/{uuid}` | Edit draft (audience/template/vars) | `campaigns:write` | `write` | — | 409(not draft), 422 |
 | DELETE | `/campaigns/{uuid}` | Delete draft / soft-delete | `campaigns:write` | `write` | — | 409(running) |
 | POST | `/campaigns/{uuid}/preview` | Resolve audience size + sample renders | `campaigns:read` | `read` | — | 422 |
-| POST | `/campaigns/{uuid}/estimate-cost` | Cost estimate from rate card | `campaigns:read` | `read` | — | 422 |
+| POST | `/campaigns/{uuid}/estimate-cost` | Cost estimate from rate card | `campaigns:read` | `read` | — | 422(`rate_card_not_configured`), 404 |
 | POST | `/campaigns/{uuid}/schedule` | Schedule (one-time/recurring) | `campaigns:send` | `write` | key | 422(cron/time) |
 | POST | `/campaigns/{uuid}/send` | Send now (enqueue) | `campaigns:send` | `send` | **key req** | 409(state), 422(opt-in/limit) |
 | POST | `/campaigns/{uuid}/pause` | Pause a running campaign | `campaigns:manage` | `write` | key | 409(not running) |
@@ -628,20 +628,67 @@ read sub-resources.
 }
 ```
 
-**`POST /campaigns/{uuid}/estimate-cost` — sample response**
+**`POST /campaigns/{uuid}/estimate-cost` — contract**
+> **Amendment 2026-07-17 (v1.1).** Added to unblock Phase 6 Step 5. Previously specified by sample
+> response only. Scope is **pre-send estimation**; actual cost and billing remain out of scope.
+
+**Request:** no body. The estimate is derived from the campaign's **materialized roster** (Doc 3
+§8.3) and its template — never from a fresh audience query, so the quote prices what would actually
+be sent. `campaigns:read`, rate class `read`, no `Idempotency-Key` (naturally idempotent).
+
+**`200` — sample response**
 ```json
 {
   "recipients": 250000,
   "breakdown": [
     { "country":"IN","category":"marketing","count":180000,"unit":0.0094,"subtotal":1692.00 },
-    { "country":"US","category":"marketing","count":70000,"unit":0.025,"subtotal":1750.00 }
+    { "country":"US","category":"marketing","count":69997,"unit":0.025,"subtotal":1749.925 }
   ],
-  "estimated_total": 3442.00, "currency":"USD",
-  "notes":["Free-tier service conversations not applicable to marketing category"]
+  "unresolved": { "count": 3, "reason":"country_unknown" },
+  "estimated_total": 3441.925, "currency":"USD",
+  "notes":["3 recipients have no country and are excluded from the total"]
 }
 ```
+
+| Field | Meaning |
+|---|---|
+| `recipients` | The whole roster. **Invariant:** `recipients == Σ breakdown[].count + unresolved.count`. |
+| `breakdown[]` | One row per `(country, category)` actually priced. `unit` is the rate in force **at estimate time**; `subtotal = unit × count`, exact (Doc 3 §8.5.3). |
+| `unresolved` | Recipients whose `contacts.country_code` is `NULL` (Doc 3 §8.5.4). **Counted, priced at nothing, excluded from `estimated_total`.** Present with `count: 0` when all resolve. |
+| `estimated_total` | Σ of subtotals, rounded **once** to 4 dp, ROUND_HALF_UP. Covers **resolved recipients only**. |
+| `currency` | The rate card's single currency (Doc 3 §8.5.3). No FX; never mixed. |
+| `notes[]` | **Advisory, human-readable, non-contractual.** Clients **MUST NOT** parse them; machine outcomes are `unresolved` and the error codes below. |
+
+Money is decimal server-side and serialized at fixed scale (`unit`/`subtotal` 6 dp,
+`estimated_total` 4 dp). Clients needing exactness should parse as decimal, not float.
+
+**Side effect:** on success the endpoint persists `campaigns.estimated_cost` and
+`campaigns.cost_currency` — a derived cache of the campaign's own data, which is why it stays on
+`campaigns:read` rather than becoming a write-permission action. It populates **nothing else**:
+`campaigns.actual_cost` and every `messages.cost_*` / `pricing_model` / `is_billable` field are out
+of scope (Doc 3 §8.5.5).
+
+**Errors**
+
+| Code | HTTP | When |
+|---|---|---|
+| `rate_card_not_configured` | `422` | **No rate in force** for one or more required `(country, category)` pairs at estimate time — including a wholly empty card, which is the platform's shipped state (Doc 3 §8.5.1). The response `detail` names the missing pairs. **No partial estimate is returned:** a total missing India's 180k would understate the headline number while looking authoritative. |
+| — | `404` | Campaign not found / not in this organization. |
+
+An **unresolved country is not an error** — the card is fine, the contact data is incomplete, and the
+count is reported. A **missing rate** is a misconfiguration the operator must fix before any total
+can be trusted.
+
 - **Why it exists:** exact pre-send cost is our headline differentiator (Doc 1 FR-CAM-11) — computed from
   Meta's real rate card by contact country + template category. No reseller markup.
+- **Rate card:** global, operator-managed, effective-dated, **ships empty** (Doc 3 §8.5). The platform
+  bundles no rates: Doc 12 §53 places Meta's pricing outside the frozen set, so the codebase must not
+  restate it. Until an operator populates the card, this endpoint answers `rate_card_not_configured`.
+- **Category domain:** a campaign always sends a **template**, so the category is one of
+  `marketing/utility/authentication` (`ck_tpl_category`, Doc 3 §7.1). The `service` category that
+  `messages.category` also permits is **unreachable** from an estimate, and free-tier/service-conversation
+  semantics are undefined and out of scope (Doc 3 §8.5.5) — an earlier sample note here implied
+  otherwise and has been corrected.
 - **`send` guardrails:** the endpoint re-validates **opt-in** of every recipient, **template approval**,
   and the number's **messaging limit** before enqueuing; violations → `422` with a machine `code`
   (`recipients_not_opted_in`, `template_not_approved`, `messaging_limit_exceeded`). Requires an
@@ -650,6 +697,41 @@ read sub-resources.
   checkpoints (Doc 3 §8.3), so they are crash-safe and never duplicate sends (FR-CAM-06/08/09).
 - **Performance:** counters come from the denormalized `campaigns` row (O(1)); `/recipients` is
   cursor-paginated over a partitioned table filtered by `(campaign_id,status)`.
+
+### 17.1 Rate-card administration — the update mechanism (FR-CAM-11)
+> **Amendment 2026-07-17 (v1.1).** The write path required by "operator-managed" (Doc 3 §8.5.1).
+> Estimation reads this card; without a write path the card could never leave its shipped-empty
+> state. Scope is confined to authoring rates — it is not billing, invoicing or finance reporting.
+
+| Method | Path | Purpose | Permission | Rate class | Idem. | Notable errors |
+|---|---|---|---|---|---|---|
+| GET | `/rate-cards` | List rates (filter `country`, `category`, `at`) | `settings:read` + platform admin | `read` | — | — |
+| POST | `/rate-cards` | Author a rate (supersedes the row in force) | `settings:manage` + platform admin | `write` | key | 422, 409 |
+
+**Platform-scoped, not tenant-scoped.** `rate_cards` is **global** (no `organization_id`, Doc 3
+§8.5.1) while roles are org-scoped — so an org-level `settings:manage` alone **MUST NOT** authorize a
+write, or one tenant's operator would silently reprice every other tenant. These routes additionally
+require **platform administrator** (`users.is_superuser`). Reads are likewise platform-scoped: the
+card is not tenant data.
+
+**Supersede, never mutate (versioning).** `POST /rate-cards` **appends** an effective-dated row; it
+never edits a rate in place, and there is no `PATCH`/`DELETE`. Authoring a rate for
+`(country, category)` with an `effective_from` closes the currently-open row by setting its
+`effective_to` to the new `effective_from`. Past estimates stay explainable because the rate they
+used still exists.
+
+- **Request:** `{ "country_code":"IN", "category":"marketing", "unit_price":"0.0094",
+  "currency":"USD", "effective_from":"2026-08-01T00:00:00Z" }`
+- `422` — unknown category (outside `marketing/utility/authentication`), negative `unit_price`,
+  malformed `country_code`, or a `currency` that disagrees with the card's existing single currency
+  (`rate_card_currency_conflict`, Doc 3 §8.5.3).
+- `409` — a row already exists for that exact `(country_code, category, effective_from)`
+  (`uq_ratecard_slot`).
+- **Backdating** an `effective_from` earlier than an existing row is rejected `422`: it would rewrite
+  what a past estimate meant.
+
+**Out of scope for this surface:** bulk import, rate approval workflow, per-tenant overrides, markup,
+FX, and any billing/finance reporting (Doc 3 §8.5.5).
 
 ---
 
@@ -1156,7 +1238,10 @@ lifecycle. It complements, and reuses the pipeline of, §17/§18.
   than a campaign entity. Per-recipient rows are still written to the message ledger.
 - **Validation:** enforces **opt-in**, **template approval**, and the **24-hour-window/template** rule
   per recipient exactly like campaigns; invalid recipients are reported via §29, valid ones still send.
-- **Cost estimation:** `/estimate` returns the same rate-card breakdown as campaign estimation (§17).
+- **Cost estimation:** `/estimate` returns the same rate-card breakdown as campaign estimation (§17) —
+  the same global card (Doc 3 §8.5), the same money rules, the same `unresolved` handling, and the same
+  `rate_card_not_configured` error. The rate card has exactly one contract; §17 is its definition.
+  *(Bulk send is not Phase 6 Step 5; this cross-reference fixes the shared contract, it does not schedule the endpoint.)*
 - **Idempotency & rate limiting:** required `Idempotency-Key`; `send` rate class (Meta-limit-aware);
   data-layer uniqueness prevents duplicate sends on retry.
 
