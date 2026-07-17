@@ -37,7 +37,10 @@ Invent no pricing data and no billing semantics.
   `200` shape with the `recipients == Σ breakdown[].count + unresolved.count` invariant, money
   serialization, the `campaigns.estimated_cost` side effect, and errors.
 - **§17 route table** — bare `422` → `422(rate_card_not_configured)`, `404`.
-- **New §17.1** — rate-card administration (the operator update mechanism); platform-admin scoped.
+- **New §17.1** — rate-card administration (the operator update mechanism). Requires **elevated
+  administrative authority** (platform-level, never tenant-level, since the card is global); the
+  concrete RBAC mapping is **left to the authorization model**, not frozen here. **Specified for
+  future administration — not implemented in Phase 6 Step 5**, which delivers the read path only.
 - **§31** — bulk `/estimate` cross-reference pinned to §17 as the single rate-card contract.
 
 **Money rules fixed:** single-currency card (no FX); `unit_price DECIMAL(12,6)`; subtotals exact

@@ -702,17 +702,25 @@ can be trusted.
 > **Amendment 2026-07-17 (v1.1).** The write path required by "operator-managed" (Doc 3 §8.5.1).
 > Estimation reads this card; without a write path the card could never leave its shipped-empty
 > state. Scope is confined to authoring rates — it is not billing, invoicing or finance reporting.
+>
+> **Specified for future administration; NOT implemented in Phase 6 Step 5.** Step 5 delivers the
+> read path only (`estimate-cost`). These routes define the contract the administration surface will
+> honour when it is built; until then the card is populated out-of-band.
 
 | Method | Path | Purpose | Permission | Rate class | Idem. | Notable errors |
 |---|---|---|---|---|---|---|
-| GET | `/rate-cards` | List rates (filter `country`, `category`, `at`) | `settings:read` + platform admin | `read` | — | — |
-| POST | `/rate-cards` | Author a rate (supersedes the row in force) | `settings:manage` + platform admin | `write` | key | 422, 409 |
+| GET | `/rate-cards` | List rates (filter `country`, `category`, `at`) | Elevated administrative authority | `read` | — | — |
+| POST | `/rate-cards` | Author a rate (supersedes the row in force) | Elevated administrative authority | `write` | key | 422, 409 |
 
 **Platform-scoped, not tenant-scoped.** `rate_cards` is **global** (no `organization_id`, Doc 3
-§8.5.1) while roles are org-scoped — so an org-level `settings:manage` alone **MUST NOT** authorize a
-write, or one tenant's operator would silently reprice every other tenant. These routes additionally
-require **platform administrator** (`users.is_superuser`). Reads are likewise platform-scoped: the
-card is not tenant data.
+§8.5.1) while ordinary roles are org-scoped — so a tenant-level settings permission alone **MUST NOT**
+authorize a write, or one tenant's operator would silently reprice every other tenant. These routes
+therefore **require elevated administrative authority**. Reads are likewise platform-scoped: the card
+is not tenant data.
+
+The **concrete RBAC mapping is deliberately left to the authorization model** and is not frozen here.
+This section fixes the *requirement* (platform-level authority, never tenant-level); which permission,
+role or principal satisfies it is the authorization model's decision.
 
 **Supersede, never mutate (versioning).** `POST /rate-cards` **appends** an effective-dated row; it
 never edits a rate in place, and there is no `PATCH`/`DELETE`. Authoring a rate for
