@@ -22,6 +22,7 @@ from app.api.v1.endpoints import (
     media,
     messages,
     organization,
+    quick_replies,
     roles,
     segments,
     settings,
@@ -71,3 +72,5 @@ api_router.include_router(campaigns.router, tags=["Campaigns"])
 
 # Phase 7 — Shared Inbox: conversation assignment, status & internal notes (Doc 04 §18.1).
 api_router.include_router(conversations.router, tags=["Inbox"])
+# Phase 7 — Shared Inbox: quick replies (Doc 04 §18.2; Doc 03 §9.5).
+api_router.include_router(quick_replies.router, tags=["Inbox"])

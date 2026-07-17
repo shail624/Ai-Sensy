@@ -28,6 +28,7 @@ from app.models.lead import LeadPipeline, LeadStage
 from app.models.media import MediaAsset
 from app.models.message import Message, MessageStatusHistory
 from app.models.organization import Organization
+from app.models.quick_reply import QuickReply
 from app.models.rate_card import RateCard
 from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.segment import Segment, SegmentRule
@@ -67,6 +68,7 @@ __all__ = [
     "MessageStatusHistory",
     "Organization",
     "Permission",
+    "QuickReply",
     "RateCard",
     "PhoneNumber",
     "RefreshToken",
