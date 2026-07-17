@@ -488,13 +488,11 @@ async def test_campaign_permissions(client, make_user, session_factory, monkeypa
 
 
 # --- Unbuilt surfaces are absent, not stubbed --------------------------------
-def test_no_scheduling_surface_exists_yet() -> None:
-    """A route that pretends to schedule would be worse than none — it implies it nearly works."""
+def test_no_cost_surface_exists_yet() -> None:
+    """A route that pretends to price a campaign would be worse than none — it implies it nearly
+    works. Scheduling is mounted as of Phase 6 Step 4; the cost engine is still a later step."""
     from app.main import create_app
 
     paths = create_app().openapi()["paths"]
-    for path in (
-        "/api/v1/campaigns/{campaign_id}/schedule",
-        "/api/v1/campaigns/{campaign_id}/estimate-cost",
-    ):
-        assert path not in paths
+    assert "/api/v1/campaigns/{campaign_id}/estimate-cost" not in paths
+    assert "/api/v1/campaigns/{campaign_id}/schedule" in paths

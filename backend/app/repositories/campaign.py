@@ -15,6 +15,7 @@ from app.models.campaign import (
     CampaignBatch,
     CampaignRecipient,
     CampaignRetry,
+    CampaignSchedule,
 )
 from app.models.contact import Contact
 from app.repositories.base import BaseRepository
@@ -214,6 +215,56 @@ class CampaignBatchRepository(BaseRepository[CampaignBatch]):
             .order_by(CampaignBatch.batch_index)
         )
         return list((await self.session.scalars(stmt)).all())
+
+
+class CampaignScheduleRepository(BaseRepository[CampaignSchedule]):
+    model = CampaignSchedule
+
+    async def due(self, now: datetime, *, limit: int) -> list[CampaignSchedule]:
+        """Active schedules whose next fire has arrived — the ``ix_csched_next`` scan (Doc 06 §10.2).
+
+        Ordered by ``next_run_at`` so a backlog is worked oldest-first, and limited so one tick
+        cannot enqueue an unbounded amount of work.
+        """
+        stmt = (
+            select(CampaignSchedule)
+            .where(
+                CampaignSchedule.is_active.is_(True),
+                CampaignSchedule.next_run_at.is_not(None),
+                CampaignSchedule.next_run_at <= now,
+            )
+            .order_by(CampaignSchedule.next_run_at)
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def for_campaign(self, campaign_pk: int) -> list[CampaignSchedule]:
+        stmt = (
+            select(CampaignSchedule)
+            .where(CampaignSchedule.campaign_id == campaign_pk)
+            .order_by(CampaignSchedule.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def active_for_campaign(self, campaign_pk: int) -> list[CampaignSchedule]:
+        stmt = (
+            select(CampaignSchedule)
+            .where(
+                CampaignSchedule.campaign_id == campaign_pk,
+                CampaignSchedule.is_active.is_(True),
+            )
+            .order_by(CampaignSchedule.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def deactivate_for_campaign(self, campaign_pk: int) -> int:
+        """Retire a campaign's live schedules so a re-schedule replaces rather than accumulates."""
+        rows = await self.active_for_campaign(campaign_pk)
+        for row in rows:
+            row.is_active = False
+            row.next_run_at = None
+        await self.flush()
+        return len(rows)
 
 
 class CampaignRetryRepository(BaseRepository[CampaignRetry]):

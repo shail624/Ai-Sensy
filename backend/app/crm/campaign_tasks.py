@@ -17,9 +17,10 @@ from typing import Any
 
 from app.db.session import get_sessionmaker
 from app.queue.base_task import register_task
-from app.queue.registry import CAMPAIGNS_CONTROL, SENDS_BULK, SENDS_RETRY
+from app.queue.registry import CAMPAIGNS_CONTROL, SCHEDULER_TICK, SENDS_BULK, SENDS_RETRY
 from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_retry_service import CampaignRetryService
+from app.services.campaign_schedule_service import CampaignScheduleService
 
 
 async def _plan(campaign_pk: int) -> dict[str, Any]:
@@ -83,6 +84,33 @@ def send_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa:
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
+
+
+async def _tick() -> dict[str, Any]:
+    async with get_sessionmaker()() as session:
+        return await CampaignScheduleService(session).tick()
+
+
+@register_task(queue=SCHEDULER_TICK, name="app.crm.campaign_tasks.scheduler_tick")
+def scheduler_tick(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+    """Fire every campaign schedule that has come due (FR-CAM-03/04; Doc 06 §10.2).
+
+    Beat's heartbeat, not Beat's schedule: the cadence is fixed, the schedules live in the database
+    and are edited through the API at runtime (D14). Beat must run as a **singleton** (§10.2's
+    leader lock) — two tickers would fire the same slot twice.
+
+    Fire-and-scan, so the tick is idempotent by claiming: each due row is advanced and committed
+    before its campaign is handed over, and the scan is bounded by ``scheduler_tick_scan_limit``.
+    """
+    try:
+        result = asyncio.run(_tick())
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+    for campaign_pk in result.get("fired") or []:
+        dispatch_campaign.apply_async(args=[campaign_pk])
+    return result
 
 
 async def _due_retries(limit: int) -> list[int]:

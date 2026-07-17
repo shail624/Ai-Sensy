@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     worker_heartbeat_ttl_seconds: int = 60
     worker_heartbeat_interval_seconds: int = 15
 
+    # ---- Scheduler (Doc 06 §10) ------------------------------------------
+    #: How late a **one-time** campaign may fire after downtime before it is skipped instead
+    #: (Doc 06 §10.5, D15). A day-late marketing blast is worse than no blast, so this is
+    #: deliberately short — and explicit, never accidental.
+    scheduler_one_time_grace_seconds: int = 3600
+    #: Ceiling on what a single tick claims, so a backlog cannot flood the control lane at once.
+    scheduler_tick_scan_limit: int = 500
+
     # ---- Storage (Doc 08 §14; FR-MED-06/09) ------------------------------
     #: Pluggable backend: 'local' volume by default, S3-compatible optional (FR-MED-06).
     storage_backend: str = "local"

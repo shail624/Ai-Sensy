@@ -76,6 +76,7 @@ class AuditAction:
     CAMPAIGN_UPDATED = "campaign.updated"
     CAMPAIGN_DELETED = "campaign.deleted"
     CAMPAIGN_DISPATCHED = "campaign.dispatched"
+    CAMPAIGN_SCHEDULED = "campaign.scheduled"
     CAMPAIGN_PAUSED = "campaign.paused"
     CAMPAIGN_RESUMED = "campaign.resumed"
     CAMPAIGN_CANCELLED = "campaign.cancelled"

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import uuid as uuidlib
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.models.campaign import Campaign, CampaignRecipient
+from app.models.campaign import Campaign, CampaignRecipient, CampaignSchedule
 from app.models.contact import Contact
 
 AudienceTypeName = Literal["segment", "tag", "list", "upload"]
@@ -208,3 +208,76 @@ class CampaignRetryResponse(BaseModel):
     status: str
     #: Failed recipients reset to pending and handed back to the send fabric.
     retried: int
+
+
+#: What a caller may ask for. ``drip`` is an API shape, not a stored type: it expands into a series
+#: of one-time schedules (Doc 06 §10.3), which is why it has no counterpart in Doc 03 §8.2's
+#: ``ck_csched_type``.
+ScheduleTypeName = Literal["one_time", "recurring", "drip"]
+
+
+class CampaignScheduleRequest(BaseModel):
+    """When a campaign should fire (Doc 04 §17; FR-CAM-03/04).
+
+    One model over three shapes, because they are one decision — "when" — and the fields that do
+    not apply are simply absent. The service rejects a shape missing what it needs (422).
+    """
+
+    schedule_type: ScheduleTypeName
+    #: IANA zone the schedule is read in; the cron's meaning depends on it (Doc 06 §10.4).
+    timezone: str = Field(default="UTC", max_length=64)
+
+    #: one_time — the single fire, UTC.
+    run_at: datetime | None = None
+
+    #: recurring — five-field cron, plus an optional window.
+    cron_expr: str | None = Field(default=None, max_length=120)
+    starts_on: date | None = None
+    ends_on: date | None = None
+
+    #: drip — the anchor every step is measured from.
+    starts_at: datetime | None = None
+    #: drip — minute offsets from ``starts_at``; each becomes one one-time schedule.
+    steps: list[int] | None = None
+
+
+class ScheduleEntry(BaseModel):
+    """One stored schedule row (Doc 03 §8.2)."""
+
+    id: str
+    schedule_type: str
+    timezone: str
+    run_at: datetime | None
+    cron_expr: str | None
+    starts_on: date | None
+    ends_on: date | None
+    next_run_at: datetime | None
+    last_run_at: datetime | None
+    is_active: bool
+
+    @classmethod
+    def from_schedule(cls, schedule: CampaignSchedule) -> ScheduleEntry:
+        return cls(
+            id=schedule.public_id,
+            schedule_type=schedule.schedule_type,
+            timezone=schedule.timezone,
+            run_at=schedule.run_at,
+            cron_expr=schedule.cron_expr,
+            starts_on=schedule.starts_on,
+            ends_on=schedule.ends_on,
+            next_run_at=schedule.next_run_at,
+            last_run_at=schedule.last_run_at,
+            is_active=schedule.is_active,
+        )
+
+
+class CampaignScheduleResponse(BaseModel):
+    """The campaign and the schedule(s) now attached to it (FR-CAM-03/04).
+
+    A list, not a single row: a drip request produces one row per step, and returning all of them
+    is what lets the caller see the sequence it actually created.
+    """
+
+    id: str
+    status: str
+    schedules: list[ScheduleEntry]

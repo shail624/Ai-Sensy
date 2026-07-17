@@ -13,10 +13,20 @@ same person twice. It exists now because the roster is materialized now.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CHAR, JSON, CheckConstraint, ForeignKey, Index, Numeric, String
+from sqlalchemy import (
+    CHAR,
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -69,6 +79,14 @@ AUDIENCE_TAG = "tag"
 AUDIENCE_LIST = "list"
 AUDIENCE_UPLOAD = "upload"
 AUDIENCE_TYPES = (AUDIENCE_SEGMENT, AUDIENCE_TAG, AUDIENCE_LIST, AUDIENCE_UPLOAD)
+
+# campaign_schedules.schedule_type (Doc 03 §8.2)
+SCHEDULE_ONE_TIME = "one_time"
+SCHEDULE_RECURRING = "recurring"
+#: Exactly the two the frozen check constraint permits. A drip sequence is **not** a third type:
+#: it is expanded at request time into a series of ``one_time`` rows (Doc 06 §10.3 — "the same
+#: mechanism"), so the tick has one less thing to know about.
+SCHEDULE_TYPES = (SCHEDULE_ONE_TIME, SCHEDULE_RECURRING)
 
 # campaign_batches.status (Doc 03 §8.4)
 BATCH_PENDING = "pending"
@@ -169,6 +187,57 @@ class Campaign(
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<Campaign {self.name!r} {self.status}>"
+
+
+class CampaignSchedule(IntPKMixin, UUIDMixin, Base):
+    """When a campaign fires (Doc 03 §8.2) — FR-CAM-03/04.
+
+    Its own table rather than columns on ``campaigns`` (Doc 03 §16): an unscheduled campaign carries
+    no scheduling nulls, and the beat scanner reads a small table instead of the big one.
+
+    **The database is the schedule; Beat is only the heartbeat** (Doc 06 §10.2, D14). ``next_run_at``
+    is the precomputed answer to "when next", so the tick's scan is O(due rows) on
+    ``ix_csched_next`` rather than a cron evaluation over every row. It is stored UTC and computed
+    in ``timezone``, which is what keeps "weekdays at 10:00 in Asia/Kolkata" correct across DST
+    (Doc 06 §10.4).
+    """
+
+    __tablename__ = "campaign_schedules"
+    __table_args__ = (
+        # The tick's index: active schedules, soonest first (Doc 03 §8.2).
+        Index("ix_csched_next", "is_active", "next_run_at"),
+        Index("ix_csched_campaign", "campaign_id"),
+        CheckConstraint(
+            "schedule_type IN ('one_time','recurring')", name="ck_csched_type"
+        ),
+        MYSQL_TABLE_ARGS,
+    )
+
+    campaign_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey("campaigns.id", name="fk_csched_campaign", ondelete="CASCADE"),
+        nullable=False,
+    )
+    schedule_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: One-time fire, UTC. A drip step is one of these.
+    run_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    #: IANA zone the cron is read in (Doc 06 §10.4); data stays UTC, interpretation is tz-aware.
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    cron_expr: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    #: The precomputed next fire. ``None`` means nothing more is owed.
+    next_run_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    #: The pause switch (Doc 06 §10.5) and the "finished" marker for a spent one-time row.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        datetime6(), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<CampaignSchedule campaign={self.campaign_id} {self.schedule_type}>"
 
 
 class CampaignRecipient(IntPKMixin, Base):

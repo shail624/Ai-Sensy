@@ -1,13 +1,12 @@
-"""Campaign endpoints (Doc 04 §17) — Phase 6 Step 1: registry & audience.
+"""Campaign endpoints (Doc 04 §17) — draft lifecycle, audience, dispatch, control and scheduling.
 
 Reads require ``campaigns:read``, writes ``campaigns:write``.
 
-Draft lifecycle, audience, dispatch and lifecycle control. Scheduling is a later step, so its
-endpoint is not mounted rather than stubbed — a route that returns "not implemented" is worse than
-a 404, because it implies the feature is nearly there.
-
 Dispatch answers ``202``: the campaign is validated and handed to ``campaigns.control``, which
 batches the roster and fans it out. Nothing is sent on the request path.
+
+Scheduling answers ``200`` and sends nothing either — it writes the row that ``scheduler.tick``
+will find when it comes due (Doc 06 §10.2: the database is the schedule, Beat is the heartbeat).
 """
 
 from __future__ import annotations
@@ -30,13 +29,17 @@ from app.schemas.campaign import (
     CampaignProgressResponse,
     CampaignResponse,
     CampaignRetryResponse,
+    CampaignScheduleRequest,
+    CampaignScheduleResponse,
     CampaignStateResponse,
     CampaignUpdateRequest,
     RecipientEntry,
     RecipientsResponse,
+    ScheduleEntry,
 )
 from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_lifecycle_service import CampaignLifecycleService
+from app.services.campaign_schedule_service import CampaignScheduleService
 from app.services.campaign_service import CampaignService
 
 router = APIRouter()
@@ -224,6 +227,39 @@ async def dispatch_campaign(
         status=campaign.status,
         total_recipients=campaign.total_recipients,
         progress_url=f"{settings.api_v1_prefix}/campaigns/{campaign.public_id}/progress",
+    )
+
+
+@router.post(
+    "/campaigns/{campaign_id}/schedule",
+    response_model=CampaignScheduleResponse,
+    summary="Schedule a campaign (one-time/recurring/drip)",
+)
+async def schedule_campaign(
+    campaign_id: uuidlib.UUID,
+    payload: CampaignScheduleRequest,
+    session: SessionDep,
+    actor: CampaignSender,
+) -> CampaignScheduleResponse:
+    """Write the schedule and park the campaign in ``scheduled``. Nothing fires on this path:
+    ``scheduler.tick`` reads the row when it comes due (Doc 06 §10.2 — the DB is the schedule)."""
+    campaign, schedules = await CampaignScheduleService(session).schedule(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=campaign_id,
+        schedule_type=payload.schedule_type,
+        run_at=payload.run_at,
+        cron_expr=payload.cron_expr,
+        timezone=payload.timezone,
+        starts_on=payload.starts_on,
+        ends_on=payload.ends_on,
+        starts_at=payload.starts_at,
+        steps=payload.steps,
+    )
+    return CampaignScheduleResponse(
+        id=campaign.public_id,
+        status=campaign.status,
+        schedules=[ScheduleEntry.from_schedule(s) for s in schedules],
     )
 
 
