@@ -20,6 +20,9 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production-use-only
 os.environ.setdefault("LOG_JSON", "false")
 # Rate limiting is exercised in its own dedicated test; keep other tests deterministic.
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+# Likewise the send rate gate (Doc 06 §5): without it off, every send test would reach for Redis
+# and fall through to the D11 local pacing, making throughput a variable in tests about sending.
+os.environ.setdefault("RATE_GATE_ENABLED", "false")
 # Fast Argon2id parameters for tests only (production uses the secure defaults).
 os.environ.setdefault("ARGON2_TIME_COST", "1")
 os.environ.setdefault("ARGON2_MEMORY_COST", "512")

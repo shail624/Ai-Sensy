@@ -118,6 +118,13 @@ class Settings(BaseSettings):
     #: How long an `Idempotency-Key` replays its original response. 24h per Doc 04 §8.
     idempotency_ttl_seconds: int = 86400
 
+    # ---- Tier-aware sending / rate gate (Doc 06 §5; FR-WA-13) ------------
+    #: The gate every send passes before Meta is called. Off only for tests that are not about it.
+    rate_gate_enabled: bool = True
+    #: D11 fallback share of a number's MPS when Redis is unreachable. Each worker paces
+    #: independently there, so the fraction is what keeps the fleet's sum under the ceiling.
+    rate_gate_fallback_fraction: float = 0.25
+
     # ---- Rate limiting (Doc 04 §9) ---------------------------------------
     rate_limit_enabled: bool = True
     # 'auth' bucket: brute-force protection for login/refresh (Doc 04 §9 — 10 / 5 min / IP).

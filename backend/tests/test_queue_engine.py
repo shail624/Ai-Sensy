@@ -94,6 +94,10 @@ def test_backoff_grows_with_attempts() -> None:
 
 
 def test_classify_uses_registered_error_maps_then_builtins() -> None:
+    # The registry is process-global and populated at import time (Meta's map, the webhook lane's,
+    # the send lane's). Clearing it without putting it back would silently disable classification
+    # for every test that happens to run after this one.
+    saved = dict(retry._ERROR_MAPS)
     retry.clear_error_maps()
     try:
         assert retry.classify(TimeoutError("t")) is FailureClass.TRANSIENT
@@ -106,6 +110,7 @@ def test_classify_uses_registered_error_maps_then_builtins() -> None:
         assert retry.classify(RuntimeError("x")) is FailureClass.UNKNOWN
     finally:
         retry.clear_error_maps()
+        retry._ERROR_MAPS.update(saved)
 
 
 # --- Heartbeat & health (Doc 06 §3.4, §13.2) --------------------------------
