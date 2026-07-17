@@ -64,12 +64,55 @@ class MediaContent:
 
 
 @dataclass(frozen=True, slots=True)
+class TemplateButtonValue:
+    """A value bound to one of a template's buttons at send time.
+
+    ``type`` is what the button *is* (``url`` suffix, ``quick_reply`` payload, ``copy_code``);
+    ``value`` is the single datum that fills it. Which parameter shape a channel needs for each is
+    the adapter's problem, not the caller's.
+    """
+
+    index: int
+    type: str
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
 class TemplateContent:
-    """A pre-approved template send. ``components`` carries the variable substitutions."""
+    """A pre-approved template send, in the platform's own terms.
+
+    Deliberately **variables, not components**: a template's variables are positional values the
+    business layer knows (a name, an order number), while "components" is a provider's wire format.
+    Handing the adapter values rather than a payload is what keeps Graph's shape behind the seam
+    (Doc 07 §5.3) — and what lets a future channel bind the same template to a different format.
+    """
 
     name: str
     language: str
+    #: Positional ``{{1}}, {{2}}, …`` substitutions, in order.
+    header: list[str] = field(default_factory=list)
+    body: list[str] = field(default_factory=list)
+    buttons: list[TemplateButtonValue] = field(default_factory=list)
+    #: A media header's content, when the template declares one (Doc 03 ``has_media_header``).
+    header_media: MediaContent | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelTemplate:
+    """A template as the channel holds it (Doc 03 §7.1's columns, canonicalised).
+
+    ``components`` is the template's **definition** — the Doc 04 §15 structure the platform stores
+    and renders — not a send payload.
+    """
+
+    name: str
+    language: str
+    category: str
+    status: str
     components: list[dict[str, Any]] = field(default_factory=list)
+    channel_template_id: str | None = None
+    quality_score: str | None = None
+    rejection_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

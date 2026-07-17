@@ -172,16 +172,15 @@ async def test_send_template_and_interactive_payloads() -> None:
         return _json({"messages": [{"id": WAMID}]})
 
     adapter = _adapter(handler)
-    await adapter.send_template(
-        "14155550001", "welcome", "en_US", [{"type": "body", "parameters": []}]
-    )
+    await adapter.send_template("14155550001", "welcome", "en_US", body=["Priya"])
     await adapter.send_interactive("14155550001", {"type": "button", "body": {"text": "hi"}})
 
     assert bodies[0]["type"] == "template"
+    # The caller passed a value; Graph's parameter shape was built here, behind the seam.
     assert bodies[0]["template"] == {
         "name": "welcome",
         "language": {"code": "en_US"},
-        "components": [{"type": "body", "parameters": []}],
+        "components": [{"type": "body", "parameters": [{"type": "text", "text": "Priya"}]}],
     }
     assert bodies[1]["type"] == "interactive"
     assert bodies[1]["interactive"] == {"type": "button", "body": {"text": "hi"}}

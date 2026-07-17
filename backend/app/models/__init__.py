@@ -24,6 +24,7 @@ from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.segment import Segment, SegmentRule
 from app.models.settings import FeatureFlag, Setting
 from app.models.tag import Tag, contact_tags
+from app.models.template import MessageTemplate, TemplateVersion
 from app.models.token import RefreshToken, UserSession
 from app.models.user import User
 from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
@@ -47,6 +48,7 @@ __all__ = [
     "LeadStage",
     "MediaAsset",
     "Message",
+    "MessageTemplate",
     "MessageStatusHistory",
     "Organization",
     "Permission",
@@ -57,6 +59,7 @@ __all__ = [
     "SegmentRule",
     "Setting",
     "Tag",
+    "TemplateVersion",
     "User",
     "UserRole",
     "UserSession",

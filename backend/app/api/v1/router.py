@@ -24,6 +24,7 @@ from app.api.v1.endpoints import (
     segments,
     settings,
     tags,
+    templates,
     users,
     waba,
     webhooks,
@@ -59,3 +60,6 @@ api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])
 api_router.include_router(webhooks.router, tags=["Webhooks"])
 # Module 4 — outbound send + message reads (Doc 04 §18.2).
 api_router.include_router(messages.router, tags=["Messaging"])
+
+# Module 5 — template registry (Doc 04 §15; Doc 03 §7.1).
+api_router.include_router(templates.router, tags=["Templates"])

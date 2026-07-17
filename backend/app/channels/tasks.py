@@ -24,6 +24,7 @@ from app.queue.retry import classify, should_retry
 from app.services.media_ingest_service import MediaIngestService
 from app.services.message_service import MessageService
 from app.services.send_service import SendService
+from app.services.template_service import TemplateService
 from app.services.waba_service import WabaService
 from app.services.webhook_service import WebhookService
 
@@ -36,7 +37,11 @@ async def _run_sync(waba_id: str) -> dict[str, Any]:
 
 @register_task(queue=TEMPLATES_SYNC, name="app.channels.tasks.run_waba_sync")
 def run_waba_sync(self, waba_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
-"""Reconcile a WABA's phone numbers with Meta. Templates join this job when M5 lands."""
+    """Reconcile a WABA's phone numbers with Meta (Doc 04 §13.2).
+
+    Templates ride the same lane but their own job (`run_template_sync`, Doc 04 §15): they have a
+    separate endpoint, permission and cadence, and one syncing should never block the other.
+    """
     try:
         return asyncio.run(_run_sync(waba_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
@@ -116,6 +121,21 @@ def process_webhook_event(self, event_pk: int) -> dict[str, Any]:  # noqa: ANN00
             self.smart_retry(exc)  # re-queues with backoff (§6.3)
             raise  # unreachable: smart_retry always raises
         return asyncio.run(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
+
+
+async def _run_template_sync(waba_ids: list[str]) -> dict[str, Any]:
+    async with get_sessionmaker()() as session:
+        return await TemplateService(session).run_sync(waba_ids)
+
+
+@register_task(queue=TEMPLATES_SYNC, name="app.channels.tasks.run_template_sync")
+def run_template_sync(self, waba_ids: list[str]) -> dict[str, Any]:  # noqa: ANN001
+    """Reconcile templates + approval state with Meta (FR-TPL-01/03; Doc 04 §15)."""
+    try:
+        return asyncio.run(_run_template_sync(waba_ids))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
 
 
 # --- Outbound sends (Doc 04 §18.2; Doc 06 §2.3) ------------------------------

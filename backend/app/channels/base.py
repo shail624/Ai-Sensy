@@ -27,6 +27,7 @@ from app.channels.models import (
     CAPABILITY_FOR_TYPE,
     Attachment,
     ChannelStatus,
+    ChannelTemplate,
     DownloadedAttachment,
     HealthSignal,
     InboundEvent,
@@ -38,6 +39,7 @@ from app.channels.models import (
     OutboundMessage,
     SendResult,
     StatusUpdate,
+    TemplateButtonValue,
     TemplateContent,
     TextContent,
 )
@@ -122,15 +124,51 @@ class ChannelAdapter(ABC):
         )
 
     async def send_template(
-        self, to: str, name: str, language: str, components: list[dict[str, Any]] | None = None
+        self,
+        to: str,
+        name: str,
+        language: str,
+        *,
+        header: list[str] | None = None,
+        body: list[str] | None = None,
+        buttons: list[TemplateButtonValue] | None = None,
+        header_media: MediaContent | None = None,
     ) -> SendResult:
         return await self.send(
             OutboundMessage(
                 to=to,
                 type=MessageType.TEMPLATE,
-                content=TemplateContent(name=name, language=language, components=components or []),
+                content=TemplateContent(
+                    name=name,
+                    language=language,
+                    header=header or [],
+                    body=body or [],
+                    buttons=buttons or [],
+                    header_media=header_media,
+                ),
             )
         )
+
+    # --- Templates (§5.2 "Outbound messaging" — the registry behind a template send) ---------
+    async def list_templates(self, account_id: str | None = None) -> list[ChannelTemplate]:
+        """Every template the channel holds for this account (FR-TPL-01)."""
+        raise ChannelNotSupported(f"{self.connector_type!r} has no template registry")
+
+    async def create_template(
+        self,
+        *,
+        name: str,
+        language: str,
+        category: str,
+        components: list[dict[str, Any]],
+        account_id: str | None = None,
+    ) -> ChannelTemplate:
+        """Submit a template definition for approval (FR-TPL-02)."""
+        raise ChannelNotSupported(f"{self.connector_type!r} cannot submit templates")
+
+    async def delete_template(self, name: str, *, account_id: str | None = None) -> None:
+        """Withdraw a template from the channel."""
+        raise ChannelNotSupported(f"{self.connector_type!r} cannot delete templates")
 
     # --- Inbound stream (§5.2) -----------------------------------------------
     # Deliberately synchronous and pure: these run on the webhook request path, which must ack in

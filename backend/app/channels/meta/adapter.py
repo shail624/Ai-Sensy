@@ -21,6 +21,11 @@ from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_META_CLOUD, Capability, ChannelType
 from app.channels.errors import ChannelConfigError
 from app.channels.meta.client import MetaCloudClient, MetaCredentials
+from app.channels.meta.templates import (
+    send_components,
+    to_channel_template,
+    to_create_payload,
+)
 from app.channels.meta.webhooks import (
     challenge,
     parse,
@@ -32,6 +37,7 @@ from app.channels.models import (
     Attachment,
     ChannelPhoneNumber,
     ChannelStatus,
+    ChannelTemplate,
     DownloadedAttachment,
     HealthSignal,
     InboundEvent,
@@ -53,6 +59,8 @@ _HEALTH_FIELDS = (
     "display_phone_number,verified_name,quality_rating,throughput,"
     "messaging_limit_tier,platform_type"
 )
+#: Fields read when enumerating a WABA's templates (Doc 03 §7.1 columns).
+_TEMPLATE_FIELDS = "id,name,language,category,status,components,quality_score,rejected_reason"
 #: Fields read when enumerating a WABA's numbers (Doc 03 §5.2 columns).
 _NUMBER_FIELDS = (
     "id,display_phone_number,verified_name,quality_rating,throughput,"
@@ -143,8 +151,9 @@ class MetaChannelAdapter(ChannelAdapter):
                 "name": content.name,
                 "language": {"code": content.language},
             }
-            if content.components:
-                template["components"] = content.components
+            components = send_components(content)
+            if components:
+                template["components"] = components
             return base | {"type": "template", "template": template}
 
         if message.type is MessageType.INTERACTIVE and isinstance(content, InteractiveContent):
@@ -247,6 +256,52 @@ class MetaChannelAdapter(ChannelAdapter):
             params={"fields": _NUMBER_FIELDS, "limit": 100},
         )
         return [self._number(node) for node in body.get("data") or []]
+
+    # --- Templates (FR-TPL-01/02) -------------------------------------------
+    def _account(self, account_id: str | None) -> str:
+        account = account_id or self._client.credentials.waba_id
+        if not account:
+            raise ChannelConfigError("a WABA id is required for template operations")
+        return account
+
+    async def list_templates(self, account_id: str | None = None) -> list[ChannelTemplate]:
+        """Every template on the WABA, with Meta's approval state (FR-TPL-01/03)."""
+        self.require(Capability.TEMPLATE)
+        body = await self._client.get(
+            f"{self._account(account_id)}/message_templates",
+            params={"fields": _TEMPLATE_FIELDS, "limit": 100},
+        )
+        return [to_channel_template(node) for node in body.get("data") or []]
+
+    async def create_template(
+        self,
+        *,
+        name: str,
+        language: str,
+        category: str,
+        components: list[dict[str, Any]],
+        account_id: str | None = None,
+    ) -> ChannelTemplate:
+        """Submit a definition for approval; Meta answers with an id and a starting state."""
+        self.require(Capability.TEMPLATE)
+        body = await self._client.post(
+            f"{self._account(account_id)}/message_templates",
+            json=to_create_payload(
+                name=name, language=language, category=category, components=components
+            ),
+        )
+        # The create reply carries id/status only; the rest is what we just submitted.
+        return to_channel_template(
+            {"id": body.get("id"), "status": body.get("status"), "category": body.get("category"),
+             "name": name, "language": language, "components": []}
+        )
+
+    async def delete_template(self, name: str, *, account_id: str | None = None) -> None:
+        """Withdraw every language of a template — Meta deletes by name, not by id."""
+        self.require(Capability.TEMPLATE)
+        await self._client.request(
+            "DELETE", f"{self._account(account_id)}/message_templates", params={"name": name}
+        )
 
     # --- Health --------------------------------------------------------------
     async def health_signal(self) -> HealthSignal:
