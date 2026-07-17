@@ -51,6 +51,11 @@ _EXPECTED_TABLES = {
     "bulk_jobs",
     "whatsapp_business_accounts",
     "phone_numbers",
+    "webhook_events",
+    "webhook_dead_letter",
+    "conversations",
+    "messages",
+    "message_status_history",
 }
 
 
@@ -90,7 +95,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0014_waba_phone_numbers"
+        assert version == "0016_conversations_messages"
     finally:
         con.close()
 

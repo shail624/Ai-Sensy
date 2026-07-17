@@ -18,7 +18,7 @@ rather than failing obscurely at the provider.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from app.channels.capabilities import Capability, ChannelType
@@ -29,12 +29,15 @@ from app.channels.models import (
     ChannelStatus,
     DownloadedAttachment,
     HealthSignal,
+    InboundEvent,
+    InboundMessage,
     InteractiveContent,
     MediaContent,
     MediaKind,
     MessageType,
     OutboundMessage,
     SendResult,
+    StatusUpdate,
     TemplateContent,
     TextContent,
 )
@@ -128,6 +131,32 @@ class ChannelAdapter(ABC):
                 content=TemplateContent(name=name, language=language, components=components or []),
             )
         )
+
+    # --- Inbound stream (§5.2) -----------------------------------------------
+    # Deliberately synchronous and pure: these run on the webhook request path, which must ack in
+    # <200 ms (Doc 06 §11.2). They never call the channel — they only interpret what it sent.
+    def webhook_challenge(self, params: Mapping[str, str]) -> str | None:
+        """Answer a subscription handshake: the echo value on success, ``None`` on rejection."""
+        raise ChannelNotSupported(f"{self.connector_type!r} has no webhook handshake")
+
+    def verify_webhook_signature(self, body: bytes, signature: str | None) -> bool:
+        """Is ``body`` authentically from the channel? Checked **before** anything parses it."""
+        raise ChannelNotSupported(f"{self.connector_type!r} does not sign its inbound stream")
+
+    def parse_webhook(self, payload: dict[str, Any]) -> list[InboundEvent]:
+        """Native delivery → canonical events. The only place the native shape is understood."""
+        raise ChannelNotSupported(f"{self.connector_type!r} delivers no webhooks")
+
+    # An `InboundEvent.payload` stays in the channel's own shape so a stored event is replayable
+    # byte-for-byte; these translate one back into canonical form when it is applied, which is what
+    # keeps the ledger free of any provider vocabulary (Doc 07 §5.3).
+    def to_inbound_message(self, payload: dict[str, Any]) -> InboundMessage:
+        """A ``MESSAGES`` event's payload → the message it represents."""
+        raise ChannelNotSupported(f"{self.connector_type!r} delivers no inbound messages")
+
+    def to_status_update(self, payload: dict[str, Any]) -> StatusUpdate:
+        """A ``STATUSES`` event's payload → the delivery-state change it represents."""
+        raise ChannelNotSupported(f"{self.connector_type!r} reports no delivery statuses")
 
     # --- Media (§5.2) --------------------------------------------------------
     async def upload_attachment(

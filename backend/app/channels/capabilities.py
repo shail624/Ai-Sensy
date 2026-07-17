@@ -44,6 +44,10 @@ class Capability(StrEnum):
     BULK = "bulk"
     #: Drives whether the CRM offers Broadcast at all (§5.2).
     CAMPAIGNS = "campaigns"
+    # Inbound stream (§5.2) — how a channel delivers messages/statuses back to us.
+    #: Signature-verified provider callbacks (Doc 07 §4.2 lists this on Channel 1). A connector
+    #: that pushes events over its own session stream declares its own flag instead.
+    OFFICIAL_WEBHOOKS = "official_webhooks"
     # Media
     MEDIA_UPLOAD = "media_upload"
     MEDIA_DOWNLOAD = "media_download"

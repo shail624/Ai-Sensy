@@ -39,6 +39,11 @@ class MetaCredentials:
     waba_id: str = ""
     api_version: str = ""
     base_url: str = ""
+    #: Inbound-only secrets (Doc 04 §23). App-level rather than per-WABA — one Meta app receives
+    #: every WABA's webhooks — so unlike ``access_token`` they come from the environment and an
+    #: adapter built with no credentials at all can still verify a delivery.
+    app_secret: str = ""
+    verify_token: str = ""
 
     @classmethod
     def from_settings(cls) -> MetaCredentials:
@@ -49,6 +54,8 @@ class MetaCredentials:
             waba_id=settings.meta_waba_id,
             api_version=settings.meta_api_version,
             base_url=settings.meta_api_base_url,
+            app_secret=settings.meta_app_secret,
+            verify_token=settings.meta_webhook_verify_token,
         )
 
     @property

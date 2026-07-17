@@ -11,6 +11,7 @@ belongs to the modules that own those tables, not to the seam.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -102,6 +103,78 @@ class SendResult:
     channel_message_id: str | None
     accepted: bool = True
     raw: dict[str, Any] | None = None
+
+
+class InboundEventType(StrEnum):
+    """What an inbound event is (Doc 07 §5.2 "Inbound stream" — ``on_message``/``on_status``).
+
+    Values match the vocabulary Doc 03 §9.4 gives ``webhook_events.object_type``. ``UNKNOWN`` is
+    deliberate rather than a silent skip: Doc 06 §11.6 isolates an event of an unknown type to the
+    dead-letter queue instead of dropping it, and that requires the adapter to *emit* it.
+    """
+
+    MESSAGES = "messages"
+    STATUSES = "statuses"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class InboundEvent:
+    """One event lifted out of a channel's inbound stream (Doc 07 §5.2/§18.2).
+
+    Both channels normalize to this: Channel 1 from an official webhook delivery, a connector from
+    its session stream — downstream there is no difference (decision CD14).
+
+    ``payload`` is the event's **own** native fragment plus the delivery context it needs, so a
+    stored event is independently replayable without the rest of its batch.
+    """
+
+    #: Dedup key (Doc 06 §11.4) — the channel's message id, plus the status for a status callback.
+    #: ``None`` when the channel provides nothing stable to dedup on (Doc 03 §9.4 allows NULL).
+    event_id: str | None
+    type: InboundEventType
+    #: The channel's own number id (Meta's ``phone_number_id``) — what routing resolves to a
+    #: ``phone_numbers`` row (Doc 03 §5.2).
+    channel_number_id: str
+    payload: dict[str, Any]
+    #: The channel's timestamp for the event; replay orders by it (Doc 04 §23.1).
+    occurred_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class InboundMessage:
+    """A message a customer sent us, in the platform's own terms (Doc 07 §5.2 ``on_message``).
+
+    The adapter has already translated the channel's payload: ``message_type`` and ``content`` use
+    the vocabulary and shape of Doc 03's ``messages.message_type``/``content_json``, so the ledger
+    stores what it is handed without ever knowing which channel produced it.
+    """
+
+    channel_message_id: str
+    #: The channel's identifier for the sender (Meta's ``wa_id``).
+    from_id: str
+    message_type: str
+    content: dict[str, Any]
+    #: The sender's display name as the channel knows it (Doc 03 ``contacts.profile_name``).
+    profile_name: str | None = None
+    occurred_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StatusUpdate:
+    """A delivery-state change for a message we sent (Doc 07 §5.2 ``on_status``).
+
+    ``status`` is normalized to Doc 03's ``messages.status`` vocabulary — the platform's own
+    delivery states, which the adapter maps the channel's names onto.
+    """
+
+    channel_message_id: str
+    status: str
+    recipient_id: str | None = None
+    occurred_at: datetime | None = None
+    error_code: str | None = None
+    error_title: str | None = None
+    error_detail: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

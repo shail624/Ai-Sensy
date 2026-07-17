@@ -24,6 +24,12 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("ARGON2_TIME_COST", "1")
 os.environ.setdefault("ARGON2_MEMORY_COST", "512")
 os.environ.setdefault("ARGON2_PARALLELISM", "1")
+# Inbound webhook secrets (Doc 04 §23). Part of the environment, like the keys above: the public
+# endpoint is configured in every test, and the tests that exercise a *missing* secret unset it.
+META_APP_SECRET = "meta-app-secret-for-tests"
+META_WEBHOOK_VERIFY_TOKEN = "verify-token-for-tests"
+os.environ.setdefault("META_APP_SECRET", META_APP_SECRET)
+os.environ.setdefault("META_WEBHOOK_VERIFY_TOKEN", META_WEBHOOK_VERIFY_TOKEN)
 
 from collections.abc import AsyncIterator  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
@@ -91,6 +97,60 @@ async def client(session_factory) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as http_client:
         yield http_client
+
+
+@pytest.fixture
+def dispatched(monkeypatch):
+    """Capture what the webhook endpoint hands to the broker instead of enqueueing it.
+
+    Shared: every test that posts a delivery needs the ack path to stop at the broker's edge.
+    """
+    import app.channels.tasks as tasks
+
+    calls: list[list[int]] = []
+    monkeypatch.setattr(
+        tasks.ingest_webhook_events, "apply_async", lambda args: calls.append(args[0])
+    )
+    return calls
+
+
+class FakeIdempotencyStore:
+    """Minimal async Redis stand-in for `SET NX` + `GET` + `DELETE` (Doc 04 §8)."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+
+    async def set(self, key: str, value: str, *, nx: bool = False, ex: int | None = None):
+        if nx and key in self.store:
+            return None
+        self.store[key] = value
+        return True
+
+    async def get(self, key: str):
+        return self.store.get(key)
+
+    async def delete(self, key: str) -> int:
+        return int(self.store.pop(key, None) is not None)
+
+
+@pytest.fixture
+def idem(monkeypatch) -> FakeIdempotencyStore:
+    """The send path fails closed without an idempotency store, so every send test needs one."""
+    import app.api.v1.endpoints.messages as endpoint
+
+    store = FakeIdempotencyStore()
+    monkeypatch.setattr(endpoint, "get_redis_client", lambda: store)
+    return store
+
+
+@pytest.fixture
+def sent(monkeypatch) -> list[int]:
+    """Capture what the send endpoint hands to `sends.priority`."""
+    import app.channels.tasks as tasks
+
+    calls: list[int] = []
+    monkeypatch.setattr(tasks.send_message, "apply_async", lambda args: calls.append(args[0]))
+    return calls
 
 
 @pytest.fixture

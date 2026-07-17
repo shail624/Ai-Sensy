@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     meta_access_token: str = ""
     meta_phone_number_id: str = ""
     meta_waba_id: str = ""
+    #: Meta **app** secret — the key `X-Hub-Signature-256` is HMAC'd with (Doc 04 §23). App-level,
+    #: not per-WABA: one app receives every WABA's webhooks. Required to accept inbound webhooks.
+    meta_app_secret: str = ""
+    #: Shared secret echoed in Meta's subscription handshake (`hub.verify_token`, Doc 04 §23).
+    #: Set to the same value in the Meta App dashboard's webhook configuration.
+    meta_webhook_verify_token: str = ""
     #: Per-request timeout. Matches the send queues' 15s soft timeout (Doc 06 §2.3) so a hung
     #: Meta call fails inside the task rather than pinning a worker to its hard timeout.
     meta_timeout_seconds: float = 15.0
@@ -107,6 +113,10 @@ class Settings(BaseSettings):
     # ---- Logging (Doc 08 §19) --------------------------------------------
     log_level: str = "INFO"
     log_json: bool = True
+
+    # ---- Idempotency (Doc 04 §8; Doc 06 §12.2) ---------------------------
+    #: How long an `Idempotency-Key` replays its original response. 24h per Doc 04 §8.
+    idempotency_ttl_seconds: int = 86400
 
     # ---- Rate limiting (Doc 04 §9) ---------------------------------------
     rate_limit_enabled: bool = True

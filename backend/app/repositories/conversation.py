@@ -1,0 +1,26 @@
+"""Conversation repository (Doc 03 §9.1)."""
+
+from __future__ import annotations
+
+from sqlalchemy import select
+
+from app.models.conversation import Conversation
+from app.repositories.base import BaseRepository
+
+
+class ConversationRepository(BaseRepository[Conversation]):
+    model = Conversation
+
+    async def get_for_number_contact(
+        self, phone_number_pk: int, contact_pk: int
+    ) -> Conversation | None:
+        """The thread for a (number, contact) pair — the ``uq_conv_number_contact`` key.
+
+        Soft-deleted rows still hold the unique key, so this deliberately ignores ``deleted_at``:
+        an inbound message on an archived thread revives it rather than colliding with it.
+        """
+        stmt = select(Conversation).where(
+            Conversation.phone_number_id == phone_number_pk,
+            Conversation.contact_id == contact_pk,
+        )
+        return (await self.session.scalars(stmt)).first()

@@ -14,23 +14,34 @@ calls are **not** declared: the CRM checks the flag, so they surface as
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from typing import Any
 
 from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_META_CLOUD, Capability, ChannelType
 from app.channels.errors import ChannelConfigError
 from app.channels.meta.client import MetaCloudClient, MetaCredentials
+from app.channels.meta.webhooks import (
+    challenge,
+    parse,
+    to_inbound_message,
+    to_status_update,
+    verify_signature,
+)
 from app.channels.models import (
     Attachment,
     ChannelPhoneNumber,
     ChannelStatus,
     DownloadedAttachment,
     HealthSignal,
+    InboundEvent,
+    InboundMessage,
     InteractiveContent,
     MediaContent,
     MessageType,
     OutboundMessage,
     SendResult,
+    StatusUpdate,
     TemplateContent,
     TextContent,
 )
@@ -62,6 +73,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.TEMPLATE,
             Capability.BULK,
             Capability.CAMPAIGNS,
+            Capability.OFFICIAL_WEBHOOKS,
             Capability.MEDIA_UPLOAD,
             Capability.MEDIA_DOWNLOAD,
             Capability.HEALTH,
@@ -146,6 +158,27 @@ class MetaChannelAdapter(ChannelAdapter):
         messages = body.get("messages") or []
         wamid = messages[0].get("id") if messages else None
         return SendResult(to=message.to, channel_message_id=wamid, accepted=bool(wamid), raw=body)
+
+    # --- Inbound stream (Doc 06 §11; Doc 04 §23) -----------------------------
+    def webhook_challenge(self, params: Mapping[str, str]) -> str | None:
+        self.require(Capability.OFFICIAL_WEBHOOKS)
+        return challenge(params, verify_token=self._client.credentials.verify_token)
+
+    def verify_webhook_signature(self, body: bytes, signature: str | None) -> bool:
+        self.require(Capability.OFFICIAL_WEBHOOKS)
+        return verify_signature(body, signature, app_secret=self._client.credentials.app_secret)
+
+    def parse_webhook(self, payload: dict[str, Any]) -> list[InboundEvent]:
+        self.require(Capability.OFFICIAL_WEBHOOKS)
+        return parse(payload)
+
+    def to_inbound_message(self, payload: dict[str, Any]) -> InboundMessage:
+        self.require(Capability.OFFICIAL_WEBHOOKS)
+        return to_inbound_message(payload)
+
+    def to_status_update(self, payload: dict[str, Any]) -> StatusUpdate:
+        self.require(Capability.OFFICIAL_WEBHOOKS)
+        return to_status_update(payload)
 
     # --- Media ---------------------------------------------------------------
     async def upload_attachment(

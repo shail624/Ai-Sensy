@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     jobs,
     leads,
     media,
+    messages,
     organization,
     roles,
     segments,
@@ -25,6 +26,7 @@ from app.api.v1.endpoints import (
     tags,
     users,
     waba,
+    webhooks,
 )
 
 api_router = APIRouter()
@@ -53,3 +55,7 @@ api_router.include_router(media.router, tags=["Media"])
 
 # Module 4 — WhatsApp Core: WABAs & phone numbers (Doc 04 §13.2/§13.3; Doc 07 §5).
 api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])
+# Module 4 — inbound webhooks (Doc 04 §23; Doc 06 §11). Public + signature-gated, not authenticated.
+api_router.include_router(webhooks.router, tags=["Webhooks"])
+# Module 4 — outbound send + message reads (Doc 04 §18.2).
+api_router.include_router(messages.router, tags=["Messaging"])
