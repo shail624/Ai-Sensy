@@ -157,6 +157,39 @@ def sent(monkeypatch) -> list[int]:
 
 
 @pytest.fixture
+def campaign_channel(monkeypatch) -> dict:
+    """Bind every adapter a campaign send builds to a mock transport.
+
+    Shared: dispatch and lifecycle both drive the same send path, and neither may reach a network.
+    Set ``handler`` to override the default acceptance with a specific Meta reply.
+    """
+    import httpx
+
+    from app.services.waba_service import WabaService
+
+    state: dict = {"requests": [], "handler": None}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["requests"].append(request)
+        if state["handler"] is not None:
+            return state["handler"](request)
+        return httpx.Response(
+            200, json={"messages": [{"id": f"wamid.CAMPAIGN-{len(state['requests'])}"}]}
+        )
+
+    real = WabaService.adapter_for
+
+    def _adapter_for(self, waba, *, phone_number_id: str = ""):
+        adapter = real(self, waba, phone_number_id=phone_number_id)
+        adapter.client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        adapter.client._owns_http = True
+        return adapter
+
+    monkeypatch.setattr(WabaService, "adapter_for", _adapter_for)
+    return state
+
+
+@pytest.fixture
 async def organization(session_factory) -> Organization:
     """A seeded organization with the full permission catalog and preset system roles."""
     async with session_factory() as session:

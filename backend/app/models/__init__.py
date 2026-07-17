@@ -11,7 +11,7 @@ from __future__ import annotations
 from app.models.api_key import ApiKey
 from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
 from app.models.audit import AuditLog
-from app.models.campaign import Campaign, CampaignBatch, CampaignRecipient
+from app.models.campaign import Campaign, CampaignBatch, CampaignRecipient, CampaignRetry
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
 from app.models.conversation import Conversation
@@ -38,6 +38,7 @@ __all__ = [
     "Campaign",
     "CampaignBatch",
     "CampaignRecipient",
+    "CampaignRetry",
     "Contact",
     "ContactAttributeValue",
     "ContactEvent",

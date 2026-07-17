@@ -57,6 +57,11 @@ CAMPAIGN_EDITABLE = (CAMPAIGN_DRAFT,)
 CAMPAIGN_DISPATCHABLE = (CAMPAIGN_DRAFT, CAMPAIGN_SCHEDULED)
 #: Recipient states that still owe a send — what a resumed dispatch picks up (FR-CAM-09).
 RECIPIENT_UNSENT = ("pending",)
+#: A campaign only sends while it is running. Pause and cancel work by moving it out of this set,
+#: which every send checks before it calls Meta (FR-CAM-06/07).
+CAMPAIGN_SENDING = (CAMPAIGN_QUEUED, CAMPAIGN_RUNNING)
+#: Nothing more will ever be sent from these.
+CAMPAIGN_TERMINAL = (CAMPAIGN_COMPLETED, CAMPAIGN_CANCELLED, CAMPAIGN_FAILED)
 
 # campaigns.audience_type (Doc 03 §8.1)
 AUDIENCE_SEGMENT = "segment"
@@ -71,6 +76,13 @@ BATCH_IN_PROGRESS = "in_progress"
 BATCH_DONE = "done"
 BATCH_FAILED = "failed"
 BATCH_STATUSES = (BATCH_PENDING, BATCH_IN_PROGRESS, BATCH_DONE, BATCH_FAILED)
+
+# campaign_retry_queue.status (Doc 03 §8.4)
+RETRY_PENDING = "pending"
+RETRY_RETRYING = "retrying"
+RETRY_EXHAUSTED = "exhausted"
+RETRY_SUCCEEDED = "succeeded"
+RETRY_STATUSES = (RETRY_PENDING, RETRY_RETRYING, RETRY_EXHAUSTED, RETRY_SUCCEEDED)
 
 # campaign_recipients.status (Doc 03 §8.3)
 RECIPIENT_PENDING = "pending"
@@ -234,3 +246,41 @@ class CampaignBatch(IntPKMixin, Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<CampaignBatch campaign={self.campaign_id} #{self.batch_index} {self.status}>"
+
+
+class CampaignRetry(IntPKMixin, Base):
+    """A recipient's pending re-attempt (Doc 03 §8.4; FR-CAM-08).
+
+    The **durable** half of smart retry. Celery/Redis carries the live attempt; this row is what
+    survives a Redis flush, so a campaign that hit Meta's rate limit at 3am still finishes
+    (NFR-DR-06). Only retryable failures reach it — the classification is the retry engine's
+    (Doc 06 §6.2), never restated here — and ``attempt`` caps how many times we ask.
+    """
+
+    __tablename__ = "campaign_retry_queue"
+    __table_args__ = (
+        # The scanner's index: due rows, cheapest first (Doc 03 §8.4).
+        Index("ix_cretry_due", "status", "next_attempt_at"),
+        Index("ix_cretry_campaign", "campaign_id"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    campaign_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey("campaigns.id", name="fk_cretry_campaign", ondelete="CASCADE"),
+        nullable=False,
+    )
+    #: ``campaign_recipients.id`` — app-enforced, because that table is partitioned.
+    recipient_id: Mapped[int] = mapped_column(big_id(), nullable=False)
+    attempt: Mapped[int] = mapped_column(small_uint(), nullable=False, default=1)
+    error_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    #: When the backoff expires. The scanner reads this; the curve is the retry engine's (§6.3).
+    next_attempt_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=RETRY_PENDING)
+    created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        datetime6(), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<CampaignRetry recipient={self.recipient_id} #{self.attempt} {self.status}>"

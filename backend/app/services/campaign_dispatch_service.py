@@ -32,6 +32,7 @@ from app.models.campaign import (
     CAMPAIGN_DISPATCHABLE,
     CAMPAIGN_QUEUED,
     CAMPAIGN_RUNNING,
+    CAMPAIGN_SENDING,
     RECIPIENT_DELIVERED,
     RECIPIENT_FAILED,
     RECIPIENT_PENDING,
@@ -53,6 +54,7 @@ from app.repositories.user import UserRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.services.audit_service import AuditAction, AuditService
 from app.services.campaign_batch_service import CampaignBatchService
+from app.services.campaign_retry_service import CampaignRetryService
 from app.services.send_service import SendService
 
 logger = get_logger(__name__)
@@ -107,6 +109,7 @@ class CampaignDispatchService:
         self._numbers = PhoneNumberRepository(session)
         self._users = UserRepository(session)
         self._batch_service = CampaignBatchService(session)
+        self._retry_service = CampaignRetryService(session)
         self._audit = AuditService(session)
 
     # --- Accept (request path) ----------------------------------------------
@@ -208,6 +211,10 @@ class CampaignDispatchService:
         campaign = await self._campaigns.get_by_id(recipient.campaign_id)
         if campaign is None:
             return {"status": "missing", "recipient": recipient_pk}
+        if campaign.status not in CAMPAIGN_SENDING:
+            # The switch pause and cancel throw (FR-CAM-06/07). Tasks already fanned out keep
+            # arriving and keep declining, which is why pausing is not a race against the queue.
+            return {"status": "halted", "recipient": recipient_pk, "campaign": campaign.status}
 
         sender = SendService(self._session)
         if recipient.message_id is None:
@@ -220,8 +227,15 @@ class CampaignDispatchService:
             await self._recipients.flush()
             await self._session.commit()
 
-        # Throttling and channel failures propagate: the retry engine owns both (Doc 06 §5/§6).
-        result = await sender.deliver(recipient.message_id)
+        # Throttling and channel failures are classified by the retry engine and recorded
+        # durably (FR-CAM-08): Celery's own retry lives in Redis, and a campaign held at Meta's
+        # rate limit must survive a flush (Doc 03 §8.4).
+        try:
+            result = await sender.deliver(recipient.message_id)
+        except Exception as exc:  # noqa: BLE001 - the engine decides retry vs terminal
+            outcome = await self._retry_service.record(recipient, exc)
+            await self.refresh_progress(recipient.campaign_id)
+            return {"status": outcome, "recipient": recipient_pk}
         recipient.wamid = result.get("wamid")
         recipient.status = RECIPIENT_SENT if result.get("wamid") else recipient.status
         if result.get("status") == "failed":
@@ -232,6 +246,9 @@ class CampaignDispatchService:
         await self._recipients.flush()
         await self._session.commit()
 
+        await self._retry_service.settle(
+            recipient_pk, succeeded=recipient.status == RECIPIENT_SENT
+        )
         if recipient.batch_id:
             await self._batch_service.settle(recipient.batch_id)
         await self.refresh_progress(recipient.campaign_id)

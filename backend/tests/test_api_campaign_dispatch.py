@@ -29,34 +29,8 @@ from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.message import Message
 from app.models.template import TPL_PAUSED, MessageTemplate
 from app.services.campaign_dispatch_service import CampaignDispatchService
-from app.services.waba_service import WabaService
 from tests.test_api_campaigns import CAMPAIGNS_URL, _body, _setup
 from tests.test_api_conversations import _rows
-
-WAMID = "wamid.CAMPAIGN-1"
-
-
-@pytest.fixture
-def channel(monkeypatch) -> dict:
-    """Every adapter the send path builds answers from here — no network."""
-    state: dict = {"requests": [], "handler": None}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        state["requests"].append(request)
-        if state["handler"] is not None:
-            return state["handler"](request)
-        return httpx.Response(200, json={"messages": [{"id": f"{WAMID}-{len(state['requests'])}"}]})
-
-    real = WabaService.adapter_for
-
-    def _adapter_for(self, waba, *, phone_number_id: str = ""):
-        adapter = real(self, waba, phone_number_id=phone_number_id)
-        adapter.client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        adapter.client._owns_http = True
-        return adapter
-
-    monkeypatch.setattr(WabaService, "adapter_for", _adapter_for)
-    return state
 
 
 @pytest.fixture
@@ -101,7 +75,7 @@ async def _run(session_factory, campaign_pk: int) -> None:
 
 # --- Accept (Doc 04 §17 — 202) -----------------------------------------------
 async def test_dispatch_accepts_and_queues_without_sending(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
 
@@ -112,13 +86,13 @@ async def test_dispatch_accepts_and_queues_without_sending(
     assert body["progress_url"].endswith(f"/campaigns/{created['id']}/progress")
 
     # Nothing reached Meta on the request path, and the control lane has the work.
-    assert channel["requests"] == []
+    assert campaign_channel["requests"] == []
     assert len(dispatched_tasks["campaign"]) == 1
     assert await _rows(session_factory, Message) == []
 
 
 async def test_dispatch_is_audited_once_not_per_message(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     """A campaign is one operator decision; its messages are data, not decisions."""
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
@@ -140,7 +114,7 @@ async def test_dispatch_is_audited_once_not_per_message(
 
 # --- Validation before dispatch (FR-CAM-02/05) -------------------------------
 async def test_a_paused_template_stops_the_dispatch(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     """Re-checked here, not just at create: Meta may have paused it since the draft was written."""
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
@@ -156,7 +130,7 @@ async def test_a_paused_template_stops_the_dispatch(
 
 
 async def test_an_empty_campaign_cannot_be_dispatched(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, number_id, template_id, contacts = await _setup(
         client, make_user, session_factory, monkeypatch
@@ -176,7 +150,7 @@ async def test_an_empty_campaign_cannot_be_dispatched(
 
 
 async def test_a_running_campaign_cannot_be_dispatched_again(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     await client.post(f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers)
@@ -191,7 +165,7 @@ async def test_a_running_campaign_cannot_be_dispatched_again(
 
 # --- Batching & checkpoints (FR-CAM-09) --------------------------------------
 async def test_planning_batches_the_roster_and_marks_it_running(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
@@ -206,7 +180,7 @@ async def test_planning_batches_the_roster_and_marks_it_running(
 
 
 async def test_planning_twice_reuses_the_existing_checkpoints(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     """A redelivered control task is a resume, not a restart: renumbering would lose the place."""
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
@@ -221,7 +195,7 @@ async def test_planning_twice_reuses_the_existing_checkpoints(
 
 
 async def test_batches_close_only_when_their_work_is_done(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
@@ -246,7 +220,7 @@ async def test_batches_close_only_when_their_work_is_done(
 
 # --- Sending (FR-CAM-05/10) --------------------------------------------------
 async def test_dispatch_sends_every_recipient_through_the_ledger(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
@@ -267,7 +241,7 @@ async def test_dispatch_sends_every_recipient_through_the_ledger(
 
 
 async def test_progress_is_derived_from_the_roster(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
@@ -290,22 +264,22 @@ async def test_progress_is_derived_from_the_roster(
 
 # --- Idempotency & resume (FR-CAM-09) ----------------------------------------
 async def test_a_redelivered_send_does_not_message_anyone_twice(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
         (campaign,) = list((await session.scalars(select(Campaign))).all())
     await _run(session_factory, campaign.id)
-    sends = len([r for r in channel["requests"] if r.url.path.endswith("/messages")])
+    sends = len([r for r in campaign_channel["requests"] if r.url.path.endswith("/messages")])
 
     # At-least-once delivery: the whole campaign's tasks arrive again.
     await _run(session_factory, campaign.id)
-    assert len([r for r in channel["requests"] if r.url.path.endswith("/messages")]) == sends
+    assert len([r for r in campaign_channel["requests"] if r.url.path.endswith("/messages")]) == sends
     assert len([m for m in await _rows(session_factory, Message) if m.direction == "outbound"]) == 3
 
 
 async def test_a_resumed_campaign_only_sends_what_it_still_owes(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     """The crash case: half the roster went out, the worker died, the task comes back."""
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
@@ -317,24 +291,24 @@ async def test_a_resumed_campaign_only_sends_what_it_still_owes(
 
     async with session_factory() as session:
         await CampaignDispatchService(session).send_recipient(fan["recipients"][0])
-    sends_before = len([r for r in channel["requests"] if r.url.path.endswith("/messages")])
+    sends_before = len([r for r in campaign_channel["requests"] if r.url.path.endswith("/messages")])
     assert sends_before == 1
 
     # … and now the restart re-derives what is owed from the database.
     await _run(session_factory, campaign.id)
-    sends_after = len([r for r in channel["requests"] if r.url.path.endswith("/messages")])
+    sends_after = len([r for r in campaign_channel["requests"] if r.url.path.endswith("/messages")])
     assert sends_after == 3  # the two that were owed, and not the one already sent
     assert len([m for m in await _rows(session_factory, Message) if m.direction == "outbound"]) == 3
 
 
-async def test_a_settled_recipient_is_left_alone(session_factory, channel) -> None:
+async def test_a_settled_recipient_is_left_alone(session_factory, campaign_channel) -> None:
     async with session_factory() as session:
         assert (await CampaignDispatchService(session).send_recipient(9999))["status"] == "missing"
 
 
 # --- Failure accounting ------------------------------------------------------
 async def test_a_rejected_recipient_fails_alone_and_the_batch_carries_on(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     """One opted-out contact must not stop the other two from being messaged."""
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
@@ -359,13 +333,13 @@ async def test_a_rejected_recipient_fails_alone_and_the_batch_carries_on(
 
 
 async def test_a_channel_failure_marks_the_recipient_not_the_campaign(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     async with session_factory() as session:
         (campaign,) = list((await session.scalars(select(Campaign))).all())
     # 131026 is terminal in Meta's own error map: not a WhatsApp user.
-    channel["handler"] = lambda request: (
+    campaign_channel["handler"] = lambda request: (
         httpx.Response(400, json={"error": {"message": "not a WhatsApp user", "code": 131026}})
         if request.url.path.endswith("/messages")
         else httpx.Response(200, json={})
@@ -375,16 +349,19 @@ async def test_a_channel_failure_marks_the_recipient_not_the_campaign(
         plan = await CampaignDispatchService(session).plan(campaign.id)
     async with session_factory() as session:
         fan = await CampaignDispatchService(session).fan_out(plan["batches"][0])
-    from app.channels.meta.errors import MetaApiError
-
     async with session_factory() as session:
-        with pytest.raises(MetaApiError):
-            await CampaignDispatchService(session).send_recipient(fan["recipients"][0])
+        result = await CampaignDispatchService(session).send_recipient(fan["recipients"][0])
 
-    # The recipient keeps its message and stays owed; the retry engine owns what happens next.
+    # The failure lands on the recipient, and the retry engine's verdict decides what follows:
+    # 131026 is terminal in Meta's error map, so there is nothing to wait for (FR-CAM-08).
+    assert result["status"] == RECIPIENT_FAILED
     rows = await _rows(session_factory, CampaignRecipient)
-    assert rows[0].message_id is not None
-    assert rows[0].status == "queued"
+    failed = [r for r in rows if r.id == fan["recipients"][0]][0]
+    assert failed.status == RECIPIENT_FAILED and failed.error_code == "131026"
+    # The campaign itself is untouched by one bad number.
+    async with session_factory() as session:
+        (stored,) = list((await session.scalars(select(Campaign))).all())
+    assert stored.status == CAMPAIGN_RUNNING
 
 
 # --- Queue wiring (Doc 06 §2.3) ----------------------------------------------
@@ -429,7 +406,7 @@ def test_the_batch_task_fans_out_one_send_per_recipient(monkeypatch) -> None:
 
 # --- Permissions -------------------------------------------------------------
 async def test_dispatch_requires_the_send_permission(
-    client, make_user, session_factory, monkeypatch, dispatched_tasks, channel
+    client, make_user, session_factory, monkeypatch, dispatched_tasks, campaign_channel
 ) -> None:
     headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
     from tests.test_api_messages import _headers
@@ -443,7 +420,9 @@ async def test_dispatch_requires_the_send_permission(
     assert (await client.post(f"{CAMPAIGNS_URL}/{created['id']}/dispatch")).status_code == 401
 
 
-async def test_unknown_campaign_is_404(client, make_user, session_factory, monkeypatch, channel) -> None:
+async def test_unknown_campaign_is_404(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
     headers, _, _, _ = await _setup(client, make_user, session_factory, monkeypatch)
     assert (
         await client.post(f"{CAMPAIGNS_URL}/{uuid.uuid4()}/dispatch", headers=headers)

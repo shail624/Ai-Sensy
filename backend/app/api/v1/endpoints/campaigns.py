@@ -2,9 +2,9 @@
 
 Reads require ``campaigns:read``, writes ``campaigns:write``.
 
-Draft lifecycle, audience, and dispatch. Scheduling and lifecycle control (pause/resume/cancel)
-are later steps, so the endpoints that trigger them are not mounted rather than stubbed — a route
-that returns "not implemented" is worse than a 404, because it implies the feature is nearly there.
+Draft lifecycle, audience, dispatch and lifecycle control. Scheduling is a later step, so its
+endpoint is not mounted rather than stubbed — a route that returns "not implemented" is worse than
+a 404, because it implies the feature is nearly there.
 
 Dispatch answers ``202``: the campaign is validated and handed to ``campaigns.control``, which
 batches the roster and fans it out. Nothing is sent on the request path.
@@ -29,11 +29,14 @@ from app.schemas.campaign import (
     CampaignPreviewResponse,
     CampaignProgressResponse,
     CampaignResponse,
+    CampaignRetryResponse,
+    CampaignStateResponse,
     CampaignUpdateRequest,
     RecipientEntry,
     RecipientsResponse,
 )
 from app.services.campaign_dispatch_service import CampaignDispatchService
+from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.campaign_service import CampaignService
 
 router = APIRouter()
@@ -41,6 +44,7 @@ router = APIRouter()
 CampaignReader = Annotated[User, Depends(require_permissions("campaigns:read"))]
 CampaignWriter = Annotated[User, Depends(require_permissions("campaigns:write"))]
 CampaignSender = Annotated[User, Depends(require_permissions("campaigns:send"))]
+CampaignManager = Annotated[User, Depends(require_permissions("campaigns:manage"))]
 
 #: How many sample renders a preview returns (Doc 04 §17 "sample renders").
 PREVIEW_SAMPLES = 5
@@ -233,3 +237,71 @@ async def campaign_progress(
 ) -> CampaignProgressResponse:
     progress = await CampaignDispatchService(session).progress(actor.organization_id, campaign_id)
     return CampaignProgressResponse(**asdict(progress))
+
+
+@router.post(
+    "/campaigns/{campaign_id}/pause",
+    response_model=CampaignStateResponse,
+    summary="Pause a running campaign",
+)
+async def pause_campaign(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignManager
+) -> CampaignStateResponse:
+    """Flips the switch every send reads. In-flight tasks are not chased — they will decline."""
+    campaign = await CampaignLifecycleService(session).pause(
+        organization_id=actor.organization_id, actor=actor, public_id=campaign_id
+    )
+    return CampaignStateResponse.from_campaign(campaign)
+
+
+@router.post(
+    "/campaigns/{campaign_id}/resume",
+    response_model=CampaignStateResponse,
+    summary="Resume a paused campaign",
+)
+async def resume_campaign(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignManager
+) -> CampaignStateResponse:
+    """Re-dispatches; planning only ever picks up what still owes a send, so nothing repeats."""
+    from app.crm.campaign_tasks import dispatch_campaign as dispatch_task
+
+    campaign = await CampaignLifecycleService(session).resume(
+        organization_id=actor.organization_id, actor=actor, public_id=campaign_id
+    )
+    dispatch_task.apply_async(args=[campaign.id])
+    return CampaignStateResponse.from_campaign(campaign)
+
+
+@router.post(
+    "/campaigns/{campaign_id}/cancel",
+    response_model=CampaignStateResponse,
+    summary="Cancel a campaign and stop pending sends",
+)
+async def cancel_campaign(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignManager
+) -> CampaignStateResponse:
+    campaign = await CampaignLifecycleService(session).cancel(
+        organization_id=actor.organization_id, actor=actor, public_id=campaign_id
+    )
+    return CampaignStateResponse.from_campaign(campaign)
+
+
+@router.post(
+    "/campaigns/{campaign_id}/retry",
+    response_model=CampaignRetryResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Retry failed recipients",
+)
+async def retry_campaign(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignSender
+) -> CampaignRetryResponse:
+    """Resets failed recipients and re-dispatches; the retry engine judges each attempt afresh."""
+    from app.crm.campaign_tasks import dispatch_campaign as dispatch_task
+
+    campaign, retried = await CampaignLifecycleService(session).retry_failed(
+        organization_id=actor.organization_id, actor=actor, public_id=campaign_id
+    )
+    dispatch_task.apply_async(args=[campaign.id])
+    return CampaignRetryResponse(
+        id=campaign.public_id, status=campaign.status, retried=len(retried)
+    )

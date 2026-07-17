@@ -7,11 +7,14 @@ from datetime import datetime
 from sqlalchemy import and_, func, or_, select
 
 from app.models.campaign import (
+    RECIPIENT_CANCELLED,
     RECIPIENT_PENDING,
     RECIPIENT_QUEUED,
+    RETRY_PENDING,
     Campaign,
     CampaignBatch,
     CampaignRecipient,
+    CampaignRetry,
 )
 from app.models.contact import Contact
 from app.repositories.base import BaseRepository
@@ -117,6 +120,23 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         )
         return list((await self.session.scalars(stmt)).all())
 
+    async def list_unbatched(self, campaign_pk: int) -> list[CampaignRecipient]:
+        """Unsent recipients with no checkpoint yet — what a plan still has to slice.
+
+        The first plan sees the whole roster here; a resume sees nothing (its recipients are
+        already batched); a manual retry sees exactly the rows it reset.
+        """
+        stmt = (
+            select(CampaignRecipient)
+            .where(
+                CampaignRecipient.campaign_id == campaign_pk,
+                CampaignRecipient.status == RECIPIENT_PENDING,
+                CampaignRecipient.batch_id.is_(None),
+            )
+            .order_by(CampaignRecipient.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
     async def list_for_batch(self, batch_pk: int) -> list[CampaignRecipient]:
         stmt = (
             select(CampaignRecipient)
@@ -150,6 +170,29 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         )
         return {status: int(count) for status, count in await self.session.execute(stmt)}
 
+    async def list_by_status(self, campaign_pk: int, status: str) -> list[CampaignRecipient]:
+        stmt = (
+            select(CampaignRecipient)
+            .where(
+                CampaignRecipient.campaign_id == campaign_pk,
+                CampaignRecipient.status == status,
+            )
+            .order_by(CampaignRecipient.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def cancel_pending(self, campaign_pk: int) -> int:
+        """Drop what a cancelled campaign still owes (FR-CAM-07).
+
+        Cancelled, not failed: nothing went wrong with these recipients — they are precisely the
+        ones the operator chose to stop.
+        """
+        rows = await self.list_by_status(campaign_pk, RECIPIENT_PENDING)
+        for row in rows:
+            row.status = RECIPIENT_CANCELLED
+        await self.flush()
+        return len(rows)
+
     async def contacts_for(
         self, campaign_pk: int, recipients: list[CampaignRecipient]
     ) -> dict[int, Contact]:
@@ -170,4 +213,29 @@ class CampaignBatchRepository(BaseRepository[CampaignBatch]):
             .where(CampaignBatch.campaign_id == campaign_pk)
             .order_by(CampaignBatch.batch_index)
         )
+        return list((await self.session.scalars(stmt)).all())
+
+
+class CampaignRetryRepository(BaseRepository[CampaignRetry]):
+    model = CampaignRetry
+
+    async def due(self, now: datetime, *, limit: int) -> list[CampaignRetry]:
+        """Pending re-attempts whose backoff has expired — the `ix_cretry_due` scan."""
+        stmt = (
+            select(CampaignRetry)
+            .where(
+                CampaignRetry.status == RETRY_PENDING,
+                CampaignRetry.next_attempt_at <= now,
+            )
+            .order_by(CampaignRetry.next_attempt_at)
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def for_recipient(self, recipient_pk: int) -> list[CampaignRetry]:
+        stmt = select(CampaignRetry).where(CampaignRetry.recipient_id == recipient_pk)
+        return list((await self.session.scalars(stmt)).all())
+
+    async def for_campaign(self, campaign_pk: int) -> list[CampaignRetry]:
+        stmt = select(CampaignRetry).where(CampaignRetry.campaign_id == campaign_pk)
         return list((await self.session.scalars(stmt)).all())

@@ -179,3 +179,32 @@ class CampaignProgressResponse(BaseModel):
     failed: int
     batches_total: int
     batches_done: int
+
+
+class CampaignStateResponse(BaseModel):
+    """The campaign after a lifecycle transition (Doc 04 §17)."""
+
+    id: str
+    status: str
+    total_recipients: int
+    sent_count: int
+    failed_count: int
+
+    @classmethod
+    def from_campaign(cls, campaign: Campaign) -> CampaignStateResponse:
+        return cls(
+            id=campaign.public_id,
+            status=campaign.status,
+            total_recipients=campaign.total_recipients,
+            sent_count=campaign.sent_count,
+            failed_count=campaign.failed_count,
+        )
+
+
+class CampaignRetryResponse(BaseModel):
+    """What a manual retry re-queued (FR-CAM-08)."""
+
+    id: str
+    status: str
+    #: Failed recipients reset to pending and handed back to the send fabric.
+    retried: int

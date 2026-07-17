@@ -41,40 +41,43 @@ class CampaignBatchService:
         self._recipients = CampaignRecipientRepository(session)
 
     async def plan(self, campaign: Campaign) -> list[CampaignBatch]:
-        """Assign every unsent recipient to a batch, creating the batches (FR-CAM-09).
+        """Slice whatever still owes a send into checkpoints, and report what is unfinished.
 
-        Idempotent: a campaign that already has batches is being **resumed**, not started, so its
-        existing checkpoints are returned untouched. Re-planning would renumber slices that a
-        worker may be part-way through.
+        Additive rather than idempotent-by-short-circuit, because "what is owed" changes for three
+        different reasons and all three land here: a first dispatch (the whole roster is
+        unbatched), a resume (nothing is unbatched — the existing checkpoints still hold the
+        pending rows), and a manual retry (only the reset rows are unbatched). Existing batches are
+        never renumbered; a worker may be part-way through one.
         """
         existing = await self._batches.list_for_campaign(campaign.id)
-        if existing:
-            logger.info(
-                "campaign_batches_reused",
-                extra={"campaign": campaign.id, "batches": len(existing)},
-            )
-            return [b for b in existing if b.status != BATCH_DONE]
+        unbatched = await self._recipients.list_unbatched(campaign.id)
+        next_index = max((b.batch_index for b in existing), default=-1) + 1
 
-        unsent = await self._recipients.list_unsent(campaign.id)
-        batches: list[CampaignBatch] = []
-        for index in range(0, len(unsent), BATCH_SIZE):
-            slice_ = unsent[index : index + BATCH_SIZE]
+        created: list[CampaignBatch] = []
+        for index in range(0, len(unbatched), BATCH_SIZE):
+            slice_ = unbatched[index : index + BATCH_SIZE]
             batch = CampaignBatch(
                 campaign_id=campaign.id,
-                batch_index=index // BATCH_SIZE,
+                batch_index=next_index + (index // BATCH_SIZE),
                 size=len(slice_),
                 status=BATCH_PENDING,
             )
             await self._batches.add(batch)
             for recipient in slice_:
                 recipient.batch_id = batch.id
-            batches.append(batch)
+            created.append(batch)
         await self._batches.flush()
+
+        outstanding = [b for b in existing if b.status != BATCH_DONE] + created
         logger.info(
             "campaign_batches_planned",
-            extra={"campaign": campaign.id, "batches": len(batches), "recipients": len(unsent)},
+            extra={
+                "campaign": campaign.id,
+                "created": len(created),
+                "outstanding": len(outstanding),
+            },
         )
-        return batches
+        return outstanding
 
     async def mark_dispatched(self, batch: CampaignBatch) -> None:
         batch.status = BATCH_IN_PROGRESS

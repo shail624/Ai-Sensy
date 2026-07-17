@@ -17,8 +17,9 @@ from typing import Any
 
 from app.db.session import get_sessionmaker
 from app.queue.base_task import register_task
-from app.queue.registry import CAMPAIGNS_CONTROL, SENDS_BULK
+from app.queue.registry import CAMPAIGNS_CONTROL, SENDS_BULK, SENDS_RETRY
 from app.services.campaign_dispatch_service import CampaignDispatchService
+from app.services.campaign_retry_service import CampaignRetryService
 
 
 async def _plan(campaign_pk: int) -> dict[str, Any]:
@@ -76,6 +77,51 @@ def send_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa:
     from SendService, because a campaign message is an ordinary message that happens to be one of
     many. Throttling arrives here as `THROTTLE` and is re-queued with backoff (Doc 06 §5.3/§6.2);
     the recipient row keeps the outcome either way (Doc 03 §8.3).
+    """
+    try:
+        return asyncio.run(_send(recipient_pk))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+
+async def _due_retries(limit: int) -> list[int]:
+    async with get_sessionmaker()() as session:
+        service = CampaignRetryService(session)
+        due = await service.due(limit=limit)
+        for row in due:
+            await service.claim(row)
+        return [row.recipient_id for row in due]
+
+
+#: How many due re-attempts one scan hands back to the send lane.
+RETRY_SCAN_LIMIT = 500
+
+
+@register_task(queue=SENDS_RETRY, name="app.crm.campaign_tasks.scan_campaign_retries")
+def scan_campaign_retries(self) -> dict[str, Any]:  # noqa: ANN001
+    """Hand every due re-attempt back to the send lane (FR-CAM-08; Doc 03 §8.4's scanner).
+
+    The durable half of smart retry: the backoff was computed by the retry engine and stored on the
+    row, so a Redis flush costs throughput rather than the re-attempt itself (NFR-DR-06).
+    """
+    try:
+        recipients = asyncio.run(_due_retries(RETRY_SCAN_LIMIT))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+    for recipient_pk in recipients:
+        retry_campaign_recipient.apply_async(args=[recipient_pk])
+    return {"claimed": len(recipients)}
+
+
+@register_task(queue=SENDS_RETRY, name="app.crm.campaign_tasks.retry_campaign_recipient")
+def retry_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa: ANN001
+    """Re-attempt one recipient (FR-CAM-08).
+
+    The same send path as a first attempt — it has to be, or a retry would skip the rate gate, the
+    ledger or the campaign's paused status.
     """
     try:
         return asyncio.run(_send(recipient_pk))

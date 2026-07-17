@@ -487,11 +487,14 @@ async def test_campaign_permissions(client, make_user, session_factory, monkeypa
     assert (await client.get(CAMPAIGNS_URL)).status_code == 401
 
 
-# --- Sending is not part of this step ----------------------------------------
-def test_no_send_surface_exists_yet() -> None:
-    """Step 1 is the registry: a route that pretends to send would be worse than none."""
+# --- Unbuilt surfaces are absent, not stubbed --------------------------------
+def test_no_scheduling_surface_exists_yet() -> None:
+    """A route that pretends to schedule would be worse than none — it implies it nearly works."""
     from app.main import create_app
 
     paths = create_app().openapi()["paths"]
-    for path in ("/api/v1/campaigns/{campaign_id}/send", "/api/v1/campaigns/{campaign_id}/pause"):
+    for path in (
+        "/api/v1/campaigns/{campaign_id}/schedule",
+        "/api/v1/campaigns/{campaign_id}/estimate-cost",
+    ):
         assert path not in paths
