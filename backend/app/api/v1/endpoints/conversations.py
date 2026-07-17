@@ -1,12 +1,16 @@
-"""Conversation collaboration endpoints (Doc 04 §18.1) — Phase 7 Step 1: Shared Inbox Core.
+"""Conversation endpoints (Doc 04 §18.1) — Shared Inbox.
 
-The collaboration layer over the existing conversation primitive: assignment, status, and internal
-notes. These are ``POST`` action sub-paths, not ``PATCH``, because they are authorized transitions
-with side effects (assignment gates who can act, status drives the inbox), each permission-scoped.
+Two concerns, kept apart in their services:
+* **Reads** (Step 2) — the inbox list, one thread's detail (+ window state), and its message
+  history. Cursor-paginated, filtered by status/assignee/number and searched by ``q`` exactly as the
+  frozen contract defines. Backed by :class:`~app.services.inbox_query_service.InboxQueryService`.
+* **Writes** (Step 1) — assignment, status and internal notes, as ``POST``/``DELETE`` action
+  sub-paths, audited and permission-scoped. Backed by
+  :class:`~app.services.inbox_service.InboxService`.
 
-Out of this milestone (and so not mounted rather than stubbed): the inbox list, conversation and
-message reads, read/unread state, search, filters and counters. A route that 404s is a clearer
-signal than one that returns an empty or misleading body.
+Still out and so not mounted rather than stubbed: read/unread reset, mentions, quick replies, and
+any real-time transport. The denormalized ``unread_count`` is surfaced read-only (Doc 04 §18.2), but
+nothing here computes or resets it.
 """
 
 from __future__ import annotations
@@ -14,10 +18,16 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import SessionDep, require_permissions
+from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
 from app.models.user import User
+from app.schemas.conversation import (
+    ConversationMessagesPage,
+    ConversationResponse,
+    ConversationsPage,
+)
 from app.schemas.inbox import (
     ConversationAssignRequest,
     ConversationStateResponse,
@@ -26,6 +36,8 @@ from app.schemas.inbox import (
     NoteResponse,
     NotesListResponse,
 )
+from app.schemas.message import MessageResponse
+from app.services.inbox_query_service import InboxQueryService
 from app.services.inbox_service import InboxService
 
 router = APIRouter()
@@ -33,6 +45,100 @@ router = APIRouter()
 InboxReader = Annotated[User, Depends(require_permissions("inbox:read"))]
 InboxWriter = Annotated[User, Depends(require_permissions("inbox:write"))]
 InboxAssigner = Annotated[User, Depends(require_permissions("inbox:assign"))]
+
+
+@router.get("/conversations", response_model=ConversationsPage, summary="Inbox list")
+async def list_conversations(
+    request: Request, session: SessionDep, actor: InboxReader
+) -> ConversationsPage:
+    """The inbox, newest activity first (Doc 04 §18.1).
+
+    Cursor-paginated by ``last_message_at``; filtered by status/assignee/number and searched by
+    ``q`` (the customer's name or number) — exactly the frozen filter set, nothing more.
+    """
+    params = request.query_params
+    limit = clamp_limit(params.get("limit"))
+    raw_cursor = params.get("cursor")
+    result = await InboxQueryService(session).list_conversations(
+        organization_id=actor.organization_id,
+        limit=limit,
+        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        status=params.get("filter[status][eq]") or params.get("status"),
+        assignee=params.get("filter[assignee][eq]") or params.get("assignee"),
+        number=params.get("filter[number][eq]") or params.get("number"),
+        q=params.get("q"),
+    )
+    data = [
+        ConversationResponse.from_conversation(
+            c,
+            contact=result.contacts.get(c.contact_id),
+            phone_number_public_id=result.numbers.get(c.phone_number_id),
+            assigned_to=(
+                result.assignees.get(c.assigned_user_id)
+                if c.assigned_user_id is not None
+                else None
+            ),
+        )
+        for c in result.conversations
+    ]
+    next_cursor = None
+    if result.has_more and result.conversations:
+        last = result.conversations[-1]
+        # The cursor carries the same effective key the list is ordered by (Doc 04 §18.1).
+        next_cursor = encode_cursor(last.last_message_at or last.created_at, last.id)
+    return ConversationsPage(
+        data=data, page=Page(limit=limit, has_more=result.has_more, next_cursor=next_cursor)
+    )
+
+
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationResponse,
+    summary="Conversation detail (+ window state)",
+)
+async def get_conversation(
+    conversation_id: uuidlib.UUID, session: SessionDep, actor: InboxReader
+) -> ConversationResponse:
+    detail = await InboxQueryService(session).get_conversation(
+        organization_id=actor.organization_id, public_id=conversation_id
+    )
+    return ConversationResponse.from_conversation(
+        detail.conversation,
+        contact=detail.contact,
+        phone_number_public_id=detail.phone_number_public_id,
+        assigned_to=detail.assigned_to,
+    )
+
+
+@router.get(
+    "/conversations/{conversation_id}/messages",
+    response_model=ConversationMessagesPage,
+    summary="Message history (paginated)",
+)
+async def list_conversation_messages(
+    conversation_id: uuidlib.UUID, request: Request, session: SessionDep, actor: InboxReader
+) -> ConversationMessagesPage:
+    """A thread's messages, newest first, cursor-paginated over the partitioned ledger."""
+    params = request.query_params
+    limit = clamp_limit(params.get("limit"))
+    raw_cursor = params.get("cursor")
+    page = await InboxQueryService(session).list_messages(
+        organization_id=actor.organization_id,
+        public_id=conversation_id,
+        limit=limit,
+        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+    )
+    data = [
+        MessageResponse.from_message(m, conversation_id=page.conversation_public_id)
+        for m in page.messages
+    ]
+    next_cursor = None
+    if page.has_more and page.messages:
+        last = page.messages[-1]
+        next_cursor = encode_cursor(last.created_at, last.id)
+    return ConversationMessagesPage(
+        data=data, page=Page(limit=limit, has_more=page.has_more, next_cursor=next_cursor)
+    )
 
 
 @router.post(
