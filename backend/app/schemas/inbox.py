@@ -1,7 +1,7 @@
-"""Shared-inbox schemas (Doc 04 §18.1) — Phase 7 Step 1.
+"""Shared-inbox write schemas (Doc 04 §18.1) — Phase 7 Steps 1 & 3.
 
-Assignment, status and internal notes. The read/list, search and counter surfaces are a later
-milestone; nothing here describes them.
+Assignment, status, internal notes (Step 1) and the read-state counter reset (Step 3). The
+list/detail/search *read* surfaces live in :mod:`app.schemas.conversation`.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.services.inbox_service import ConversationState, NoteView
+from app.services.inbox_service import ConversationReadState, ConversationState, NoteView
 
 #: The four statuses ``ck_conv_status`` permits (Doc 03 §9.1). A value outside this set is a 422 at
 #: request parsing, before the service is reached.
@@ -47,6 +47,29 @@ class ConversationStateResponse(BaseModel):
             id=state.public_id,
             status=state.status,
             assigned_to=state.assigned_to,
+            row_version=state.row_version,
+            updated_at=state.updated_at,
+        )
+
+
+class ConversationReadResponse(BaseModel):
+    """A conversation after its unread counter is reset (Doc 04 §18.1).
+
+    Read state in the frozen schema is exactly the denormalized ``unread_count`` (Doc 03 §9.1) —
+    there is no last-read marker — so this echoes the counter (now ``0``) and the version it settled
+    at, mirroring the state the sibling write actions return.
+    """
+
+    id: str
+    unread_count: int
+    row_version: int
+    updated_at: datetime
+
+    @classmethod
+    def from_read_state(cls, state: ConversationReadState) -> ConversationReadResponse:
+        return cls(
+            id=state.public_id,
+            unread_count=state.unread_count,
             row_version=state.row_version,
             updated_at=state.updated_at,
         )

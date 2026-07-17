@@ -63,6 +63,20 @@ class ConversationState:
 
 
 @dataclass(slots=True)
+class ConversationReadState:
+    """A thread after its shared unread counter is reset to zero (Doc 04 §18.1).
+
+    Read state in the frozen schema is exactly ``conversations.unread_count`` (Doc 03 §9.1) — one
+    team-shared counter, not a per-agent last-read marker — so there is nothing else to carry back.
+    """
+
+    public_id: str
+    unread_count: int
+    row_version: int
+    updated_at: datetime
+
+
+@dataclass(slots=True)
 class NoteView:
     """One internal note, with its author rendered as a public id (Doc 04 §18.1)."""
 
@@ -162,6 +176,33 @@ class InboxService:
             public_id=conversation.public_id,
             status=conversation.status,
             assigned_to=await self._assignee_public_id(conversation),
+            row_version=conversation.row_version,
+            updated_at=conversation.updated_at,
+        )
+
+    # --- Read state ----------------------------------------------------------
+    async def mark_read(
+        self, *, organization_id: int, public_id: uuidlib.UUID
+    ) -> ConversationReadState:
+        """Reset a conversation's shared unread counter (Doc 04 §18.1 — "mark read").
+
+        Read state in the frozen schema is the single denormalized ``unread_count`` on the thread
+        (Doc 03 §9.1): one team-shared counter, not a per-agent last-read marker (the schema defines
+        none). "Mark read" is therefore a reset to zero. **Idempotent** — an already-read thread is a
+        no-op, so repeatedly opening the inbox's hottest write never churns ``row_version`` or
+        ``updated_at``. The *increment* side lives on the inbound path
+        (:class:`~app.services.conversation_service.ConversationService`) and is untouched here. Not
+        audited: a read is high-frequency and carries none of the accountability of assign/status.
+        """
+        conversation = await self._conversation(organization_id, public_id)
+        if conversation.unread_count != 0:
+            conversation.unread_count = 0
+            conversation.row_version += 1
+            await self._conversations.flush()
+            await self._session.commit()
+        return ConversationReadState(
+            public_id=conversation.public_id,
+            unread_count=conversation.unread_count,
             row_version=conversation.row_version,
             updated_at=conversation.updated_at,
         )

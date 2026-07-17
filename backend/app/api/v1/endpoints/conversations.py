@@ -4,13 +4,16 @@ Two concerns, kept apart in their services:
 * **Reads** (Step 2) — the inbox list, one thread's detail (+ window state), and its message
   history. Cursor-paginated, filtered by status/assignee/number and searched by ``q`` exactly as the
   frozen contract defines. Backed by :class:`~app.services.inbox_query_service.InboxQueryService`.
-* **Writes** (Step 1) — assignment, status and internal notes, as ``POST``/``DELETE`` action
-  sub-paths, audited and permission-scoped. Backed by
-  :class:`~app.services.inbox_service.InboxService`.
+* **Writes** (Steps 1 & 3) — assignment, status, internal notes, and the read-state reset, as
+  ``POST``/``DELETE`` action sub-paths. Backed by
+  :class:`~app.services.inbox_service.InboxService`. All are permission-scoped; the collaboration
+  writes are audited, while ``POST /read`` is an idempotent, unaudited counter reset.
 
-Still out and so not mounted rather than stubbed: read/unread reset, mentions, quick replies, and
-any real-time transport. The denormalized ``unread_count`` is surfaced read-only (Doc 04 §18.2), but
-nothing here computes or resets it.
+Read state in the frozen schema is exactly the denormalized ``unread_count`` (Doc 03 §9.1) — one
+team-shared counter, no last-read marker. ``POST /read`` resets it to zero; the *increment* side
+lives on the inbound path (:class:`~app.services.conversation_service.ConversationService`) and is
+untouched here. Still out and so not mounted rather than stubbed: mentions, quick replies, and any
+real-time transport.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from app.schemas.conversation import (
 )
 from app.schemas.inbox import (
     ConversationAssignRequest,
+    ConversationReadResponse,
     ConversationStateResponse,
     ConversationStatusRequest,
     NoteCreateRequest,
@@ -181,6 +185,25 @@ async def set_conversation_status(
         status=payload.status,
     )
     return ConversationStateResponse.from_state(state)
+
+
+@router.post(
+    "/conversations/{conversation_id}/read",
+    response_model=ConversationReadResponse,
+    summary="Mark read (reset unread count)",
+)
+async def mark_conversation_read(
+    conversation_id: uuidlib.UUID, session: SessionDep, actor: InboxWriter
+) -> ConversationReadResponse:
+    """Reset the thread's shared unread counter to zero (Doc 04 §18.1).
+
+    Read state is the denormalized ``unread_count`` (Doc 03 §9.1); the frozen schema has no last-read
+    marker. Idempotent and unaudited — see :meth:`InboxService.mark_read`.
+    """
+    state = await InboxService(session).mark_read(
+        organization_id=actor.organization_id, public_id=conversation_id
+    )
+    return ConversationReadResponse.from_read_state(state)
 
 
 @router.get(
