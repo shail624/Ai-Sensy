@@ -36,6 +36,10 @@ Invent no pricing data and no billing semantics.
 - **§17** — `POST /campaigns/{uuid}/estimate-cost` upgraded from sample to full contract: request,
   `200` shape with the `recipients == Σ breakdown[].count + unresolved.count` invariant, money
   serialization, the `campaigns.estimated_cost` side effect, and errors.
+- **§17 wire format** — monetary fields (`unit`, `subtotal`, `estimated_total`) are **fixed-scale
+  JSON strings**, not numbers: a JSON number carries no scale and most clients parse it into a
+  binary float, the one representation money must not pass through. The v1.0 sample illustrated them
+  as numbers; v1.1 makes the string format normative.
 - **§17 route table** — bare `422` → `422(rate_card_not_configured)`, `404`.
 - **New §17.1** — rate-card administration (the operator update mechanism). Requires **elevated
   administrative authority** (platform-level, never tenant-level, since the card is global); the

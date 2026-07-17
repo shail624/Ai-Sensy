@@ -641,14 +641,18 @@ be sent. `campaigns:read`, rate class `read`, no `Idempotency-Key` (naturally id
 {
   "recipients": 250000,
   "breakdown": [
-    { "country":"IN","category":"marketing","count":180000,"unit":0.0094,"subtotal":1692.00 },
-    { "country":"US","category":"marketing","count":69997,"unit":0.025,"subtotal":1749.925 }
+    { "country":"IN","category":"marketing","count":180000,"unit":"0.009400","subtotal":"1692.000000" },
+    { "country":"US","category":"marketing","count":69997,"unit":"0.025000","subtotal":"1749.925000" }
   ],
   "unresolved": { "count": 3, "reason":"country_unknown" },
-  "estimated_total": 3441.925, "currency":"USD",
-  "notes":["3 recipients have no country and are excluded from the total"]
+  "estimated_total": "3441.9250", "currency":"USD",
+  "notes":["3 recipients have no country and are excluded from the total."]
 }
 ```
+> Monetary fields are **JSON strings at fixed scale**, not numbers. A JSON number cannot carry scale
+> (`0.009400` and `0.0094` are the same token) and most clients parse it into a binary float, which
+> is the one representation money must never pass through. Strings are lossless in every parser.
+> *(v1.0 illustrated these as numbers; the v1.1 amendment makes the wire format explicit.)*
 
 | Field | Meaning |
 |---|---|
@@ -659,8 +663,9 @@ be sent. `campaigns:read`, rate class `read`, no `Idempotency-Key` (naturally id
 | `currency` | The rate card's single currency (Doc 3 §8.5.3). No FX; never mixed. |
 | `notes[]` | **Advisory, human-readable, non-contractual.** Clients **MUST NOT** parse them; machine outcomes are `unresolved` and the error codes below. |
 
-Money is decimal server-side and serialized at fixed scale (`unit`/`subtotal` 6 dp,
-`estimated_total` 4 dp). Clients needing exactness should parse as decimal, not float.
+Money is decimal server-side and serialized as **fixed-scale JSON strings** (`unit`/`subtotal` 6 dp,
+matching `rate_cards.unit_price`; `estimated_total` 4 dp, matching `campaigns.estimated_cost`).
+Clients must parse them as decimal, never as float.
 
 **Side effect:** on success the endpoint persists `campaigns.estimated_cost` and
 `campaigns.cost_currency` — a derived cache of the campaign's own data, which is why it stays on
