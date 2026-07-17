@@ -151,3 +151,31 @@ class RecipientEntry(BaseModel):
 class RecipientsResponse(BaseModel):
     data: list[RecipientEntry]
     has_more: bool
+
+
+class CampaignDispatchResponse(BaseModel):
+    """The ``202`` a dispatch answers with (FR-CAM-05)."""
+
+    id: str
+    status: str
+    total_recipients: int
+    #: Where to watch it from here.
+    progress_url: str
+
+
+class CampaignProgressResponse(BaseModel):
+    """Live campaign state (FR-CAM-10).
+
+    Derived from the roster, which is the authority; the campaign's counters mirror it.
+    """
+
+    status: str
+    total: int
+    pending: int
+    queued: int
+    sent: int
+    delivered: int
+    read: int
+    failed: int
+    batches_total: int
+    batches_done: int

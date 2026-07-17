@@ -53,6 +53,10 @@ CAMPAIGN_STATUSES = (
 #: States the operator still owns. Once a campaign has been handed to the send fabric, editing it
 #: would change what is already in flight (Doc 04 §17 → 409).
 CAMPAIGN_EDITABLE = (CAMPAIGN_DRAFT,)
+#: A campaign may only be handed to the send fabric from a state where nothing is in flight.
+CAMPAIGN_DISPATCHABLE = (CAMPAIGN_DRAFT, CAMPAIGN_SCHEDULED)
+#: Recipient states that still owe a send — what a resumed dispatch picks up (FR-CAM-09).
+RECIPIENT_UNSENT = ("pending",)
 
 # campaigns.audience_type (Doc 03 §8.1)
 AUDIENCE_SEGMENT = "segment"
@@ -60,6 +64,13 @@ AUDIENCE_TAG = "tag"
 AUDIENCE_LIST = "list"
 AUDIENCE_UPLOAD = "upload"
 AUDIENCE_TYPES = (AUDIENCE_SEGMENT, AUDIENCE_TAG, AUDIENCE_LIST, AUDIENCE_UPLOAD)
+
+# campaign_batches.status (Doc 03 §8.4)
+BATCH_PENDING = "pending"
+BATCH_IN_PROGRESS = "in_progress"
+BATCH_DONE = "done"
+BATCH_FAILED = "failed"
+BATCH_STATUSES = (BATCH_PENDING, BATCH_IN_PROGRESS, BATCH_DONE, BATCH_FAILED)
 
 # campaign_recipients.status (Doc 03 §8.3)
 RECIPIENT_PENDING = "pending"
@@ -189,3 +200,37 @@ class CampaignRecipient(IntPKMixin, Base):
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<CampaignRecipient campaign={self.campaign_id} {self.status}>"
+
+
+class CampaignBatch(IntPKMixin, Base):
+    """A checkpoint over a slice of the roster (Doc 03 §8.4; FR-CAM-09).
+
+    Batches exist so a crash costs a batch, not a campaign: ``batch_index`` + ``status`` tell a
+    restarted worker exactly which slices still owe work, and the recipients inside carry the same
+    ``batch_id`` so an already-sent row is skipped rather than sent twice.
+
+    The live queue is Celery/Redis; this table is the **durable** checkpoint, so a Redis flush
+    loses throughput rather than state (Doc 03 §8.4, NFR-DR-06).
+    """
+
+    __tablename__ = "campaign_batches"
+    __table_args__ = (
+        Index("uq_cbatch_campaign_idx", "campaign_id", "batch_index", unique=True),
+        Index("ix_cbatch_status", "campaign_id", "status"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    campaign_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey("campaigns.id", name="fk_cbatch_campaign", ondelete="CASCADE"),
+        nullable=False,
+    )
+    batch_index: Mapped[int] = mapped_column(int_id(), nullable=False)
+    size: Mapped[int] = mapped_column(int_id(), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=BATCH_PENDING)
+    dispatched_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<CampaignBatch campaign={self.campaign_id} #{self.batch_index} {self.status}>"

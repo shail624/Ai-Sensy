@@ -2,37 +2,45 @@
 
 Reads require ``campaigns:read``, writes ``campaigns:write``.
 
-Only the draft lifecycle exists here: create, edit, delete, preview and read the roster. Sending,
-scheduling and lifecycle control are later steps, so the endpoints that trigger them are not
-mounted rather than stubbed — a route that returns "not implemented" is worse than a 404, because
-it implies the feature is nearly there.
+Draft lifecycle, audience, and dispatch. Scheduling and lifecycle control (pause/resume/cancel)
+are later steps, so the endpoints that trigger them are not mounted rather than stubbed — a route
+that returns "not implemented" is worse than a 404, because it implies the feature is nearly there.
+
+Dispatch answers ``202``: the campaign is validated and handed to ``campaigns.control``, which
+batches the roster and fans it out. Nothing is sent on the request path.
 """
 
 from __future__ import annotations
 
 import uuid as uuidlib
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import decode_cursor
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreateRequest,
+    CampaignDispatchResponse,
     CampaignListResponse,
     CampaignPreviewResponse,
+    CampaignProgressResponse,
     CampaignResponse,
     CampaignUpdateRequest,
     RecipientEntry,
     RecipientsResponse,
 )
+from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_service import CampaignService
 
 router = APIRouter()
 
 CampaignReader = Annotated[User, Depends(require_permissions("campaigns:read"))]
 CampaignWriter = Annotated[User, Depends(require_permissions("campaigns:write"))]
+CampaignSender = Annotated[User, Depends(require_permissions("campaigns:send"))]
 
 #: How many sample renders a preview returns (Doc 04 §17 "sample renders").
 PREVIEW_SAMPLES = 5
@@ -187,3 +195,41 @@ async def campaign_recipients(
         data=[RecipientEntry.from_recipient(r, contacts.get(r.contact_id)) for r in rows],
         has_more=has_more,
     )
+
+
+@router.post(
+    "/campaigns/{campaign_id}/dispatch",
+    response_model=CampaignDispatchResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Dispatch a campaign (async)",
+)
+async def dispatch_campaign(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignSender
+) -> CampaignDispatchResponse:
+    """Validate and enqueue. The template and number are re-checked here, not just at create:
+    Meta may have paused the template since the draft was written."""
+    from app.crm.campaign_tasks import dispatch_campaign as dispatch_task
+
+    campaign = await CampaignDispatchService(session).start(
+        organization_id=actor.organization_id, actor=actor, public_id=campaign_id
+    )
+    # After the commit, never before: the task must not outrun the row it reads.
+    dispatch_task.apply_async(args=[campaign.id])
+    return CampaignDispatchResponse(
+        id=campaign.public_id,
+        status=campaign.status,
+        total_recipients=campaign.total_recipients,
+        progress_url=f"{settings.api_v1_prefix}/campaigns/{campaign.public_id}/progress",
+    )
+
+
+@router.get(
+    "/campaigns/{campaign_id}/progress",
+    response_model=CampaignProgressResponse,
+    summary="Live campaign progress",
+)
+async def campaign_progress(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignReader
+) -> CampaignProgressResponse:
+    progress = await CampaignDispatchService(session).progress(actor.organization_id, campaign_id)
+    return CampaignProgressResponse(**asdict(progress))

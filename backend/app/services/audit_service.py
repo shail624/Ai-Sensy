@@ -75,6 +75,7 @@ class AuditAction:
     CAMPAIGN_CREATED = "campaign.created"
     CAMPAIGN_UPDATED = "campaign.updated"
     CAMPAIGN_DELETED = "campaign.deleted"
+    CAMPAIGN_DISPATCHED = "campaign.dispatched"
     EXPORT_STARTED = "export.started"
     EXPORT_COMPLETED = "export.completed"
     IMPORT_STARTED = "import.started"

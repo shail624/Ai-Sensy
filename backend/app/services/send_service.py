@@ -163,8 +163,15 @@ class SendService:
         to: str,
         message_type: MessageType,
         content: dict[str, Any],
+        campaign_id: int | None = None,
+        audit: bool = True,
     ) -> Message:
-        """Validate, persist as ``accepted``, and hand off. No Meta call on this path."""
+        """Validate, persist as ``accepted``, and hand off. No Meta call on this path.
+
+        ``campaign_id`` stamps the broadcast a message belongs to (Doc 03 §9.2). ``audit=False`` is
+        for it: a campaign is **one** operator decision, already audited as `campaign.dispatched`,
+        so auditing each of its hundred thousand messages would bury the trail rather than build it.
+        """
         wa_id = wa_id_from_e164(to)
         if not wa_id:
             raise ValidationError(
@@ -211,6 +218,7 @@ class SendService:
             if message_type is MessageType.MEDIA
             else message_type.value,
             content_json=content,
+            campaign_id=campaign_id,
             media_asset_id=asset.id if asset else None,
             template_id=template.id if template else None,
             # Doc 03 §9.2's `category` is what the cost engine bills on, and only a template has
@@ -228,14 +236,15 @@ class SendService:
         )
         # An operator-initiated send is an action a person took, and low-volume by nature — unlike
         # the inbound firehose, which is data rather than an act.
-        await self._audit.record(
-            AuditAction.MESSAGE_SENT,
-            actor_user_id=actor.id,
-            organization_id=organization_id,
-            entity_type="message",
-            entity_id=message.id,
-            after={"type": message.message_type, "conversation_id": conversation.public_id},
-        )
+        if audit:
+            await self._audit.record(
+                AuditAction.MESSAGE_SENT,
+                actor_user_id=actor.id,
+                organization_id=organization_id,
+                entity_type="message",
+                entity_id=message.id,
+                after={"type": message.message_type, "conversation_id": conversation.public_id},
+            )
         await self._session.commit()
         return message
 
