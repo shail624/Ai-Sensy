@@ -21,6 +21,7 @@ from app.models.campaign import (
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
 from app.models.conversation import Conversation
+from app.models.internal_note import InternalNote
 from app.models.job import DeadLetter, JobMetadata
 from app.models.job_records import BulkJob, ExportJob, ImportJob
 from app.models.lead import LeadPipeline, LeadStage
@@ -56,6 +57,7 @@ __all__ = [
     "ExportJob",
     "FeatureFlag",
     "ImportJob",
+    "InternalNote",
     "JobMetadata",
     "LeadPipeline",
     "LeadStage",

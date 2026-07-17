@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     auth,
     campaigns,
     contacts,
+    conversations,
     jobs,
     leads,
     media,
@@ -67,3 +68,6 @@ api_router.include_router(templates.router, tags=["Templates"])
 
 # Phase 6 — campaign registry & audience (Doc 04 §17; Doc 03 §8.1/§8.3).
 api_router.include_router(campaigns.router, tags=["Campaigns"])
+
+# Phase 7 — Shared Inbox: conversation assignment, status & internal notes (Doc 04 §18.1).
+api_router.include_router(conversations.router, tags=["Inbox"])

@@ -24,3 +24,17 @@ class ConversationRepository(BaseRepository[Conversation]):
             Conversation.contact_id == contact_pk,
         )
         return (await self.session.scalars(stmt)).first()
+
+    async def get_active_by_uuid(
+        self, organization_id: int, public_id: bytes
+    ) -> Conversation | None:
+        """An active thread by its public id, scoped to the caller's org (Doc 04 §18.1).
+
+        Org-scoped so a valid uuid from another tenant reads as a 404, not another org's thread.
+        """
+        stmt = select(Conversation).where(
+            Conversation.organization_id == organization_id,
+            Conversation.uuid == public_id,
+            Conversation.deleted_at.is_(None),
+        )
+        return (await self.session.scalars(stmt)).first()
