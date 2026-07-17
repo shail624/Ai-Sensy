@@ -24,6 +24,7 @@ from app.models.settings import FeatureFlag, Setting
 from app.models.tag import Tag, contact_tags
 from app.models.token import RefreshToken, UserSession
 from app.models.user import User
+from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
 
 __all__ = [
     "ApiKey",
@@ -43,6 +44,7 @@ __all__ = [
     "MediaAsset",
     "Organization",
     "Permission",
+    "PhoneNumber",
     "RefreshToken",
     "Role",
     "Segment",
@@ -52,6 +54,7 @@ __all__ = [
     "User",
     "UserRole",
     "UserSession",
+    "WhatsAppBusinessAccount",
     "contact_tags",
     "role_permissions",
 ]

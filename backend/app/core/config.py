@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     #: Per-request timeout. Matches the send queues' 15s soft timeout (Doc 06 §2.3) so a hung
     #: Meta call fails inside the task rather than pinning a worker to its hard timeout.
     meta_timeout_seconds: float = 15.0
+    #: 32-byte base64url key encrypting channel tokens at rest (Doc 03 §5.1 `access_token_enc`,
+    #: FR-WA-03). Required in production; derived from SECRET_KEY elsewhere (see app.core.crypto).
+    token_encryption_key: str = ""
 
     # ---- CORS (Doc 04 §25) ------------------------------------------------
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])

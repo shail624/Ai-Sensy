@@ -25,6 +25,7 @@ dependencies = [
     "python-multipart>=0.0.12",  # multipart/form uploads
     "email-validator>=2.2",      # Pydantic EmailStr validation
     "openpyxl>=3.1",             # .xlsx import/export (FR-CON-04/15)
+    "cryptography>=43",          # AES-GCM at-rest encryption for channel tokens (FR-WA-03)
 ]
 
 [project.optional-dependencies]

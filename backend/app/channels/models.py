@@ -135,6 +135,23 @@ class ChannelStatus:
 
 
 @dataclass(frozen=True, slots=True)
+class ChannelPhoneNumber:
+    """A number the channel says an account owns (Doc 03 §5.2 fields, canonicalised).
+
+    Provisioning, not messaging: only channels that own numbers report these, so this crosses the
+    seam as its own type rather than joining the §5.2 messaging operations.
+    """
+
+    phone_number_id: str
+    display_number: str
+    verified_name: str | None = None
+    quality_rating: str | None = None
+    messaging_tier: str | None = None
+    throughput_level: str | None = None
+    status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class HealthSignal:
     """Channel health (Doc 07 §5.2 "Health").
 

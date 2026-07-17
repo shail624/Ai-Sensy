@@ -22,6 +22,7 @@ from app.channels.errors import ChannelConfigError
 from app.channels.meta.client import MetaCloudClient, MetaCredentials
 from app.channels.models import (
     Attachment,
+    ChannelPhoneNumber,
     ChannelStatus,
     DownloadedAttachment,
     HealthSignal,
@@ -37,7 +38,15 @@ from app.channels.models import (
 #: Graph's messaging envelope constant.
 _PRODUCT = "whatsapp"
 #: Fields that describe a number's sending health (Doc 06 §5/§28).
-_HEALTH_FIELDS = "display_phone_number,verified_name,quality_rating,throughput,platform_type"
+_HEALTH_FIELDS = (
+    "display_phone_number,verified_name,quality_rating,throughput,"
+    "messaging_limit_tier,platform_type"
+)
+#: Fields read when enumerating a WABA's numbers (Doc 03 §5.2 columns).
+_NUMBER_FIELDS = (
+    "id,display_phone_number,verified_name,quality_rating,throughput,"
+    "messaging_limit_tier,code_verification_status,status"
+)
 
 
 class MetaChannelAdapter(ChannelAdapter):
@@ -177,6 +186,34 @@ class MetaChannelAdapter(ChannelAdapter):
             sha256=hashlib.sha256(content).hexdigest(),
             byte_size=len(content),
         )
+
+    # --- Provisioning --------------------------------------------------------
+    @staticmethod
+    def _number(node: dict[str, Any]) -> ChannelPhoneNumber:
+        return ChannelPhoneNumber(
+            phone_number_id=str(node.get("id", "")),
+            display_number=node.get("display_phone_number", ""),
+            verified_name=node.get("verified_name"),
+            quality_rating=node.get("quality_rating"),
+            messaging_tier=node.get("messaging_limit_tier"),
+            throughput_level=(node.get("throughput") or {}).get("level"),
+            status=node.get("status") or node.get("code_verification_status"),
+        )
+
+    async def list_phone_numbers(self, waba_id: str | None = None) -> list[ChannelPhoneNumber]:
+        """The numbers a WABA owns — what ``POST /waba/{uuid}/sync`` reconciles against.
+
+        Meta-specific by nature: only a channel with accounts-and-numbers has this, so it lives on
+        the adapter rather than the messaging interface. Callers still never touch Graph directly.
+        """
+        account = waba_id or self._client.credentials.waba_id
+        if not account:
+            raise ChannelConfigError("a WABA id is required to list phone numbers")
+        body = await self._client.get(
+            f"{account}/phone_numbers",
+            params={"fields": _NUMBER_FIELDS, "limit": 100},
+        )
+        return [self._number(node) for node in body.get("data") or []]
 
     # --- Health --------------------------------------------------------------
     async def health_signal(self) -> HealthSignal:
