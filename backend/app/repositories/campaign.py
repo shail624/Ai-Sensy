@@ -162,6 +162,22 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         )
         return int((await self.session.scalar(stmt)) or 0)
 
+    async def counts_by_country(self, campaign_pk: int) -> dict[str | None, int]:
+        """The roster grouped by the contact's country — the cost estimate's shape (FR-CAM-11).
+
+        Aggregated in SQL and joined to ``contacts``: an estimate over a 250k-recipient roster must
+        never pull rows into Python to count them. ``country_code`` is nullable, so a ``None`` key is
+        expected and meaningful — those recipients are *unresolved* (Doc 03 §8.5.4), not an error.
+        """
+        stmt = (
+            select(Contact.country_code, func.count())
+            .select_from(CampaignRecipient)
+            .join(Contact, Contact.id == CampaignRecipient.contact_id)
+            .where(CampaignRecipient.campaign_id == campaign_pk)
+            .group_by(Contact.country_code)
+        )
+        return {country: int(count) for country, count in await self.session.execute(stmt)}
+
     async def counts_by_status(self, campaign_pk: int) -> dict[str, int]:
         """The roster's live shape — the authoritative source the counters mirror (Doc 03 §8.1)."""
         stmt = (

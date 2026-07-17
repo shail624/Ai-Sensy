@@ -24,6 +24,7 @@ from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreateRequest,
     CampaignDispatchResponse,
+    CampaignEstimateResponse,
     CampaignListResponse,
     CampaignPreviewResponse,
     CampaignProgressResponse,
@@ -41,6 +42,7 @@ from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.campaign_schedule_service import CampaignScheduleService
 from app.services.campaign_service import CampaignService
+from app.services.cost_estimation_service import CostEstimationService
 
 router = APIRouter()
 
@@ -175,6 +177,26 @@ async def preview_campaign(
         excluded_opted_out=preview.excluded_opted_out,
         samples=preview.samples,
     )
+
+
+@router.post(
+    "/campaigns/{campaign_id}/estimate-cost",
+    response_model=CampaignEstimateResponse,
+    summary="Pre-send cost estimate from the rate card",
+)
+async def estimate_campaign_cost(
+    campaign_id: uuidlib.UUID, session: SessionDep, actor: CampaignReader
+) -> CampaignEstimateResponse:
+    """Price the materialized roster from the rate card (FR-CAM-11; Doc 04 §17).
+
+    No body: the estimate is derived from what would actually be sent, not a fresh audience query.
+    An empty or incomplete card answers `422 rate_card_not_configured` rather than a misleading
+    partial total. The endpoint stays on `campaigns:read` because its only write is caching the
+    quote on the campaign's own row (Doc 03 §8.5.5)."""
+    estimate = await CostEstimationService(session).estimate(
+        organization_id=actor.organization_id, public_id=campaign_id
+    )
+    return CampaignEstimateResponse.from_estimate(estimate)
 
 
 @router.get(

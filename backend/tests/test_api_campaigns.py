@@ -488,11 +488,13 @@ async def test_campaign_permissions(client, make_user, session_factory, monkeypa
 
 
 # --- Unbuilt surfaces are absent, not stubbed --------------------------------
-def test_no_cost_surface_exists_yet() -> None:
-    """A route that pretends to price a campaign would be worse than none — it implies it nearly
-    works. Scheduling is mounted as of Phase 6 Step 4; the cost engine is still a later step."""
+def test_estimation_mounted_but_rate_card_admin_is_not() -> None:
+    """Scheduling and cost estimation are mounted (Phase 6 Steps 4–5). Rate-card administration is
+    specified for future work (Doc 04 §17.1) but deliberately **not** implemented in Step 5 — a
+    route that pretended to exist would be worse than its absence."""
     from app.main import create_app
 
     paths = create_app().openapi()["paths"]
-    assert "/api/v1/campaigns/{campaign_id}/estimate-cost" not in paths
     assert "/api/v1/campaigns/{campaign_id}/schedule" in paths
+    assert "/api/v1/campaigns/{campaign_id}/estimate-cost" in paths
+    assert "/api/v1/rate-cards" not in paths

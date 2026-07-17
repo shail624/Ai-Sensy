@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.models.campaign import Campaign, CampaignRecipient, CampaignSchedule
 from app.models.contact import Contact
+from app.services.cost_estimation_service import UNRESOLVED_COUNTRY, Estimate
 
 AudienceTypeName = Literal["segment", "tag", "list", "upload"]
 
@@ -208,6 +210,68 @@ class CampaignRetryResponse(BaseModel):
     status: str
     #: Failed recipients reset to pending and handed back to the send fabric.
     retried: int
+
+
+class EstimateBreakdownEntry(BaseModel):
+    """One priced ``(country, category)`` group (Doc 04 §17).
+
+    ``unit`` and ``subtotal`` are decimals serialized as fixed-scale strings — a JSON number cannot
+    carry scale and lands in a binary float, which is what money must never touch.
+    """
+
+    country: str
+    category: str
+    count: int
+    unit: Decimal
+    subtotal: Decimal
+
+
+class EstimateUnresolved(BaseModel):
+    """Recipients that could not be priced (Doc 03 §8.5.4).
+
+    Reported rather than dropped: excluding them from the total while hiding the count would
+    understate the number FR-CAM-11 calls exact.
+    """
+
+    count: int
+    reason: str = UNRESOLVED_COUNTRY
+
+
+class CampaignEstimateResponse(BaseModel):
+    """Pre-send cost estimate (FR-CAM-11; Doc 04 §17).
+
+    Invariant: ``recipients == sum(b.count for b in breakdown) + unresolved.count``.
+    """
+
+    recipients: int
+    breakdown: list[EstimateBreakdownEntry]
+    unresolved: EstimateUnresolved
+    #: Resolved recipients only, rounded once to 4 dp (Doc 03 §8.5.3).
+    estimated_total: Decimal
+    #: The rate card's single currency — there is no FX (Doc 03 §8.5.3).
+    currency: str
+    #: Advisory prose. Clients must not parse it; `unresolved` is the machine-readable outcome.
+    notes: list[str]
+
+    @classmethod
+    def from_estimate(cls, estimate: Estimate) -> CampaignEstimateResponse:
+        return cls(
+            recipients=estimate.recipients,
+            breakdown=[
+                EstimateBreakdownEntry(
+                    country=row.country,
+                    category=row.category,
+                    count=row.count,
+                    unit=row.unit,
+                    subtotal=row.subtotal,
+                )
+                for row in estimate.breakdown
+            ],
+            unresolved=EstimateUnresolved(count=estimate.unresolved_count),
+            estimated_total=estimate.estimated_total,
+            currency=estimate.currency,
+            notes=estimate.notes,
+        )
 
 
 #: What a caller may ask for. ``drip`` is an API shape, not a stored type: it expands into a series

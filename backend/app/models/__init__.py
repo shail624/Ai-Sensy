@@ -27,6 +27,7 @@ from app.models.lead import LeadPipeline, LeadStage
 from app.models.media import MediaAsset
 from app.models.message import Message, MessageStatusHistory
 from app.models.organization import Organization
+from app.models.rate_card import RateCard
 from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.segment import Segment, SegmentRule
 from app.models.settings import FeatureFlag, Setting
@@ -64,6 +65,7 @@ __all__ = [
     "MessageStatusHistory",
     "Organization",
     "Permission",
+    "RateCard",
     "PhoneNumber",
     "RefreshToken",
     "Role",
