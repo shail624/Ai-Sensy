@@ -766,6 +766,46 @@ as a sub-resource. A separate `/messages/send` composes outbound sends. This mir
 | GET | `/conversations/{uuid}/notes` | List internal notes | `inbox:read` | `read` | 404 |
 | POST | `/conversations/{uuid}/notes` | Add internal note (staff-only) | `inbox:write` | `write` | 404 |
 | DELETE | `/conversations/{uuid}/notes/{note_uuid}` | Delete note | `inbox:write` | `write` | 404 |
+| POST | `/conversations/{uuid}/tags` | Add existing tag(s) to a conversation | `inbox:write` | `write` | 404, 422 |
+| DELETE | `/conversations/{uuid}/tags/{tag_uuid}` | Remove a tag from a conversation | `inbox:write` | `write` | 404 |
+
+**Conversation tags (Phase 7 — FR-INB-07 · Doc 03 §9.7).**
+> **Amendment 2026-07-18 (v1.3).** Conversation-level classification, reusing the org `tags` taxonomy
+> (§14.2). Distinct from contact tags (§14.1): this path never reads or mutates `contact_tags`, and it
+> does not create tags.
+
+- **Add** — `POST /conversations/{uuid}/tags`, `inbox:write`. Body `{ "tag_ids": ["<tag-uuid>", …] }`
+  — 1–50 tag uuids that **already exist** in the caller's org (duplicates in the list are ignored).
+  Applies each tag to the thread and is **idempotent**: a tag already present is a no-op, never a
+  `409`. Returns **`200`** with the thread's full tag set — `{ "data": [ {"id","name","color"}, … ] }`.
+  Errors: **`404`** (conversation not in the caller's org); **`422`** (empty or >50 list, malformed
+  uuid, or any tag uuid that is unknown, soft-deleted, or belongs to another org — a cross-org tag is
+  never applied). Creating new tags is **not** part of this path; tags are authored via `POST /tags`
+  (§14.2, `contacts:write`).
+- **Remove** — `DELETE /conversations/{uuid}/tags/{tag_uuid}`, `inbox:write`. Detaches the tag
+  (hard-deletes the join row — no soft delete). **`204`** on success; **`404`** if the conversation or
+  the specific association does not exist.
+- **Attribution / audit** — the join records `tagged_by` / `tagged_at`; tag add/remove is **not**
+  written to the audit log (low-stakes classification — audit only where a spec explicitly requires it).
+- **In read responses** — both `GET /conversations` (every list row) and `GET /conversations/{uuid}`
+  include a `tags` array `[ {"id","name","color"} ]` (empty `[]` when untagged). This is the frozen
+  source for the list row's tag chips (Doc 05 B7) and backs the `tag` filter below. *(This extends the
+  §18.1 read responses shipped in Phase 7 Step 2 with one additive field.)*
+
+**`tag` filter on `GET /conversations`.** Adds a single filter to the frozen set
+(status / assignee / number / `q`):
+- **Param** — `tag=<tag-uuid>` — a single tag uuid (the "by-tag" folder, Doc 05 B7).
+- **Matching** — a conversation matches iff it has an association to that tag in `conversation_tags`.
+- **Multiple tags** — the filter is **single-valued**; supplying more than one `tag` value is a **`400`**.
+  Multi-tag AND/OR filtering is **deferred** (not part of this amendment).
+- **Empty / unknown** — a **malformed** uuid → **`400`** (as with the other filters); a **well-formed**
+  uuid that is unknown, from another org, or simply matches nothing → a normal **empty page** (`200`,
+  `data: []`), exactly as the assignee/number filters behave (§18.1, Step 2).
+
+**Out of scope of this amendment (Conversation Tags only).** AI tagging & auto-tagging (`/ai/auto-tag`
+stays suggestion-only — §19), rules engine, workflow automation, routing (FR-INB-09), SLA timers
+(FR-INB-10), analytics/reports, bulk actions, and any change to the contact tag model (§6.2 / §14.1) or
+the `tags` registry (§14.2).
 
 ### 18.2 Sending & message operations
 | Method | Path | Purpose | Permission | Rate class | Idem. | Notable errors |

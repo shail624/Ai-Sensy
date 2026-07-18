@@ -1254,6 +1254,41 @@ PARTITION BY RANGE COLUMNS (created_at) (
 *Click/URL tracking (FR-AN-04):* first-party shortener; per-click rows (high volume, partitioned)
 with a denormalized `click_count` on `short_links` for instant display.
 
+### 9.7 `conversation_tags` (M:N) (Phase 7)
+> **Amendment 2026-07-18 (v1.3).** Adds conversation-level classification for **FR-INB-07**. This is a
+> new **junction only**: it **reuses the existing `tags` taxonomy** (§6.2) — no new tag entity, and
+> **no change** to `tags` or `contact_tags`. Conversation tags are deliberately distinct from contact
+> tags: they classify *this thread* (agent triage — e.g. `refund`, `escalated`), not the person.
+
+```sql
+CREATE TABLE conversation_tags (
+  conversation_id BIGINT UNSIGNED NOT NULL,
+  tag_id          BIGINT UNSIGNED NOT NULL,
+  tagged_at       DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  tagged_by       BIGINT UNSIGNED NULL,               -- user who applied it (attribution; no FK, nullable)
+  PRIMARY KEY (conversation_id, tag_id),              -- composite PK: a tag applies at most once per thread
+  KEY ix_convtag_tag (tag_id, conversation_id),       -- reverse lookup: conversations with tag X (inbox filter)
+  CONSTRAINT fk_convtag_conversation FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
+  CONSTRAINT fk_convtag_tag FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+```
+*Model:* an exact mirror of `contact_tags` (§6.2) — the proven M:N join pattern — but associating the
+shared `tags` taxonomy with **conversations** rather than contacts.
+*Keys / indexes:* composite PK `(conversation_id, tag_id)` gives idempotent membership and covers
+"tags of conversation X"; the reverse index `(tag_id, conversation_id)` resolves "conversations with
+tag X" — the inbox **by-tag** filter — mirroring `ix_ct_tag`.
+*Constraints:* both FKs are `ON DELETE CASCADE` — deleting a conversation drops its tag links, and
+deleting a tag (§14.2) detaches it from conversations as well as contacts.
+*Soft delete:* **none.** Like `contact_tags`, membership is a hard association; removing a tag
+hard-deletes the join row. `tagged_at` / `tagged_by` give lightweight attribution (no independent
+audit record).
+*Ownership & org scoping:* the junction carries **no `organization_id`** (as `contact_tags` carries
+none); scope is enforced through **both parents** — the `conversation` and the `tag` are each
+org-scoped, and the service **must** verify they belong to the **same** organization before
+associating (a cross-org tag is rejected — §18.1). The association is a **shared team**
+classification: any `inbox:write` member may add or remove tags on any conversation in the org (no
+per-user ownership).
+
 ---
 
 ## 10. Domain: AI & Knowledge Base (Phase 9)
@@ -1671,6 +1706,7 @@ future modules in §Scalability).
 | `users` ↔ `roles` | `user_roles` | A user can hold several roles; a role is shared by many users. |
 | `roles` ↔ `permissions` | `role_permissions` | Fine-grained permissions composed into roles; permissions reused across roles. |
 | `contacts` ↔ `tags` | `contact_tags` | A contact has many tags; a tag labels many contacts. |
+| `conversations` ↔ `tags` | `conversation_tags` | A conversation carries many classification tags; a tag labels many conversations (§9.7, v1.3). |
 
 Junction tables use a **composite primary key** of the two FK columns (natural uniqueness, no surrogate
 id needed) plus a **reverse secondary index** to make lookups fast in both directions.
@@ -1720,6 +1756,7 @@ tables). Integrity is enforced in the service layer; every such column is indexe
 | `contacts` | `(org, created_at)`, `(org, opt_in_status)`, `(org, last_inbound_at)` | List pagination + segmentation |
 | `contact_attribute_values` | `(attribute_id, value_string(191))` / `_number` / `_datetime` | Indexed attribute filtering for segments |
 | `contact_tags` | `(tag_id, contact_id)` | "All contacts with tag X" (campaign audiences) |
+| `conversation_tags` | `(tag_id, conversation_id)` | "All conversations with tag X" (inbox by-tag filter, §9.7) |
 | `messages` | `(conversation_id, created_at)` | Thread view |
 | `messages` | `ix (wamid)` | Webhook status update by WhatsApp id |
 | `messages` | `(org, created_at)`, `(campaign_id)` | Analytics & campaign rollups |
@@ -1877,6 +1914,7 @@ duplication" directive):
 | `webhook_events` | 10M+ | Monthly | Reprocess recent | Partition drop at 90d |
 | `audit_logs` | 10M+ | Monthly | Entity history | Partitioning + entity index |
 | `conversations` | 100k–1M | No | Inbox list | `(org,status,last_message_at)` |
+| `conversation_tags` | 100k–1M | No | Conversations-by-tag | Reverse index `(tag_id, conversation_id)` |
 
 Targets from SRS §5.1 (dashboard <1.5s, search <500ms @1M, import ≥10k/min) are met by: denormalized
 counters (dashboards), covering composite indexes (search/lists), partition pruning (analytics),
