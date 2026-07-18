@@ -52,6 +52,8 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 *.tsbuildinfo
+# The bare `lib/` rule above (Python build dir) must not swallow the frontend's app code.
+!frontend/src/lib/
 
 # ---- Logs / runtime ----
 *.log
