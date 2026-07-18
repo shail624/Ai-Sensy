@@ -848,6 +848,34 @@ Content-Type: application/json
 - **Performance:** `/conversations` list uses denormalized `last_message_preview`/`unread_count` (Doc 3
   §9.1) so the inbox renders instantly; message history is cursor-paginated over the partitioned ledger.
 
+**`POST /messages/{uuid}/reaction` — reaction contract (Amendment 2026-07-18, v1.4).**
+> **Append-only amendment** clarifying the §18.2 table row (unchanged). Requires the Meta
+> `send_reaction` capability frozen in Doc 07 §5.2a; storage per Doc 03 §9.2a.
+
+- **Path:** `{uuid}` is the **public id of the message being reacted to** — an existing message in the
+  caller's org. Unknown/foreign → **404**. The target must already have a `wamid` (you can only react
+  to a message the channel has acknowledged); a target still `accepted`/without a `wamid` → **422**
+  (`not_reactable`).
+- **Permission:** `messages:send`. **Rate class:** `send`.
+- **Request body:** `{ "emoji": "👍" }` — a **single emoji** (one grapheme). An **empty string**
+  `{ "emoji": "" }` **removes** the reaction (Meta semantics). Reject a missing field, multiple emoji,
+  or non-emoji text → **422** (`invalid_emoji`).
+- **Idempotency:** `Idempotency-Key` **required** (the §18.2 row's "key"); a replay returns the
+  original result (dedup by key + the reaction's `wamid`), never a duplicate reaction.
+- **24-hour window:** a reaction is **free-form** and permitted only inside the **open** customer-
+  service window (same rule as text/media/interactive — a template can never be a reaction). Closed
+  window → **422** (`window_closed`); opted-out contact → **422** (`opt_out`).
+- **Storage & flow:** accepted like any send — a `messages` ledger row is written
+  (`direction=outbound`, `message_type='reaction'`, `content_json` per Doc 03 §9.2a), then delivered
+  through **SendService → the Meta adapter**, which builds the Graph reaction payload (provider logic
+  stays behind the seam). Response **`202 Accepted`** with the reaction message id (`wamid: null`
+  until the channel acknowledges), consistent with `/messages/send`.
+- **Failure handling:** `404` (unknown target), `422` (invalid emoji / window closed / opted out /
+  not reactable), `502` (channel rejected). The §18.2 row lists `422` as the headline; the shared §5
+  error conventions supply the rest. A failed reaction is recorded on its ledger row like any send.
+- **Direction:** this contract governs **outbound** reactions only. Inbound reactions (a customer
+  reacting to us) are unchanged — received via webhook and stored as a `reaction` message.
+
 ---
 
 ## 19. AI endpoints

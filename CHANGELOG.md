@@ -11,6 +11,46 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-18 — Amendment: Message Reactions (Doc 7 → v1.1, Doc 4 v1.3 → v1.4, Doc 3 v1.3 → v1.4) — **FROZEN**
+**Reason:** Phase 7 Step 9 (Message Reactions) was **blocked by a frozen-doc conflict.** Doc 4 §18.2
+defines `POST /messages/{uuid}/reaction` (send a reaction), but Doc 7 §5.2's Meta capability column
+declared `text/media/interactive/template/bulk` only — reaction was **deliberately undeclared** (the
+Meta adapter surfaces `ChannelNotSupported`), so no channel could fulfil the endpoint. The canonical
+seam (`MessageType`) and SendService likewise had no reaction path.
+
+**Decision (owner):** amend additively so reaction is **adapter-capability-driven**; the Meta adapter
+declares it (Meta Cloud API supports outbound reactions). Invent no behaviour beyond the frozen contract.
+
+**Changed — Doc 7 (Integrations & Channel Architecture) → v1.1**
+- **New §5.2a** — the Meta adapter additionally declares `send_reaction` (capability-flagged); the §5.2
+  baseline matrix is unedited. Decision **CD20** (reaction is adapter-declared, not assumed).
+
+**Changed — Doc 4 (API Design) v1.3 → v1.4**
+- **§18.2** — appended the full `POST /messages/{uuid}/reaction` contract: `{emoji}` payload (empty =
+  remove), single-emoji validation (`invalid_emoji`), `Idempotency-Key` required, `messages:send`, the
+  24-hour free-form window rule (`window_closed`), `not_reactable`/`opt_out`, the `202` accept→deliver
+  flow through SendService→Meta adapter, and failure handling. §18.2 table row unedited.
+
+**Changed — Doc 3 (Database Design) v1.3 → v1.4**
+- **New §9.2a** — confirms reaction storage: `message_type='reaction'` (already enumerated) + the
+  `content_json` reaction format `{reaction:{message_id:<target wamid>, emoji}}`, target referenced by
+  the target's `wamid`. **No new column, no migration.** §9.2 schema unedited.
+
+**Decision records added:** Doc 7 **CD20**.
+**Compatibility:** additive only — no schema/migration, no code (implementation follows on approval).
+Docs 1, 2, 5, 6, 8–12 unedited.
+
+### 2026-07-18 — Amendment (backfill log): Conversation Tags (FR-INB-07) — Doc 3 v1.2 → v1.3, Doc 4 v1.1 → v1.3 — **FROZEN**
+**Backfilled.** The conversation-tags amendment shipped in commit `4ec1c34` with in-document `v1.3`
+markers but was not logged here at the time; governance (top of file) requires every frozen-doc change
+be recorded, so it is logged now.
+**Changed — Doc 3:** new **§9.7 `conversation_tags`** (M:N junction reusing the `tags` taxonomy) + §12.3
+M:N row, §13.2 reverse-index row, §19 sizing row. **Changed — Doc 4:** **§18.1** conversation-tag
+endpoints (`POST`/`DELETE /conversations/{uuid}/tags`), the additive `tags[]` array on list/detail
+reads, and the single-valued `tag` filter.
+**Compatibility:** additive; realized by migration `0025_conversation_tags` (Phase 7 Step 5, HEAD
+`16c65e2`). The Doc 4 marker used `v1.3` in lockstep with Doc 3 (Doc 4 `v1.2` is unused).
+
 ### 2026-07-17 — Amendment: FR-CAM-11 rate card & cost estimation (Doc 3 → v1.2, Doc 4 → v1.1) — **FROZEN**
 **Reason:** Phase 6 Step 5 (Cost Engine) was **blocked**. The frozen set defined the cost engine's
 *consumers* (`campaigns.estimated_cost`, `messages.cost_*`, `pricing_model`, `is_billable`) but never
@@ -87,11 +127,11 @@ and finance reporting.
 - **Doc 10 — Testing & QA Architecture** — `v1.1` **FROZEN** on 2026-07-15 (`10-TESTING-QA-ARCHITECTURE.md`; §1–§60 = v1.0 baseline, §61–§72 added in pass; 72 sections, 18 diagrams, TD1–TD65). Additive; references Docs 1–9 without duplication.
 - **Doc 1 — SRS** — `v1.0` **FROZEN** on 2026-07-15 (authoritative specification).
 - **Doc 2 — Expanded Feature Matrix** — `v1.0` **FROZEN** on 2026-07-15.
-- **Doc 3 — Database Design** — `v1.2` **FROZEN** on 2026-07-17 (v1.0 baseline; **§21 Business Event Ledger & Enterprise Event Taxonomy** added in the final additive pass → v1.1; **§8.5 `rate_cards`** + §12.4a/§12.2/§13.2/§16 rate-card entries added in the FR-CAM-11 estimation amendment → v1.2).
-- **Doc 4 — API Design Specification** — `v1.1` **FROZEN** on 2026-07-17 (v1.0 on 2026-07-15 incl. enhancement pass: §29–§36 + subsections §23.1/§24.1/§27.1/§27.2; **§17 estimate-cost contract** + **§17.1 rate-card administration** + §31 cross-reference added in the FR-CAM-11 estimation amendment → v1.1).
+- **Doc 3 — Database Design** — `v1.4` **FROZEN** (v1.0 baseline; **§21 Business Event Ledger** → v1.1; **§8.5 `rate_cards`** + §12.4a/§12.2/§13.2/§16 → v1.2 on 2026-07-17; **§9.7 `conversation_tags`** + §12.3/§13.2/§19 → v1.3 on 2026-07-18; **§9.2a reaction payload** → v1.4 on 2026-07-18).
+- **Doc 4 — API Design Specification** — `v1.4` **FROZEN** (v1.0 on 2026-07-15 incl. enhancement pass §29–§36 + §23.1/§24.1/§27.1/§27.2; **§17 estimate-cost** + **§17.1 rate-card admin** → v1.1 on 2026-07-17; **§18.1 conversation tags** → v1.3 on 2026-07-18; **§18.2 reaction contract** → v1.4 on 2026-07-18).
 - **Doc 5 — UI/UX Design Specification** — `v1.1` **FROZEN** (v1.0 = Parts A–F incl. F1–F15; **Part G Executive Business Dashboard** added in the final additive pass).
 - **Doc 6 — Queue & Scheduler Design** — `v1.2` **FROZEN** (pass 1 §21–§34 at v1.0; pass 2 §35–§46 → v1.1; final additive pass **§47 Enterprise Domain Event Bus** + **§48 Business KPI Metric Catalog** → v1.2).
-- **Doc 7 — Integrations & Channel Architecture** — delivered, awaiting owner approval. Realizes the dual-channel / Support Connector spec that frozen Doc 6 forward-references as "Doc 6.5" (content in `07-INTEGRATIONS-CHANNEL-ARCHITECTURE.md`; Doc 6 unedited). Defines new **additive** entities (connector registry/session/health, lead pipelines/stages, conversation tags, assignment rules) and additive columns (`connector_id`, lead references) to be applied via migration when built — no frozen doc edited.
+- **Doc 7 — Integrations & Channel Architecture** — `v1.1` (delivered v1.0, awaiting owner approval; **§5.2a Meta `send_reaction` capability** amendment + decision **CD20** added on 2026-07-18 → v1.1). Realizes the dual-channel / Support Connector spec that frozen Doc 6 forward-references as "Doc 6.5" (content in `07-INTEGRATIONS-CHANNEL-ARCHITECTURE.md`; Doc 6 unedited). Defines new **additive** entities (connector registry/session/health, lead pipelines/stages, conversation tags, assignment rules) and additive columns (`connector_id`, lead references) to be applied via migration when built — no frozen doc edited.
 - **Doc 8 — Deployment & DevOps Architecture** — `v1.2` **FROZEN** (`08-DEPLOYMENT-DEVOPS.md`; §1–§41 = v1.0 baseline, §42–§55 added in the enhancement pass; **§56 Platform Portability Appendix** added in the final additive pass; DD1–DD41).
 
 ### 2026-07-15 — Major requirement: dual-channel (Support Connector) architecture

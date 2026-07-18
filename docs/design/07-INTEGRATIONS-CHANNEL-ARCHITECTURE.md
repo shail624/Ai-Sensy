@@ -170,6 +170,24 @@ offering an action (e.g., "Broadcast" appears only for channels with `campaigns`
 connectors with `calls`). This is the mechanism behind Doc 5's channel-abstracted inbox and Doc 6's
 connector-aware tasks.
 
+### 5.2a Amendment — Meta `send_reaction` capability (v1.1, 2026-07-18)
+> **Append-only amendment.** Extends the §5.2 capability matrix **without editing the baseline row**:
+> the **Meta Cloud API adapter additionally declares `send_reaction`** (previously undeclared).
+> Reaction stays **capability-flagged** (`send_reaction*`) — nothing changes for adapters that do not
+> declare it (the Support Connector still surfaces `ChannelNotSupported`), and the "CRM checks the
+> flag" mechanism (§5.2 footnote) is unchanged.
+
+- **Rationale:** the Meta Cloud API supports outbound message reactions (a `reaction` message that
+  references a target `wamid` + emoji; an empty emoji clears it). The baseline §5.2 Meta column omitted
+  it; this amendment closes the gap so Doc 04 §18.2 `POST /messages/{uuid}/reaction` has a channel that
+  can fulfil it.
+- **Meta adapter declared capabilities (as amended):** text / media / interactive / template / bulk,
+  media transfer, health — **plus `send_reaction`**. Location, contact and calls remain undeclared.
+- **Decision (CD20):** reaction is an **adapter-declared, capability-flagged** operation, never a
+  platform assumption — a channel that cannot react declares no flag and the CRM hides the action;
+  Meta declares it. *Trade-off:* one more capability flag to honour. *Compatibility:* additive — no
+  existing declared capability changes, and the abstract interface already lists `send_reaction*`.
+
 ### 5.3 Canonical model (what crosses the seam)
 Adapters translate native payloads to/from the platform's **canonical** objects (defined by Doc 3):
 `Conversation` (with `channel_type`, `connector_id`, `contact`, `phone_number`), `Message` (direction, type,

@@ -1099,6 +1099,22 @@ PARTITION BY RANGE COLUMNS (created_at) (
 webhook status update by `wamid`; analytics by `(org, created_at)` and `campaign_id`. *Cost engine:*
 `category`, `is_billable`, `cost_amount` power exact cost analytics (FR-AN-03).
 
+#### 9.2a Reaction payload (Amendment 2026-07-18, v1.4)
+> **Append-only confirmation — no schema change.** `message_type` **already** enumerates `reaction`
+> (§9.2) and `content_json` already holds per-type payloads, so a reaction needs **no new column and
+> no migration** beyond the ledger row itself.
+
+- **`message_type = 'reaction'`** — confirmed in the §9.2 `message_type` list; used for both inbound
+  (customer→us, via webhook) and outbound (us→customer, Doc 04 §18.2) reactions.
+- **`content_json` reaction format:** `{ "reaction": { "message_id": "<target wamid>", "emoji": "<emoji or empty string>" } }`.
+  An empty `emoji` is a **removal**. This mirrors the Meta reaction shape, canonicalised behind the
+  adapter (Doc 07 §5.3).
+- **Target message reference:** a reaction references its target by the target message's **`wamid`**
+  (carried in `content_json.reaction.message_id`) — **not** a new FK or column, consistent with §9.2
+  storing message context in `content_json`. The reaction row's own `wamid` is the channel's id for
+  the reaction message. The API accepts the target by its public `uuid` and resolves it to the stored
+  `wamid` (Doc 04 §18.2 reaction contract).
+
 ### 9.3 `message_status_history` — delivery logs (partitioned, 100M+)
 Append-only status transitions. Each outbound message yields several rows (sent→delivered→read).
 
