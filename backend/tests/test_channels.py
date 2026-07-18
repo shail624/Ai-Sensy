@@ -105,12 +105,13 @@ def test_meta_declares_the_capabilities_doc7_assigns_it() -> None:
         Capability.MEDIA,
         Capability.INTERACTIVE,
         Capability.TEMPLATE,
+        Capability.REACTION,  # added by Doc 07 §5.2a (v1.1) — outbound reactions
         Capability.BULK,
         Capability.CAMPAIGNS,
     ):
         assert adapter.supports(capability)
     # Not in Meta's column — the CRM must not offer them.
-    for capability in (Capability.LOCATION, Capability.CONTACT, Capability.REACTION, Capability.CALLS):
+    for capability in (Capability.LOCATION, Capability.CONTACT, Capability.CALLS):
         assert not adapter.supports(capability)
 
 

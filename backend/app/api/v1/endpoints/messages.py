@@ -22,6 +22,7 @@ from app.core.redis import get_redis_client
 from app.models.user import User
 from app.schemas.message import (
     MessageAcceptedResponse,
+    MessageReactionRequest,
     MessageResponse,
     MessageSendRequest,
     StatusHistoryEntry,
@@ -83,6 +84,51 @@ async def send_message(
     )
     await idempotency.complete(redis, key, response=response.model_dump(mode="json"))
     # After the commit, never before: the task must not outrun the row it reads.
+    send_task.apply_async(args=[message.id])
+    return response
+
+
+@router.post(
+    "/messages/{message_id}/reaction",
+    response_model=MessageAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Send a reaction emoji (async)",
+)
+async def send_reaction(
+    message_id: uuidlib.UUID,
+    payload: MessageReactionRequest,
+    session: SessionDep,
+    actor: SendActor,
+    key: IdempotencyKey,
+) -> MessageAcceptedResponse:
+    """React to a message, or clear a reaction with an empty emoji (Doc 04 §18.2 v1.4).
+
+    A reaction is free-form (needs the open 24-hour window); it is accepted then delivered through
+    SendService → the Meta adapter exactly like a send — ``202`` with ``wamid`` null.
+    """
+    from app.channels.tasks import send_message as send_task
+
+    redis = get_redis_client()
+    replayed = await idempotency.begin(redis, key)
+    if replayed is not None:
+        return MessageAcceptedResponse(**replayed)
+
+    try:
+        message = await SendService(session).react(
+            organization_id=actor.organization_id,
+            actor=actor,
+            target_public_id=message_id,
+            emoji=payload.emoji,
+        )
+    except Exception:
+        await idempotency.release(redis, key)
+        raise
+
+    service = MessageService(session)
+    response = MessageAcceptedResponse.from_message(
+        message, conversation_id=await service.conversation_public_id(message)
+    )
+    await idempotency.complete(redis, key, response=response.model_dump(mode="json"))
     send_task.apply_async(args=[message.id])
     return response
 

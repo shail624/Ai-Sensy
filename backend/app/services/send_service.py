@@ -34,6 +34,7 @@ from app.channels.models import (
     MediaKind,
     MessageType,
     OutboundMessage,
+    ReactionContent,
     TemplateButtonValue,
     TemplateContent,
     TextContent,
@@ -77,8 +78,8 @@ SEND_TASK = "app.channels.tasks.send_message"
 SOURCE_API = "api"
 
 #: Free-form types need an open window; a template is the only type that may cross a closed one
-#: (Doc 04 §18.2, FR-WA-12).
-FREE_FORM = (MessageType.TEXT, MessageType.MEDIA, MessageType.INTERACTIVE)
+#: (Doc 04 §18.2, FR-WA-12). A reaction is free-form too (Doc 04 §18.2 v1.4).
+FREE_FORM = (MessageType.TEXT, MessageType.MEDIA, MessageType.INTERACTIVE, MessageType.REACTION)
 
 
 class WindowClosedError(ValidationError):
@@ -138,6 +139,63 @@ class TemplateVariablesError(ValidationError):
 
     code = "template_variables"
     title = "Template Variables Invalid"
+
+
+class InvalidEmojiError(ValidationError):
+    """The reaction is not a single emoji (Doc 04 §18.2 v1.4 → 422)."""
+
+    code = "invalid_emoji"
+    title = "Invalid Reaction Emoji"
+
+
+class NotReactableError(ValidationError):
+    """The target has no channel id yet, so it cannot be reacted to (Doc 04 §18.2 v1.4 → 422)."""
+
+    code = "not_reactable"
+    title = "Message Not Reactable"
+
+
+#: Codepoints that extend an emoji grapheme rather than starting a new one — ZWJ, variation
+#: selectors, the keycap combiner, and skin-tone modifiers.
+_EMOJI_PART = frozenset({0x200D, 0xFE0E, 0xFE0F, 0x20E3}) | frozenset(range(0x1F3FB, 0x1F400))
+
+
+def _is_emoji_base(cp: int) -> bool:
+    """Whether a codepoint begins an emoji grapheme (common ranges; Meta validates definitively)."""
+    return (
+        0x1F000 <= cp <= 0x1FAFF
+        or 0x2600 <= cp <= 0x27BF
+        or 0x2B00 <= cp <= 0x2BFF
+        or 0x2300 <= cp <= 0x23FF
+        or 0x1F1E6 <= cp <= 0x1F1FF
+        or cp in {0x00A9, 0x00AE, 0x203C, 0x2049, 0x2122, 0x2139, 0x2194, 0x2934, 0x2935}
+    )
+
+
+def _validate_emoji(value: str) -> None:
+    """A single emoji, or the empty string to remove (Doc 04 §18.2 v1.4). Raises otherwise.
+
+    Rejects multiple emoji and non-emoji text; treats ZWJ/variation-selector/skin-tone sequences as
+    one grapheme, so ``👍``, ``👍🏽`` and ``👨‍👩‍👧`` pass while ``👍👎`` and ``hi`` do not.
+    """
+    if value == "":
+        return
+    graphemes = 0
+    prev: int | None = None
+    for ch in value:
+        cp = ord(ch)
+        if cp in _EMOJI_PART:
+            if prev is None:
+                raise InvalidEmojiError("The reaction must be a single emoji.")
+            prev = cp
+            continue
+        if not _is_emoji_base(cp):
+            raise InvalidEmojiError("The reaction must be a single emoji.")
+        if prev != 0x200D:
+            graphemes += 1
+        prev = cp
+    if graphemes != 1:
+        raise InvalidEmojiError("The reaction must be exactly one emoji.")
 
 
 class SendService:
@@ -357,6 +415,45 @@ class SendService:
                 "use an approved template to re-engage."
             )
 
+    # --- React (request path) -----------------------------------------------
+    async def react(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        target_public_id: uuidlib.UUID,
+        emoji: str,
+    ) -> Message:
+        """React to a message, or clear a reaction (Doc 04 §18.2 v1.4).
+
+        A reaction is a **free-form** outbound message: it targets a message the channel has already
+        acknowledged (by its ``wamid``), needs the open 24-hour window, and travels the same
+        accept→deliver path as any send. An **empty** ``emoji`` removes a prior reaction. Provider
+        payload shaping stays in the Meta adapter (Doc 07 §5.2a/§5.3).
+        """
+        _validate_emoji(emoji)
+        target = await self._messages.get_for_org(organization_id, target_public_id.bytes)
+        if target is None:
+            raise NotFoundError("Message not found.")
+        if not target.wamid:
+            # You can only react to a message the channel has issued an id for (Doc 04 §18.2 v1.4).
+            raise NotReactableError(
+                "This message has not been acknowledged by the channel yet and cannot be reacted to."
+            )
+        number = await self._numbers.get_by_id(target.phone_number_id)
+        contact = await self._contacts.get_by_id(target.contact_id)
+        if number is None or contact is None:
+            raise NotFoundError("Message not found.")
+        # Reuse the full send contract (window, opt-out, ledger, audit) — a reaction is a send.
+        return await self.accept(
+            organization_id=organization_id,
+            actor=actor,
+            number=number,
+            to=contact.wa_id,
+            message_type=MessageType.REACTION,
+            content={"reaction": {"message_id": target.wamid, "emoji": emoji}},
+        )
+
     # --- Deliver (queue path) -----------------------------------------------
     async def deliver(self, message_pk: int) -> dict[str, Any]:
         """Hand the message to the channel and record what it said (Doc 06 §2.3).
@@ -459,6 +556,15 @@ class SendService:
                 to=to,
                 type=MessageType.INTERACTIVE,
                 content=InteractiveContent(payload=content["interactive"]),
+            )
+        if "reaction" in content:
+            reaction = content["reaction"]
+            return OutboundMessage(
+                to=to,
+                type=MessageType.REACTION,
+                content=ReactionContent(
+                    message_id=reaction["message_id"], emoji=reaction["emoji"]
+                ),
             )
         if "template" in content:
             spec = content["template"]

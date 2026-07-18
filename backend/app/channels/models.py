@@ -25,6 +25,7 @@ class MessageType(StrEnum):
     MEDIA = "media"
     INTERACTIVE = "interactive"
     TEMPLATE = "template"
+    REACTION = "reaction"
 
 
 class MediaKind(StrEnum):
@@ -43,6 +44,7 @@ CAPABILITY_FOR_TYPE: dict[MessageType, Capability] = {
     MessageType.MEDIA: Capability.MEDIA,
     MessageType.INTERACTIVE: Capability.INTERACTIVE,
     MessageType.TEMPLATE: Capability.TEMPLATE,
+    MessageType.REACTION: Capability.REACTION,
 }
 
 
@@ -122,7 +124,19 @@ class InteractiveContent:
     payload: dict[str, Any]
 
 
-Content = TextContent | MediaContent | TemplateContent | InteractiveContent
+@dataclass(frozen=True, slots=True)
+class ReactionContent:
+    """A reaction to an existing message (Doc 04 §18.2 v1.4; Doc 07 §5.2a).
+
+    ``message_id`` is the **target's channel id** (Meta's ``wamid``); ``emoji`` is a single emoji, or
+    the empty string to remove a prior reaction. Canonicalised behind the seam (Doc 07 §5.3).
+    """
+
+    message_id: str
+    emoji: str
+
+
+Content = TextContent | MediaContent | TemplateContent | InteractiveContent | ReactionContent
 
 
 @dataclass(frozen=True, slots=True)

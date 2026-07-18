@@ -154,6 +154,17 @@ class MessageSendRequest(BaseModel):
         return content
 
 
+class MessageReactionRequest(BaseModel):
+    """React to a message (Doc 04 §18.2 v1.4).
+
+    ``emoji`` is a **single emoji**; the **empty string** removes a prior reaction. The single-emoji
+    rule (reject multiple emoji / non-emoji text → ``invalid_emoji``) is enforced in the send service,
+    which owns the ``422`` code; the length bound here only caps the payload.
+    """
+
+    emoji: str = Field(max_length=16)
+
+
 class MessageAcceptedResponse(BaseModel):
     """The ``202`` a send answers with (Doc 04 §18.2)."""
 

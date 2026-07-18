@@ -5,9 +5,9 @@ place that knows Graph payload shapes, and it translates them to and from the ca
 :mod:`app.channels.models`. That is what makes Channel 2 (Support Connector, M7) a sibling rather
 than a fork of the platform.
 
-Declared capabilities follow Doc 07 §5.2's Meta column — text/media/interactive/template/bulk —
-plus media transfer and the number-health signal (Doc 06 §28). Location, contact, reaction and
-calls are **not** declared: the CRM checks the flag, so they surface as
+Declared capabilities follow Doc 07 §5.2 (as amended by §5.2a) — text/media/interactive/template/
+bulk/**reaction** — plus media transfer and the number-health signal (Doc 06 §28). Location, contact
+and calls are **not** declared: the CRM checks the flag, so they surface as
 :class:`~app.channels.errors.ChannelNotSupported` instead of a confusing provider error.
 """
 
@@ -46,6 +46,7 @@ from app.channels.models import (
     MediaContent,
     MessageType,
     OutboundMessage,
+    ReactionContent,
     SendResult,
     StatusUpdate,
     TemplateContent,
@@ -79,6 +80,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.MEDIA,
             Capability.INTERACTIVE,
             Capability.TEMPLATE,
+            Capability.REACTION,
             Capability.BULK,
             Capability.CAMPAIGNS,
             Capability.OFFICIAL_WEBHOOKS,
@@ -158,6 +160,13 @@ class MetaChannelAdapter(ChannelAdapter):
 
         if message.type is MessageType.INTERACTIVE and isinstance(content, InteractiveContent):
             return base | {"type": "interactive", "interactive": content.payload}
+
+        if message.type is MessageType.REACTION and isinstance(content, ReactionContent):
+            # Graph reaction message: an empty emoji removes the reaction (Doc 04 §18.2 v1.4).
+            return base | {
+                "type": "reaction",
+                "reaction": {"message_id": content.message_id, "emoji": content.emoji},
+            }
 
         raise ChannelConfigError(f"unsupported message content for type {message.type!r}")
 
