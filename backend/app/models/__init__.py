@@ -21,6 +21,7 @@ from app.models.campaign import (
 from app.models.contact import Contact
 from app.models.contact_event import ContactEvent
 from app.models.conversation import Conversation
+from app.models.conversation_tag import conversation_tags
 from app.models.internal_note import InternalNote
 from app.models.job import DeadLetter, JobMetadata
 from app.models.job_records import BulkJob, ExportJob, ImportJob
@@ -54,6 +55,7 @@ __all__ = [
     "ContactEvent",
     "Conversation",
     "CustomAttributeDefinition",
+    "conversation_tags",
     "DeadLetter",
     "ExportJob",
     "FeatureFlag",

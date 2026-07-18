@@ -56,6 +56,7 @@ _EXPECTED_TABLES = {
     "conversations",
     "internal_notes",
     "quick_replies",
+    "conversation_tags",
     "messages",
     "message_status_history",
     "message_templates",
@@ -105,7 +106,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0024_quick_replies"
+        assert version == "0025_conversation_tags"
     finally:
         con.close()
 

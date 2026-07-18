@@ -8,6 +8,7 @@ from sqlalchemy import and_, func, or_, select
 
 from app.models.contact import Contact
 from app.models.conversation import Conversation
+from app.models.conversation_tag import conversation_tags
 from app.repositories.base import BaseRepository
 
 
@@ -50,6 +51,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         assignee_id: int | None = None,
         unassigned: bool = False,
         phone_number_id: int | None = None,
+        tag_id: int | None = None,
         q: str | None = None,
         limit: int,
         cursor: tuple[datetime, int] | None = None,
@@ -78,6 +80,13 @@ class ConversationRepository(BaseRepository[Conversation]):
             clauses.append(Conversation.phone_number_id == phone_number_id)
 
         stmt = select(Conversation)
+        if tag_id is not None:
+            # The by-tag folder (Doc 04 §18.1, v1.3): threads carrying tag X, via the reverse index
+            # `ix_convtag_tag`. Single tag only — multi-tag AND/OR filtering is out of scope.
+            stmt = stmt.join(
+                conversation_tags, conversation_tags.c.conversation_id == Conversation.id
+            )
+            clauses.append(conversation_tags.c.tag_id == tag_id)
         if q:
             # Search the customer the thread is with — name or number — which is what "search the
             # inbox" means (Doc 05 B7); message-text search is the separate `/messages/search`.

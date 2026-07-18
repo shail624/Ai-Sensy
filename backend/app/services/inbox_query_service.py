@@ -22,10 +22,13 @@ from app.core.exceptions import BadRequestError, NotFoundError
 from app.models.contact import Contact
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.tag import Tag
 from app.models.user import User
 from app.models.waba import PhoneNumber
 from app.repositories.conversation import ConversationRepository
+from app.repositories.conversation_tag import ConversationTagRepository
 from app.repositories.message import MessageRepository
+from app.repositories.tag import TagRepository
 from app.repositories.user import UserRepository
 from app.repositories.waba import PhoneNumberRepository
 
@@ -42,6 +45,8 @@ class ConversationListResult:
     contacts: dict[int, Contact]
     numbers: dict[int, str]
     assignees: dict[int, str]
+    #: Active tags per conversation id (Doc 04 §18.1 v1.3), batch-resolved for the page.
+    tags: dict[int, list[Tag]]
     has_more: bool
 
 
@@ -53,6 +58,8 @@ class ConversationDetail:
     contact: Contact | None
     phone_number_public_id: str | None
     assigned_to: str | None
+    #: Active tags on the thread (Doc 04 §18.1 v1.3).
+    tags: list[Tag]
 
 
 @dataclass(slots=True)
@@ -71,6 +78,8 @@ class InboxQueryService:
         self._messages = MessageRepository(session)
         self._users = UserRepository(session)
         self._numbers = PhoneNumberRepository(session)
+        self._tags = TagRepository(session)
+        self._conv_tags = ConversationTagRepository(session)
 
     # --- List ----------------------------------------------------------------
     async def list_conversations(
@@ -82,6 +91,7 @@ class InboxQueryService:
         status: str | None,
         assignee: str | None,
         number: str | None,
+        tag: str | None,
         q: str | None,
     ) -> ConversationListResult:
         """The inbox list, filtered and searched as Doc 04 §18.1 defines, newest activity first."""
@@ -89,11 +99,12 @@ class InboxQueryService:
             organization_id, assignee
         )
         phone_number_id, number_impossible = await self._resolve_number(organization_id, number)
+        tag_id, tag_impossible = await self._resolve_tag(organization_id, tag)
 
-        # A filter that named a real-looking but non-existent assignee/number matches nothing —
+        # A filter that named a real-looking but non-existent assignee/number/tag matches nothing —
         # returned as an empty page, not an error: the query was valid, the target just isn't here.
-        if assignee_impossible or number_impossible:
-            return ConversationListResult([], {}, {}, {}, has_more=False)
+        if assignee_impossible or number_impossible or tag_impossible:
+            return ConversationListResult([], {}, {}, {}, {}, has_more=False)
 
         conversations, has_more = await self._conversations.list_page(
             organization_id,
@@ -101,6 +112,7 @@ class InboxQueryService:
             assignee_id=assignee_id,
             unassigned=unassigned,
             phone_number_id=phone_number_id,
+            tag_id=tag_id,
             q=q,
             limit=limit,
             cursor=cursor,
@@ -108,7 +120,8 @@ class InboxQueryService:
         contacts = await self._contacts_for(conversations)
         numbers = await self._numbers_for(conversations)
         assignees = await self._assignees_for(conversations)
-        return ConversationListResult(conversations, contacts, numbers, assignees, has_more)
+        tags = await self._conv_tags.tags_for_conversations([c.id for c in conversations])
+        return ConversationListResult(conversations, contacts, numbers, assignees, tags, has_more)
 
     async def _resolve_assignee(
         self, organization_id: int, assignee: str | None
@@ -136,6 +149,23 @@ class InboxQueryService:
             return None, True
         return found.id, False
 
+    async def _resolve_tag(
+        self, organization_id: int, tag: str | None
+    ) -> tuple[int | None, bool]:
+        """(tag_id, impossible) for the by-tag filter (Doc 04 §18.1 v1.3).
+
+        A malformed uuid is a 400 (via ``_as_uuid``); a well-formed but unknown/foreign tag is
+        ``impossible`` — an empty page, exactly as the assignee/number filters behave.
+        """
+        if not tag:
+            return None, False
+        found = await self._tags.get_active_by_uuid(
+            organization_id, self._as_uuid(tag, "tag").bytes
+        )
+        if found is None:
+            return None, True
+        return found.id, False
+
     @staticmethod
     def _as_uuid(value: str, field: str) -> uuidlib.UUID:
         try:
@@ -151,11 +181,15 @@ class InboxQueryService:
         contact = await self._session.get(Contact, conversation.contact_id)
         number = await self._session.get(PhoneNumber, conversation.phone_number_id)
         assigned_to = await self._assignee_public_id(conversation)
+        tags = (await self._conv_tags.tags_for_conversations([conversation.id])).get(
+            conversation.id, []
+        )
         return ConversationDetail(
             conversation=conversation,
             contact=contact,
             phone_number_public_id=number.public_id if number is not None else None,
             assigned_to=assigned_to,
+            tags=tags,
         )
 
     # --- Message history -----------------------------------------------------

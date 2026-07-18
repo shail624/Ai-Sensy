@@ -25,12 +25,14 @@ from fastapi import APIRouter, Depends, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.schemas.conversation import (
     ConversationMessagesPage,
     ConversationResponse,
     ConversationsPage,
 )
+from app.schemas.conversation_tag import ConversationTagsRequest, ConversationTagsResponse
 from app.schemas.inbox import (
     ConversationAssignRequest,
     ConversationReadResponse,
@@ -41,6 +43,8 @@ from app.schemas.inbox import (
     NotesListResponse,
 )
 from app.schemas.message import MessageResponse
+from app.schemas.tag import TagSummary
+from app.services.conversation_tag_service import ConversationTagService
 from app.services.inbox_query_service import InboxQueryService
 from app.services.inbox_service import InboxService
 
@@ -63,6 +67,12 @@ async def list_conversations(
     params = request.query_params
     limit = clamp_limit(params.get("limit"))
     raw_cursor = params.get("cursor")
+    # The `tag` filter is single-valued (Doc 04 §18.1 v1.3); more than one tag is a 400.
+    tag_values = params.getlist("filter[tag][eq]") or params.getlist("tag")
+    if len(tag_values) > 1:
+        raise BadRequestError(
+            "The tag filter accepts a single tag; multi-tag filtering is not supported."
+        )
     result = await InboxQueryService(session).list_conversations(
         organization_id=actor.organization_id,
         limit=limit,
@@ -70,6 +80,7 @@ async def list_conversations(
         status=params.get("filter[status][eq]") or params.get("status"),
         assignee=params.get("filter[assignee][eq]") or params.get("assignee"),
         number=params.get("filter[number][eq]") or params.get("number"),
+        tag=tag_values[0] if tag_values else None,
         q=params.get("q"),
     )
     data = [
@@ -82,6 +93,7 @@ async def list_conversations(
                 if c.assigned_user_id is not None
                 else None
             ),
+            tags=result.tags.get(c.id, []),
         )
         for c in result.conversations
     ]
@@ -111,6 +123,7 @@ async def get_conversation(
         contact=detail.contact,
         phone_number_public_id=detail.phone_number_public_id,
         assigned_to=detail.assigned_to,
+        tags=detail.tags,
     )
 
 
@@ -257,4 +270,48 @@ async def delete_conversation_note(
         actor=actor,
         public_id=conversation_id,
         note_public_id=note_id,
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/tags",
+    response_model=ConversationTagsResponse,
+    summary="Add tag(s) to a conversation",
+)
+async def add_conversation_tags(
+    conversation_id: uuidlib.UUID,
+    payload: ConversationTagsRequest,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> ConversationTagsResponse:
+    """Attach existing org tags to a thread (Doc 04 §18.1 v1.3).
+
+    Idempotent — a tag already present is a no-op; returns the thread's full tag set. Unknown/foreign
+    tag → 422; unknown conversation → 404.
+    """
+    tags = await ConversationTagService(session).add_tags(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=conversation_id,
+        tag_uuids=payload.tag_ids,
+    )
+    return ConversationTagsResponse(data=[TagSummary.from_tag(t) for t in tags])
+
+
+@router.delete(
+    "/conversations/{conversation_id}/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a tag from a conversation",
+)
+async def remove_conversation_tag(
+    conversation_id: uuidlib.UUID,
+    tag_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> None:
+    """Detach a tag from a thread (Doc 04 §18.1 v1.3). 404 if the conversation or association is absent."""
+    await ConversationTagService(session).remove_tag(
+        organization_id=actor.organization_id,
+        public_id=conversation_id,
+        tag_public_id=tag_id,
     )

@@ -18,7 +18,9 @@ from pydantic import BaseModel
 from app.api.pagination import Page
 from app.models.contact import Contact
 from app.models.conversation import Conversation
+from app.models.tag import Tag
 from app.schemas.message import MessageResponse
+from app.schemas.tag import TagSummary
 
 
 class ContactRef(BaseModel):
@@ -51,6 +53,8 @@ class ConversationResponse(BaseModel):
     #: Assignee's public id, or ``null`` when unassigned.
     assigned_to: str | None
     contact: ContactRef | None
+    #: Classification tags on the thread (Doc 04 §18.1 v1.3); ``[]`` when untagged.
+    tags: list[TagSummary]
     #: The sending number's public id (the list's `number` filter groups by this).
     phone_number_id: str | None
     last_message_at: datetime | None
@@ -70,12 +74,14 @@ class ConversationResponse(BaseModel):
         contact: Contact | None,
         phone_number_public_id: str | None,
         assigned_to: str | None,
+        tags: list[Tag] | None = None,
     ) -> ConversationResponse:
         return cls(
             id=conversation.public_id,
             status=conversation.status,
             channel_type=conversation.channel_type,
             assigned_to=assigned_to,
+            tags=[TagSummary.from_tag(t) for t in (tags or [])],
             contact=(
                 ContactRef(
                     id=contact.public_id,
