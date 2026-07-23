@@ -8,11 +8,10 @@ reused by any future caller.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task
+from app.queue.base_task import register_task, run_async
 from app.queue.registry import EXPORTS, IMPORTS
 from app.services.bulk_service import BulkService
 from app.services.export_service import ExportService
@@ -35,7 +34,7 @@ async def _run_import(import_id: str) -> dict[str, Any]:
 def run_contact_import(self, import_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     """Execute a contact import. Retries are classified/backed off by the queue framework."""
     try:
-        return asyncio.run(_run_import(import_id))
+        return run_async(_run_import(import_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -51,7 +50,7 @@ async def _run_export(export_id: str) -> dict[str, Any]:
 def run_contact_export(self, export_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     """Generate a contact export. Retries are classified/backed off by the queue framework."""
     try:
-        return asyncio.run(_run_export(export_id))
+        return run_async(_run_export(export_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -79,7 +78,7 @@ async def _run_bulk(bulk_id: str) -> dict[str, Any]:
 def run_contact_bulk_update(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     """Apply a bulk edit (tags/attributes) across a selection or filter (FR-CON-07)."""
     try:
-        return asyncio.run(_run_bulk(bulk_id))
+        return run_async(_run_bulk(bulk_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -89,7 +88,7 @@ def run_contact_bulk_update(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN0
 def run_contact_bulk_delete(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     """Soft-delete a selection or filter of contacts (FR-CON-08)."""
     try:
-        return asyncio.run(_run_bulk(bulk_id))
+        return run_async(_run_bulk(bulk_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -99,7 +98,7 @@ def run_contact_bulk_delete(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN0
 def run_contact_deduplicate(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     """Scan for duplicates and report or merge them (FR-CON-06)."""
     try:
-        return asyncio.run(_run_bulk(bulk_id))
+        return run_async(_run_bulk(bulk_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise

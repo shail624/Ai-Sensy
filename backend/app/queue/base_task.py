@@ -17,7 +17,8 @@ from typing import Any
 from celery import Task
 
 from app.core.logging import get_logger, request_id_ctx
-from app.db.session import get_sessionmaker
+from app.core.redis import close_redis
+from app.db.session import dispose_engine, get_sessionmaker
 from app.queue.celery_app import apply_queue_timeouts, celery_app
 from app.queue.registry import DEFAULT, DEST_DLQ, DEST_RETRY, get_queue
 from app.queue.retry import backoff_seconds, classify, should_retry
@@ -26,9 +27,31 @@ from app.services.job_service import DeadLetterService, JobService
 logger = get_logger(__name__)
 
 
-def _run(coro):
-    """Run an async unit of work from Celery's synchronous worker context."""
-    return asyncio.run(coro)
+def run_async(coro):
+    """Run an async unit of work from Celery's synchronous worker context.
+
+    **Disposes the engine and Redis client before the loop closes.** Both are cached per running
+    loop (``app.db.session``, ``app.core.redis``), because a worker gives every task its own
+    ``asyncio.run(...)`` and a pool bound to a previous, closed loop is unusable. Rebuilding per
+    loop fixes that, but merely *dropping* the old engine leaks its server-side connections: the
+    sockets stay open until MySQL's ``wait_timeout`` reaps them, so a worker accumulates roughly
+    one connection per task and exhausts ``max_connections`` — measured at 25 tasks → +26
+    connections that never returned. Disposing inside the loop that owns them closes the sockets
+    deterministically, trading one connect per task for a bounded pool.
+    """
+
+    async def _scoped():
+        try:
+            return await coro
+        finally:
+            await dispose_engine()
+            await close_redis()
+
+    return asyncio.run(_scoped())
+
+
+#: Historical alias — the hooks below and the domain task modules both call through here.
+_run = run_async
 
 
 async def _record_started(task_id: str) -> None:

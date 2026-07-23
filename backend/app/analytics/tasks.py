@@ -32,12 +32,11 @@ also what makes a Celery redelivery safe: re-running the same window converges.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task
+from app.queue.base_task import register_task, run_async
 from app.queue.registry import ANALYTICS_ROLLUP, EXPORTS
 from app.services.analytics_rollup_service import AnalyticsRollupService
 
@@ -89,7 +88,7 @@ def rollup_incremental(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     Intended cadence: **every 15 minutes**, configured in the deployment's beat schedule.
     """
     try:
-        return asyncio.run(_incremental())
+        return run_async(_incremental())
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -106,7 +105,7 @@ def rollup_nightly(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     Intended cadence: **daily at 02:15 UTC**, configured in the deployment's beat schedule.
     """
     try:
-        return asyncio.run(_nightly())
+        return run_async(_nightly())
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -126,7 +125,7 @@ def rollup_backfill(  # noqa: ANN001 - Celery bind
     backfill needs no cleanup before or after. Operator-triggered, not scheduled.
     """
     try:
-        return asyncio.run(_backfill(start, end, organization_id, kinds))
+        return run_async(_backfill(start, end, organization_id, kinds))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -139,7 +138,7 @@ def rollup_prune(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     Intended cadence: **daily at 03:00 UTC**, configured in the deployment's beat schedule.
     """
     try:
-        return {"removed": asyncio.run(_prune())}
+        return {"removed": run_async(_prune())}
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -162,7 +161,7 @@ def run_report_export(self, export_id: str) -> dict[str, Any]:  # noqa: ANN001 -
     This is a task binding, not a second pipeline.
     """
     try:
-        return asyncio.run(_run_report_export(export_id))
+        return run_async(_run_report_export(export_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise

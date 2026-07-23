@@ -7,11 +7,10 @@ is testable without a broker.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task
+from app.queue.base_task import register_task, run_async
 from app.queue.registry import (
     INBOUND_PROCESS,
     MEDIA,
@@ -43,7 +42,7 @@ def run_waba_sync(self, waba_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celer
     separate endpoint, permission and cadence, and one syncing should never block the other.
     """
     try:
-        return asyncio.run(_run_sync(waba_id))
+        return run_async(_run_sync(waba_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -93,7 +92,7 @@ def download_inbound_media(self, message_pk: int) -> dict[str, Any]:  # noqa: AN
     the ledger and stays readable without it (§17.4).
     """
     try:
-        return asyncio.run(_download_media(message_pk))
+        return run_async(_download_media(message_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -115,12 +114,12 @@ def process_webhook_event(self, event_pk: int) -> dict[str, Any]:  # noqa: ANN00
     letting it fail would park the same thing twice, in two stores, for one problem.
     """
     try:
-        return asyncio.run(_process(event_pk))
+        return run_async(_process(event_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs dead-letter
         if should_retry(classify(exc), self.request.retries + 1):
             self.smart_retry(exc)  # re-queues with backoff (§6.3)
             raise  # unreachable: smart_retry always raises
-        return asyncio.run(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
+        return run_async(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
 
 
 async def _run_template_sync(waba_ids: list[str]) -> dict[str, Any]:
@@ -132,7 +131,7 @@ async def _run_template_sync(waba_ids: list[str]) -> dict[str, Any]:
 def run_template_sync(self, waba_ids: list[str]) -> dict[str, Any]:  # noqa: ANN001
     """Reconcile templates + approval state with Meta (FR-TPL-01/03; Doc 04 §15)."""
     try:
-        return asyncio.run(_run_template_sync(waba_ids))
+        return run_async(_run_template_sync(waba_ids))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -158,13 +157,13 @@ def send_message(self, message_pk: int) -> dict[str, Any]:  # noqa: ANN001
     (Doc 03 §9.2/§9.3). Meta's own error map decides retry vs terminal (Doc 06 §6.6).
     """
     try:
-        return asyncio.run(_deliver(message_pk))
+        return run_async(_deliver(message_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         if should_retry(classify(exc), self.request.retries + 1):
             self.smart_retry(exc)
             raise  # unreachable: smart_retry always raises
         code = getattr(exc, "code", None)
-        return asyncio.run(
+        return run_async(
             _fail_send(message_pk, f"{type(exc).__name__}: {exc}", str(code) if code else None)
         )
 
@@ -177,12 +176,12 @@ def process_inbound_message(self, event_pk: int) -> dict[str, Any]:  # noqa: ANN
     handles the same events, so its failures belong in the same store with the same replay path.
     """
     try:
-        result = asyncio.run(_apply_inbound(event_pk))
+        result = run_async(_apply_inbound(event_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs dead-letter
         if should_retry(classify(exc), self.request.retries + 1):
             self.smart_retry(exc)
             raise  # unreachable: smart_retry always raises
-        return asyncio.run(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
+        return run_async(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
 
     if result.get("media_pending"):
         # The attachment travels on its own lane so a 15 MB video cannot delay the message that

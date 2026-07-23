@@ -12,11 +12,10 @@ orchestration as slow as its slowest message.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task
+from app.queue.base_task import register_task, run_async
 from app.queue.registry import CAMPAIGNS_CONTROL, SCHEDULER_TICK, SENDS_BULK, SENDS_RETRY
 from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_retry_service import CampaignRetryService
@@ -46,7 +45,7 @@ def dispatch_campaign(self, campaign_pk: int) -> dict[str, Any]:  # noqa: ANN001
     finds the batches already planned and dispatches only the ones still owed.
     """
     try:
-        result = asyncio.run(_plan(campaign_pk))
+        result = run_async(_plan(campaign_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -60,7 +59,7 @@ def dispatch_campaign(self, campaign_pk: int) -> dict[str, Any]:  # noqa: ANN001
 def dispatch_campaign_batch(self, batch_pk: int) -> dict[str, Any]:  # noqa: ANN001
     """Enqueue one send per recipient the batch still owes (FR-CAM-05)."""
     try:
-        result = asyncio.run(_fan_out(batch_pk))
+        result = run_async(_fan_out(batch_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -80,7 +79,7 @@ def send_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa:
     the recipient row keeps the outcome either way (Doc 03 §8.3).
     """
     try:
-        return asyncio.run(_send(recipient_pk))
+        return run_async(_send(recipient_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -103,7 +102,7 @@ def scheduler_tick(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
     before its campaign is handed over, and the scan is bounded by ``scheduler_tick_scan_limit``.
     """
     try:
-        result = asyncio.run(_tick())
+        result = run_async(_tick())
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -134,7 +133,7 @@ def scan_campaign_retries(self) -> dict[str, Any]:  # noqa: ANN001
     row, so a Redis flush costs throughput rather than the re-attempt itself (NFR-DR-06).
     """
     try:
-        recipients = asyncio.run(_due_retries(RETRY_SCAN_LIMIT))
+        recipients = run_async(_due_retries(RETRY_SCAN_LIMIT))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
@@ -152,7 +151,7 @@ def retry_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa
     ledger or the campaign's paused status.
     """
     try:
-        return asyncio.run(_send(recipient_pk))
+        return run_async(_send(recipient_pk))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise
