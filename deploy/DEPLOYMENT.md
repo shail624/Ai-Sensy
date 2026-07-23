@@ -38,9 +38,16 @@ Fill every value marked REQUIRED. Compose declares them as `${VAR:?}`, so a miss
 `up` naming the variable rather than starting a half-configured stack.
 
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(64))"   # SECRET_KEY
-python -c "import secrets; print(secrets.token_urlsafe(32))"   # REDIS_PASSWORD
+python -c "import secrets; print(secrets.token_urlsafe(64))"                        # SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(32))"                        # REDIS_PASSWORD
+python -c "import os,base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"  # TOKEN_ENCRYPTION_KEY
 ```
+
+`TOKEN_ENCRYPTION_KEY` encrypts WhatsApp access tokens at rest and is **required in production** —
+the application deliberately refuses to derive it from `SECRET_KEY` there. Omitting it does not
+degrade gracefully: registering a WABA fails and stored tokens cannot be decrypted, so the platform
+authenticates and serves the UI while being unable to send a single message. Rotating it does not
+re-encrypt existing rows; the stored tokens become unreadable and must be re-entered.
 
 `REDIS_PASSWORD` must stay URL-safe (letters, digits, `-`, `_`). It is interpolated into
 `REDIS_URL` as `redis://:<password>@redis:6379/0`, so an `@`, `/` or `:` inside it silently

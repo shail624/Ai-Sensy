@@ -210,3 +210,70 @@ async def test_export_is_retry_safe(client, make_user, session_factory) -> None:
     assert again.status == STATUS_READY and again.row_count == 3
     body = (await get_provider("local").get(again.storage_key)).decode()
     assert len(body.splitlines()) == 4
+
+
+# --- The signed download URL must actually serve the artifact ----------------------------------
+# Regression: the URL used to point at ``/media/{media_id}/download``, a route typed ``UUID`` that
+# resolves ids against ``media_assets``. An export signs ``export-<uuid>``, so every completed
+# export handed the user a link that returned 422 and no export could ever be downloaded. The old
+# test asserted only that the string contained "signature=", which is why it shipped green.
+async def test_export_download_url_serves_the_csv(client, make_user, session_factory) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    async with session_factory() as session:
+        await ExportService(session).run(export_id)
+
+    url = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()["download_url"]
+    assert "/artifacts/" in url, f"export must not be signed onto the media route: {url}"
+
+    # No Authorization header: the signature is the credential.
+    resp = await client.get(url)
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert "attachment" in resp.headers.get("content-disposition", "")
+
+    lines = resp.text.splitlines()
+    assert lines[0].split(",") == list(EXPORT_COLUMNS)
+    assert len(lines) == 4
+    assert {"Alice", "Bob", "Carol"} <= set(resp.text.replace(",", " ").split())
+
+
+async def test_export_download_rejects_tampered_signature(
+    client, make_user, session_factory
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    async with session_factory() as session:
+        await ExportService(session).run(export_id)
+    url = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()["download_url"]
+
+    assert (await client.get(url + "0")).status_code == 403
+    # Re-pointing a valid signature at another artifact must not work either.
+    other = url.replace(str(export_id), str(uuid.uuid4()))
+    assert (await client.get(other)).status_code in (403, 404)
+    # Missing parameters are a client error, not a 500.
+    assert (await client.get(url.split("?")[0])).status_code == 400
+
+
+async def test_export_download_url_expires(client, make_user, session_factory, monkeypatch) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    async with session_factory() as session:
+        await ExportService(session).run(export_id)
+
+    monkeypatch.setattr(settings, "storage_signed_url_ttl_seconds", 1)
+    url = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()["download_url"]
+
+    import time as _time
+
+    real = _time.time
+    monkeypatch.setattr(_time, "time", lambda: real() + 120)
+    resp = await client.get(url)
+    assert resp.status_code == 410, resp.text
+    assert resp.json()["code"] == "gone"

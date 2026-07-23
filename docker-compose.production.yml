@@ -35,6 +35,12 @@ x-backend-env: &backend-env
   ENVIRONMENT: production
   DEBUG: "false"
   SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  # Encrypts WABA access tokens at rest (Doc 03 §5.1, FR-WA-03). Required, not optional: in
+  # production `app.core.crypto` refuses to derive a key from SECRET_KEY, so without this every
+  # encrypt/decrypt raises and the WhatsApp integration is inert — no WABA can be registered and
+  # no stored token can be read back, which surfaces as a 500 on onboarding rather than as a
+  # configuration error. Rotating it makes existing stored tokens undecryptable; re-enter them.
+  TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?TOKEN_ENCRYPTION_KEY is required}
   DATABASE_URL: mysql+asyncmy://${DB_USER:?}:${DB_PASSWORD:?}@mysql:3306/${DB_NAME:?}?charset=utf8mb4
   DB_HOST: mysql
   DB_PORT: "3306"

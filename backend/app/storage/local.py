@@ -9,6 +9,7 @@ instead — see :mod:`app.storage.base`).
 from __future__ import annotations
 
 import asyncio
+import uuid as uuidlib
 from pathlib import Path
 
 from app.core.config import settings
@@ -20,6 +21,27 @@ from app.storage.base import (
     register_provider,
 )
 from app.storage.signing import issue
+
+
+def _download_path(media_id: str) -> str:
+    """The API route that serves ``media_id``.
+
+    Two kinds of object are signed through here and they live behind different routes:
+
+    * a **media asset**, addressed by its bare UUID (``media_service`` passes ``asset.public_id``);
+    * a **job artifact** — a contact export, an import error report, a bulk-operation report —
+      whose id carries a kind prefix (``export-<uuid>``, ``import-<uuid>``, ``bulk-<uuid>``).
+
+    Sending every signature to ``/media/{id}/download`` meant the job artifacts pointed at a route
+    typed ``media_id: UUID`` that then looks the id up in ``media_assets``. A prefixed id could not
+    even parse, so every completed export, import report and bulk report handed the user a link
+    that returned 422. The id already states which kind it is; this makes the URL agree with it.
+    """
+    try:
+        uuidlib.UUID(media_id)
+    except ValueError:
+        return f"{settings.api_v1_prefix}/artifacts/{media_id}/download"
+    return f"{settings.api_v1_prefix}/media/{media_id}/download"
 
 
 class LocalStorageProvider(StorageProvider):
@@ -77,8 +99,7 @@ class LocalStorageProvider(StorageProvider):
     def signed_url(self, key: str, *, media_id: str, expires_in: int) -> str:
         expires_at, signature = issue(media_id, expires_in=expires_in)
         base = settings.storage_public_base_url.rstrip("/")
-        path = f"{settings.api_v1_prefix}/media/{media_id}/download"
-        return f"{base}{path}?expires={expires_at}&signature={signature}"
+        return f"{base}{_download_path(media_id)}?expires={expires_at}&signature={signature}"
 
 
 register_provider(BACKEND_LOCAL, LocalStorageProvider)

@@ -12,6 +12,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     analytics,
     api_keys,
+    artifacts,
     attributes,
     audit,
     auth,
@@ -58,6 +59,8 @@ api_router.include_router(jobs.router, tags=["Queue"])
 
 # Storage foundation (Doc 04 §16; Doc 08 §14).
 api_router.include_router(media.router, tags=["Media"])
+# Signed-URL download target for the artifacts background jobs produce (exports, error reports).
+api_router.include_router(artifacts.router, tags=["Media"])
 
 # Module 4 — WhatsApp Core: WABAs & phone numbers (Doc 04 §13.2/§13.3; Doc 07 §5).
 api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])

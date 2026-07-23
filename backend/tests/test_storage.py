@@ -82,11 +82,25 @@ def test_signature_expiry_is_distinct_from_invalid() -> None:
         signing.verify("media-1", expires_at, sig, now=2000)
 
 
-def test_local_signed_url_points_at_download_route() -> None:
-    url = LocalStorageProvider(root="/tmp").signed_url(
-        "k", media_id="018f-abc", expires_in=60
-    )
-    assert "/api/v1/media/018f-abc/download?expires=" in url and "signature=" in url
+def test_local_signed_url_points_at_media_route_for_an_asset() -> None:
+    # A media asset is addressed by its bare UUID (media_service passes ``asset.public_id``).
+    asset_id = "018f0a1b-2c3d-4e5f-8a9b-0c1d2e3f4a5b"
+    url = LocalStorageProvider(root="/tmp").signed_url("k", media_id=asset_id, expires_in=60)
+    assert f"/api/v1/media/{asset_id}/download?expires=" in url and "signature=" in url
+
+
+@pytest.mark.parametrize("kind", ["export", "import", "bulk"])
+def test_local_signed_url_points_at_artifact_route_for_a_job(kind: str) -> None:
+    """Job artifacts must not be signed onto the media route.
+
+    Regression: they were, and that route is typed ``media_id: UUID`` and resolves ids against
+    ``media_assets``. A prefixed id could not parse, so every completed export and every error
+    report produced a download link that returned 422.
+    """
+    artifact_id = f"{kind}-018f0a1b-2c3d-4e5f-8a9b-0c1d2e3f4a5b"
+    url = LocalStorageProvider(root="/tmp").signed_url("k", media_id=artifact_id, expires_in=60)
+    assert f"/api/v1/artifacts/{artifact_id}/download?expires=" in url
+    assert "/media/" not in url
 
 
 # --- Validation (FR-MED-01..04 → 413/415/422) -------------------------------
