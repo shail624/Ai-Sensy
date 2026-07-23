@@ -33,9 +33,12 @@ function resolve(theme: Theme): "light" | "dark" {
 }
 
 function readStoredTheme(): Theme {
-  if (typeof localStorage === "undefined") return "system";
+  // Default to the designed light theme rather than "system": following the OS into dark mode on
+  // a first visit shows the least-polished surface. Users who prefer dark still get it via the
+  // toggle, and their choice persists. Explicit stored values always win.
+  if (typeof localStorage === "undefined") return "light";
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  return stored === "light" || stored === "dark" || stored === "system" ? stored : "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {

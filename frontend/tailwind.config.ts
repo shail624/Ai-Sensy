@@ -26,14 +26,22 @@ const config: Config = {
         },
         accent: {
           DEFAULT: "var(--color-accent)",
+          strong: "var(--color-accent-strong)",
+          soft: "var(--color-accent-soft)",
           fg: "var(--color-accent-fg)",
         },
-        success: "var(--color-success)",
-        warning: "var(--color-warning)",
-        danger: "var(--color-danger)",
-        info: "var(--color-info)",
+        success: { DEFAULT: "var(--color-success)", soft: "var(--color-success-soft)" },
+        warning: { DEFAULT: "var(--color-warning)", soft: "var(--color-warning-soft)" },
+        danger: { DEFAULT: "var(--color-danger)", soft: "var(--color-danger-soft)" },
+        info: { DEFAULT: "var(--color-info)", soft: "var(--color-info-soft)" },
         // Reserved channel accent — WhatsApp identity marker only (Doc 05 DS-5).
         channel: "#25D366",
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        DEFAULT: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
       },
       borderRadius: {
         sm: "6px",

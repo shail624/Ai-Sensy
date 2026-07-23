@@ -3,69 +3,101 @@
 @tailwind utilities;
 
 /*
- * Design tokens — the semantic color system from Doc 05 DS-5, expressed as CSS
- * variables so light/dark is a pure token swap. The theme provider stamps
- * data-theme="light|dark" on <html>; prefers-color-scheme is the default signal.
+ * Design tokens — the semantic color system (Doc 05 DS-5), expressed as CSS variables so
+ * light/dark is a pure token swap. The theme provider stamps data-theme="light|dark" on <html>.
  */
 :root,
 :root[data-theme="light"] {
-  --color-bg-canvas: #f8fafc;
+  --color-bg-canvas: #f6f7fb;
   --color-bg-surface: #ffffff;
-  --color-bg-surface-2: #f1f5f9;
-  --color-bg-hover: #f1f5f9;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-disabled: #94a3b8;
-  --color-border-default: #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-accent: #4f46e5;
+  --color-bg-surface-2: #f3f4f8;
+  --color-bg-hover: #f1f2f7;
+  --color-text-primary: #101426;
+  --color-text-secondary: #5b6478;
+  --color-text-disabled: #99a1b3;
+  --color-border-default: #e7e9f0;
+  --color-border-strong: #d3d7e2;
+  --color-accent: #5b53e8;
+  --color-accent-strong: #4a41d6;
+  --color-accent-soft: #eeecfd;
   --color-accent-fg: #ffffff;
-  --color-success: #059669;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
-  --color-info: #0284c7;
-  --color-focus-ring: #6366f1;
+  --color-success: #12a150;
+  --color-success-soft: #e7f6ee;
+  --color-warning: #d98207;
+  --color-warning-soft: #fdf1e0;
+  --color-danger: #e0364e;
+  --color-danger-soft: #fce9ec;
+  --color-info: #1f7fd6;
+  --color-info-soft: #e7f1fc;
+  --color-focus-ring: #7c74f0;
+  --shadow-sm: 0 1px 2px rgba(16, 20, 38, 0.04), 0 1px 3px rgba(16, 20, 38, 0.06);
+  --shadow-md: 0 2px 4px rgba(16, 20, 38, 0.04), 0 8px 20px rgba(16, 20, 38, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 20, 38, 0.12);
+  --brand-from: #25d366;
+  --brand-to: #0f9d58;
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --color-bg-canvas: #0b1120;
-  --color-bg-surface: #111827;
-  --color-bg-surface-2: #1e293b;
-  --color-bg-hover: #1e293b;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-disabled: #475569;
-  --color-border-default: #1f2a3c;
-  --color-border-strong: #334155;
-  --color-accent: #6366f1;
+  --color-bg-canvas: #0a0e1a;
+  --color-bg-surface: #121727;
+  --color-bg-surface-2: #1a2033;
+  --color-bg-hover: #1e2540;
+  --color-text-primary: #eef1f8;
+  --color-text-secondary: #99a2ba;
+  --color-text-disabled: #5a6486;
+  --color-border-default: #232c44;
+  --color-border-strong: #33405f;
+  --color-accent: #7c74f0;
+  --color-accent-strong: #928bf5;
+  --color-accent-soft: #1e2145;
   --color-accent-fg: #ffffff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #38bdf8;
-  --color-focus-ring: #818cf8;
+  --color-success: #29c46a;
+  --color-success-soft: #12271c;
+  --color-warning: #f0a13a;
+  --color-warning-soft: #2a2012;
+  --color-danger: #f2586e;
+  --color-danger-soft: #2a1620;
+  --color-info: #45a6f5;
+  --color-info-soft: #10233a;
+  --color-focus-ring: #928bf5;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --brand-from: #25d366;
+  --brand-to: #14915a;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-bg-canvas: #0b1120;
-    --color-bg-surface: #111827;
-    --color-bg-surface-2: #1e293b;
-    --color-bg-hover: #1e293b;
-    --color-text-primary: #f1f5f9;
-    --color-text-secondary: #94a3b8;
-    --color-text-disabled: #475569;
-    --color-border-default: #1f2a3c;
-    --color-border-strong: #334155;
-    --color-accent: #6366f1;
+    --color-bg-canvas: #0a0e1a;
+    --color-bg-surface: #121727;
+    --color-bg-surface-2: #1a2033;
+    --color-bg-hover: #1e2540;
+    --color-text-primary: #eef1f8;
+    --color-text-secondary: #99a2ba;
+    --color-text-disabled: #5a6486;
+    --color-border-default: #232c44;
+    --color-border-strong: #33405f;
+    --color-accent: #7c74f0;
+    --color-accent-strong: #928bf5;
+    --color-accent-soft: #1e2145;
     --color-accent-fg: #ffffff;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --color-info: #38bdf8;
-    --color-focus-ring: #818cf8;
+    --color-success: #29c46a;
+    --color-success-soft: #12271c;
+    --color-warning: #f0a13a;
+    --color-warning-soft: #2a2012;
+    --color-danger: #f2586e;
+    --color-danger-soft: #2a1620;
+    --color-info: #45a6f5;
+    --color-info-soft: #10233a;
+    --color-focus-ring: #928bf5;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+    --brand-from: #25d366;
+    --brand-to: #14915a;
     color-scheme: dark;
   }
 }
@@ -80,15 +112,33 @@
   body {
     @apply bg-canvas text-text-primary antialiased;
     font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Accessible focus ring on keyboard navigation (Doc 05 DS-10). */
   :focus-visible {
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
   }
 
-  /* Honor reduced-motion preferences (Doc 05 DS-8). */
+  /* Slim, unobtrusive scrollbars — the default chunky bars read as unfinished. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-disabled);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -98,5 +148,12 @@
       transition-duration: 0.001ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer components {
+  /* The WhatsApp brand mark gradient, reused by the sidebar logo and dashboard accents. */
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
   }
 }

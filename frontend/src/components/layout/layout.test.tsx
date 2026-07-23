@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -97,8 +97,9 @@ describe("TopNav", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getByText("Priya Sharma")).toBeInTheDocument();
+    const menu = screen.getByRole("menu");
+    // The name also shows in the top-bar trigger, so scope the assertion to the open menu.
+    expect(within(menu).getByText("Priya Sharma")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(logout).toHaveBeenCalled();
   });
