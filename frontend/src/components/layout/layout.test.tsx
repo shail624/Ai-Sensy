@@ -135,10 +135,13 @@ describe("PageHeader", () => {
 describe("DashboardPage", () => {
   it("links every module card to its destination", () => {
     renderAt(<DashboardPage />);
-    expect(screen.getByRole("link", { name: /contacts/i })).toHaveAttribute("href", "/contacts");
-    expect(screen.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
-    expect(screen.getByRole("link", { name: /templates/i })).toHaveAttribute("href", "/templates");
-    expect(screen.getByRole("link", { name: /media/i })).toHaveAttribute("href", "/media");
+    // The dashboard also surfaces quick shortcuts and hero CTAs that point at the same modules, so
+    // the canonical module cards are asserted within the "Explore" (Modules) region specifically.
+    const modules = within(screen.getByRole("region", { name: "Modules" }));
+    expect(modules.getByRole("link", { name: /contacts/i })).toHaveAttribute("href", "/contacts");
+    expect(modules.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
+    expect(modules.getByRole("link", { name: /templates/i })).toHaveAttribute("href", "/templates");
+    expect(modules.getByRole("link", { name: /media/i })).toHaveAttribute("href", "/media");
   });
 
   // The cards exclude Settings, and every other destination is now built, so nothing on the
