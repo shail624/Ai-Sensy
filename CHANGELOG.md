@@ -11,6 +11,41 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-23 — Docker deployment validation (first execution of the containerised stack)
+
+The production stack was built and run for the first time. Four defects were reproduced in the
+running deployment and fixed; none were visible to static review or to the test suite, because
+each only manifests in a worker process or at the edge proxy.
+
+**Fixed**
+- **All async background work failed after the first task in each worker process.** Every task
+  runs under its own `asyncio.run(...)`, which creates and then closes an event loop, while the
+  SQLAlchemy engine and Redis client were cached in module globals. The second task in a process
+  inherited a connection pool bound to a closed loop and raised
+  `got Future attached to a different loop`. `scheduler_tick` was failing every minute; campaign
+  dispatch, webhooks, imports, exports, media and analytics rollups were all dead. The engine and
+  the Redis client are now rebuilt when the running loop changes
+  (`app/db/session.py`, `app/core/redis.py`).
+- **Storage backend unavailable in workers.** `app.storage.local` registers itself on import, and
+  the only import lived in `app.main` — which a worker never loads. Every worker-side write failed
+  with `storage backend 'local' is not available; registered: ()`. Registration moved into
+  `app/storage/__init__.py` so it holds for every process.
+- **nginx served 502 after any container recreation.** A statically named `upstream` server is
+  resolved once at config load and cached for the process lifetime, so `docker compose up -d` —
+  the documented upgrade step — left the edge proxying to the previous container's address.
+  Reproduced (nginx held `172.19.0.7` while the API had moved to `172.19.0.6`) and fixed with a
+  `resolver` plus request-time resolution; verified by moving the API to a new address and
+  observing recovery with no reload. Costs the upstream keepalive pool, which open-source nginx
+  cannot combine with re-resolution.
+- **Duplicate security headers on `/health` and `/ready`.** The probe locations lacked the
+  `proxy_hide_header` set that `/api/` already had, so each probe returned two copies of every
+  security header and leaked the API's HSTS over plain HTTP.
+
+**Known, not fixed** — `ExportService.download_url` builds `media_id=f"export-{...}"` while every
+media route types `media_id` as a UUID, so a completed export's download link always returns 422
+and the SPA renders it as a direct link. Business logic, therefore out of scope for a deployment
+validation pass; recorded for the owner.
+
 ---
 
 ## [1.0.0-rc1] — 2026-07-23
