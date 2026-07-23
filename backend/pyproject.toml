@@ -1,6 +1,8 @@
 [project]
 name = "wa-platform-backend"
-version = "0.1.0"
+# PEP 440 spelling of the v1.0.0-rc1 tag (`-rc1` normalises to `rc1`); the runtime and the SPA
+# use the semver spelling `1.0.0-rc1`.
+version = "1.0.0rc1"
 description = "Self-Hosted WhatsApp Business Platform — Backend (Vi Reactivation Team)"
 readme = "README.md"
 requires-python = ">=3.13"

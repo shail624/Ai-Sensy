@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import csv
 import io
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -172,18 +174,52 @@ EXPORT_COLUMNS = (
 )
 
 
-def export_header() -> bytes:
+#: Characters a spreadsheet treats as the start of a formula (CWE-1236 / OWASP CSV injection).
+#: Contact names, emails and tags are attacker-supplied — a WhatsApp profile name or an imported
+#: row can carry any of these — so a value beginning with one must not be handed to Excel raw.
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+#: A value that is unambiguously a number or phone number — ``+919990000001``, ``-42``,
+#: ``(020) 7946-0000``. These begin with ``+``/``-`` but cannot carry a DDE payload, and
+#: prefixing them would corrupt every exported phone number and break re-import.
+_NUMERIC_LIKE = re.compile(r"^[+-]?[\d\s().\-]+$")
+
+
+def neutralize_formula(value: Any) -> Any:
+    """Prefix a leading formula trigger with ``'`` so spreadsheets read the cell as text.
+
+    Applied to every exported cell, not only contact fields: an analytics dimension label (a
+    campaign name, an agent name) is just as user-supplied. Non-strings pass through untouched.
+
+    ``=`` and ``@`` are always neutralised. ``+``/``-`` are neutralised only when the value is not
+    numeric-like, so ``+919990000001`` exports unchanged while the classic DDE payload
+    ``+cmd|' /C calc'!A0`` does not (CWE-1236).
+    """
+    if not isinstance(value, str) or not value.startswith(_FORMULA_PREFIXES):
+        return value
+    if value[0] in "+-" and _NUMERIC_LIKE.match(value):
+        return value
+    return f"'{value}"
+
+
+def export_header(columns: Sequence[str] = EXPORT_COLUMNS) -> bytes:
     """The CSV header row, written once before streaming batches."""
     buffer = io.StringIO()
-    csv.writer(buffer).writerow(EXPORT_COLUMNS)
+    csv.writer(buffer).writerow(columns)
     return buffer.getvalue().encode("utf-8")
 
 
-def export_rows(rows: list[dict[str, Any]]) -> bytes:
-    """Render one batch of contact rows — called repeatedly so a large export never
-    materialises every row at once."""
+def export_rows(
+    rows: list[dict[str, Any]], columns: Sequence[str] = EXPORT_COLUMNS
+) -> bytes:
+    """Render one batch of rows — called repeatedly so a large export never materialises at once.
+
+    ``columns`` defaults to the contact export shape; other entities (analytics reports) pass their
+    own, which is what keeps one writer serving every export (Doc 15 §19).
+    """
     buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS, extrasaction="ignore")
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
     for row in rows:
-        writer.writerow(row)
+        writer.writerow({key: neutralize_formula(value) for key, value in row.items()})
     return buffer.getvalue().encode("utf-8")

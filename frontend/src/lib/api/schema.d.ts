@@ -1690,6 +1690,11 @@ export interface paths {
          *
          *     Cursor-paginated by ``last_message_at``; filtered by status/assignee/number and searched by
          *     ``q`` (the customer's name or number) — exactly the frozen filter set, nothing more.
+         *
+         *     Both spellings of each filter are accepted and declared: the short form (``status=open``) and
+         *     the frozen bracket form (``filter[status][eq]=open``), the bracket form winning when both are
+         *     sent. Declaring them as parameters (rather than reading them off the raw request) is what puts
+         *     them in the OpenAPI contract, so the generated client can express them.
          */
         get: operations["list_conversations_api_v1_conversations_get"];
         put?: never;
@@ -1926,10 +1931,746 @@ export interface paths {
         patch: operations["update_quick_reply_api_v1_quick_replies__quick_reply_id__patch"];
         trace?: never;
     };
+    "/api/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List tasks
+         * @description A filtered, bucketed, cursor-paginated page of tasks (Doc 14 §7.2/§7.3).
+         */
+        get: operations["list_tasks_api_v1_tasks_get"];
+        put?: never;
+        /** Create a task */
+        post: operations["create_task_api_v1_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Work-queue counts
+         * @description Overdue / due-today / upcoming / completed-today counts for an agent (Doc 14 §11).
+         */
+        get: operations["task_stats_api_v1_tasks_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a task */
+        get: operations["get_task_api_v1_tasks__task_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete a task (soft) */
+        delete: operations["delete_task_api_v1_tasks__task_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edit a task */
+        patch: operations["update_task_api_v1_tasks__task_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete a task */
+        post: operations["complete_task_api_v1_tasks__task_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Skip a task */
+        post: operations["skip_task_api_v1_tasks__task_id__skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a task */
+        post: operations["cancel_task_api_v1_tasks__task_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen a task */
+        post: operations["reopen_task_api_v1_tasks__task_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reschedule a task */
+        post: operations["reschedule_task_api_v1_tasks__task_id__reschedule_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reassign a task */
+        post: operations["reassign_task_api_v1_tasks__task_id__reassign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task history */
+        get: operations["task_history_api_v1_tasks__task_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/bulk-update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-update tasks
+         * @description Bulk status/priority/due/assignee. Reassigning also requires ``tasks:assign`` (enforced below).
+         */
+        post: operations["bulk_update_tasks_api_v1_tasks_bulk_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk-delete tasks (soft) */
+        post: operations["bulk_delete_tasks_api_v1_tasks_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Headline KPIs for a range
+         * @description Range totals plus every derived KPI (Doc 15 §11), with the freshness of the answer.
+         */
+        get: operations["analytics_summary_api_v1_analytics_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Derived KPIs only
+         * @description The §11 ratios and averages without the raw counters — the KPI-card payload.
+         */
+        get: operations["analytics_kpis_api_v1_analytics_kpis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A range beside its comparison window
+         * @description Current vs previous period or previous year, for delta display (Doc 15 §14.2).
+         */
+        get: operations["analytics_comparison_api_v1_analytics_comparison_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dense, timezone-folded time series
+         * @description One series per metric, dense across the range — no gaps for a chart to guess at.
+         */
+        get: operations["analytics_series_api_v1_analytics_series_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trend series with its comparison window
+         * @description A series always paired with its comparison — the trend view of the same §10 envelope.
+         */
+        get: operations["analytics_trends_api_v1_analytics_trends_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Group a range by any dimension
+         * @description The generic grouped table; the named endpoints below are presets over it.
+         */
+        get: operations["analytics_breakdown_api_v1_analytics_breakdown_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/failures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Failures grouped by Meta error code
+         * @description FR-AN-07 — the failure leaderboard; drill-down goes to the message list by error code.
+         */
+        get: operations["analytics_failures_api_v1_analytics_failures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaign performance table
+         * @description FR-AN-02 — per-campaign funnel; campaign names resolve at read time (AN-CD2).
+         */
+        get: operations["analytics_campaigns_api_v1_analytics_campaigns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agent performance table
+         * @description FR-AN-02/J6 — the agent is a *dimension* of the conversation rollup, not its own table.
+         */
+        get: operations["analytics_agents_api_v1_analytics_agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spend breakdown (executive)
+         * @description FR-AN-03 — spend by message type. Cost is copied from the ledger, never recomputed here.
+         */
+        get: operations["analytics_costs_api_v1_analytics_costs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/executive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Executive dashboard (executive)
+         * @description Doc 15 §12 — a composition of existing metrics, including spend. No new measure.
+         */
+        get: operations["analytics_executive_api_v1_analytics_executive_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The addressable metric catalogue
+         * @description Lets a client build a metric picker from the contract rather than hard-coding keys.
+         */
+        get: operations["analytics_metrics_api_v1_analytics_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The groupable dimensions */
+        get: operations["analytics_dimensions_api_v1_analytics_dimensions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/freshness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rollup watermarks — how stale the data is
+         * @description A dashboard that cannot say how stale it is will eventually be trusted when it shouldn't.
+         */
+        get: operations["analytics_freshness_api_v1_analytics_freshness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a report export (async)
+         * @description Always ``202`` — a large report is exactly the request that must not hold a worker.
+         *
+         *     Reuses the frozen export system end to end: the ``exports`` row, the ``exports`` queue, the
+         *     format writers and the signed-download flow. Only the ``entity`` and the row generator differ.
+         */
+        post: operations["start_report_export_api_v1_analytics_reports_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/reports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report export progress + signed download link
+         * @description The same progress envelope contact exports use — one download flow for every artifact.
+         */
+        get: operations["report_export_progress_api_v1_analytics_reports__export_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnalyticsBreakdownResponse
+         * @description A grouped table — the entry point to drill-down (Doc 15 §16).
+         *
+         *     Rows are a ranked leaderboard, not a dump: drilling into one takes the caller to the owning
+         *     module's list endpoint, which analytics never re-implements.
+         */
+        AnalyticsBreakdownResponse: {
+            /** Dimension */
+            dimension: string;
+            /** Grain */
+            grain: string;
+            /**
+             * From
+             * Format: date-time
+             */
+            from: string;
+            /**
+             * To
+             * Format: date-time
+             */
+            to: string;
+            /** Timezone */
+            timezone: string;
+            /** Data */
+            data: components["schemas"]["BreakdownRow"][];
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * AnalyticsComparisonResponse
+         * @description A range beside its comparison window, for delta display (Doc 15 §14.2).
+         */
+        AnalyticsComparisonResponse: {
+            current: components["schemas"]["AnalyticsSummaryResponse"];
+            /** Previous Totals */
+            previous_totals?: {
+                [key: string]: number;
+            };
+            previous_kpis?: components["schemas"]["AnalyticsKpiResponse"];
+        };
+        /**
+         * AnalyticsFreshnessResponse
+         * @description ``GET /analytics/freshness`` — so a dashboard can state how stale it is (Doc 15 §17).
+         */
+        AnalyticsFreshnessResponse: {
+            /** Data */
+            data: components["schemas"]["AnalyticsFreshnessRow"][];
+        };
+        /** AnalyticsFreshnessRow */
+        AnalyticsFreshnessRow: {
+            /** Kind */
+            kind: string;
+            /** Watermark At */
+            watermark_at: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Last Status */
+            last_status: string | null;
+            /** Lag Seconds */
+            lag_seconds: number | null;
+        };
+        /**
+         * AnalyticsKpiResponse
+         * @description The derived ratios and averages of Doc 15 §11.
+         *
+         *     Every field is nullable: a rate over an empty denominator is *unknown*, not zero, and a
+         *     dashboard that shows 0% for "no messages sent" is lying.
+         */
+        AnalyticsKpiResponse: {
+            /** Delivery Rate */
+            delivery_rate?: number | null;
+            /** Read Rate */
+            read_rate?: number | null;
+            /** Failure Rate */
+            failure_rate?: number | null;
+            /** Avg Delivery Latency Ms */
+            avg_delivery_latency_ms?: number | null;
+            /** Resolution Rate */
+            resolution_rate?: number | null;
+            /** Avg First Response Seconds */
+            avg_first_response_seconds?: number | null;
+            /** Avg Resolution Seconds */
+            avg_resolution_seconds?: number | null;
+            /** Task Completion Rate */
+            task_completion_rate?: number | null;
+            /** Task On Time Rate */
+            task_on_time_rate?: number | null;
+            /** Avg Time To Complete Seconds */
+            avg_time_to_complete_seconds?: number | null;
+            /** Net Opt In Change */
+            net_opt_in_change?: number | null;
+            /** Opt Out Rate */
+            opt_out_rate?: number | null;
+            /** Campaign Delivery Rate */
+            campaign_delivery_rate?: number | null;
+            /** Campaign Click Through Rate */
+            campaign_click_through_rate?: number | null;
+            /** Cost Per Delivered Micros */
+            cost_per_delivered_micros?: number | null;
+        };
+        /** AnalyticsMetricsResponse */
+        AnalyticsMetricsResponse: {
+            /** Data */
+            data: components["schemas"]["MetricDescriptor"][];
+        };
+        /**
+         * AnalyticsRangeFilters
+         * @description The shared range/granularity/timezone filter set (Doc 15 §14.2).
+         *
+         *     Endpoints declare these as query parameters; this model is the single definition of their
+         *     types, defaults and mutual constraints.
+         */
+        AnalyticsRangeFilters: {
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
+            /** Preset */
+            preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+            /**
+             * Granularity
+             * @default day
+             * @enum {string}
+             */
+            granularity: "hour" | "day" | "week" | "month";
+            /**
+             * Timezone
+             * @description IANA name; defaults to the caller's, then the org's.
+             */
+            timezone?: string | null;
+            /** Compare */
+            compare?: ("previous_period" | "previous_year") | null;
+        };
+        /**
+         * AnalyticsSeriesResponse
+         * @description The §10 envelope — one shape every chart in the frontend can render.
+         */
+        AnalyticsSeriesResponse: {
+            /**
+             * Granularity
+             * @enum {string}
+             */
+            granularity: "hour" | "day" | "week" | "month";
+            /** Grain */
+            grain: string;
+            /**
+             * From
+             * Format: date-time
+             */
+            from: string;
+            /**
+             * To
+             * Format: date-time
+             */
+            to: string;
+            /** Timezone */
+            timezone: string;
+            /** Series */
+            series: components["schemas"]["Series"][];
+            /** Totals */
+            totals: {
+                [key: string]: number | null;
+            };
+            /** Comparison */
+            comparison?: components["schemas"]["Series"][];
+            /** Comparison Totals */
+            comparison_totals?: {
+                [key: string]: number | null;
+            };
+        };
+        /**
+         * AnalyticsSummaryResponse
+         * @description Scalar KPI cards for a range (Doc 15 §16, family 1).
+         */
+        AnalyticsSummaryResponse: {
+            /**
+             * From
+             * Format: date-time
+             */
+            from: string;
+            /**
+             * To
+             * Format: date-time
+             */
+            to: string;
+            /** Timezone */
+            timezone: string;
+            /** Grain */
+            grain: string;
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+            kpis: components["schemas"]["AnalyticsKpiResponse"];
+            /** Data As Of */
+            data_as_of?: string | null;
+        };
         /** ApiKeyCreateRequest */
         ApiKeyCreateRequest: {
             /** Name */
@@ -2124,6 +2865,21 @@ export interface components {
             file: string;
             /** Media Type */
             media_type: string;
+        };
+        /**
+         * BreakdownRow
+         * @description One dimension value with its summed measures and derived KPIs (Doc 15 §16, family 3).
+         */
+        BreakdownRow: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+            kpis: components["schemas"]["AnalyticsKpiResponse"];
         };
         /**
          * BulkDeleteRequest
@@ -3386,6 +4142,16 @@ export interface components {
             template?: components["schemas"]["TemplatePayload"] | null;
         };
         /**
+         * MetricDescriptor
+         * @description One addressable metric — lets the frontend build a chart picker from the contract.
+         */
+        MetricDescriptor: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /**
          * NoteCreateRequest
          * @description Add a staff-only note (Doc 04 §18.1).
          */
@@ -3732,6 +4498,28 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /**
+         * ReportExportRequest
+         * @description ``POST /analytics/reports/export`` — always async, always 202 (Doc 15 §19).
+         *
+         *     The resolved range travels into ``exports.filters_json`` so an artifact is reproducible and
+         *     self-describing. The response envelope is the frozen ``ExportProgressResponse``; a report is an
+         *     export, not a second export system.
+         */
+        ReportExportRequest: {
+            /**
+             * Report
+             * @enum {string}
+             */
+            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs";
+            /**
+             * Format
+             * @default csv
+             * @enum {string}
+             */
+            format: "csv" | "xlsx" | "json";
+            filters: components["schemas"]["AnalyticsRangeFilters"];
+        };
         /** RoleCreateRequest */
         RoleCreateRequest: {
             /** Name */
@@ -3873,6 +4661,25 @@ export interface components {
             /** Rules */
             rules?: components["schemas"]["SegmentRuleModel"][] | null;
         };
+        /** Series */
+        Series: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Points */
+            points: components["schemas"]["SeriesPoint"][];
+        };
+        /**
+         * SeriesPoint
+         * @description One dense bucket. ``t`` is the **local** period label; the range bounds stay ISO-UTC.
+         */
+        SeriesPoint: {
+            /** T */
+            t: string;
+            /** V */
+            v: number;
+        };
         /** SessionResponse */
         SessionResponse: {
             /** Id */
@@ -3997,6 +4804,269 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * TaskBulkDeleteRequest
+         * @description ``POST /tasks/bulk-delete`` — soft-delete a selection (Doc 14 §7.1).
+         */
+        TaskBulkDeleteRequest: {
+            /** Task Ids */
+            task_ids: string[];
+        };
+        /**
+         * TaskBulkResultResponse
+         * @description Partial-success summary for a bulk task op (reuses the frozen ``BulkSummary``).
+         */
+        TaskBulkResultResponse: {
+            summary: components["schemas"]["BulkSummary"];
+        };
+        /**
+         * TaskBulkUpdateRequest
+         * @description ``POST /tasks/bulk-update`` — apply a change set to a selection (Doc 14 §7.1).
+         */
+        TaskBulkUpdateRequest: {
+            /** Task Ids */
+            task_ids: string[];
+            /** Status */
+            status?: ("open" | "completed" | "skipped" | "cancelled") | null;
+            /** Priority */
+            priority?: ("low" | "medium" | "high" | "critical") | null;
+            /** Due At */
+            due_at?: string | null;
+            /** Assigned Agent Id */
+            assigned_agent_id?: string | null;
+        };
+        /** TaskCompleteRequest */
+        TaskCompleteRequest: {
+            /** Completion Notes */
+            completion_notes?: string | null;
+            /**
+             * Create Timeline Note
+             * @default false
+             */
+            create_timeline_note: boolean;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /**
+         * TaskCreateRequest
+         * @description Create a follow-up task (Doc 14 §7.4). ``assigned_agent_id`` defaults to the caller.
+         */
+        TaskCreateRequest: {
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Task Type
+             * @enum {string}
+             */
+            task_type: "call" | "whatsapp" | "collect_documents" | "verification" | "reminder" | "meeting" | "custom";
+            /**
+             * Priority
+             * @default medium
+             * @enum {string}
+             */
+            priority: "low" | "medium" | "high" | "critical";
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Has Time
+             * @default true
+             */
+            has_time: boolean;
+            /** Reminder At */
+            reminder_at?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Assigned Agent Id */
+            assigned_agent_id?: string | null;
+        };
+        /** TaskEventResponse */
+        TaskEventResponse: {
+            /** Id */
+            id: number;
+            /** Event Type */
+            event_type: string;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
+            /** From Value */
+            from_value: {
+                [key: string]: unknown;
+            } | null;
+            /** To Value */
+            to_value: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * TaskHistoryResponse
+         * @description A task's immutable history, oldest→newest (Doc 14 §5.2).
+         */
+        TaskHistoryResponse: {
+            /** Data */
+            data: components["schemas"]["TaskEventResponse"][];
+        };
+        /**
+         * TaskReasonRequest
+         * @description Shared body for skip / cancel (Doc 14 §8) — an optional reason plus the concurrency guard.
+         */
+        TaskReasonRequest: {
+            /** Reason */
+            reason?: string | null;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /** TaskReassignRequest */
+        TaskReassignRequest: {
+            /**
+             * Assigned Agent Id
+             * Format: uuid
+             */
+            assigned_agent_id: string;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /**
+         * TaskReopenRequest
+         * @description Body for reopen — no reason field: reopening carries no outcome (Doc 14 §4.4).
+         */
+        TaskReopenRequest: {
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /** TaskRescheduleRequest */
+        TaskRescheduleRequest: {
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Has Time */
+            has_time?: boolean | null;
+            /** Reminder At */
+            reminder_at?: string | null;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /**
+         * TaskResponse
+         * @description A task as returned by the CRUD and action endpoints (Doc 14 §7.4).
+         */
+        TaskResponse: {
+            /** Id */
+            id: string;
+            /** Contact Id */
+            contact_id: string;
+            /** Contact Name */
+            contact_name: string | null;
+            /** Conversation Id */
+            conversation_id: string | null;
+            /** Title */
+            title: string;
+            /** Task Type */
+            task_type: string;
+            /** Status */
+            status: string;
+            /** Priority */
+            priority: string;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Has Time */
+            has_time: boolean;
+            /** Reminder At */
+            reminder_at: string | null;
+            /** Description */
+            description: string | null;
+            /** Assigned Agent Id */
+            assigned_agent_id: string;
+            /** Assigned Agent Name */
+            assigned_agent_name: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Name */
+            created_by_name: string | null;
+            /** Completion Notes */
+            completion_notes: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Row Version */
+            row_version: number;
+        };
+        /**
+         * TaskStatsResponse
+         * @description Work-queue counts for the widget (Doc 14 §7.3, §11).
+         */
+        TaskStatsResponse: {
+            /** Overdue */
+            overdue: number;
+            /** Due Today */
+            due_today: number;
+            /** Upcoming */
+            upcoming: number;
+            /** Completed Today */
+            completed_today: number;
+        };
+        /**
+         * TaskUpdateRequest
+         * @description Edit task fields (Doc 14 §7.1). Every field optional — only those present change.
+         */
+        TaskUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Task Type */
+            task_type?: ("call" | "whatsapp" | "collect_documents" | "verification" | "reminder" | "meeting" | "custom") | null;
+            /** Priority */
+            priority?: ("low" | "medium" | "high" | "critical") | null;
+            /** Due At */
+            due_at?: string | null;
+            /** Has Time */
+            has_time?: boolean | null;
+            /** Reminder At */
+            reminder_at?: string | null;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /**
+         * TasksPage
+         * @description A keyset page of tasks (Doc 04 §3 envelope).
+         */
+        TasksPage: {
+            /** Data */
+            data: components["schemas"]["TaskResponse"][];
+            page: components["schemas"]["Page"];
         };
         /**
          * TemplateButtonPayload
@@ -8216,7 +9286,19 @@ export interface operations {
     };
     list_conversations_api_v1_conversations_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number | null;
+                cursor?: string | null;
+                status?: string | null;
+                assignee?: string | null;
+                number?: string | null;
+                tag?: string[] | null;
+                q?: string | null;
+                "filter[status][eq]"?: string | null;
+                "filter[assignee][eq]"?: string | null;
+                "filter[number][eq]"?: string | null;
+                "filter[tag][eq]"?: string[] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8230,6 +9312,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8267,7 +9358,10 @@ export interface operations {
     };
     list_conversation_messages_api_v1_conversations__conversation_id__messages_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number | null;
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 conversation_id: string;
@@ -8662,6 +9756,1035 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuickReplyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tasks_api_v1_tasks_get: {
+        parameters: {
+            query?: {
+                view?: "today" | "overdue" | "upcoming" | "completed" | "all";
+                assignee_id?: string | null;
+                assigned_by_id?: string | null;
+                contact_id?: string | null;
+                conversation_id?: string | null;
+                status?: ("open" | "completed" | "skipped" | "cancelled")[] | null;
+                type?: ("call" | "whatsapp" | "collect_documents" | "verification" | "reminder" | "meeting" | "custom")[] | null;
+                priority?: ("low" | "medium" | "high" | "critical")[] | null;
+                due_from?: string | null;
+                due_to?: string | null;
+                q?: string | null;
+                sort?: "due_at" | "-due_at" | "created_at" | "-created_at" | "priority" | "-priority" | "completed_at" | "-completed_at";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasksPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_task_api_v1_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_stats_api_v1_tasks_stats_get: {
+        parameters: {
+            query?: {
+                assignee_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_task_api_v1_tasks__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_task_api_v1_tasks__task_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_task_api_v1_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_task_api_v1_tasks__task_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    skip_task_api_v1_tasks__task_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_task_api_v1_tasks__task_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_task_api_v1_tasks__task_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskReopenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reschedule_task_api_v1_tasks__task_id__reschedule_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskRescheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_task_api_v1_tasks__task_id__reassign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskReassignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_history_api_v1_tasks__task_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_update_tasks_api_v1_tasks_bulk_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskBulkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskBulkResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_tasks_api_v1_tasks_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskBulkDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskBulkResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_summary_api_v1_analytics_summary_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+                metrics?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_kpis_api_v1_analytics_kpis_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsKpiResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_comparison_api_v1_analytics_comparison_get: {
+        parameters: {
+            query?: {
+                compare?: "previous_period" | "previous_year";
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+                metrics?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsComparisonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_series_api_v1_analytics_series_get: {
+        parameters: {
+            query: {
+                metrics: string[];
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+                compare?: ("previous_period" | "previous_year") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSeriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_trends_api_v1_analytics_trends_get: {
+        parameters: {
+            query: {
+                metrics: string[];
+                compare?: "previous_period" | "previous_year";
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSeriesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_breakdown_api_v1_analytics_breakdown_get: {
+        parameters: {
+            query: {
+                dimension: string;
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                granularity?: "hour" | "day" | "week" | "month";
+                timezone?: string | null;
+                metrics?: string[] | null;
+                limit?: number;
+                sort_by?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_failures_api_v1_analytics_failures_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_campaigns_api_v1_analytics_campaigns_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_agents_api_v1_analytics_agents_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_costs_api_v1_analytics_costs_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_executive_api_v1_analytics_executive_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_metrics_api_v1_analytics_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsMetricsResponse"];
+                };
+            };
+        };
+    };
+    analytics_dimensions_api_v1_analytics_dimensions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsMetricsResponse"];
+                };
+            };
+        };
+    };
+    analytics_freshness_api_v1_analytics_freshness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsFreshnessResponse"];
+                };
+            };
+        };
+    };
+    start_report_export_api_v1_analytics_reports_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobAcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_export_progress_api_v1_analytics_reports__export_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportProgressResponse"];
                 };
             };
             /** @description Validation Error */

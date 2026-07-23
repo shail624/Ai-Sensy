@@ -72,10 +72,19 @@ def configure_logging(*, level: str = "INFO", json_output: bool = True) -> None:
     root.addHandler(handler)
     root.setLevel(level.upper())
 
-    # Tame noisy third-party loggers; route uvicorn access logs through our handler.
-    for noisy in ("uvicorn.access",):
-        logging.getLogger(noisy).handlers.clear()
-        logging.getLogger(noisy).propagate = True
+    # Route uvicorn's own output through the handler configured above, so the process emits one
+    # log format on one stream.
+    #
+    # The parent ``uvicorn`` logger is the load-bearing entry. Uvicorn's dictConfig gives it a
+    # plain stderr handler *and* ``propagate = False``; clearing only ``uvicorn.access`` leaves
+    # that parent to catch each access record, render it in uvicorn's human format, and stop
+    # propagation before it ever reaches the JSON handler here. The visible result with
+    # ``LOG_JSON=true`` is that every request line — the bulk of log volume — arrives at the
+    # collector as unparseable text on stderr, carrying no ``request_id`` to correlate with.
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        uvicorn_logger = logging.getLogger(name)
+        uvicorn_logger.handlers.clear()
+        uvicorn_logger.propagate = True
 
 
 def get_logger(name: str) -> logging.Logger:

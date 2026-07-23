@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 
 from sqlalchemy import and_, or_, select
 
@@ -91,7 +91,10 @@ _ATTR_OPS_BY_TYPE: dict[str, set[str]] = {
 }
 
 
-def _fail(message: str, field: str = "rules") -> None:
+def _fail(message: str, field: str = "rules") -> NoReturn:
+    # `NoReturn`, not `None`: this helper always raises. Declaring it accurately lets a type
+    # checker treat `if spec is None: _fail(...)` as narrowing, the way the code already reads.
+    # With `-> None` every subsequent `spec.data_type` looks like an attribute access on None.
     raise ValidationError(
         "One or more segment rules are invalid.",
         errors=[{"field": field, "code": "invalid_rule", "message": message}],

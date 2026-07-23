@@ -13,11 +13,17 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from openpyxl import Workbook, load_workbook
 
-from app.crm.csv_io import EXPORT_COLUMNS, export_header, export_rows
+from app.crm.csv_io import (
+    EXPORT_COLUMNS,
+    export_header,
+    export_rows,
+    neutralize_formula,
+)
 
 #: Formats an import may be uploaded in (FR-CON-03/04).
 IMPORT_FORMATS = ("csv", "xlsx")
@@ -85,13 +91,14 @@ class ExportWriter(Protocol):
 
 
 class CsvExportWriter:
-    """CSV export — delegates to the existing renderers so output is byte-for-byte unchanged."""
+    """CSV export — delegates to the existing renderers so contact output is unchanged."""
 
-    def __init__(self) -> None:
-        self._chunks: list[bytes] = [export_header()]
+    def __init__(self, columns: Sequence[str] = EXPORT_COLUMNS) -> None:
+        self._columns = tuple(columns)
+        self._chunks: list[bytes] = [export_header(self._columns)]
 
     def add(self, rows: list[dict[str, Any]]) -> None:
-        self._chunks.append(export_rows(rows))
+        self._chunks.append(export_rows(rows, self._columns))
 
     def finish(self) -> bytes:
         return b"".join(self._chunks)
@@ -100,14 +107,19 @@ class CsvExportWriter:
 class XlsxExportWriter:
     """Excel export (FR-CON-15). Write-only mode appends rows without holding a cell graph."""
 
-    def __init__(self) -> None:
+    def __init__(self, columns: Sequence[str] = EXPORT_COLUMNS) -> None:
+        self._columns = tuple(columns)
         self._workbook = Workbook(write_only=True)
-        self._sheet = self._workbook.create_sheet("contacts")
-        self._sheet.append(list(EXPORT_COLUMNS))
+        self._sheet = self._workbook.create_sheet("export")
+        self._sheet.append(list(self._columns))
 
     def add(self, rows: list[dict[str, Any]]) -> None:
         for row in rows:
-            self._sheet.append([row.get(column) for column in EXPORT_COLUMNS])
+            # Excel evaluates formulas, so the same neutralisation the CSV path applies is
+            # applied here (CWE-1236).
+            self._sheet.append(
+                [neutralize_formula(row.get(column)) for column in self._columns]
+            )
 
     def finish(self) -> bytes:
         buffer = io.BytesIO()
@@ -118,11 +130,15 @@ class XlsxExportWriter:
 class JsonExportWriter:
     """JSON export (FR-CON-15) — one array of row objects, keyed by the export columns."""
 
-    def __init__(self) -> None:
+    def __init__(self, columns: Sequence[str] = EXPORT_COLUMNS) -> None:
+        self._columns = tuple(columns)
         self._rows: list[dict[str, Any]] = []
 
     def add(self, rows: list[dict[str, Any]]) -> None:
-        self._rows.extend({column: row.get(column) for column in EXPORT_COLUMNS} for row in rows)
+        # JSON is not evaluated by a spreadsheet, so values are written as-is.
+        self._rows.extend(
+            {column: row.get(column) for column in self._columns} for row in rows
+        )
 
     def finish(self) -> bytes:
         return json.dumps(self._rows, ensure_ascii=False, default=str).encode("utf-8")
@@ -135,6 +151,8 @@ _WRITERS: dict[str, type] = {
 }
 
 
-def export_writer(file_format: str) -> ExportWriter:
+def export_writer(
+    file_format: str, columns: Sequence[str] = EXPORT_COLUMNS
+) -> ExportWriter:
     """The writer for a validated export format (the service rejects unknown ones with 422)."""
-    return _WRITERS[file_format]()
+    return _WRITERS[file_format](columns)

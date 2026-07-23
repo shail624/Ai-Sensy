@@ -1,0 +1,270 @@
+# Production topology (Doc 08 §6/§10/§11; Doc 06 §2.3 queue pools).
+#
+# Ten services: mysql, redis, migrate (one-shot), api, three worker pools, beat, frontend, nginx.
+#
+# Two properties this file exists to guarantee:
+#   1. **Schema before traffic.** `migrate` runs to completion and exits; api/worker/beat all wait
+#      on `service_completed_successfully`, so no replica ever serves an older schema.
+#   2. **Pool isolation.** Workers are split by queue exactly as the registry defines, so a bulk
+#      campaign send cannot starve control traffic, webhooks, or the analytics rollup.
+#
+# Secrets come from the environment (an `.env` file next to this one, or the orchestrator's secret
+# store). Nothing here has a production default.
+#
+#   docker compose -f docker-compose.production.yml --env-file .env.production up -d
+
+name: wa-platform
+
+# Every container writes JSON logs to stdout, and Docker's default json-file driver keeps them
+# **forever**. On a busy stack that fills the host disk, which takes MySQL down with it. Capping
+# the ring here is the difference between "logs rotate" and "the server stops accepting writes at
+# 3am". Ship to a real aggregator in front of this if you have one (Doc 08 §19).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend-image: &backend-image
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  image: wa-platform/backend:${IMAGE_TAG:-latest}
+
+x-backend-env: &backend-env
+  ENVIRONMENT: production
+  DEBUG: "false"
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  DATABASE_URL: mysql+asyncmy://${DB_USER:?}:${DB_PASSWORD:?}@mysql:3306/${DB_NAME:?}?charset=utf8mb4
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  # Redis carries the broker, the cache, the rate gate and the idempotency store. It is
+  # password-protected even though no port is published: an unauthenticated Redis is a remote
+  # code execution primitive the moment anything else on the host can reach the bridge network.
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON: "true"
+  STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+  STORAGE_LOCAL_PATH: /var/lib/wa/media
+  STORAGE_EXPORT_TTL_DAYS: ${STORAGE_EXPORT_TTL_DAYS:-7}
+  META_APP_SECRET: ${META_APP_SECRET:?META_APP_SECRET is required}
+  META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:?META_WEBHOOK_VERIFY_TOKEN is required}
+
+x-backend-common: &backend-common
+  <<: *backend-image
+  restart: unless-stopped
+  logging: *default-logging
+  volumes:
+    # Exports and inbound media are written here; every backend role must see the same volume or
+    # a worker writes an artifact the API cannot serve.
+    - media-data:/var/lib/wa/media
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+# Celery's warm shutdown lets a worker finish the task in its hand before exiting. Docker's default
+# grace period is 10s, after which it sends SIGKILL — long enough to interrupt a send mid-flight and
+# leave it to be redelivered. `task_acks_late` makes that safe, but redelivery is still duplicated
+# work; giving the pool a real window avoids it.
+x-worker-common: &worker-common
+  <<: *backend-common
+  command: ["worker"]
+  stop_grace_period: 60s
+
+services:
+  # ---- Stateful dependencies ---------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${DB_NAME:?DB_NAME is required}
+      MYSQL_USER: ${DB_USER:?DB_USER is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_0900_ai_ci
+      --default-authentication-plugin=caching_sha2_password
+      --max-connections=${MYSQL_MAX_CONNECTIONS:-300}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    # AOF on: Redis carries the broker queue, so losing it loses queued work (Doc 06 §12.6
+    # calls Redis rebuildable, but in-flight tasks are not).
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory-policy
+      - noeviction
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      # `-a` must match --requirepass or every probe returns NOAUTH and the stack never starts.
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---- Schema (one-shot, must finish before anything serves) --------------------------------
+  migrate:
+    <<: *backend-image
+    restart: "no"
+    logging: *default-logging
+    command: ["migrate"]
+    environment: *backend-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---- API ------------------------------------------------------------------------------------
+  api:
+    <<: *backend-common
+    command: ["api"]
+    environment:
+      <<: *backend-env
+      API_WORKERS: ${API_WORKERS:-2}
+    expose:
+      - "8000"
+    # Let in-flight requests drain before SIGKILL; uvicorn stops accepting on SIGTERM.
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ---- Workers, split by queue pool (Doc 06 §2.3) ----------------------------------------------
+  # Realtime: control, priority sends, webhooks. Low concurrency, must stay responsive.
+  worker-realtime:
+    <<: *worker-common
+    environment:
+      <<: *backend-env
+      WORKER_NAME: realtime
+      WORKER_QUEUES: campaigns.control,scheduler.tick,sends.priority,webhooks.ingest,webhooks.process,inbound.process
+      WORKER_CONCURRENCY: ${WORKER_REALTIME_CONCURRENCY:-4}
+    healthcheck:
+      # Round-trips the broker's control queue: proves this worker is consuming, not merely running.
+      # Diagnostic only — nothing depends_on a worker, so a flapping probe cannot block a deploy.
+      test: ["CMD-SHELL", "celery -A app.queue.celery_app.celery_app inspect ping -d realtime@$$(hostname) --timeout 10 >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      start_period: 45s
+      retries: 3
+
+  # Bulk: campaign fan-out and retries. Scale this one for throughput; the rate gate paces sends.
+  worker-bulk:
+    <<: *worker-common
+    environment:
+      <<: *backend-env
+      WORKER_NAME: bulk
+      WORKER_QUEUES: sends.bulk,sends.retry
+      WORKER_CONCURRENCY: ${WORKER_BULK_CONCURRENCY:-8}
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.queue.celery_app.celery_app inspect ping -d bulk@$$(hostname) --timeout 10 >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      start_period: 45s
+      retries: 3
+
+  # Jobs & maintenance: imports, exports, media, analytics rollups, cleanup. Long-running and
+  # I/O heavy — isolated so a 1M-row export cannot delay a customer's reply.
+  worker-jobs:
+    <<: *worker-common
+    environment:
+      <<: *backend-env
+      WORKER_NAME: jobs
+      WORKER_QUEUES: imports,exports,media,default,templates.sync,analytics.rollup,notifications,cleanup,maintenance,ai
+      WORKER_CONCURRENCY: ${WORKER_JOBS_CONCURRENCY:-4}
+    # An export or import can run for minutes; give it room to land before SIGKILL.
+    stop_grace_period: 120s
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.queue.celery_app.celery_app inspect ping -d jobs@$$(hostname) --timeout 10 >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      start_period: 45s
+      retries: 3
+
+  # ---- Beat — exactly one replica ---------------------------------------------------------------
+  # Two beats would fire every schedule twice. The tasks are idempotent so that is survivable,
+  # but it doubles work for nothing. Never scale this service.
+  beat:
+    <<: *backend-common
+    command: ["beat"]
+    environment:
+      <<: *backend-env
+      BEAT_SCHEDULE_FILE: /var/run/celery/celerybeat-schedule
+    volumes:
+      - media-data:/var/lib/wa/media
+      # Persisted so a restart does not re-fire a slot Beat has already sent.
+      - beat-data:/var/run/celery
+    deploy:
+      replicas: 1
+    healthcheck:
+      # Beat has no control queue to inspect. Asserting the schedule file exists catches the
+      # failure that actually happens: an unwritable volume, where beat exits before it can tick.
+      test: ["CMD-SHELL", "test -f /var/run/celery/celerybeat-schedule || test -f /var/run/celery/celerybeat-schedule.db"]
+      interval: 60s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # ---- Frontend (static SPA) ---------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Empty = same-origin; the edge proxy serves the API under /api on this origin.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    image: wa-platform/frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    logging: *default-logging
+    expose:
+      - "8080"
+
+  # ---- Edge reverse proxy --------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      # The image carries its own HEALTHCHECK, so gate on it rather than on "the process started".
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mysql-data:
+  redis-data:
+  media-data:
+  beat-data:

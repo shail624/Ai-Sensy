@@ -225,3 +225,61 @@ async def test_export_rejects_unsupported_format(client, make_user) -> None:
         "/api/v1/contacts/export", headers=h, json={"format": "pdf", "match_type": "all"}
     )
     assert resp.status_code == 422, resp.text
+
+
+# --- Export safety & column-awareness (production hardening) ---------------------------------
+def test_formula_triggers_are_neutralized() -> None:
+    """CWE-1236 — a contact name is attacker-supplied and must not execute in a spreadsheet."""
+    from app.crm.csv_io import neutralize_formula
+
+    assert neutralize_formula("=HYPERLINK('http://evil')") == "'=HYPERLINK('http://evil')"
+    assert neutralize_formula("@SUM(1)") == "'@SUM(1)"
+    assert neutralize_formula("+cmd|' /C calc'!A0") == "'+cmd|' /C calc'!A0"
+
+
+def test_phone_numbers_survive_neutralization() -> None:
+    """``+``/``-`` lead every E.164 number; prefixing them would corrupt the export."""
+    from app.crm.csv_io import neutralize_formula
+
+    assert neutralize_formula("+919990000001") == "+919990000001"
+    assert neutralize_formula("-42") == "-42"
+    assert neutralize_formula("Ramesh K.") == "Ramesh K."
+    assert neutralize_formula(42) == 42
+    assert neutralize_formula(None) is None
+
+
+def test_csv_export_neutralizes_a_hostile_contact_name() -> None:
+    from app.crm.formats import export_writer
+
+    writer = export_writer("csv")
+    writer.add([{"phone_e164": "+919990000001", "full_name": "=cmd|' /C calc'!A0"}])
+    body = writer.finish().decode("utf-8")
+
+    assert "'=cmd" in body            # neutralised
+    assert "+919990000001" in body    # phone untouched
+    assert ",'+919990000001" not in body
+
+
+def test_writers_accept_report_columns() -> None:
+    """A report row must not be silently dropped by the contact column set (Doc 15 §19)."""
+    from app.crm.formats import export_writer
+
+    columns = ("period", "messages_sent")
+    row = {"period": "2026-07-01", "messages_sent": 10}
+
+    csv_body = export_writer("csv", columns)
+    csv_body.add([row])
+    assert csv_body.finish() == b"period,messages_sent\r\n2026-07-01,10\r\n"
+
+    json_writer = export_writer("json", columns)
+    json_writer.add([row])
+    assert b'"messages_sent": 10' in json_writer.finish()
+
+
+def test_contact_export_columns_are_unchanged_by_default() -> None:
+    """The default writer still produces the frozen contact shape."""
+    from app.crm.csv_io import EXPORT_COLUMNS
+    from app.crm.formats import export_writer
+
+    header = export_writer("csv").finish().decode("utf-8").strip()
+    assert header == ",".join(EXPORT_COLUMNS)

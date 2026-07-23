@@ -26,6 +26,18 @@ EVENT_OPTIN_CHANGED = "optin_changed"
 EVENT_TAG_ADDED = "tag_added"
 EVENT_TAG_REMOVED = "tag_removed"
 
+# Task lifecycle projected onto the contact timeline (Doc 14 §5.3). Additive string constants
+# only — the partitioned table is reused as-is with ``ref_type="task"``, ``ref_id=task.id`` and a
+# compact ``payload_json``; no column, index, or DDL change.
+EVENT_TASK_CREATED = "task_created"
+EVENT_TASK_ASSIGNED = "task_assigned"
+EVENT_TASK_RESCHEDULED = "task_rescheduled"
+EVENT_TASK_COMPLETED = "task_completed"
+EVENT_TASK_CANCELLED = "task_cancelled"
+
+#: The ``ref_type`` used for all task timeline projections.
+REF_TYPE_TASK = "task"
+
 
 class ContactEvent(Base):
     """One immutable contact-timeline event (Doc 03 §6.5)."""

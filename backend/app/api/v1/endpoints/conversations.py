@@ -21,10 +21,10 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import MAX_LIMIT, Page, clamp_limit, decode_cursor, encode_cursor
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.schemas.conversation import (
@@ -57,31 +57,46 @@ InboxAssigner = Annotated[User, Depends(require_permissions("inbox:assign"))]
 
 @router.get("/conversations", response_model=ConversationsPage, summary="Inbox list")
 async def list_conversations(
-    request: Request, session: SessionDep, actor: InboxReader
+    session: SessionDep,
+    actor: InboxReader,
+    limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
+    cursor: Annotated[str | None, Query()] = None,
+    status_eq: Annotated[str | None, Query(alias="status")] = None,
+    assignee: Annotated[str | None, Query()] = None,
+    number: Annotated[str | None, Query()] = None,
+    tag: Annotated[list[str] | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    filter_status: Annotated[str | None, Query(alias="filter[status][eq]")] = None,
+    filter_assignee: Annotated[str | None, Query(alias="filter[assignee][eq]")] = None,
+    filter_number: Annotated[str | None, Query(alias="filter[number][eq]")] = None,
+    filter_tag: Annotated[list[str] | None, Query(alias="filter[tag][eq]")] = None,
 ) -> ConversationsPage:
     """The inbox, newest activity first (Doc 04 §18.1).
 
     Cursor-paginated by ``last_message_at``; filtered by status/assignee/number and searched by
     ``q`` (the customer's name or number) — exactly the frozen filter set, nothing more.
+
+    Both spellings of each filter are accepted and declared: the short form (``status=open``) and
+    the frozen bracket form (``filter[status][eq]=open``), the bracket form winning when both are
+    sent. Declaring them as parameters (rather than reading them off the raw request) is what puts
+    them in the OpenAPI contract, so the generated client can express them.
     """
-    params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
     # The `tag` filter is single-valued (Doc 04 §18.1 v1.3); more than one tag is a 400.
-    tag_values = params.getlist("filter[tag][eq]") or params.getlist("tag")
+    tag_values = filter_tag or tag or []
     if len(tag_values) > 1:
         raise BadRequestError(
             "The tag filter accepts a single tag; multi-tag filtering is not supported."
         )
+    page_limit = clamp_limit(str(limit) if limit is not None else None)
     result = await InboxQueryService(session).list_conversations(
         organization_id=actor.organization_id,
-        limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
-        status=params.get("filter[status][eq]") or params.get("status"),
-        assignee=params.get("filter[assignee][eq]") or params.get("assignee"),
-        number=params.get("filter[number][eq]") or params.get("number"),
+        limit=page_limit,
+        cursor=decode_cursor(cursor) if cursor else None,
+        status=filter_status or status_eq,
+        assignee=filter_assignee or assignee,
+        number=filter_number or number,
         tag=tag_values[0] if tag_values else None,
-        q=params.get("q"),
+        q=q,
     )
     data = [
         ConversationResponse.from_conversation(
@@ -103,7 +118,7 @@ async def list_conversations(
         # The cursor carries the same effective key the list is ordered by (Doc 04 §18.1).
         next_cursor = encode_cursor(last.last_message_at or last.created_at, last.id)
     return ConversationsPage(
-        data=data, page=Page(limit=limit, has_more=result.has_more, next_cursor=next_cursor)
+        data=data, page=Page(limit=page_limit, has_more=result.has_more, next_cursor=next_cursor)
     )
 
 
@@ -133,17 +148,19 @@ async def get_conversation(
     summary="Message history (paginated)",
 )
 async def list_conversation_messages(
-    conversation_id: uuidlib.UUID, request: Request, session: SessionDep, actor: InboxReader
+    conversation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: InboxReader,
+    limit: Annotated[int | None, Query(ge=1, le=MAX_LIMIT)] = None,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> ConversationMessagesPage:
     """A thread's messages, newest first, cursor-paginated over the partitioned ledger."""
-    params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
+    page_limit = clamp_limit(str(limit) if limit is not None else None)
     page = await InboxQueryService(session).list_messages(
         organization_id=actor.organization_id,
         public_id=conversation_id,
-        limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        limit=page_limit,
+        cursor=decode_cursor(cursor) if cursor else None,
     )
     data = [
         MessageResponse.from_message(m, conversation_id=page.conversation_public_id)
@@ -154,7 +171,7 @@ async def list_conversation_messages(
         last = page.messages[-1]
         next_cursor = encode_cursor(last.created_at, last.id)
     return ConversationMessagesPage(
-        data=data, page=Page(limit=limit, has_more=page.has_more, next_cursor=next_cursor)
+        data=data, page=Page(limit=page_limit, has_more=page.has_more, next_cursor=next_cursor)
     )
 
 

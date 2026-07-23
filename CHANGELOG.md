@@ -11,6 +11,55 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+---
+
+## [1.0.0-rc1] — 2026-07-23
+
+First release candidate. Everything recorded below this heading is included in the tag
+`v1.0.0-rc1`; entries above it are post-RC1 work.
+
+### Added
+- **Task & Activity Engine** (Doc 14) — models, migration `0026_tasks`, RBAC scopes, 15 endpoints.
+- **Analytics & Reporting** (Doc 15) — migration `0027_analytics`, rollup pipeline, query service,
+  report exports, 16 endpoints.
+- **Frontend application** — authentication, dashboard, contacts, inbox, campaigns, templates,
+  media, WhatsApp accounts, segments, pipelines, tasks, analytics, operations, admin, settings.
+- **Production deployment** — multi-stage backend and frontend images, `docker-compose.production.yml`
+  (10 services), edge and SPA nginx configuration, `deploy/DEPLOYMENT.md`, `.env.production.example`.
+- `LICENSE` (proprietary, matching the terms already declared in `backend/pyproject.toml`).
+
+### Fixed
+- **Startup blocker** — `CORS_ORIGINS` was JSON-decoded by pydantic-settings before validators ran,
+  so the empty and comma-separated forms both raised `SettingsError` at import. Every backend
+  process (api, three worker pools, beat, migrate) failed to start. Now `Annotated[..., NoDecode]`.
+- **Celery task registration** — workers imported no task modules, so every pool started with an
+  empty registry and rejected all work. `include=TASK_MODULES` now registers all 23 tasks.
+- **JSON logging** — the parent `uvicorn` logger held a plain stderr handler with `propagate=False`,
+  so request lines never reached the JSON handler despite `LOG_JSON=true`.
+- **`list` shadowing in `TaskService`** — a method named `list` shadowed the builtin for annotations
+  later in the class body, so those signatures resolved to the method. Harmless at run time under
+  deferred annotations, but it broke type resolution and `typing.get_type_hints()`.
+- **`_fail` return type** in the segment compiler — annotated `NoReturn`, so the existing
+  `if spec is None: _fail(...)` guard narrows as the code already reads.
+- **`.gitignore`** — `.env.production.example` was matched by the broad `.env.*` rule and excluded
+  from the repository, although `deploy/DEPLOYMENT.md` §2 begins by copying it.
+
+### Changed
+- Version aligned to `1.0.0-rc1` across `pyproject.toml` (PEP 440 `1.0.0rc1`), `app/__init__.py`,
+  `Settings.app_version`, and `package.json`. `frontend/openapi.json` regenerated — the only
+  semantic change is `info.version`.
+- Frontend production build emits `sourcemap: "hidden"` and splits framework vendor chunks.
+
+### Known limitations
+- **The containerised deployment has never been executed.** No image has been built and no
+  container started in any environment available to date. See §Remaining Blockers in the RC1
+  report and `deploy/DEPLOYMENT.md`, which is written as a commissioning procedure.
+- `tests/test_analytics_rollup.py` hard-codes `NOW = 2026-07-23 14:30`; two tests fail when real
+  UTC falls inside the derived `[08:00, 14:00)` window on that date. Fixture defect, not a product
+  defect.
+
+---
+
 ### 2026-07-18 — Amendment: Message Reactions (Doc 7 → v1.1, Doc 4 v1.3 → v1.4, Doc 3 v1.3 → v1.4) — **FROZEN**
 **Reason:** Phase 7 Step 9 (Message Reactions) was **blocked by a frozen-doc conflict.** Doc 4 §18.2
 defines `POST /messages/{uuid}/reaction` (send a reaction), but Doc 7 §5.2's Meta capability column

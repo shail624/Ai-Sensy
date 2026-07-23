@@ -36,9 +36,14 @@ coverage.xml
 .ruff_cache/
 
 # ---- Environment ----
+# Real environment files never enter the repository; the *.example templates always must, because
+# the deployment procedure starts by copying one (deploy/DEPLOYMENT.md §2). The broad `.env.*`
+# rule swallows `.env.production.example` too, so it needs its own negation — without it the
+# documented first step of a production deploy refers to a file that was never committed.
 .env
 .env.*
 !.env.example
+!.env.production.example
 !backend/.env.example
 
 # ---- IDE ----

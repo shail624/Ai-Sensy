@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    analytics,
     api_keys,
     attributes,
     audit,
@@ -27,6 +28,7 @@ from app.api.v1.endpoints import (
     segments,
     settings,
     tags,
+    tasks,
     templates,
     users,
     waba,
@@ -74,3 +76,9 @@ api_router.include_router(campaigns.router, tags=["Campaigns"])
 api_router.include_router(conversations.router, tags=["Inbox"])
 # Phase 7 — Shared Inbox: quick replies (Doc 04 §18.2; Doc 03 §9.5).
 api_router.include_router(quick_replies.router, tags=["Inbox"])
+
+# Doc 14 — Task & Activity Management (CRM Follow-up Engine); permissions tasks:read/write/assign.
+api_router.include_router(tasks.router, tags=["Tasks"])
+
+# Phase 8 — Analytics & Reporting (Doc 15); permissions analytics:read/export/executive.
+api_router.include_router(analytics.router, tags=["Analytics"])

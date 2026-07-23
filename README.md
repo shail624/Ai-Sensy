@@ -15,11 +15,17 @@ Single-tenant, self-hosted, not SaaS.
 ├── backend/          FastAPI backend (Python 3.13, SQLAlchemy 2, Celery, Alembic)
 │   ├── app/          application package (core / db / api …)
 │   ├── alembic/      database migrations
-│   └── tests/        unit / integration / API tests
+│   ├── tests/        unit / integration / API tests
+│   └── Dockerfile    multi-stage production image (+ docker-entrypoint.sh)
 ├── frontend/         React + TypeScript + Vite + Tailwind SPA
-│   └── src/          application source
+│   ├── src/          application source
+│   └── Dockerfile    multi-stage production image (+ nginx.conf for the SPA)
+├── deploy/
+│   ├── DEPLOYMENT.md production runbook — build, migrate, start, scale, back up, roll back
+│   └── nginx/        edge reverse-proxy configuration
 ├── docs/             frozen architecture documents (01–12) + research
-├── docker-compose.yml  local MySQL + Redis for development
+├── docker-compose.yml             local MySQL + Redis for development
+├── docker-compose.production.yml  full production topology (10 services)
 └── CHANGELOG.md
 ```
 
@@ -55,6 +61,17 @@ Single-tenant, self-hosted, not SaaS.
 
 - Backend (hermetic; SQLite, no external services): `cd backend && pytest`
 - Frontend: `cd frontend && npm test`
+
+## Production deployment
+
+```bash
+cp .env.production.example .env.production      # fill every REQUIRED value
+docker compose -f docker-compose.production.yml --env-file .env.production up migrate
+docker compose -f docker-compose.production.yml --env-file .env.production up -d
+```
+
+Full procedure — build, schema, first owner, scaling, TLS, backup, rollback and troubleshooting —
+is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 
 ## Implementation status
 

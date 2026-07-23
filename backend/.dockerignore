@@ -1,0 +1,52 @@
+# Backend build context exclusions.
+#
+# This file — not the one at the repository root — is what governs `context: ./backend`.
+# Docker only reads the `.dockerignore` at the root of the build context, so without this the
+# builder would upload the developer's Windows `.venv` (hundreds of MB of Linux-incompatible
+# binaries), every cache directory, and any local `.env` straight into the image.
+
+# ---- Virtualenvs (host-built, wrong platform, never wanted in the image) ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Python caches / build artefacts ----
+**/__pycache__/
+**/*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# ---- Test & lint caches ----
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# ---- Local runtime state ----
+# `var/` holds locally written media/exports; production mounts a volume instead.
+var/
+*.sqlite3
+*.db
+*.log
+
+# ---- Secrets ----
+# Never bake an environment file into an image. The example is kept out too: it is documentation.
+.env
+.env.*
+
+# ---- Tests ----
+# The production image runs the application, not the suite. CI installs the `dev` extra and runs
+# tests from the source tree; shipping them only widens the image and its attack surface.
+tests/
+
+# ---- VCS / editor ----
+.git/
+.gitignore
+.idea/
+.vscode/

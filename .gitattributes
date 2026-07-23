@@ -1,0 +1,21 @@
+# Line-ending policy — deliberately narrow.
+#
+# The team develops on Windows and deploys to Linux containers. A shell script that reaches a
+# container with CRLF endings fails in a way that reads as a missing file:
+#
+#     exec /usr/local/bin/docker-entrypoint.sh: no such file or directory
+#
+# …because the kernel takes the trailing `\r` as part of the interpreter path on the `#!/bin/sh`
+# line. The same class of breakage hits nginx configs and anything else parsed inside a container.
+#
+# Only files that Linux executes or parses are pinned. There is deliberately **no** blanket
+# `* text=auto`: that would mark the entire tree as text and rewrite every .py and .ts file to
+# CRLF on the next Windows checkout, producing a repository-wide diff that has nothing to do with
+# deployment. Source line endings stay exactly as they are today.
+
+*.sh                text eol=lf
+*.conf              text eol=lf
+Dockerfile          text eol=lf
+*.Dockerfile        text eol=lf
+.dockerignore       text eol=lf
+docker-compose*.yml text eol=lf

@@ -16,10 +16,11 @@ Key settings and why:
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Queue
 
 from app.core.config import settings
-from app.queue.registry import QUEUES, get_queue
+from app.queue.registry import ANALYTICS_ROLLUP, QUEUES, SCHEDULER_TICK, get_queue
 
 
 def _queue_definitions() -> tuple[Queue, ...]:
@@ -29,10 +30,78 @@ def _queue_definitions() -> tuple[Queue, ...]:
     )
 
 
+#: **Beat schedule** (Doc 15 §8.1; Doc 06 §10.2).
+#:
+#: Declared in code rather than deployment config so the cadence ships with the tasks it drives and
+#: cannot drift from them. Entries are declarative and keyed by name, so re-reading this module or
+#: restarting Beat re-registers the *same* entries — scheduling is idempotent, and no duplicate
+#: entry can accumulate.
+#:
+#: **Beat must run as a single replica.** Celery Beat is a ticker, not a worker: two instances
+#: would fire every slot twice. The tasks below are individually idempotent (a rollup re-run
+#: converges by delete-then-insert, Doc 15 §6.3; a scheduler tick claims each row before handing
+#: it over), so a duplicate tick is survivable — but it doubles work for no benefit. Run one.
+#:
+#: All times are **UTC**: the app sets ``timezone="UTC"`` and ``enable_utc=True`` below, and every
+#: bucket the analytics pipeline writes is a UTC hour (Doc 15 §6.1). Local-day presentation is a
+#: read-time concern, never a scheduling one.
+def _beat_schedule() -> dict[str, dict[str, object]]:
+    return {
+        # Campaign schedules that have come due (FR-CAM-03/04; Doc 06 §10.2). Beat's heartbeat,
+        # not Beat's schedule — the schedules themselves live in the database.
+        "campaign-scheduler-tick": {
+            "task": "app.crm.campaign_tasks.scheduler_tick",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        # Recompute the trailing 6 closed hours, absorbing late delivery receipts (Doc 15 §8.2).
+        "analytics-rollup-incremental": {
+            "task": "app.analytics.tasks.rollup_incremental",
+            "schedule": crontab(minute="*/15"),
+            # A missed run is recomputed by the next one, so an expired message is simply dropped
+            # rather than piling up behind a slow worker.
+            "options": {"queue": ANALYTICS_ROLLUP, "expires": 14 * 60},
+        },
+        # Wider 48 h pass plus daily consolidation, for data later than the trailing window.
+        "analytics-rollup-nightly": {
+            "task": "app.analytics.tasks.rollup_nightly",
+            "schedule": crontab(hour=2, minute=15),
+            "options": {"queue": ANALYTICS_ROLLUP, "expires": 3600},
+        },
+        # Retention: 90 days hourly, ~26 months daily (Doc 15 §21.3).
+        "analytics-rollup-prune": {
+            "task": "app.analytics.tasks.rollup_prune",
+            "schedule": crontab(hour=3, minute=0),
+            "options": {"queue": ANALYTICS_ROLLUP, "expires": 3600},
+        },
+    }
+
+
+#: Modules that define tasks, imported by the worker at startup.
+#:
+#: **A worker only executes tasks it has registered, and it registers only what it imports.**
+#: `celery -A app.queue.celery_app.celery_app worker` imports this module and nothing else, so
+#: without this list every pool starts clean and rejects everything sent to it with
+#: "Received unregistered task of type ..." — campaign dispatch, webhook processing, imports,
+#: exports, media downloads and the analytics rollups all silently stop, while every container
+#: still reports healthy. The API process never noticed because the code that calls `.delay()`
+#: imports the task module itself; only the consumer side was empty.
+#:
+#: Listed explicitly rather than via `autodiscover_tasks`, so adding a task module is a visible
+#: one-line change here instead of depending on a package-layout convention.
+TASK_MODULES: tuple[str, ...] = (
+    "app.analytics.tasks",
+    "app.channels.tasks",
+    "app.crm.campaign_tasks",
+    "app.crm.tasks",
+)
+
+
 def create_celery_app() -> Celery:
     """Build the configured Celery application."""
     app = Celery("wa_platform", broker=settings.redis_url, backend=settings.redis_url)
     app.conf.update(
+        include=list(TASK_MODULES),
         task_default_queue="default",
         task_queues=_queue_definitions(),
         task_serializer="json",
@@ -50,6 +119,8 @@ def create_celery_app() -> Celery:
         task_routes={},
         task_send_sent_event=True,
         worker_send_task_events=True,
+        # Periodic work (Doc 15 §8.1). Beat reads this; workers ignore it.
+        beat_schedule=_beat_schedule(),
     )
     return app
 

@@ -5,4 +5,4 @@ API (``app.api``) → Services (``app.services``) → Repositories (``app.reposi
 → Models (``app.models``), over shared infrastructure in ``app.core`` and ``app.db``.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0-rc1"

@@ -1,7 +1,7 @@
 """Liveness and readiness probes.
 
 - ``GET /health`` — cheap liveness (is the process up?).
-- ``GET /ready``  — readiness: checks each dependency (database, Redis) and returns
+- ``GET /ready``  — readiness: checks each dependency (database, Redis, storage) and returns
   ``503`` with a per-dependency breakdown when degraded.
 
 Per Doc 04 §22 and Doc 01 FR-MON-09; readiness underpins graceful degradation
@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.redis import redis_ping
 from app.db.session import get_session
+from app.storage.base import get_provider
 
 router = APIRouter(tags=["Health"])
 
@@ -60,6 +61,20 @@ async def _check_database(session: AsyncSession) -> bool:
         return False
 
 
+async def _check_storage() -> bool:
+    """Probe the configured storage backend with a cheap existence check.
+
+    Exports and media are written through this provider, so a node that cannot reach storage is
+    not ready to serve: an export would be accepted, queued, and then fail in a worker where the
+    user cannot see it. Probing a key that will never exist keeps the check read-only.
+    """
+    try:
+        await get_provider(settings.storage_backend).exists("__healthcheck__")
+        return True
+    except Exception:
+        return False
+
+
 @router.get("/ready", response_model=ReadyResponse, summary="Readiness probe")
 async def ready(
     response: Response,
@@ -69,6 +84,7 @@ async def ready(
     checks = {
         "database": await _check_database(session),
         "redis": await redis_ping(),
+        "storage": await _check_storage(),
     }
     dependencies = [
         DependencyStatus(name=name, status="up" if ok else "down")

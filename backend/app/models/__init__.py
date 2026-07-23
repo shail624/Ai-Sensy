@@ -8,6 +8,15 @@ rely on import side effects elsewhere.
 
 from __future__ import annotations
 
+from app.models.analytics import (
+    AnalyticsCampaignRollup,
+    AnalyticsContactRollup,
+    AnalyticsConversationRollup,
+    AnalyticsFailureRollup,
+    AnalyticsMessageRollup,
+    AnalyticsRollupRun,
+    AnalyticsTaskRollup,
+)
 from app.models.api_key import ApiKey
 from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
 from app.models.audit import AuditLog
@@ -35,6 +44,8 @@ from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.segment import Segment, SegmentRule
 from app.models.settings import FeatureFlag, Setting
 from app.models.tag import Tag, contact_tags
+from app.models.task import Task
+from app.models.task_event import TaskEvent
 from app.models.template import MessageTemplate, TemplateVersion
 from app.models.token import RefreshToken, UserSession
 from app.models.user import User
@@ -79,6 +90,15 @@ __all__ = [
     "SegmentRule",
     "Setting",
     "Tag",
+    "AnalyticsCampaignRollup",
+    "AnalyticsContactRollup",
+    "AnalyticsConversationRollup",
+    "AnalyticsFailureRollup",
+    "AnalyticsMessageRollup",
+    "AnalyticsRollupRun",
+    "AnalyticsTaskRollup",
+    "Task",
+    "TaskEvent",
     "TemplateVersion",
     "User",
     "UserRole",

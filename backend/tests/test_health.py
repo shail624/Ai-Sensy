@@ -34,14 +34,28 @@ async def test_request_id_is_propagated_when_supplied(client) -> None:
 
 
 async def test_ready_when_all_dependencies_up(client, monkeypatch) -> None:
-    """GET /ready returns 200 + 'ready' when the database and Redis are up."""
+    """GET /ready returns 200 + 'ready' when the database, Redis and storage are up."""
     monkeypatch.setattr(health_module, "redis_ping", _always(True))
+    monkeypatch.setattr(health_module, "_check_storage", _always(True))
     response = await client.get("/ready")
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
     names = {dep["name"]: dep["status"] for dep in body["dependencies"]}
-    assert names == {"database": "up", "redis": "up"}
+    assert names == {"database": "up", "redis": "up", "storage": "up"}
+
+
+async def test_ready_degraded_when_storage_down(client, monkeypatch) -> None:
+    """Exports and media are written through storage, so a node that cannot reach it is not ready."""
+    monkeypatch.setattr(health_module, "redis_ping", _always(True))
+    monkeypatch.setattr(health_module, "_check_storage", _always(False))
+    response = await client.get("/ready")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "degraded"
+    names = {dep["name"]: dep["status"] for dep in body["dependencies"]}
+    assert names["storage"] == "down"
+    assert names["database"] == "up"
 
 
 async def test_ready_degraded_when_redis_down(client, monkeypatch) -> None:

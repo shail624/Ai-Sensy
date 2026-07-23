@@ -8,11 +8,12 @@ from here; never read ``os.environ`` directly elsewhere.
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, computed_field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["development", "staging", "production", "test"]
 
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
 
     # ---- Application -------------------------------------------------------
     app_name: str = "WhatsApp Business Platform"
-    app_version: str = "0.1.0"
+    app_version: str = "1.0.0-rc1"
     environment: Environment = "development"
     debug: bool = False
     # API is served under /api/v1 (Doc 04 §2). Health probes live at the root.
@@ -116,7 +117,15 @@ class Settings(BaseSettings):
     token_encryption_key: str = ""
 
     # ---- CORS (Doc 04 §25) ------------------------------------------------
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    #: ``NoDecode`` is load-bearing. Without it pydantic-settings treats a ``list[str]`` field as
+    #: "complex" and runs ``json.loads`` on the raw environment value *inside the settings source* —
+    #: before any validator runs. That made the validator below unreachable and left a JSON array
+    #: as the only accepted form, so every documented value (``CORS_ORIGINS=`` for same-origin, or
+    #: a comma-separated list) raised SettingsError at import time and took down every process that
+    #: imports this module: api, all three worker pools, beat and migrate alike.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173"]
+    )
 
     # ---- Logging (Doc 08 §19) --------------------------------------------
     log_level: str = "INFO"
@@ -148,10 +157,21 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors_origins(cls, value: object) -> object:
-        """Allow CORS_ORIGINS as a comma-separated string in the environment."""
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+        """Parse CORS_ORIGINS from the environment.
+
+        Accepts the documented comma-separated form (``a.example,b.example``), the empty string
+        (meaning "no cross-origin callers" — the same-origin deployment behind the edge proxy),
+        and a JSON array, which was the only form that worked before ``NoDecode`` was applied and
+        so may exist in a deployed environment file already.
+        """
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        if not text:
+            return []
+        if text.startswith("["):
+            return json.loads(text)
+        return [origin.strip() for origin in text.split(",") if origin.strip()]
 
     @computed_field  # type: ignore[prop-decorator]
     @property
