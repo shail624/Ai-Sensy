@@ -13,7 +13,7 @@ quality gates._
   `baseline/fr-con-04-release-ready` at `b565d0f`
 - **Migration head:** `0027_analytics` (27 linear revisions, base `0001`)
 - **OpenAPI:** 3.1.0 · 133 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 896 tests passed · Ruff clean · raw strict mypy clean across
+- **Backend:** 902 tests passed · Ruff clean · raw strict mypy clean across
   227 source files (down from 251 findings; exact checker mypy 2.3.0)
 - **Frontend:** 581 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
@@ -27,7 +27,10 @@ quality gates._
 - **Deployed gate:** Playwright login → queued CSV import → persisted contact journey passed across
   nginx/SPA/API/MySQL/Redis/Celery; first local standard-read evidence was p95 7.9 ms / 30 samples
   (<300 ms target)
-- **Current milestone:** deployed-stack E2E and performance canary — **RELEASE READY**
+- **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
+  covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
+  digest-pinned nginx configuration is syntax-checked
+- **Current milestone:** repository observability, redaction, and health contracts — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -42,7 +45,7 @@ quality gates._
 | Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
-| Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary |
+| Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
 
 ## FR-CON-04 release-ready scope
 
@@ -57,15 +60,17 @@ quality gates._
 
 ## Remaining deliverables
 
-No implementation remains in the deployed-stack E2E/performance-canary milestone. Module 11 next
-needs repository-verifiable observability/redaction/health contracts, followed by environment-owned
-monitoring and commissioning evidence. Full capacity certification remains a separate Performance
-Lab task. The AI assistant module remains intentionally deferred beyond RC1.
+No repository implementation remains in the observability/redaction/health-contract milestone.
+Module 11 next needs target-environment monitoring and commissioning evidence: log shipping,
+metrics/dashboards, alert firing and dead-man validation, and external synthetic checks. Full
+capacity certification remains a separate Performance Lab task. The AI assistant module remains
+intentionally deferred beyond RC1.
 
 ## Release blockers
 
 - Full load/stress/spike/soak and 1M-contact capacity evidence requires the isolated Performance Lab.
-- Metrics/alerting/log-shipping and synthetic-monitor evidence remain deployment work.
+- Metrics/dashboard/alerting/log-shipping and external synthetic-monitor evidence remain target-
+  environment deployment work; repository tests cannot prove receiver delivery or dead-man alerts.
 - TLS/host hardening, UAT, verified restore, rollback rehearsal, and production approval are
   environment commissioning evidence and cannot be truthfully closed by repository tests.
 

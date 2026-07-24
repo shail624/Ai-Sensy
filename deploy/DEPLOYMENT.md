@@ -333,7 +333,7 @@ sidecar you run alongside the stack.
 | Readiness | `GET /ready` (unauthenticated) | Load-balancer gating. 503 + per-dependency breakdown for database, Redis, storage. |
 | Queue depth & worker fleet | `GET /api/v1/queues` (operator token) | Backlog and dead workers. The primary saturation signal. |
 | Analytics freshness | `GET /api/v1/analytics/freshness` (token) | Whether Beat and the rollup pool are alive. Lag > 15 min means one of them is not. |
-| Structured logs | stdout, JSON, `request_id` on every line | Correlation. The edge logs the same id as `rid=`. |
+| Structured logs | stdout, JSON; every HTTP access event has `request_id` | Correlation. Request-scoped application events inherit the id and the edge logs it as `rid=`. |
 | Celery task events | Redis broker | Per-task timing and failures — `task_send_sent_event` and `worker_send_task_events` are already enabled. |
 | Container health | `docker compose ps` | Per-service healthchecks: API via `/health`, workers via `celery inspect ping`, Beat via its schedule file. |
 
@@ -381,8 +381,10 @@ Every service declares the `json-file` driver capped at `10m × 5` files (≈50 
 `mysql-data` eventually takes the database down. If you ship logs to an aggregator, point the
 driver at it instead — do not simply remove the cap.
 
-Application logs are JSON on stdout with a `request_id` on every line (`app/core/logging.py`); the
-edge access log carries the same id as `rid=`, so an nginx line joins to the API lines it produced:
+Application logs are JSON on stdout. Every canonical `http_request` event has a `request_id`, and
+request-scoped application events inherit it (`app/core/logging.py`). Lifecycle events outside a
+request do not invent one. The edge access log carries the same id as `rid=`, so an nginx line joins
+to the API lines it produced:
 
 ```bash
 docker compose -f docker-compose.production.yml logs api | grep '"request_id":"<id>"'
@@ -427,6 +429,7 @@ Two numbers to keep consistent when you scale:
 | Exports and media fail although `/ready` says storage is up | Same cause on `media-data`: the readiness probe is read-only, so it cannot see an unwritable directory. Recreate the volume as above |
 | `GET /api/v1/queues` returns 500 | Redis is unreachable. The endpoint surfaces the broker error rather than degrading to 503, so a 500 here means "check Redis", not "the API is broken". `/ready` is the authoritative dependency signal — it reports `redis: down` correctly. Changing the status code would alter the API contract, so it is left as-is. |
 | Access log lines are plain text, not JSON | An older build. `configure_logging` must neutralise the parent `uvicorn` logger, not just `uvicorn.access` — the parent holds a stderr handler with `propagate = False` and would otherwise swallow every request line before it reaches the JSON handler. The two lines uvicorn emits *before* application startup stay plain; that is unavoidable and harmless. |
+| API access events are duplicated | An older build. The application middleware owns the correlated `http_request` event; `uvicorn.access` is disabled after logging configuration. |
 | `/ready` 503, storage down | `media-data` not mounted in that role, or path not writable |
 | Dashboard empty, freshness lag climbing | Beat not running, or `worker-jobs` not consuming `analytics.rollup` |
 | Webhooks rejected | `META_APP_SECRET` mismatch — signature verification fails closed |

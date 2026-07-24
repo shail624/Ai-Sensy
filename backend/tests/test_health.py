@@ -7,6 +7,7 @@ Doc 04 §5 problem+json). Feature tests are added per module step (Doc 10).
 from __future__ import annotations
 
 import app.api.health as health_module
+import app.core.middleware as middleware_module
 from app.core.middleware import REQUEST_ID_HEADER
 
 
@@ -31,6 +32,32 @@ async def test_request_id_is_propagated_when_supplied(client) -> None:
     supplied = "test-correlation-id-123"
     response = await client.get("/health", headers={REQUEST_ID_HEADER: supplied})
     assert response.headers.get(REQUEST_ID_HEADER) == supplied
+
+
+async def test_unsafe_request_id_is_replaced_before_logging(client) -> None:
+    supplied = "owner@example.com"
+    response = await client.get("/health", headers={REQUEST_ID_HEADER: supplied})
+    returned = response.headers.get(REQUEST_ID_HEADER)
+    assert returned and returned != supplied
+    assert middleware_module.correlation_id(returned) == returned
+
+
+async def test_http_access_event_is_structured(client, monkeypatch) -> None:
+    events: list[tuple[str, dict[str, object]]] = []
+
+    def capture(message: str, *, extra: dict[str, object]) -> None:
+        events.append((message, extra))
+
+    monkeypatch.setattr(middleware_module.logger, "info", capture)
+    response = await client.get("/health", headers={REQUEST_ID_HEADER: "access-event-123"})
+
+    assert response.status_code == 200
+    message, extra = events[-1]
+    assert message == "http_request"
+    assert extra["http_method"] == "GET"
+    assert extra["http_path"] == "/health"
+    assert extra["status_code"] == 200
+    assert isinstance(extra["duration_ms"], float)
 
 
 async def test_ready_when_all_dependencies_up(client, monkeypatch) -> None:

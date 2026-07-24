@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import argparse
 import base64
+import json
 import os
+import re
 import secrets
 import shutil
 import socket
 import subprocess
 import sys
+
+import httpx
 
 try:  # Package import in tests; direct import when executed from the repository root.
     from scripts.performance_canary import run_canary
@@ -92,12 +96,75 @@ def _capture(command: tuple[str, ...], *, env: dict[str, str]) -> str:
 def clear_previous_evidence() -> None:
     for path in (
         ARTIFACTS / "deployed-compose.log",
-        ARTIFACTS / "deployed-compose-ps.txt",
+        ARTIFACTS / "deployed-compose-healthy-ps.txt",
+        ARTIFACTS / "deployed-compose-final-ps.txt",
+        ARTIFACTS / "observability-contract.json",
+        ARTIFACTS / "readiness-degradation.json",
         ARTIFACTS / "performance-canary.json",
         ARTIFACTS / "playwright-junit.xml",
     ):
         path.unlink(missing_ok=True)
     shutil.rmtree(ARTIFACTS / "playwright-results", ignore_errors=True)
+
+
+def validate_runtime_logs(
+    raw_api_logs: str, raw_edge_logs: str, *, forbidden_values: list[str]
+) -> dict[str, int | bool]:
+    payloads: list[dict[str, object]] = []
+    for line in raw_api_logs.splitlines():
+        start = line.find("{")
+        if start < 0:
+            continue
+        try:
+            payload = json.loads(line[start:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            payloads.append(payload)
+    requests = [payload for payload in payloads if payload.get("message") == "http_request"]
+    if not requests:
+        raise RuntimeError("API logs contain no structured http_request events")
+    required = {"request_id", "http_method", "http_path", "status_code", "duration_ms"}
+    if any(not required.issubset(payload) for payload in requests):
+        raise RuntimeError("a structured http_request event is missing correlation or timing fields")
+    api_request_ids = {
+        value for payload in requests if isinstance((value := payload.get("request_id")), str)
+    }
+    edge_request_ids = set(re.findall(r"\brid=([A-Za-z0-9][A-Za-z0-9_-]{0,63})(?:\s|$)", raw_edge_logs))
+    correlated_ids = api_request_ids & edge_request_ids
+    if not correlated_ids:
+        raise RuntimeError("edge and API logs contain no shared request id")
+    combined_logs = raw_api_logs + "\n" + raw_edge_logs
+    leaks = [value for value in forbidden_values if value and value in combined_logs]
+    if leaks:
+        raise RuntimeError(f"API logs contain {len(leaks)} synthetic secret/PII values")
+    return {
+        "json_events": len(payloads),
+        "http_request_events": len(requests),
+        "edge_request_ids": len(edge_request_ids),
+        "shared_request_ids": len(correlated_ids),
+        "all_requests_correlated": True,
+        "synthetic_secret_or_pii_leaks": 0,
+    }
+
+
+def validate_readiness_degradation(base_url: str) -> dict[str, object]:
+    with httpx.Client(base_url=base_url, timeout=10.0, trust_env=False) as client:
+        response = client.get("/ready")
+    payload = response.json()
+    dependencies = {
+        item.get("name"): item.get("status")
+        for item in payload.get("dependencies", [])
+        if isinstance(item, dict)
+    }
+    if response.status_code != 503 or dependencies.get("redis") != "down":
+        raise RuntimeError("/ready did not report Redis down after its container stopped")
+    return {
+        "status_code": response.status_code,
+        "status": payload.get("status"),
+        "dependencies": dependencies,
+        "passed": True,
+    }
 
 
 def run_gate(*, app_image_tag: str, runner_image: str) -> int:
@@ -122,6 +189,10 @@ def run_gate(*, app_image_tag: str, runner_image: str) -> int:
                 "--no-build",
             ),
             env=env,
+        )
+        (ARTIFACTS / "deployed-compose-healthy-ps.txt").write_text(
+            _capture(compose_command(docker, project, "ps", "--all"), env=env),
+            encoding="utf-8",
         )
         _run(
             compose_command(
@@ -173,7 +244,7 @@ def run_gate(*, app_image_tag: str, runner_image: str) -> int:
             ),
             env=browser_env,
         )
-        passed = (
+        canary_passed = (
             run_canary(
                 base_url=f"http://127.0.0.1:{port}",
                 email=owner_email,
@@ -185,11 +256,40 @@ def run_gate(*, app_image_tag: str, runner_image: str) -> int:
             )
             == 0
         )
+        _run(compose_command(docker, project, "stop", "redis"), env=env)
+        readiness_evidence = validate_readiness_degradation(f"http://127.0.0.1:{port}")
+        (ARTIFACTS / "readiness-degradation.json").write_text(
+            json.dumps(readiness_evidence, indent=2) + "\n", encoding="utf-8"
+        )
+        raw_api_logs = _capture(compose_command(docker, project, "logs", "--no-color", "api"), env=env)
+        raw_edge_logs = _capture(
+            compose_command(docker, project, "logs", "--no-color", "nginx"), env=env
+        )
+        forbidden_values = [
+            owner_email,
+            owner_password,
+            *(env[name] for name in (
+                "SECRET_KEY",
+                "TOKEN_ENCRYPTION_KEY",
+                "MYSQL_ROOT_PASSWORD",
+                "DB_PASSWORD",
+                "REDIS_PASSWORD",
+                "META_APP_SECRET",
+                "META_WEBHOOK_VERIFY_TOKEN",
+            )),
+        ]
+        log_evidence = validate_runtime_logs(
+            raw_api_logs, raw_edge_logs, forbidden_values=forbidden_values
+        )
+        (ARTIFACTS / "observability-contract.json").write_text(
+            json.dumps(log_evidence, indent=2) + "\n", encoding="utf-8"
+        )
+        passed = canary_passed
         result = 0 if passed else 1
-    except (OSError, subprocess.CalledProcessError, ValueError) as exc:
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError, httpx.HTTPError) as exc:
         print(f"deployed-stack gate failed: {exc}", file=sys.stderr)
     finally:
-        (ARTIFACTS / "deployed-compose-ps.txt").write_text(
+        (ARTIFACTS / "deployed-compose-final-ps.txt").write_text(
             _capture(compose_command(docker, project, "ps", "--all"), env=env),
             encoding="utf-8",
         )

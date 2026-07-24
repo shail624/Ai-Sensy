@@ -102,7 +102,8 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 deployment topology, and the frontend application across the principal product areas. FR-CON-04
 Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
 is Module 11 hardening: strict backend typing, security/release automation, and the isolated
-deployed-stack E2E/performance canary are complete; observability and commissioning evidence are next.
+deployed-stack E2E/performance canary plus defensive observability contracts are complete;
+environment monitoring and commissioning evidence are next.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.

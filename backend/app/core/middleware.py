@@ -7,6 +7,8 @@ layered in later steps; this module establishes the foundation both build on.
 
 from __future__ import annotations
 
+import re
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -14,9 +16,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.logging import request_id_ctx
+from app.core.logging import get_logger, request_id_ctx
 
 REQUEST_ID_HEADER = "X-Request-Id"
+_REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+logger = get_logger(__name__)
+
+
+def correlation_id(candidate: str | None) -> str:
+    """Keep bounded opaque client IDs; replace values that could themselves be secrets or PII."""
+    return candidate if candidate and _REQUEST_ID.fullmatch(candidate) else str(uuid.uuid4())
 
 # Security headers applied to every response (Doc 01 NFR-SEC-03).
 _SECURITY_HEADERS: dict[str, str] = {
@@ -33,15 +42,27 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        request_id = request.headers.get(REQUEST_ID_HEADER) or str(uuid.uuid4())
+        request_id = correlation_id(request.headers.get(REQUEST_ID_HEADER))
         token = request_id_ctx.set(request_id)
         request.state.request_id = request_id
+        started = time.perf_counter()
+        status_code = 500
         try:
             response = await call_next(request)
+            status_code = response.status_code
+            response.headers[REQUEST_ID_HEADER] = request_id
+            return response
         finally:
+            logger.info(
+                "http_request",
+                extra={
+                    "http_method": request.method,
+                    "http_path": request.url.path,
+                    "status_code": status_code,
+                    "duration_ms": round((time.perf_counter() - started) * 1_000, 3),
+                },
+            )
             request_id_ctx.reset(token)
-        response.headers[REQUEST_ID_HEADER] = request_id
-        return response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

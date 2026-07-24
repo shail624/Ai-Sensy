@@ -16,7 +16,7 @@
 | **Async everywhere** | Async SQLAlchemy 2.0, async httpx, async endpoints. No blocking calls in the request path. |
 | **Type-safe** | Pydantic v2 schemas at the edges; SQLAlchemy 2.0 typed `Mapped[]` models; mypy-friendly. |
 | **Secure by default** | Argon2id password hashing, JWT access/refresh split, RBAC on every protected route, no secrets in code. |
-| **Observable** | Structured JSON logging, request-id correlation, health endpoints. |
+| **Observable** | Redacted structured JSON logging, bounded request-id correlation across nginx/API, and dependency-aware health endpoints. |
 | **Tested** | Unit tests for pure logic, integration tests for the full API against a real (SQLite) database. |
 
 ---

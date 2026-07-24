@@ -11,6 +11,26 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Module 11 defensive observability contracts
+
+**Added**
+- Added canonical structured `http_request` events with request-id, method, path, status, and
+  duration fields. Safe bounded client correlation ids are preserved across nginx and the API;
+  unsafe values are replaced.
+- Added formatter-boundary redaction for sensitive fields and recognizable credentials, email
+  addresses, and international phone numbers in both JSON and text logs. ADR-0007 records the
+  repository-versus-environment observability boundary.
+- Extended the isolated deployed gate to prove edge and API runtime logs share correlation ids,
+  contain none of its synthetic secret/PII values, and report Redis down with a 503 from `/ready`
+  after that dependency is stopped.
+
+**Changed**
+- Disabled the duplicate uncorrelated Uvicorn access record; application middleware is now the
+  canonical API access logger. The release contract also syntax-checks the actual mounted edge
+  configuration with the digest-pinned production nginx image.
+- API routes, response contracts, permissions, tenant scope, business behavior, and schema are
+  unchanged.
+
 ### 2026-07-25 — Module 11 deployed-stack E2E and performance canary
 
 **Added**

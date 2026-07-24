@@ -224,6 +224,51 @@ def test_render_compose_does_not_echo_synthetic_secrets(monkeypatch: pytest.Monk
     assert captured["capture_output"] is True
 
 
+def test_edge_configuration_uses_the_rendered_pinned_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[tuple[str, ...]] = []
+
+    def fake_run(argv, **kwargs):
+        captured.append(tuple(argv))
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(release_contract.subprocess, "run", fake_run)
+    model = _valid_model()
+
+    assert release_contract.validate_edge_configuration("docker", model) is None
+    assert captured[0][0:5] == ("docker", "run", "--rm", "--network", "none")
+    assert captured[0][-2:] == ("example/service:1@sha256:abc", "-t")
+
+
+def test_runtime_log_contract_requires_correlation_and_rejects_leaks() -> None:
+    event = {
+        "message": "http_request",
+        "request_id": "request-123",
+        "http_method": "GET",
+        "http_path": "/health",
+        "status_code": 200,
+        "duration_ms": 1.2,
+    }
+    raw = f"api-1 | {json.dumps(event)}"
+    edge = 'nginx-1 | 127.0.0.1 - - [date] "GET /health HTTP/1.1" 200 1 rid=request-123'
+
+    evidence = deployed_stack_gate.validate_runtime_logs(
+        raw, edge, forbidden_values=["safe-secret"]
+    )
+
+    assert evidence["http_request_events"] == 1
+    assert evidence["shared_request_ids"] == 1
+    with pytest.raises(RuntimeError, match="synthetic secret/PII"):
+        deployed_stack_gate.validate_runtime_logs(
+            raw + "\napi-1 | safe-secret", edge, forbidden_values=["safe-secret"]
+        )
+    with pytest.raises(RuntimeError, match="shared request id"):
+        deployed_stack_gate.validate_runtime_logs(
+            raw, edge.replace("request-123", "request-456"), forbidden_values=[]
+        )
+
+
 def test_performance_canary_uses_auditable_nearest_rank() -> None:
     assert performance_canary.percentile([30.0, 10.0, 20.0, 40.0], 0.50) == 20.0
     assert performance_canary.percentile([30.0, 10.0, 20.0, 40.0], 0.95) == 40.0

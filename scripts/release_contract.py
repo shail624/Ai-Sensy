@@ -166,15 +166,50 @@ def validate_contract(
     return problems
 
 
+def validate_edge_configuration(docker: str, model: dict[str, Any]) -> str | None:
+    services = model.get("services")
+    nginx = services.get("nginx", {}) if isinstance(services, dict) else {}
+    image = nginx.get("image") if isinstance(nginx, dict) else None
+    if not isinstance(image, str):
+        return "rendered nginx service has no image"
+    result = subprocess.run(
+        (
+            docker,
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--volume",
+            f"{(ROOT / 'deploy' / 'nginx' / 'nginx.conf').resolve()}:/etc/nginx/nginx.conf:ro",
+            "--entrypoint",
+            "nginx",
+            image,
+            "-t",
+        ),
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        return result.stderr.strip() or "nginx rejected the edge configuration"
+    return None
+
+
 def main() -> int:
     compose_text = PRODUCTION_COMPOSE.read_text(encoding="utf-8")
     env_example_text = PRODUCTION_ENV_EXAMPLE.read_text(encoding="utf-8")
     try:
-        model = render_compose(resolve_docker(), compose_text)
+        docker = resolve_docker()
+        model = render_compose(docker, compose_text)
     except (OSError, RuntimeError, json.JSONDecodeError) as exc:
         print(f"release contract could not be rendered: {exc}", file=sys.stderr)
         return 2
     problems = validate_contract(model, compose_text, env_example_text)
+    if not problems:
+        edge_problem = validate_edge_configuration(docker, model)
+        if edge_problem:
+            problems.append(f"edge nginx configuration is invalid: {edge_problem}")
     if problems:
         print("release contract failed:", file=sys.stderr)
         for problem in problems:
