@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task, run_async
+from app.queue.base_task import TrackedTask, register_task, run_async
 from app.queue.registry import ANALYTICS_ROLLUP, EXPORTS
 from app.services.analytics_rollup_service import AnalyticsRollupService
 
@@ -79,7 +79,7 @@ async def _prune() -> int:
 
 
 @register_task(queue=ANALYTICS_ROLLUP, name="app.analytics.tasks.rollup_incremental")
-def rollup_incremental(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def rollup_incremental(self: TrackedTask) -> dict[str, Any]:
     """Recompute the trailing 6 closed hours for every organization (Doc 15 §8.1/§8.2).
 
     Recomputing a *window* rather than only the newest bucket is what absorbs late data: a delivery
@@ -95,7 +95,7 @@ def rollup_incremental(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
 
 
 @register_task(queue=ANALYTICS_ROLLUP, name="app.analytics.tasks.rollup_nightly")
-def rollup_nightly(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def rollup_nightly(self: TrackedTask) -> dict[str, Any]:
     """Recompute the trailing 48 h, then fold hours into daily rows (Doc 15 §8.1, §21.4).
 
     The wider window catches anything later than the incremental pass absorbs — a webhook backlog
@@ -112,8 +112,8 @@ def rollup_nightly(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
 
 
 @register_task(queue=ANALYTICS_ROLLUP, name="app.analytics.tasks.rollup_backfill")
-def rollup_backfill(  # noqa: ANN001 - Celery bind
-    self,
+def rollup_backfill(
+    self: TrackedTask,
     start: str,
     end: str,
     organization_id: int | None = None,
@@ -132,7 +132,7 @@ def rollup_backfill(  # noqa: ANN001 - Celery bind
 
 
 @register_task(queue=ANALYTICS_ROLLUP, name="app.analytics.tasks.rollup_prune")
-def rollup_prune(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def rollup_prune(self: TrackedTask) -> dict[str, Any]:
     """Drop rollup rows past retention: 90 days hourly, ~26 months daily (Doc 15 §21.3).
 
     Intended cadence: **daily at 03:00 UTC**, configured in the deployment's beat schedule.
@@ -153,7 +153,7 @@ async def _run_report_export(export_id: str) -> dict[str, Any]:
 
 
 @register_task(queue=EXPORTS, name="app.analytics.tasks.run_report_export")
-def run_report_export(self, export_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_report_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
     """Generate an analytics report export (Doc 15 §19).
 
     Bound to the frozen ``exports`` queue and executed by the same ``ExportService.run`` that

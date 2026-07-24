@@ -13,6 +13,7 @@ and belongs to the Messaging module.)
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import CHAR, JSON, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -53,8 +54,8 @@ class JobMetadata(IntPKMixin, UUIDMixin, Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=JOB_QUEUED)
     ref_type: Mapped[str | None] = mapped_column(String(24), nullable=True)
     ref_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
-    args_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    result_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    args_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error_detail: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     attempts: Mapped[int] = mapped_column(small_uint(), nullable=False, default=0)
     started_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
@@ -83,7 +84,7 @@ class DeadLetter(IntPKMixin, UUIDMixin, Base):
     source_queue: Mapped[str] = mapped_column(String(60), nullable=False)
     task_name: Mapped[str] = mapped_column(String(160), nullable=False)
     task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    payload_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     stack_trace: Mapped[str | None] = mapped_column(String(4096), nullable=True)

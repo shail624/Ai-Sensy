@@ -10,6 +10,7 @@ volume, so it keeps a real foreign key to ``tasks`` (CASCADE). Immutable: create
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -54,8 +55,8 @@ class TaskEvent(IntPKMixin, Base):
     #: Who acted; nullable for system-generated events.
     actor_user_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     #: Prior / new values of the changed field(s), for a readable diff.
-    from_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    to_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    from_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    to_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
 

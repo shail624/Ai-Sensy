@@ -10,6 +10,7 @@ migration, Doc 03 §11.2); the ORM maps the surrogate ``id`` as the identity key
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import CHAR, JSON, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -43,9 +44,9 @@ class AuditLog(Base):
     entity_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     entity_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     ip_address: Mapped[bytes | None] = mapped_column(packed_ip(), nullable=True)
-    before_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    after_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    before_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    after_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     prev_hash: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
     row_hash: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)

@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task, run_async
+from app.queue.base_task import TrackedTask, register_task, run_async
 from app.queue.registry import CAMPAIGNS_CONTROL, SCHEDULER_TICK, SENDS_BULK, SENDS_RETRY
 from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_retry_service import CampaignRetryService
@@ -38,7 +38,7 @@ async def _send(recipient_pk: int) -> dict[str, Any]:
 
 
 @register_task(queue=CAMPAIGNS_CONTROL, name="app.crm.campaign_tasks.dispatch_campaign")
-def dispatch_campaign(self, campaign_pk: int) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def dispatch_campaign(self: TrackedTask, campaign_pk: int) -> dict[str, Any]:
     """Batch the roster and fan the batches out (FR-CAM-05/09).
 
     Idempotent by re-derivation (Doc 06 §2.3): a redelivered task — or a restart mid-campaign —
@@ -56,7 +56,7 @@ def dispatch_campaign(self, campaign_pk: int) -> dict[str, Any]:  # noqa: ANN001
 
 
 @register_task(queue=CAMPAIGNS_CONTROL, name="app.crm.campaign_tasks.dispatch_campaign_batch")
-def dispatch_campaign_batch(self, batch_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def dispatch_campaign_batch(self: TrackedTask, batch_pk: int) -> dict[str, Any]:
     """Enqueue one send per recipient the batch still owes (FR-CAM-05)."""
     try:
         result = run_async(_fan_out(batch_pk))
@@ -70,7 +70,7 @@ def dispatch_campaign_batch(self, batch_pk: int) -> dict[str, Any]:  # noqa: ANN
 
 
 @register_task(queue=SENDS_BULK, name="app.crm.campaign_tasks.send_campaign_recipient")
-def send_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def send_campaign_recipient(self: TrackedTask, recipient_pk: int) -> dict[str, Any]:
     """Send one campaign message through SendService (FR-CAM-05/10).
 
     Everything a send owes — the rate gate, the ledger, the conversation, the 24-hour rules — comes
@@ -91,7 +91,7 @@ async def _tick() -> dict[str, Any]:
 
 
 @register_task(queue=SCHEDULER_TICK, name="app.crm.campaign_tasks.scheduler_tick")
-def scheduler_tick(self) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def scheduler_tick(self: TrackedTask) -> dict[str, Any]:
     """Fire every campaign schedule that has come due (FR-CAM-03/04; Doc 06 §10.2).
 
     Beat's heartbeat, not Beat's schedule: the cadence is fixed, the schedules live in the database
@@ -126,7 +126,7 @@ RETRY_SCAN_LIMIT = 500
 
 
 @register_task(queue=SENDS_RETRY, name="app.crm.campaign_tasks.scan_campaign_retries")
-def scan_campaign_retries(self) -> dict[str, Any]:  # noqa: ANN001
+def scan_campaign_retries(self: TrackedTask) -> dict[str, Any]:
     """Hand every due re-attempt back to the send lane (FR-CAM-08; Doc 03 §8.4's scanner).
 
     The durable half of smart retry: the backoff was computed by the retry engine and stored on the
@@ -144,7 +144,7 @@ def scan_campaign_retries(self) -> dict[str, Any]:  # noqa: ANN001
 
 
 @register_task(queue=SENDS_RETRY, name="app.crm.campaign_tasks.retry_campaign_recipient")
-def retry_campaign_recipient(self, recipient_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def retry_campaign_recipient(self: TrackedTask, recipient_pk: int) -> dict[str, Any]:
     """Re-attempt one recipient (FR-CAM-08).
 
     The same send path as a first attempt — it has to be, or a retry would skip the rate gate, the

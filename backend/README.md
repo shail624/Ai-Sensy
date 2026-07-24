@@ -48,10 +48,25 @@ API docs at http://localhost:8000/docs · liveness at http://localhost:8000/heal
 ## Checks
 
 ```bash
-pytest                  # hermetic suite (SQLite; no MySQL or Redis needed)
-ruff check app tests    # lint
-mypy app                # types
+pytest                          # hermetic suite (SQLite; no MySQL or Redis needed)
+ruff check app tests scripts    # lint
+python scripts/check_mypy.py    # strict-mypy ratchet (no new/increased findings)
+mypy app                        # strict clean-state target
 ```
+
+The ratchet baseline is the checked-in `mypy-baseline.json`. It stores deterministic allowances by
+normalized source path and error code, plus the exact mypy version used to produce them. The normal
+gate requires an exact match: increases fail as regressions, and decreases fail as a stale baseline
+until the reviewed allowance is explicitly lowered. A same-version write cannot increase any
+allowance:
+
+```bash
+python scripts/check_mypy.py --write-baseline
+```
+
+A reviewed checker upgrade is the only exceptional replacement path and requires the additional
+`--allow-version-change` flag. Counts deliberately avoid line-number churn; review remains necessary
+because one same-code diagnostic in a file could otherwise replace another within the same allowance.
 
 ## Operational entry points
 

@@ -18,6 +18,7 @@ range partitioning requires (applied in the migration); the ORM maps the surroga
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -63,7 +64,7 @@ class WebhookEvent(IntPKMixin, Base):
     object_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     #: Always true for stored rows: an unverified body is rejected and never reaches this table.
     signature_ok: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=WH_RECEIVED)
     processed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     attempts: Mapped[int] = mapped_column(small_uint(), nullable=False, default=0)
@@ -90,7 +91,7 @@ class WebhookDeadLetter(IntPKMixin, UUIDMixin, Base):
     source_event_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     #: Copied, not referenced: the source row ages out on its own retention (90 days vs 180,
     #: Doc 04 §23.1), and a dead letter without its payload could not be replayed.
-    payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     error_detail: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     attempts: Mapped[int] = mapped_column(small_uint(), nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=WHDL_PENDING)

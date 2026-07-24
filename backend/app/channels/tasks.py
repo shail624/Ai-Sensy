@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task, run_async
+from app.queue.base_task import TrackedTask, register_task, run_async
 from app.queue.registry import (
     INBOUND_PROCESS,
     MEDIA,
@@ -35,7 +35,7 @@ async def _run_sync(waba_id: str) -> dict[str, Any]:
 
 
 @register_task(queue=TEMPLATES_SYNC, name="app.channels.tasks.run_waba_sync")
-def run_waba_sync(self, waba_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_waba_sync(self: TrackedTask, waba_id: str) -> dict[str, Any]:
     """Reconcile a WABA's phone numbers with Meta (Doc 04 §13.2).
 
     Templates ride the same lane but their own job (`run_template_sync`, Doc 04 §15): they have a
@@ -50,7 +50,7 @@ def run_waba_sync(self, waba_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celer
 
 # --- Inbound webhooks (Doc 06 §11.2) ----------------------------------------
 @register_task(queue=WEBHOOKS_INGEST, name="app.channels.tasks.ingest_webhook_events")
-def ingest_webhook_events(self, event_ids: list[int]) -> dict[str, Any]:  # noqa: ANN001
+def ingest_webhook_events(self: TrackedTask, event_ids: list[int]) -> dict[str, Any]:
     """Fan a persisted delivery out into one processing task per event (Doc 06 §2.3).
 
     Kept separate from processing so the ack path enqueues exactly one message however many events
@@ -84,7 +84,7 @@ async def _download_media(message_pk: int) -> dict[str, Any]:
 
 
 @register_task(queue=MEDIA, name="app.channels.tasks.download_inbound_media")
-def download_inbound_media(self, message_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def download_inbound_media(self: TrackedTask, message_pk: int) -> dict[str, Any]:
     """Fetch an inbound message's attachment and link it (FR-WA-11; Doc 07 §17.2).
 
     Standard parking applies: the `media` queue's failure destination is the DLQ (Doc 06 §2.3), and
@@ -105,7 +105,7 @@ async def _dead_letter(event_pk: int, error: str) -> dict[str, Any]:
 
 
 @register_task(queue=WEBHOOKS_PROCESS, name="app.channels.tasks.process_webhook_event")
-def process_webhook_event(self, event_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def process_webhook_event(self: TrackedTask, event_pk: int) -> dict[str, Any]:
     """Apply one persisted webhook event, idempotently (FR-WA-07).
 
     Exhausted retries park in ``webhook_dead_letter`` rather than the generic ``dead_letter``
@@ -128,7 +128,7 @@ async def _run_template_sync(waba_ids: list[str]) -> dict[str, Any]:
 
 
 @register_task(queue=TEMPLATES_SYNC, name="app.channels.tasks.run_template_sync")
-def run_template_sync(self, waba_ids: list[str]) -> dict[str, Any]:  # noqa: ANN001
+def run_template_sync(self: TrackedTask, waba_ids: list[str]) -> dict[str, Any]:
     """Reconcile templates + approval state with Meta (FR-TPL-01/03; Doc 04 §15)."""
     try:
         return run_async(_run_template_sync(waba_ids))
@@ -149,7 +149,7 @@ async def _fail_send(message_pk: int, error: str, code: str | None) -> dict[str,
 
 
 @register_task(queue=SENDS_PRIORITY, name="app.channels.tasks.send_message")
-def send_message(self, message_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def send_message(self: TrackedTask, message_pk: int) -> dict[str, Any]:
     """Deliver an accepted message to the channel (FR-WA-10).
 
     A terminal failure is recorded **on the message** rather than parked as a task: `failed` plus
@@ -169,7 +169,7 @@ def send_message(self, message_pk: int) -> dict[str, Any]:  # noqa: ANN001
 
 
 @register_task(queue=INBOUND_PROCESS, name="app.channels.tasks.process_inbound_message")
-def process_inbound_message(self, event_pk: int) -> dict[str, Any]:  # noqa: ANN001
+def process_inbound_message(self: TrackedTask, event_pk: int) -> dict[str, Any]:
     """Apply a routed inbound message: contact, thread, window, ledger (Doc 06 §2.3).
 
     Parks in ``webhook_dead_letter`` for the same reason ``process_webhook_event`` does: this lane

@@ -6,6 +6,8 @@ multi-workspace split needs no redesign (Doc 01 §2.1 / NFR-EXT). Owns users and
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import JSON, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,7 +28,7 @@ class Organization(
     slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
     default_locale: Mapped[str] = mapped_column(String(10), nullable=False, default="en")
-    settings_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    settings_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid

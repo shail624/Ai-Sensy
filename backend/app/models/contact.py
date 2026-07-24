@@ -9,6 +9,7 @@ are separate sub-resources added in later steps; this model is the core contact 
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import CHAR, JSON, Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -81,7 +82,7 @@ class Contact(
     last_outbound_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     last_contacted_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     source: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    attributes_cache: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    attributes_cache: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Eager-loaded so a fetched/listed contact always carries its tags (Doc 04 §14 schema);
     # selectin issues one extra query per page, avoiding N+1. Writes go through contact_tags.

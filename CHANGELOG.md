@@ -11,6 +11,25 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Module 11 strict-mypy ratchet
+
+**Added**
+- Added a deterministic strict-mypy ratchet (`backend/scripts/check_mypy.py`) with a versioned
+  baseline and focused tests. New or increased path/error-code allowances fail; reductions mark the
+  baseline stale until it is explicitly lowered, and same-version writes cannot raise allowances.
+- Added ADR-0004 to record the transitional baseline policy, exact checker-version requirement,
+  and removal condition once raw strict mypy is clean.
+
+**Changed**
+- Pinned the development checker to mypy 2.3.0 while leaving the repository's strict mypy settings
+  unchanged. The backend README now documents both the enforced ratchet and the raw-debt audit.
+- Reduced strict findings from 251 across 67 files to 120 across 45 files by typing the existing
+  Celery/async task boundary and SQLAlchemy model metadata/JSON containers. Runtime behavior,
+  queues, retries, database schema, API routes, permissions, and contracts are unchanged.
+- Remaining repository/service findings are retained as explicit Module 11 debt behind the ratchet,
+  not suppressed or globally disabled. Count granularity avoids line churn; review remains the
+  backstop for a same-code replacement within one file.
+
 ### 2026-07-25 — Excel import inspection (FR-CON-04)
 
 **Added**

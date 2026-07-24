@@ -15,6 +15,7 @@ what a message was sent against remains readable after the template moves on.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -92,7 +93,7 @@ class MessageTemplate(
     rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     quality_score: Mapped[str | None] = mapped_column(String(16), nullable=True)
     #: The whole definition: header/body/footer/buttons (Doc 04 §15's shape).
-    components_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    components_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
     #: Derived from the placeholders, so a send can be checked without re-parsing the definition.
     variable_count: Mapped[int] = mapped_column(small_uint(), nullable=False, default=0)
     has_media_header: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -125,7 +126,7 @@ class TemplateVersion(IntPKMixin, Base):
         nullable=False,
     )
     version_no: Mapped[int] = mapped_column(int_id(), nullable=False)
-    components_json: Mapped[list] = mapped_column(JSON, nullable=False)
+    components_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
     category: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)

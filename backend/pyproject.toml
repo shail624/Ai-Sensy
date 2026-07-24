@@ -36,7 +36,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5.0",
     "ruff>=0.6",
-    "mypy>=1.11",
+    # The checked-in finding ratchet is intentionally checker-version-specific. Upgrade mypy and
+    # regenerate the reviewed baseline together; never let a fresh dev install reinterpret it.
+    "mypy==2.3.0",
 ]
 
 [build-system]

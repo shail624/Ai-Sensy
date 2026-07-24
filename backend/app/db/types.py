@@ -13,6 +13,9 @@ instance (SQLAlchemy requires per-column type instances, not shared singletons).
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import TypedDict
+
 from sqlalchemy import BigInteger, DateTime, Integer, LargeBinary
 from sqlalchemy.dialects import mysql
 from sqlalchemy.types import TypeEngine
@@ -57,7 +60,7 @@ def small_uint() -> TypeEngine[int]:
     return Integer().with_variant(mysql.SMALLINT(unsigned=True), "mysql")
 
 
-def datetime6() -> TypeEngine[object]:
+def datetime6() -> TypeEngine[datetime]:
     """UTC microsecond timestamp — ``DATETIME(6)`` on MySQL, ``DATETIME`` on SQLite (Doc 03 §1.3).
 
     ``timezone=True`` keeps values timezone-aware in Python; storage is UTC-naive on the
@@ -66,8 +69,16 @@ def datetime6() -> TypeEngine[object]:
     return DateTime(timezone=True).with_variant(mysql.DATETIME(fsp=6), "mysql")
 
 
+class _MySQLTableArgs(TypedDict):
+    """The MySQL-specific keyword arguments accepted by ``Table``."""
+
+    mysql_engine: str
+    mysql_charset: str
+    mysql_collate: str
+
+
 # InnoDB + utf8mb4 table options (Doc 03 §1.1); ignored by SQLite.
-MYSQL_TABLE_ARGS: dict[str, str] = {
+MYSQL_TABLE_ARGS: _MySQLTableArgs = {
     "mysql_engine": "InnoDB",
     "mysql_charset": "utf8mb4",
     "mysql_collate": "utf8mb4_0900_ai_ci",

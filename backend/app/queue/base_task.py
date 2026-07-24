@@ -11,10 +11,30 @@ from __future__ import annotations
 
 import asyncio
 import traceback
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, Protocol, TypeVar, cast
 
-from celery import Task
+if TYPE_CHECKING:
+
+    class _TaskRequest(Protocol):
+        retries: int
+
+    class _CeleryTask:
+        """Typed view of Celery's untyped ``Task`` base used by this module."""
+
+        name: str
+        request: _TaskRequest
+
+        def retry(
+            self,
+            *,
+            exc: BaseException,
+            countdown: float,
+            max_retries: int | None,
+        ) -> BaseException: ...
+
+else:
+    from celery import Task as _CeleryTask
 
 from app.core.logging import get_logger, request_id_ctx
 from app.core.redis import close_redis
@@ -26,8 +46,30 @@ from app.services.job_service import DeadLetterService, JobService
 
 logger = get_logger(__name__)
 
+P = ParamSpec("P")
+R_co = TypeVar("R_co", covariant=True)
 
-def run_async(coro):
+
+class RegisteredTask(Protocol[P, R_co]):
+    """The typed Celery surface domain modules use after task registration."""
+
+    name: str
+    queue_name: str
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
+
+    def run(self, *args: P.args, **kwargs: P.kwargs) -> R_co: ...
+
+    def apply_async(
+        self,
+        args: Sequence[Any] | None = None,
+        kwargs: Mapping[str, Any] | None = None,
+        task_id: str | None = None,
+        **options: Any,
+    ) -> object: ...
+
+
+def run_async[T](coro: Awaitable[T]) -> T:
     """Run an async unit of work from Celery's synchronous worker context.
 
     **Disposes the engine and Redis client before the loop closes.** Both are cached per running
@@ -40,7 +82,7 @@ def run_async(coro):
     deterministically, trading one connect per task for a bounded pool.
     """
 
-    async def _scoped():
+    async def _scoped() -> T:
         try:
             return await coro
         finally:
@@ -67,8 +109,16 @@ async def _record_finished(task_id: str, *, status: str, error: str | None = Non
 
 
 async def _park(
-    *, queue: str, task_name: str, task_id: str | None, payload: dict[str, Any] | None,
-    error_class: str, error_detail: str, stack: str, attempts: int, request_id: str | None,
+    *,
+    queue: str,
+    task_name: str,
+    task_id: str | None,
+    payload: dict[str, Any] | None,
+    error_class: str,
+    error_detail: str,
+    stack: str,
+    attempts: int,
+    request_id: str | None,
 ) -> None:
     async with get_sessionmaker()() as session:
         await DeadLetterService(session).park(
@@ -85,19 +135,32 @@ async def _park(
         await session.commit()
 
 
-class TrackedTask(Task):
+class TrackedTask(_CeleryTask):
     """Celery base task with job tracking, smart retry and DLQ parking (Doc 06 §3.4/§6/§7)."""
 
     #: Queue this task is bound to (drives timeouts/retry caps/failure destination).
     queue_name: str = DEFAULT
 
-    def before_start(self, task_id: str, args, kwargs) -> None:  # noqa: D102 - Celery hook
+    def before_start(self, task_id: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:  # noqa: D102 - Celery hook
         _run(_record_started(task_id))
 
-    def on_success(self, retval, task_id: str, args, kwargs) -> None:  # noqa: D102
+    def on_success(
+        self,
+        retval: Any,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:  # noqa: D102
         _run(_record_finished(task_id, status="success"))
 
-    def on_failure(self, exc, task_id: str, args, kwargs, einfo) -> None:  # noqa: D102
+    def on_failure(
+        self,
+        exc: BaseException,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        einfo: object | None,
+    ) -> None:  # noqa: D102
         """Terminal failure: record it and park the work if the queue's dest is the DLQ."""
         spec = get_queue(self.queue_name)
         failure_class = classify(exc)
@@ -126,7 +189,14 @@ class TrackedTask(Task):
                 extra={"task": self.name, "queue": self.queue_name, "dest": destination},
             )
 
-    def on_retry(self, exc, task_id: str, args, kwargs, einfo) -> None:  # noqa: D102
+    def on_retry(
+        self,
+        exc: BaseException,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        einfo: object | None,
+    ) -> None:  # noqa: D102
         _run(_record_finished(task_id, status="retry", error=f"{type(exc).__name__}: {exc}"))
 
     def smart_retry(self, exc: BaseException) -> None:
@@ -149,22 +219,32 @@ class TrackedTask(Task):
         raise self.retry(exc=exc, countdown=countdown, max_retries=None)
 
 
-def register_task(*, queue: str, name: str | None = None, **options) -> Callable:
+def register_task(
+    *, queue: str, name: str | None = None, **options: Any
+) -> Callable[
+    [Callable[Concatenate[TrackedTask, P], R_co]],
+    RegisteredTask[P, R_co],
+]:
     """Declare a task on a registry queue; timeouts/retries come from its spec (Doc 06 §2.3)."""
     spec = get_queue(queue)
     if spec is None:
         raise ValueError(f"unknown queue {queue!r}; add it to the registry (Doc 06 §2.3)")
 
-    def decorator(fn: Callable) -> Any:
-        task = celery_app.task(
-            base=TrackedTask,
-            bind=True,
-            name=name or f"{fn.__module__}.{fn.__qualname__}",
-            queue=spec.name,
-            max_retries=spec.max_attempts,
-            **apply_queue_timeouts(name or fn.__name__, spec.name),
-            **options,
-        )(fn)
+    def decorator(
+        fn: Callable[Concatenate[TrackedTask, P], R_co],
+    ) -> RegisteredTask[P, R_co]:
+        task = cast(
+            RegisteredTask[P, R_co],
+            celery_app.task(
+                base=TrackedTask,
+                bind=True,
+                name=name or f"{fn.__module__}.{fn.__qualname__}",
+                queue=spec.name,
+                max_retries=spec.max_attempts,
+                **apply_queue_timeouts(name or fn.__name__, spec.name),
+                **options,
+            )(fn),
+        )
         task.queue_name = spec.name
         return task
 

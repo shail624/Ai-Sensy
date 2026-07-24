@@ -10,6 +10,7 @@ artifact and its expiry (FR-CON-15). Each links to its Celery job via
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -76,7 +77,7 @@ class ImportJob(IntPKMixin, UUIDMixin, Base):
     format: Mapped[str] = mapped_column(String(8), nullable=False)
     #: Storage key of the uploaded source file (never the bytes — Doc 08 §14).
     source_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    mapping_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    mapping_json: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     dedup_strategy: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=STATUS_PENDING)
     total_rows: Mapped[int | None] = mapped_column(big_id(), nullable=True)
@@ -114,7 +115,7 @@ class ExportJob(IntPKMixin, UUIDMixin, Base):
     entity: Mapped[str] = mapped_column(String(40), nullable=False, default="contacts")
     format: Mapped[str] = mapped_column(String(8), nullable=False)
     #: The filter set the export was resolved from (Doc 03 §11.6).
-    filters_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    filters_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=STATUS_PENDING)
     row_count: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -160,7 +161,7 @@ class BulkJob(IntPKMixin, UUIDMixin, Base):
     #: ``bulk_update`` only: which edit to apply (``add_tags``/``remove_tags``/``set_attributes``).
     action: Mapped[str | None] = mapped_column(String(32), nullable=True)
     #: The validated request: addressing (ids or filter) + action payload (Doc 04 §30).
-    request_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    request_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=STATUS_PENDING)
     total_items: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     processed_items: Mapped[int] = mapped_column(big_id(), nullable=False, default=0)
@@ -168,7 +169,7 @@ class BulkJob(IntPKMixin, UUIDMixin, Base):
     failed_items: Mapped[int] = mapped_column(big_id(), nullable=False, default=0)
     skipped_items: Mapped[int] = mapped_column(big_id(), nullable=False, default=0)
     #: First ``ERROR_CAP`` per-item failures, inline for the UI (§29); the rest are in the report.
-    errors_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    errors_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     error_report_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)

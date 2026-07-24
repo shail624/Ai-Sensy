@@ -60,6 +60,7 @@ Single-tenant, self-hosted, not SaaS.
 ## Tests
 
 - Backend (hermetic; SQLite, no external services): `cd backend && pytest`
+- Backend lint and type gate: `cd backend && ruff check app tests scripts && python scripts/check_mypy.py`
 - Frontend: `cd frontend && npm test`
 
 ## Production deployment
@@ -76,9 +77,9 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 ## Implementation status
 
 `v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
-deployment topology, and the frontend application across the principal product areas. Post-RC1
-work is focused on frontend CRM completion and deployment hardening; the current unreleased
-milestone adds Excel contact-import inspection and `.xlsx` support to the existing import wizard.
+deployment topology, and the frontend application across the principal product areas. FR-CON-04
+Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
+is Module 11 hardening: a strict-mypy debt ratchet and runtime-neutral foundational typing seams.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.

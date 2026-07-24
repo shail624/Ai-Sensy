@@ -3,22 +3,24 @@
 > Single source of truth for project state. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-07-25 · reconstructed from Git, frozen designs, generated contracts, and
-executable quality gates._
+_Last updated: 2026-07-25 · verified from Git, frozen designs, generated contracts, and executable
+quality gates._
 
 ## Current state
 
 - **Branch:** `feature/module6-queue-engine`
-- **Release baseline:** `v1.0.0-rc1`; current work is post-RC1 CRM/frontend hardening
+- **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
+  `baseline/fr-con-04-release-ready` at `b565d0f`
 - **Migration head:** `0027_analytics` (27 linear revisions, base `0001`)
 - **OpenAPI:** 3.1.0 · 133 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 878 tests passed · 18 focused import tests passed · Ruff clean
+- **Backend:** 886 tests passed · Ruff clean · strict-mypy ratchet clean at 120 findings
+  (down from 251; exact checker mypy 2.3.0)
 - **Frontend:** 581 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 133-path contract; frontend nginx validates. The full production
   stack was first built and executed on 2026-07-23.
-- **Current phase:** post-RC1 CRM/frontend completion and deployment hardening
-- **Current milestone:** FR-CON-04 Excel contact import — **RELEASE READY**
+- **Current phase:** Module 11 — Hardening & Deployment (M-F Enterprise)
+- **Current milestone:** strict-mypy ratchet and foundational typing seams — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -33,6 +35,7 @@ executable quality gates._
 | Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
+| Module 11 hardening | Deterministic strict-mypy ratchet, ADR-0004, typed Celery/async boundary, and typed SQLAlchemy metadata/JSON containers |
 
 ## FR-CON-04 release-ready scope
 
@@ -47,14 +50,16 @@ executable quality gates._
 
 ## Remaining deliverables
 
-No implementation remains in the current FR-CON-04 milestone. The next product milestone requires
-owner prioritization; do not infer it from the historical branch name.
+No implementation remains in the current strict-mypy ratchet milestone. Module 11 continues with
+the 120 existing strict findings across 45 files, concentrated in repository/service boundaries.
+The next recommended task is a focused repository/service typing increment that lowers the checked-in
+baseline without changing runtime guards, APIs, permissions, business logic, or contracts. The AI
+assistant module remains intentionally deferred beyond RC1 and is not inferred as the next task.
 
 ## Known technical debt
 
-- Backend strict mypy is configured but has no clean baseline: 251 existing errors across 67 files.
-  The FR-CON-04 service and schemas add no mypy errors. Establishing a ratcheted baseline is the
-  recommended next engineering task.
+- Backend strict mypy retains 120 existing findings across 45 files. ADR-0004 and the checked-in
+  ratchet prevent new or increased debt; repository/service boundary cleanup remains.
 - The production frontend build warns about a 567 kB main chunk; analytics is already lazy-loaded,
   but further route-level splitting remains a performance improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
@@ -72,6 +77,8 @@ FKs · frontend API types are generated only, never hand-written.
 ## Notes for the next session
 
 - Run backend commands from `backend/` via `.venv/Scripts/python.exe` so pytest loads `pyproject.toml`.
+- Run the blocking local type gate with `python scripts/check_mypy.py`; use raw `mypy app` only to
+  audit the remaining debt. Baseline lowering is explicit and mandatory for every reviewed reduction.
 - `alembic check` requires live MySQL; migration integrity is covered by `tests/test_migrations.py`.
 - Regenerate the contract with `python scripts/export_openapi.py` from `backend/`, then
   `npm run gen:api` from `frontend/`. Use `python scripts/export_openapi.py --check` as the drift gate.

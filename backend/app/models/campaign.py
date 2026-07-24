@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     CHAR,
@@ -163,9 +164,9 @@ class Campaign(
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=CAMPAIGN_DRAFT)
     audience_type: Mapped[str] = mapped_column(String(16), nullable=False)
     #: Which segment/tag/list the audience came from — the question, not the answer.
-    audience_ref_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    audience_ref_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     #: Template variable → contact field/attribute (FR-CAM-01's variable mapping).
-    variable_map_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    variable_map_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     #: Denormalized counters (Doc 03 §8.1) — O(1) dashboard reads over a 100M+ roster.
     total_recipients: Mapped[int] = mapped_column(int_id(), nullable=False, default=0)
     queued_count: Mapped[int] = mapped_column(int_id(), nullable=False, default=0)
@@ -266,7 +267,7 @@ class CampaignRecipient(IntPKMixin, Base):
     wamid: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=RECIPIENT_PENDING)
     #: The variables this contact's message will carry, resolved when the roster is materialized.
-    variables_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    variables_json: Mapped[dict[str, list[str]] | None] = mapped_column(JSON, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(String(512), nullable=True)
     retry_count: Mapped[int] = mapped_column(small_uint(), nullable=False, default=0)

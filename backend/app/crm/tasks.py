@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.db.session import get_sessionmaker
-from app.queue.base_task import register_task, run_async
+from app.queue.base_task import TrackedTask, register_task, run_async
 from app.queue.registry import EXPORTS, IMPORTS
 from app.services.bulk_service import BulkService
 from app.services.export_service import ExportService
@@ -31,7 +31,7 @@ async def _run_import(import_id: str) -> dict[str, Any]:
 
 
 @register_task(queue=IMPORTS, name="app.crm.tasks.run_contact_import")
-def run_contact_import(self, import_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_contact_import(self: TrackedTask, import_id: str) -> dict[str, Any]:
     """Execute a contact import. Retries are classified/backed off by the queue framework."""
     try:
         return run_async(_run_import(import_id))
@@ -47,7 +47,7 @@ async def _run_export(export_id: str) -> dict[str, Any]:
 
 
 @register_task(queue=EXPORTS, name="app.crm.tasks.run_contact_export")
-def run_contact_export(self, export_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_contact_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
     """Generate a contact export. Retries are classified/backed off by the queue framework."""
     try:
         return run_async(_run_export(export_id))
@@ -75,7 +75,7 @@ async def _run_bulk(bulk_id: str) -> dict[str, Any]:
 # "validate, dedup, upsert" work, and Doc 12 §56 gives M3 no other write queue. Separate task
 # names keep the three operations independently traceable on the Queue Monitor.
 @register_task(queue=IMPORTS, name="app.crm.tasks.run_contact_bulk_update")
-def run_contact_bulk_update(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_contact_bulk_update(self: TrackedTask, bulk_id: str) -> dict[str, Any]:
     """Apply a bulk edit (tags/attributes) across a selection or filter (FR-CON-07)."""
     try:
         return run_async(_run_bulk(bulk_id))
@@ -85,7 +85,7 @@ def run_contact_bulk_update(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN0
 
 
 @register_task(queue=IMPORTS, name="app.crm.tasks.run_contact_bulk_delete")
-def run_contact_bulk_delete(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_contact_bulk_delete(self: TrackedTask, bulk_id: str) -> dict[str, Any]:
     """Soft-delete a selection or filter of contacts (FR-CON-08)."""
     try:
         return run_async(_run_bulk(bulk_id))
@@ -95,7 +95,7 @@ def run_contact_bulk_delete(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN0
 
 
 @register_task(queue=IMPORTS, name="app.crm.tasks.run_contact_deduplicate")
-def run_contact_deduplicate(self, bulk_id: str) -> dict[str, Any]:  # noqa: ANN001 - Celery bind
+def run_contact_deduplicate(self: TrackedTask, bulk_id: str) -> dict[str, Any]:
     """Scan for duplicates and report or merge them (FR-CON-06)."""
     try:
         return run_async(_run_bulk(bulk_id))

@@ -11,6 +11,7 @@ concurrency counter (unlike ``contacts``).
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -48,7 +49,7 @@ class Segment(IntPKMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     match_type: Mapped[str] = mapped_column(String(8), nullable=False, default=MATCH_ALL)
-    compiled_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    compiled_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     is_dynamic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cached_count: Mapped[int | None] = mapped_column(int_id(), nullable=True)
     last_evaluated_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)

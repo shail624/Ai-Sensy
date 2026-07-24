@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import CHAR, JSON, Boolean, CheckConstraint, Index, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -93,7 +94,7 @@ class Message(IntPKMixin, UUIDMixin, Base):
     category: Mapped[str | None] = mapped_column(String(16), nullable=True)
     template_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     #: Canonical content produced by the adapter — never a provider's payload shape.
-    content_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    content_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     media_asset_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=MSG_ACCEPTED)
     error_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
@@ -129,7 +130,7 @@ class MessageStatusHistory(IntPKMixin, Base):
     error_title: Mapped[str | None] = mapped_column(String(160), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(String(512), nullable=True)
     recipient_id: Mapped[str | None] = mapped_column(String(24), nullable=True)
-    raw_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    raw_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     #: The channel's timestamp for the transition, not ours (Doc 03 §9.3).
     occurred_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)

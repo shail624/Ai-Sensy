@@ -10,6 +10,7 @@ surrogate ``id`` as the identity key.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -55,7 +56,7 @@ class ContactEvent(Base):
     event_type: Mapped[str] = mapped_column(String(40), nullable=False)
     ref_type: Mapped[str | None] = mapped_column(String(24), nullable=True)
     ref_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
-    payload_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid

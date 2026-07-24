@@ -50,7 +50,7 @@ class CustomAttributeDefinition(
     key_name: Mapped[str] = mapped_column(String(60), nullable=False)
     label: Mapped[str] = mapped_column(String(120), nullable=False)
     data_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    enum_values_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    enum_values_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     is_indexed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_pii: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
