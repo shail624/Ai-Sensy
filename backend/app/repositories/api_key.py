@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import select
 
@@ -37,7 +36,7 @@ class ApiKeyRepository(BaseRepository[ApiKey]):
         name: str,
         key_prefix: str,
         key_hash: str,
-        scopes: Any | None,
+        scopes: list[str] | None,
         expires_at: datetime | None,
         created_by: int | None,
     ) -> ApiKey:

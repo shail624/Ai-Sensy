@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Select, and_, case, func, or_, select
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
 
 from app.models.task import (
     TASK_PRIORITIES,
@@ -161,7 +162,10 @@ class TaskRepository(BaseRepository[Task]):
         # Ordered key columns (id is always the final tiebreak, ascending).
         if sort == SORT_PRIORITY:
             rank = _priority_rank_expr()
-            keys: list[tuple[ColumnElement, bool]] = [(rank, descending), (Task.due_at, False)]
+            keys: list[tuple[SQLColumnExpression[Any], bool]] = [
+                (rank, descending),
+                (Task.due_at, False),
+            ]
         elif sort == SORT_CREATED_AT:
             keys = [(Task.created_at, descending)]
         elif sort == SORT_COMPLETED_AT:
@@ -185,7 +189,7 @@ class TaskRepository(BaseRepository[Task]):
 
     @staticmethod
     def _keyset_after(
-        keys: list[tuple[ColumnElement, bool]], cursor: tuple[list[object], int]
+        keys: list[tuple[SQLColumnExpression[Any], bool]], cursor: tuple[list[object], int]
     ) -> ColumnElement[bool]:
         """Lexicographic keyset predicate: rows strictly after ``cursor`` in ``keys, id`` order."""
         values, last_id = cursor

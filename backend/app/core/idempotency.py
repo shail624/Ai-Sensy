@@ -16,7 +16,7 @@ the rate limiter's shape.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 from fastapi import status
 from starlette.requests import Request
@@ -88,7 +88,8 @@ async def begin(redis: Any, key: str, *, ttl: int | None = None) -> dict[str, An
         return None
     if _decoded(stored) == IN_FLIGHT:
         raise IdempotencyInFlight("A request with this Idempotency-Key is still in flight.")
-    return json.loads(_decoded(stored))
+    # ``complete`` is the sole writer for completed entries and always serializes a response dict.
+    return cast(dict[str, Any], json.loads(_decoded(stored)))
 
 
 async def complete(redis: Any, key: str, *, response: dict[str, Any], ttl: int | None = None) -> None:

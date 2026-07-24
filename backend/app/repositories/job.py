@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import func, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.job import DL_PARKED, DeadLetter, JobMetadata
 from app.repositories.base import BaseRepository
@@ -17,8 +18,10 @@ class JobRepository(BaseRepository[JobMetadata]):
         stmt = select(JobMetadata).where(JobMetadata.task_id == task_id)
         return (await self.session.scalars(stmt)).first()
 
-    def _filters(self, *, status: str | None, task_name: str | None, queue: str | None) -> list:
-        clauses: list = []
+    def _filters(
+        self, *, status: str | None, task_name: str | None, queue: str | None
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = []
         if status:
             clauses.append(JobMetadata.status == status)
         if task_name:
@@ -83,4 +86,5 @@ class DeadLetterRepository(BaseRepository[DeadLetter]):
 
     async def oldest_parked_at(self) -> datetime | None:
         stmt = select(func.min(DeadLetter.created_at)).where(DeadLetter.status == DL_PARKED)
-        return await self.session.scalar(stmt)
+        oldest: datetime | None = await self.session.scalar(stmt)
+        return oldest

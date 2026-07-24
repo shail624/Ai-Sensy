@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+from typing import TypedDict, Unpack
+
 from sqlalchemy import func, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.template import MessageTemplate, TemplateVersion
 from app.repositories.base import BaseRepository
+
+
+class _TemplateFilters(TypedDict, total=False):
+    waba_pk: int | None
+    status: str | None
+    category: str | None
+    language: str | None
+    q: str | None
 
 
 class TemplateRepository(BaseRepository[MessageTemplate]):
@@ -20,8 +31,8 @@ class TemplateRepository(BaseRepository[MessageTemplate]):
         category: str | None = None,
         language: str | None = None,
         q: str | None = None,
-    ) -> list:
-        clauses = [
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
             MessageTemplate.organization_id == organization_id,
             MessageTemplate.deleted_at.is_(None),
         ]
@@ -37,7 +48,9 @@ class TemplateRepository(BaseRepository[MessageTemplate]):
             clauses.append(MessageTemplate.name.like(f"%{q}%"))
         return clauses
 
-    async def list_for_org(self, organization_id: int, **filters) -> list[MessageTemplate]:
+    async def list_for_org(
+        self, organization_id: int, **filters: Unpack[_TemplateFilters]
+    ) -> list[MessageTemplate]:
         stmt = (
             select(MessageTemplate)
             .where(*self._filters(organization_id, **filters))

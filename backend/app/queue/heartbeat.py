@@ -12,6 +12,8 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from redis.asyncio import Redis
+
 from app.core.config import settings
 from app.db.mixins import utcnow
 
@@ -33,7 +35,7 @@ class WorkerStatus:
 
 
 async def beat(
-    redis,
+    redis: Redis,
     *,
     worker_id: str,
     pool: str,
@@ -57,7 +59,7 @@ async def beat(
     )
 
 
-async def deregister(redis, worker_id: str) -> None:
+async def deregister(redis: Redis, worker_id: str) -> None:
     """Remove a worker from the registry (graceful shutdown, Doc 06 §3.5)."""
     await redis.delete(heartbeat_key(worker_id))
 
@@ -79,7 +81,7 @@ def _parse(raw: str | bytes) -> WorkerStatus | None:
         return None
 
 
-async def live_workers(redis) -> list[WorkerStatus]:
+async def live_workers(redis: Redis) -> list[WorkerStatus]:
     """Every worker with an unexpired heartbeat (Doc 06 §13.2 fleet health)."""
     workers: list[WorkerStatus] = []
     async for key in redis.scan_iter(match=f"{_KEY_PREFIX}*"):

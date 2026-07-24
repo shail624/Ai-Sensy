@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.contact import Contact
 from app.models.segment import Segment
@@ -40,13 +40,20 @@ class SegmentRepository(BaseRepository[Segment]):
         return (await self.session.scalars(stmt)).first()
 
     # --- Evaluation over contacts -------------------------------------------
-    def _base_clauses(self, organization_id: int, condition: Any | None) -> list:
-        clauses = [Contact.organization_id == organization_id, Contact.deleted_at.is_(None)]
+    def _base_clauses(
+        self, organization_id: int, condition: ColumnElement[bool] | None
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
+            Contact.organization_id == organization_id,
+            Contact.deleted_at.is_(None),
+        ]
         if condition is not None:
             clauses.append(condition)
         return clauses
 
-    async def count_matching(self, organization_id: int, condition: Any | None) -> int:
+    async def count_matching(
+        self, organization_id: int, condition: ColumnElement[bool] | None
+    ) -> int:
         stmt = (
             select(func.count())
             .select_from(Contact)
@@ -57,7 +64,7 @@ class SegmentRepository(BaseRepository[Segment]):
     async def paginate_matching(
         self,
         organization_id: int,
-        condition: Any | None,
+        condition: ColumnElement[bool] | None,
         *,
         limit: int,
         cursor: tuple[datetime, int] | None,

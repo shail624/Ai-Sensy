@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy import select, update
 
 from app.models.token import RefreshToken, UserSession
+from app.repositories._result import affected_rows
 from app.repositories.base import BaseRepository
 
 
@@ -51,7 +52,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             .where(RefreshToken.jti == jti, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now)
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
     async def revoke_all_for_user(self, user_id: int, now: datetime) -> int:
         result = await self.session.execute(
@@ -59,7 +60,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now)
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
     async def list_active_for_user(self, user_id: int, now: datetime) -> list[RefreshToken]:
         stmt = select(RefreshToken).where(
@@ -129,7 +130,7 @@ class SessionRepository(BaseRepository[UserSession]):
             )
             .values(revoked_at=now)
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
     async def revoke(self, session_row: UserSession, now: datetime) -> None:
         if session_row.revoked_at is None:
@@ -142,7 +143,7 @@ class SessionRepository(BaseRepository[UserSession]):
             .where(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
             .values(revoked_at=now)
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
     async def touch(self, session_row: UserSession, now: datetime) -> None:
         session_row.last_seen_at = now

@@ -173,7 +173,7 @@ class MessageService:
     def _media_pending(message: Message) -> bool:
         return message.media_asset_id is None and media_reference(message) is not None
 
-    def _to_inbound_message(self, payload: dict | None) -> InboundMessage:
+    def _to_inbound_message(self, payload: dict[str, Any] | None) -> InboundMessage:
         try:
             return self.adapter().to_inbound_message(payload or {})
         except Exception as exc:  # noqa: BLE001 - any translation failure is the same verdict
@@ -217,7 +217,7 @@ class MessageService:
         await self._messages.flush()
         return APPLIED
 
-    def to_status_update(self, payload: dict | None) -> StatusUpdate:
+    def to_status_update(self, payload: dict[str, Any] | None) -> StatusUpdate:
         try:
             return self.adapter().to_status_update(payload or {})
         except Exception as exc:  # noqa: BLE001 - any translation failure is the same verdict

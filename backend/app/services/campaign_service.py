@@ -197,6 +197,8 @@ class CampaignService:
             if template_public_id is not None
             else await self._templates.get_by_id(campaign.template_id)
         )
+        if template is None:
+            raise NotFoundError("Template not found.")
         campaign.template_id = template.id
         for key, value in fields.items():
             setattr(campaign, key, value)

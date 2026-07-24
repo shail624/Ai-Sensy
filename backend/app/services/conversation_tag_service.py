@@ -19,6 +19,7 @@ import uuid as uuidlib
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError
+from app.models.conversation import Conversation
 from app.models.tag import Tag
 from app.models.user import User
 from app.repositories.conversation import ConversationRepository
@@ -80,7 +81,9 @@ class ConversationTagService:
             raise NotFoundError("Tag is not attached to this conversation.")
         await self._session.commit()
 
-    async def _conversation(self, organization_id: int, public_id: uuidlib.UUID):
+    async def _conversation(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> Conversation:
         conversation = await self._conversations.get_active_by_uuid(
             organization_id, public_id.bytes
         )

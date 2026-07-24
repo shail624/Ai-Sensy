@@ -35,7 +35,7 @@ class ApiKey(IntPKMixin, UUIDMixin, Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     key_prefix: Mapped[str] = mapped_column(CHAR(12), nullable=False)
     key_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False, unique=True)
-    scopes_json: Mapped[object | None] = mapped_column(JSON, nullable=True)
+    scopes_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     created_by: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)

@@ -18,6 +18,7 @@ from app.api.deps import SessionDep, require_permissions
 from app.api.v1.endpoints.waba import ChannelUnavailableError
 from app.channels.errors import ChannelError
 from app.core.config import settings
+from app.models.template import MessageTemplate
 from app.models.user import User
 from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.schemas.template import (
@@ -38,7 +39,7 @@ TemplateWriter = Annotated[User, Depends(require_permissions("templates:write"))
 TemplateSyncer = Annotated[User, Depends(require_permissions("templates:sync"))]
 
 
-async def _render(service: TemplateService, template) -> TemplateResponse:
+async def _render(service: TemplateService, template: MessageTemplate) -> TemplateResponse:
     return TemplateResponse.from_template(
         template, waba_public_id=await service.waba_public_id(template)
     )

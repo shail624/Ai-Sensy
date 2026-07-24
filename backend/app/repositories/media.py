@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.media import MediaAsset
 from app.repositories.base import BaseRepository
@@ -26,8 +27,10 @@ class MediaRepository(BaseRepository[MediaAsset]):
         )
         return (await self.session.scalars(stmt)).first()
 
-    def _filters(self, organization_id: int, *, media_type: str | None, q: str | None) -> list:
-        clauses = [
+    def _filters(
+        self, organization_id: int, *, media_type: str | None, q: str | None
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
             MediaAsset.organization_id == organization_id,
             MediaAsset.deleted_at.is_(None),
         ]

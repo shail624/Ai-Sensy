@@ -1,8 +1,16 @@
 # ADR-0004 — Ratchet strict mypy findings without weakening the type policy
 
-- **Status:** Accepted — 2026-07-25
+- **Status:** Superseded — 2026-07-25 (exit condition fulfilled)
 - **Scope:** backend quality gates, Module 11 hardening
 - **Runtime/API/schema change:** none
+
+## Outcome
+
+The ratchet served one bounded hardening increment and reduced the recovered 251 findings to 120.
+The following increment made raw strict `mypy app` clean across all 227 backend source files. As
+required by this decision's exit condition, the baseline, wrapper, and wrapper-specific tests were
+then removed. Direct strict mypy is now the blocking type gate; this ADR remains as the historical
+record of the transition rather than an active mechanism.
 
 ## Context
 

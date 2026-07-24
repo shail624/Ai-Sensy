@@ -12,6 +12,8 @@ import hashlib
 import json
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.audit import ACTOR_USER, AuditLog
 from app.repositories.audit import AuditRepository
 
@@ -108,7 +110,7 @@ class AuditAction:
 
 
 class AuditService:
-    def __init__(self, session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._repo = AuditRepository(session)
 
     async def record(

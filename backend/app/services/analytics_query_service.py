@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Literal, TypeGuard
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
@@ -34,7 +35,7 @@ from app.models.analytics import (
 )
 from app.models.campaign import Campaign
 from app.models.user import User
-from app.repositories.analytics import AnalyticsRepository
+from app.repositories.analytics import AnalyticsFactModel, AnalyticsRepository
 from app.services.analytics_rollup_service import (
     HOURLY_RETENTION_DAYS,
     floor_day,
@@ -42,11 +43,13 @@ from app.services.analytics_rollup_service import (
 )
 
 # --- Granularity & presets (Doc 15 §14.2) --------------------------------------------------------
-GRANULARITY_HOUR = "hour"
-GRANULARITY_DAY = "day"
-GRANULARITY_WEEK = "week"
-GRANULARITY_MONTH = "month"
-GRANULARITIES: tuple[str, ...] = (
+type Granularity = Literal["hour", "day", "week", "month"]
+
+GRANULARITY_HOUR: Granularity = "hour"
+GRANULARITY_DAY: Granularity = "day"
+GRANULARITY_WEEK: Granularity = "week"
+GRANULARITY_MONTH: Granularity = "month"
+GRANULARITIES: tuple[Granularity, ...] = (
     GRANULARITY_HOUR,
     GRANULARITY_DAY,
     GRANULARITY_WEEK,
@@ -77,8 +80,14 @@ MAX_SPAN_DAYS: dict[str, int] = {
 
 _UTC = ZoneInfo("UTC")
 
+
+def _is_granularity(value: str) -> TypeGuard[Granularity]:
+    """Narrow a validated public string to the analytics granularity contract."""
+    return value in GRANULARITIES
+
+
 #: Groupable dimensions → the fact table that carries them (Doc 15 §16, family 3).
-DIMENSIONS: dict[str, type] = {
+DIMENSIONS: dict[str, AnalyticsFactModel] = {
     "error_code": AnalyticsFailureRollup,
     "campaign_id": AnalyticsCampaignRollup,
     "assigned_user_id": AnalyticsConversationRollup,
@@ -115,11 +124,11 @@ class MetricSpec:
 
     key: str
     label: str
-    model: type
+    model: AnalyticsFactModel
     column: str
 
 
-def _metric(key: str, label: str, model: type, column: str) -> MetricSpec:
+def _metric(key: str, label: str, model: AnalyticsFactModel, column: str) -> MetricSpec:
     return MetricSpec(key=key, label=label, model=model, column=column)
 
 
@@ -231,7 +240,10 @@ def derive_kpis(totals: dict[str, int]) -> dict[str, float | None]:
     Deriving here — rather than storing — is what makes an arbitrary range correct: the mean of
     hourly means is not the daily mean.
     """
-    get = lambda key: int(totals.get(key, 0))  # noqa: E731 - local alias keeps the table readable
+
+    def get(key: str) -> int:
+        return int(totals.get(key, 0))
+
     return {
         # §11.1 messaging
         "delivery_rate": _ratio(get("messages_delivered"), get("messages_sent")),
@@ -270,7 +282,7 @@ class RangeSpec:
 
     start: datetime          # naive UTC, inclusive
     end: datetime            # naive UTC, exclusive
-    granularity: str
+    granularity: Granularity
     timezone: ZoneInfo
     compare: str | None = None
 
@@ -335,7 +347,7 @@ def resolve_range(
     now: datetime | None = None,
 ) -> RangeSpec:
     """Validate and normalise a query window (Doc 15 §14.2/§14.3)."""
-    if granularity not in GRANULARITIES:
+    if not _is_granularity(granularity):
         raise BadRequestError(f"granularity must be one of {sorted(GRANULARITIES)}")
     if compare is not None and compare not in COMPARISONS:
         raise BadRequestError(f"compare must be one of {sorted(COMPARISONS)}")
@@ -454,7 +466,7 @@ class SeriesView:
 class SeriesResultView:
     """The §10 envelope, plus the grain actually used so staleness is never implicit."""
 
-    granularity: str
+    granularity: Granularity
     grain: str
     start: datetime
     end: datetime
@@ -766,9 +778,9 @@ class AnalyticsQueryService:
         return tuple(dict.fromkeys(metrics))  # de-duplicate, preserve order
 
     @staticmethod
-    def _by_model(keys: Iterable[str]) -> dict[type, list[str]]:
+    def _by_model(keys: Iterable[str]) -> dict[AnalyticsFactModel, list[str]]:
         """Group metric keys by their fact table, so each table is read once."""
-        grouped: dict[type, list[str]] = {}
+        grouped: dict[AnalyticsFactModel, list[str]] = {}
         for key in keys:
             grouped.setdefault(METRICS[key].model, []).append(key)
         return grouped

@@ -66,7 +66,12 @@ async def list_audit_logs(
         date_to=_parse_dt(params.get("filter[created_at][lte]")),
     )
     data = [
-        AuditLogResponse.from_entry(entry, result.actor_uuids.get(entry.actor_user_id))
+        AuditLogResponse.from_entry(
+            entry,
+            result.actor_uuids.get(entry.actor_user_id)
+            if entry.actor_user_id is not None
+            else None,
+        )
         for entry in result.entries
     ]
     next_cursor = (

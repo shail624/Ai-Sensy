@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import get_adapter
 from app.channels.capabilities import CONNECTOR_META_CLOUD, ChannelType
+from app.channels.meta.adapter import MetaChannelAdapter
 from app.channels.meta.client import MetaCredentials
 from app.channels.models import ChannelPhoneNumber
 from app.core.crypto import decrypt, encrypt
@@ -47,9 +48,11 @@ class WabaService:
         self._audit = AuditService(session)
 
     # --- Adapter access ------------------------------------------------------
-    def adapter_for(self, waba: WhatsAppBusinessAccount, *, phone_number_id: str = ""):
+    def adapter_for(
+        self, waba: WhatsAppBusinessAccount, *, phone_number_id: str = ""
+    ) -> MetaChannelAdapter:
         """Resolve the channel adapter bound to this WABA's credentials (Doc 07 §5.4)."""
-        return get_adapter(
+        adapter = get_adapter(
             CONNECTOR_META_CLOUD,
             credentials=MetaCredentials(
                 access_token=decrypt(waba.access_token_enc),
@@ -57,6 +60,9 @@ class WabaService:
                 waba_id=waba.waba_id,
             ),
         )
+        if not isinstance(adapter, MetaChannelAdapter):  # pragma: no cover - registry invariant
+            raise RuntimeError("meta_cloud is not registered to the Meta adapter")
+        return adapter
 
     # --- Reads ---------------------------------------------------------------
     async def list_wabas(self, organization_id: int) -> list[tuple[WhatsAppBusinessAccount, int]]:

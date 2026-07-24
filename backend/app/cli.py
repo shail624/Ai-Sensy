@@ -18,7 +18,7 @@ import os
 import sys
 from dataclasses import dataclass
 
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.core.security import hash_password, validate_password_policy
@@ -41,7 +41,7 @@ class BootstrapResult:
 
 
 async def bootstrap_owner(
-    session_factory: async_sessionmaker,
+    session_factory: async_sessionmaker[AsyncSession],
     *,
     email: str,
     full_name: str,

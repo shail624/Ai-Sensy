@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from sqlalchemy import delete, insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.mixins import utcnow
 from app.models.tag import Tag, contact_tags
+from app.repositories._result import affected_rows
 from app.repositories.base import BaseRepository
 
 
@@ -50,7 +52,7 @@ class TagRepository(BaseRepository[Tag]):
 class ContactTagRepository:
     """Manages the ``contact_tags`` junction (Core table, no ORM entity)."""
 
-    def __init__(self, session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def tag_ids_for_contact(self, contact_id: int) -> set[int]:
@@ -82,7 +84,7 @@ class ContactTagRepository:
             )
         )
         await self.session.flush()
-        return bool(result.rowcount)
+        return bool(affected_rows(result))
 
     async def detach_tag_everywhere(self, tag_id: int) -> int:
         """Remove a tag from every contact (tag deletion detaches, Doc 04 §14.2)."""
@@ -90,4 +92,4 @@ class ContactTagRepository:
             delete(contact_tags).where(contact_tags.c.tag_id == tag_id)
         )
         await self.session.flush()
-        return result.rowcount or 0
+        return affected_rows(result)

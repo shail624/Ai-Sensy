@@ -10,16 +10,18 @@ from __future__ import annotations
 from collections import defaultdict
 
 from sqlalchemy import delete, insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.mixins import utcnow
 from app.models.conversation_tag import conversation_tags
 from app.models.tag import Tag
+from app.repositories._result import affected_rows
 
 
 class ConversationTagRepository:
     """Manages the ``conversation_tags`` junction (Core table, no ORM entity)."""
 
-    def __init__(self, session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def attach(self, conversation_id: int, tag_id: int, tagged_by: int | None) -> bool:
@@ -52,7 +54,7 @@ class ConversationTagRepository:
             )
         )
         await self.session.flush()
-        return bool(result.rowcount)
+        return bool(affected_rows(result))
 
     async def tags_for_conversations(
         self, conversation_ids: list[int]

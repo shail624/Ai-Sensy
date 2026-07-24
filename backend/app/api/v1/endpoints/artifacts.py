@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
 
@@ -44,28 +45,37 @@ router = APIRouter()
 _CSV = "text/csv"
 
 
-async def _export(session, public_id: uuidlib.UUID) -> tuple[str, str, str] | None:
+async def _export(
+    session: AsyncSession, public_id: uuidlib.UUID
+) -> tuple[str, str, str] | None:
     job = await ExportRepository(session).get_by_uuid(public_id)
     if job is None or not job.storage_key:
         return None
     return job.storage_key, CONTENT_TYPES.get(job.format, _CSV), f"export-{public_id}.{job.format}"
 
 
-async def _import(session, public_id: uuidlib.UUID) -> tuple[str, str, str] | None:
+async def _import(
+    session: AsyncSession, public_id: uuidlib.UUID
+) -> tuple[str, str, str] | None:
     job = await ImportRepository(session).get_by_uuid(public_id)
     if job is None or not job.error_report_key:
         return None
     return job.error_report_key, _CSV, f"import-errors-{public_id}.csv"
 
 
-async def _bulk(session, public_id: uuidlib.UUID) -> tuple[str, str, str] | None:
+async def _bulk(
+    session: AsyncSession, public_id: uuidlib.UUID
+) -> tuple[str, str, str] | None:
     job = await BulkJobRepository(session).get_by_uuid(public_id)
     if job is None or not job.error_report_key:
         return None
     return job.error_report_key, _CSV, f"bulk-report-{public_id}.csv"
 
 
-_RESOLVERS: dict[str, Callable[..., Awaitable[tuple[str, str, str] | None]]] = {
+_RESOLVERS: dict[
+    str,
+    Callable[[AsyncSession, uuidlib.UUID], Awaitable[tuple[str, str, str] | None]],
+] = {
     "export": _export,
     "import": _import,
     "bulk": _bulk,

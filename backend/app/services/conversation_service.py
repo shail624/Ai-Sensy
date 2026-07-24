@@ -16,6 +16,7 @@ Nothing here commits: an inbound message and everything it implies is one transa
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -201,7 +202,7 @@ class ConversationService:
         await self._touch_last_message(conversation, preview=preview, occurred_at=occurred_at)
 
     @staticmethod
-    def preview_of(message_type: str, content: dict) -> str:
+    def preview_of(message_type: str, content: dict[str, Any]) -> str:
         """What the inbox list shows for a message (Doc 03 §9.1 ``last_message_preview``).
 
         Reads the canonical content shape, never a channel's: a text body if there is one, a

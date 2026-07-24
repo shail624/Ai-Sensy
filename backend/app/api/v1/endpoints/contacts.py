@@ -15,11 +15,13 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
+from starlette.datastructures import QueryParams
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
 from app.core.config import settings
 from app.core.exceptions import BadRequestError
+from app.models.job_records import BulkJob
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.schemas.attribute import ContactAttributesRequest
@@ -102,7 +104,7 @@ def _decode_cursor(cursor: str, sort_name: str) -> tuple[Any, int, bool]:
         raise BadRequestError("Invalid pagination cursor.") from exc
 
 
-def _opt_in_filter(params) -> list[str] | None:
+def _opt_in_filter(params: QueryParams) -> list[str] | None:
     csv = params.get("filter[opt_in_status][in]")
     if csv:
         return [v for v in (s.strip() for s in csv.split(",")) if v]
@@ -457,7 +459,7 @@ async def export_progress(
 
 
 # --- Bulk operations & duplicate merge (Doc 04 §14.1/§30) — async only, always 202 ---
-def _accepted(job) -> JobAcceptedResponse:
+def _accepted(job: BulkJob) -> JobAcceptedResponse:
     return JobAcceptedResponse(
         job=JobEnvelope(
             id=job.public_id,

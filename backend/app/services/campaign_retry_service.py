@@ -81,7 +81,9 @@ class CampaignRetryService:
         )
         return RETRY_PENDING
 
-    async def _exhaust(self, recipient: CampaignRecipient, *, code, detail: str) -> None:
+    async def _exhaust(
+        self, recipient: CampaignRecipient, *, code: object | None, detail: str
+    ) -> None:
         recipient.status = RECIPIENT_FAILED
         recipient.error_code = str(code)[:24] if code else None
         recipient.error_detail = detail[:512]

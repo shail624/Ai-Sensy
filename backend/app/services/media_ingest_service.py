@@ -19,6 +19,7 @@ the same storage primitives — ``validate`` → ``scan_or_raise`` → ``sha256_
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
 
@@ -188,7 +189,9 @@ class MediaIngestService:
         return asset.meta_media_expires_at - META_MEDIA_SAFETY <= utcnow()
 
     # --- Shared -------------------------------------------------------------
-    async def _adapter_for(self, message: Message):
+    async def _adapter_for(
+        self, message: Message
+    ) -> tuple[ChannelAdapter, Callable[[], Awaitable[None]]]:
         number = await self._numbers.get_by_id(message.phone_number_id)
         waba = await self._wabas.get_by_id(number.waba_id) if number else None
         if number is None or waba is None:

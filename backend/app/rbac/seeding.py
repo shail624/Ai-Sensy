@@ -52,7 +52,7 @@ async def sync_system_roles(session: AsyncSession, organization_id: int) -> list
         role.description = str(spec["description"])
         role.is_system = True
         role.permissions = [
-            permissions[code] for code in spec["permissions"] if code in permissions  # type: ignore[operator]
+            permissions[code] for code in spec["permissions"] if code in permissions
         ]
         roles.append(role)
     await session.flush()

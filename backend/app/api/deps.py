@@ -12,6 +12,7 @@ Foundation dependencies plus the authentication/authorization chain (Doc 01 §2.
 from __future__ import annotations
 
 import uuid as uuidlib
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -81,7 +82,9 @@ async def require_self(session: SessionDep, auth: CurrentAuthDep) -> CurrentAuth
 SelfAuthDep = Annotated[CurrentAuth, Depends(require_self)]
 
 
-def require_permissions(*codes: str):
+def require_permissions(
+    *codes: str,
+) -> Callable[[SessionDep, CurrentAuthDep], Awaitable[User]]:
     """Build a dependency enforcing that the caller holds all ``codes`` (Doc 04 §4.2)."""
     required = set(codes)
 

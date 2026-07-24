@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from redis.asyncio import Redis
+
 from app.queue.heartbeat import WorkerStatus, live_workers
 from app.queue.registry import QUEUES, QueueSpec
 
@@ -26,7 +28,7 @@ class QueueHealth:
     failure_destination: str
 
 
-async def queue_depth(redis, queue_name: str) -> int:
+async def queue_depth(redis: Redis, queue_name: str) -> int:
     """Pending task count for a queue (its Redis list length); 0 if absent."""
     try:
         return int(await redis.llen(queue_name))
@@ -38,7 +40,7 @@ def _worker_count(workers: list[WorkerStatus], spec: QueueSpec) -> int:
     return sum(1 for worker in workers if spec.name in worker.queues)
 
 
-async def collect(redis) -> list[QueueHealth]:
+async def collect(redis: Redis) -> list[QueueHealth]:
     """Depth + worker coverage for every declared queue (Doc 06 §2.3/§13.2)."""
     workers = await live_workers(redis)
     return [

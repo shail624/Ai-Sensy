@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.audit import AuditLog
 from app.repositories.base import BaseRepository
@@ -34,9 +35,9 @@ class AuditRepository(BaseRepository[AuditLog]):
         action: str | None,
         date_from: datetime | None,
         date_to: datetime | None,
-    ) -> list:
+    ) -> list[ColumnElement[bool]]:
         # The org's own events plus system events (organization_id IS NULL).
-        clauses = [
+        clauses: list[ColumnElement[bool]] = [
             or_(AuditLog.organization_id == organization_id, AuditLog.organization_id.is_(None))
         ]
         if actor_user_id is not None:

@@ -11,10 +11,36 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, select
 
-from app.models.analytics import AnalyticsRollupRun
+from app.models.analytics import (
+    AnalyticsCampaignRollup,
+    AnalyticsContactRollup,
+    AnalyticsConversationRollup,
+    AnalyticsFailureRollup,
+    AnalyticsMessageRollup,
+    AnalyticsRollupRun,
+    AnalyticsTaskRollup,
+)
+from app.repositories._result import affected_rows
 from app.repositories.base import BaseRepository
+
+type AnalyticsFact = (
+    AnalyticsCampaignRollup
+    | AnalyticsContactRollup
+    | AnalyticsConversationRollup
+    | AnalyticsFailureRollup
+    | AnalyticsMessageRollup
+    | AnalyticsTaskRollup
+)
+type AnalyticsFactModel = (
+    type[AnalyticsCampaignRollup]
+    | type[AnalyticsContactRollup]
+    | type[AnalyticsConversationRollup]
+    | type[AnalyticsFailureRollup]
+    | type[AnalyticsMessageRollup]
+    | type[AnalyticsTaskRollup]
+)
 
 
 class AnalyticsRepository(BaseRepository[AnalyticsRollupRun]):
@@ -23,7 +49,11 @@ class AnalyticsRepository(BaseRepository[AnalyticsRollupRun]):
     model = AnalyticsRollupRun
 
     async def clear_bucket(
-        self, fact_model: type, organization_id: int, grain: str, bucket_start: datetime
+        self,
+        fact_model: AnalyticsFactModel,
+        organization_id: int,
+        grain: str,
+        bucket_start: datetime,
     ) -> int:
         """Delete one bucket's rows so the service can re-insert them (Doc 15 §6.3).
 
@@ -37,32 +67,34 @@ class AnalyticsRepository(BaseRepository[AnalyticsRollupRun]):
                 fact_model.bucket_start == bucket_start,
             )
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
-    async def prune_before(self, fact_model: type, grain: str, cutoff: datetime) -> int:
+    async def prune_before(
+        self, fact_model: AnalyticsFactModel, grain: str, cutoff: datetime
+    ) -> int:
         """Drop rows older than ``cutoff`` at one grain (Doc 15 §21.3 retention)."""
         result = await self.session.execute(
             delete(fact_model).where(
                 fact_model.grain == grain, fact_model.bucket_start < cutoff
             )
         )
-        return result.rowcount or 0
+        return affected_rows(result)
 
-    async def fetch_range(
+    async def fetch_range[TFact: AnalyticsFact](
         self,
-        fact_model: type,
+        fact_model: type[TFact],
         organization_id: int,
         grain: str,
         start: datetime,
         end: datetime,
-    ) -> list:
+    ) -> list[TFact]:
         """One fact table's rows for ``[start, end)`` at one grain, oldest first.
 
         The single read primitive behind every analytics query: the service folds these UTC buckets
         into the caller's local periods (Doc 15 §10). Reads never touch a partitioned operational
         table, which is what makes the §22 latency targets reachable.
         """
-        stmt = (
+        stmt: Select[tuple[TFact]] = (
             select(fact_model)
             .where(
                 fact_model.organization_id == organization_id,

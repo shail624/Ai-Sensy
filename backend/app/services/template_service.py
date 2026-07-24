@@ -59,7 +59,11 @@ class TemplateService:
 
     # --- Reads ---------------------------------------------------------------
     async def list_templates(
-        self, organization_id: int, *, waba_uuid: uuidlib.UUID | None = None, **filters
+        self,
+        organization_id: int,
+        *,
+        waba_uuid: uuidlib.UUID | None = None,
+        **filters: str | None,
     ) -> list[MessageTemplate]:
         waba_pk = (await self._waba(organization_id, waba_uuid)).id if waba_uuid else None
         return await self._templates.list_for_org(organization_id, waba_pk=waba_pk, **filters)
@@ -168,6 +172,8 @@ class TemplateService:
 
         if submit:
             waba = await self._wabas.get_by_id(template.waba_id)
+            if waba is None:
+                raise NotFoundError("WABA not found.")
             await self._submit(waba, template)
 
         await self._audit.record(
@@ -192,6 +198,8 @@ class TemplateService:
         template = await self.get_template(organization_id, public_id)
         if template.meta_template_id:
             waba = await self._wabas.get_by_id(template.waba_id)
+            if waba is None:
+                raise NotFoundError("WABA not found.")
             adapter = WabaService(self._session).adapter_for(waba)
             try:
                 await adapter.delete_template(template.name, account_id=waba.waba_id)

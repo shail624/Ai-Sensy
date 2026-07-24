@@ -13,6 +13,8 @@ Excluded on purpose: the ``(planned)`` permissions (``finance:read``, ``ops:emer
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 # (code, description) — the fixed catalog (Doc 04 §4.3). Order is the seed order.
 PERMISSION_CATALOG: tuple[tuple[str, str], ...] = (
     ("auth:self", "Manage own profile and sessions"),
@@ -68,10 +70,18 @@ ROLE_ANALYST = "analyst"
 
 _ALL_CODES: tuple[str, ...] = tuple(code for code, _ in PERMISSION_CATALOG)
 
+
+class SystemRoleSpec(TypedDict):
+    """Typed shape of one immutable preset-role definition."""
+
+    name: str
+    description: str
+    permissions: tuple[str, ...]
+
 # Role → granted permission codes (Doc 01 §2.4; Doc 12 §58 "typical role"). Roles are
 # fully customizable afterwards (FR-AUTH-08); these are the shipped defaults. The Owner
 # user additionally holds ``is_superuser`` and bypasses checks entirely (FR-AUTH-06).
-SYSTEM_ROLES: tuple[dict[str, object], ...] = (
+SYSTEM_ROLES: tuple[SystemRoleSpec, ...] = (
     {
         "name": ROLE_OWNER,
         "description": "Business owner — full control (superuser).",

@@ -15,6 +15,7 @@ import json
 import uuid as uuidlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
@@ -129,8 +130,8 @@ class TaskEventView:
     event_type: str
     actor_user_id: str | None
     actor_name: str | None
-    from_value: dict | None
-    to_value: dict | None
+    from_value: dict[str, Any] | None
+    to_value: dict[str, Any] | None
     note: str | None
     created_at: datetime
 
@@ -694,7 +695,9 @@ class TaskService:
 
     def _add_event(
         self, task: Task, event_type: str, actor_id: int | None, *,
-        from_json: dict | None = None, to_json: dict | None = None, note: str | None = None,
+        from_json: dict[str, Any] | None = None,
+        to_json: dict[str, Any] | None = None,
+        note: str | None = None,
     ) -> None:
         self._session.add(
             TaskEvent(
@@ -716,7 +719,7 @@ class TaskService:
         the place referential integrity to ``contacts`` is enforced (the table carries no FK). The
         append shares this service's transaction, preserving the single-transaction invariant.
         """
-        payload: dict = {
+        payload: dict[str, Any] = {
             "title": task.title,
             "task_type": task.task_type,
             "priority": task.priority,
@@ -745,7 +748,7 @@ class TaskService:
             )
 
     @staticmethod
-    def _snapshot(task: Task) -> dict:
+    def _snapshot(task: Task) -> dict[str, Any]:
         return {
             "title": task.title,
             "task_type": task.task_type,
@@ -793,8 +796,14 @@ class TaskService:
     @staticmethod
     def _encode_cursor(values: builtins.list[object], task_id: int, sort_key: str) -> str:
         if sort_key == SORT_PRIORITY:
+            if len(values) != 2:
+                raise BadRequestError("The priority cursor has an invalid shape.")
             rank, due = values
-            return _encode_composite(int(rank), due if isinstance(due, datetime) else None, task_id)
+            if not isinstance(rank, int) or isinstance(rank, bool):
+                raise BadRequestError("The priority cursor has an invalid rank.")
+            if due is not None and not isinstance(due, datetime):
+                raise BadRequestError("The priority cursor has an invalid due date.")
+            return _encode_composite(rank, due, task_id)
         primary = values[0]
         if not isinstance(primary, datetime):  # pragma: no cover - guarded by the repository
             raise BadRequestError("This sort cannot be paginated over the current result set.")

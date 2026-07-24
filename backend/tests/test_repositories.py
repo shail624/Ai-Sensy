@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import select
+
 from app.models.audit import AuditLog
 from app.rbac.catalog import PERMISSION_CATALOG
+from app.repositories._result import affected_rows
 from app.repositories.audit import AuditRepository
 from app.repositories.organization import OrganizationRepository
 from app.repositories.role import (
@@ -19,6 +23,13 @@ from app.repositories.user import UserRepository
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+async def test_affected_rows_rejects_non_cursor_result(db_session) -> None:
+    result = await db_session.execute(select(1))
+
+    with pytest.raises(RuntimeError, match="did not return a cursor result"):
+        affected_rows(result.scalars())
 
 
 # --- Organization -----------------------------------------------------------

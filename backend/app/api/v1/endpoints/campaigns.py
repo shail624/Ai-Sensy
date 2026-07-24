@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Request, status
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import decode_cursor
 from app.core.config import settings
+from app.models.campaign import Campaign
 from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreateRequest,
@@ -56,7 +57,7 @@ PREVIEW_SAMPLES = 5
 RECIPIENT_PAGE = 50
 
 
-async def _render(service: CampaignService, campaign) -> CampaignResponse:
+async def _render(service: CampaignService, campaign: Campaign) -> CampaignResponse:
     number_id, template_id = await service.refs(campaign)
     return CampaignResponse.from_campaign(
         campaign, number_public_id=number_id, template_public_id=template_id

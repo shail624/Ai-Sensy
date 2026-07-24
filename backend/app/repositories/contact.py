@@ -11,12 +11,13 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
 
 from app.core.exceptions import BadRequestError
 from app.models.contact import Contact
 from app.repositories.base import BaseRepository
 
-_SORT_COLUMNS = {
+_SORT_COLUMNS: dict[str, SQLColumnExpression[Any]] = {
     "created_at": Contact.created_at,
     "full_name": Contact.full_name,
     "last_inbound_at": Contact.last_inbound_at,
@@ -25,7 +26,7 @@ _NULLABLE_SORTS = {"full_name", "last_inbound_at"}
 
 #: Columns a dedup scan may group on (FR-CON-06). Values are compared case-insensitively and
 #: trimmed, so "A@x.com " and "a@x.com" are one group.
-_DEDUP_COLUMNS = {
+_DEDUP_COLUMNS: dict[str, SQLColumnExpression[str | None]] = {
     "wa_id": Contact.wa_id,
     "phone_e164": Contact.phone_e164,
     "email": Contact.email,
@@ -33,7 +34,7 @@ _DEDUP_COLUMNS = {
 }
 
 
-def _normalized(column):
+def _normalized(column: SQLColumnExpression[str | None]) -> ColumnElement[str]:
     return func.lower(func.trim(column))
 
 
@@ -88,7 +89,7 @@ class ContactRepository(BaseRepository[Contact]):
 
     # --- Duplicate detection (FR-CON-06) -------------------------------------
     @staticmethod
-    def dedup_column(key: str):
+    def dedup_column(key: str) -> SQLColumnExpression[str | None]:
         """The contact column a dedup scan groups on; raises 400 for anything else."""
         if key not in _DEDUP_COLUMNS:
             raise BadRequestError(f"Cannot deduplicate by {key!r}.")
@@ -146,8 +147,11 @@ class ContactRepository(BaseRepository[Contact]):
         is_active_on_wa: bool | None,
         created_from: datetime | None,
         created_to: datetime | None,
-    ) -> list:
-        clauses = [Contact.organization_id == organization_id, Contact.deleted_at.is_(None)]
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
+            Contact.organization_id == organization_id,
+            Contact.deleted_at.is_(None),
+        ]
         if q:
             text = q.strip()
             like = f"%{text.lower()}%"
@@ -214,7 +218,7 @@ class ContactRepository(BaseRepository[Contact]):
                 # remaining non-null rows, then all NULLs (NULLS LAST)
                 clauses.append(or_(before, tie, column.is_(None)))
 
-        order: list = []
+        order: list[ColumnElement[Any]] = []
         if nullable:
             order.append(column.is_(None))  # False (non-null) first → NULLs last
         order.append(column.desc() if descending else column.asc())

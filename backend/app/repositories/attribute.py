@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 
 from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
+from app.repositories._result import affected_rows
 from app.repositories.base import BaseRepository
 
 
@@ -66,7 +67,7 @@ class ContactAttributeValueRepository(BaseRepository[ContactAttributeValue]):
             )
         )
         await self.session.flush()
-        return result.rowcount or 0
+        return affected_rows(result)
 
     async def delete_value(self, contact_id: int, attribute_id: int) -> int:
         result = await self.session.execute(
@@ -76,4 +77,4 @@ class ContactAttributeValueRepository(BaseRepository[ContactAttributeValue]):
             )
         )
         await self.session.flush()
-        return result.rowcount or 0
+        return affected_rows(result)

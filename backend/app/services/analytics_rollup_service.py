@@ -24,7 +24,7 @@ delivery receipt for a 10:59 send can arrive at 11:05, and the retry engine can 
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -84,7 +84,7 @@ from app.models.task_event import (
     TASK_EVENT_SKIPPED,
     TaskEvent,
 )
-from app.repositories.analytics import AnalyticsRepository
+from app.repositories.analytics import AnalyticsFact, AnalyticsFactModel, AnalyticsRepository
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,7 @@ DAILY_RETENTION_DAYS = 790
 COST_MICROS = 1_000_000
 
 #: Dimension columns per fact table — drives both consolidation and the grain UNIQUE (Doc 15 §9).
-_DIMENSIONS: dict[type, tuple[str, ...]] = {
+_DIMENSIONS: dict[AnalyticsFactModel, tuple[str, ...]] = {
     AnalyticsMessageRollup: ("phone_number_id", "direction", "message_type"),
     AnalyticsFailureRollup: ("phone_number_id", "error_code"),
     AnalyticsCampaignRollup: ("campaign_id",),
@@ -151,7 +151,7 @@ def _count_if(condition: ColumnElement[bool]) -> ColumnElement[int]:
     return func.sum(case((condition, 1), else_=0))
 
 
-def _measures_of(model: type) -> tuple[str, ...]:
+def _measures_of(model: AnalyticsFactModel) -> tuple[str, ...]:
     dims = set(_DIMENSIONS[model])
     return tuple(
         column.name
@@ -170,6 +170,9 @@ class RollupOutcome:
     rows_written: int
     window_start: datetime
     window_end: datetime
+
+
+type AnalyticsFactBuilder = Callable[[int, datetime, datetime], Awaitable[Sequence[AnalyticsFact]]]
 
 
 class AnalyticsRollupService:
@@ -290,7 +293,7 @@ class AnalyticsRollupService:
     ) -> int:
         """Delete-then-insert one hourly bucket, in one transaction (Doc 15 §6.3)."""
         upper = bucket + timedelta(hours=1)
-        builders = {
+        builders: dict[str, tuple[AnalyticsFactModel, AnalyticsFactBuilder]] = {
             KIND_MESSAGES: (AnalyticsMessageRollup, self._build_messages),
             KIND_FAILURES: (AnalyticsFailureRollup, self._build_failures),
             KIND_CAMPAIGNS: (AnalyticsCampaignRollup, self._build_campaigns),
@@ -741,7 +744,9 @@ class AnalyticsRollupService:
         await self._session.commit()
         return written
 
-    async def _consolidate_one(self, model: type, organization_id: int, day: datetime) -> int:
+    async def _consolidate_one(
+        self, model: AnalyticsFactModel, organization_id: int, day: datetime
+    ) -> int:
         """Sum one model's hourly rows for ``day`` into day-grain rows, grouped by its dimensions."""
         dimension_names = _DIMENSIONS[model]
         measures = _measures_of(model)
@@ -797,13 +802,15 @@ class AnalyticsRollupService:
         await self._session.commit()
 
     # --- Helpers ---------------------------------------------------------------------------------
-    async def _scalar(self, stmt: Select) -> int:
+    async def _scalar(self, stmt: Select[tuple[int]]) -> int:
         return int((await self._session.scalar(stmt)) or 0)
 
-    async def _pairs(self, stmt: Select) -> dict[tuple[int | None, int | None], int]:
+    async def _pairs(
+        self, stmt: Select[tuple[int, int | None, int]]
+    ) -> dict[tuple[int | None, int | None], int]:
         return {
-            (row[0], row[1]): int(row.n or 0)
-            for row in (await self._session.execute(stmt)).all()
+            (first, second): int(count or 0)
+            for first, second, count in (await self._session.execute(stmt)).all()
         }
 
     async def _organization_ids(self) -> list[int]:

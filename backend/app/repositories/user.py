@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.role import Role, UserRole
 from app.models.user import User
@@ -16,8 +17,11 @@ class UserRepository(BaseRepository[User]):
 
     def _list_filters(
         self, organization_id: int, *, is_active: bool | None, role_name: str | None, q: str | None
-    ) -> list:
-        clauses = [User.organization_id == organization_id, User.deleted_at.is_(None)]
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
+            User.organization_id == organization_id,
+            User.deleted_at.is_(None),
+        ]
         if is_active is not None:
             clauses.append(User.is_active.is_(is_active))
         if q:

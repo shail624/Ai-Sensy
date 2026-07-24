@@ -27,6 +27,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.base import ChannelAdapter
 from app.channels.errors import ChannelError
 from app.channels.models import (
     InteractiveContent,
@@ -44,6 +45,7 @@ from app.core.logging import get_logger
 from app.db.mixins import utcnow
 from app.models.contact import OPT_IN_OPTED_OUT
 from app.models.conversation import Conversation
+from app.models.media import MediaAsset
 from app.models.message import (
     DIRECTION_OUTBOUND,
     MSG_ACCEPTED,
@@ -306,7 +308,9 @@ class SendService:
         await self._session.commit()
         return message
 
-    async def _asset_for(self, organization_id: int, content: dict[str, Any]):
+    async def _asset_for(
+        self, organization_id: int, content: dict[str, Any]
+    ) -> MediaAsset | None:
         """Resolve a `media_asset_id` reference to the asset, or fail before anything is queued.
 
         Checked on the request path so a caller learns immediately that the asset is unknown,
@@ -514,7 +518,9 @@ class SendService:
         await self._session.commit()
         return {"status": "sent", "message_pk": message_pk, "wamid": message.wamid}
 
-    async def _resolve_media(self, message: Message, adapter) -> str | None:
+    async def _resolve_media(
+        self, message: Message, adapter: ChannelAdapter
+    ) -> str | None:
         """Upload the referenced asset to the channel and return its id (Doc 07 §17.3)."""
         if message.media_asset_id is None:
             return None

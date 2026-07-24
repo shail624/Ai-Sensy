@@ -24,7 +24,7 @@ destination ``job=failed`` + error report), and Doc 12 §56 gives M3 no other wr
 from __future__ import annotations
 
 import uuid as uuidlib
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -386,7 +386,9 @@ class BulkService:
         )
 
     # --- Worker path ----------------------------------------------------------
-    async def _audience(self, job: BulkJob):
+    async def _audience(
+        self, job: BulkJob
+    ) -> AsyncIterator[list[tuple[str, Contact | None]]]:
         """Yield the addressed contacts in bounded batches (ids or resolved filter)."""
         request = job.request_json or {}
         ids = request.get("ids")

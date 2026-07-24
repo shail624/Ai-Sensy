@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select, update
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
 from app.repositories.base import BaseRepository
@@ -62,8 +63,8 @@ class PhoneNumberRepository(BaseRepository[PhoneNumber]):
         waba_pk: int | None = None,
         status: str | None = None,
         quality_rating: str | None = None,
-    ) -> list:
-        clauses = [
+    ) -> list[ColumnElement[bool]]:
+        clauses: list[ColumnElement[bool]] = [
             PhoneNumber.organization_id == organization_id,
             PhoneNumber.deleted_at.is_(None),
         ]

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, Field, model_validator
 
@@ -173,8 +173,8 @@ class TaskEventResponse(BaseModel):
     event_type: str
     actor_user_id: str | None
     actor_name: str | None
-    from_value: dict | None
-    to_value: dict | None
+    from_value: dict[str, Any] | None
+    to_value: dict[str, Any] | None
     note: str | None
     created_at: datetime
 

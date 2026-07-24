@@ -14,8 +14,9 @@ from __future__ import annotations
 import csv
 import io
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import date, time
 from typing import Any, Protocol
 
 from openpyxl import Workbook, load_workbook
@@ -48,7 +49,7 @@ def _cell(value: Any) -> str:
     if isinstance(value, float) and value.is_integer():
         # openpyxl types bare numbers as float; "+14155550001" must not become "1.4155550001e+10".
         return str(int(value))
-    if hasattr(value, "isoformat"):
+    if isinstance(value, date | time):
         return value.isoformat()
     return str(value).strip()
 
@@ -254,7 +255,7 @@ class JsonExportWriter:
         return json.dumps(self._rows, ensure_ascii=False, default=str).encode("utf-8")
 
 
-_WRITERS: dict[str, type] = {
+_WRITERS: dict[str, Callable[[Sequence[str]], ExportWriter]] = {
     "csv": CsvExportWriter,
     "xlsx": XlsxExportWriter,
     "json": JsonExportWriter,

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid as uuidlib
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -119,7 +120,13 @@ class JobService:
             raise NotFoundError("Job not found.")
         return job
 
-    async def cancel_job(self, *, actor: User, public_id: uuidlib.UUID, revoke) -> JobMetadata:
+    async def cancel_job(
+        self,
+        *,
+        actor: User,
+        public_id: uuidlib.UUID,
+        revoke: Callable[[str], Any],
+    ) -> JobMetadata:
         """Revoke a cancellable job (Doc 04 §22). Terminal jobs cannot be cancelled."""
         job = await self.get_job(public_id)
         if job.is_terminal:
@@ -180,7 +187,13 @@ class DeadLetterService:
             raise NotFoundError("Dead-letter entry not found.")
         return entry
 
-    async def replay(self, *, actor: User, public_id: uuidlib.UUID, send) -> DeadLetter:
+    async def replay(
+        self,
+        *,
+        actor: User,
+        public_id: uuidlib.UUID,
+        send: Callable[[str, dict[str, Any], str], Any],
+    ) -> DeadLetter:
         """Re-dispatch the original payload through the same processor (Doc 06 §7.4)."""
         entry = await self.get(public_id)
         if entry.status != DL_PARKED:

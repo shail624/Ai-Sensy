@@ -133,7 +133,7 @@ class AnalyticsSeriesResponse(BaseModel):
     @classmethod
     def of(cls, view: SeriesResultView) -> AnalyticsSeriesResponse:
         return cls(
-            granularity=view.granularity,  # type: ignore[arg-type]
+            granularity=view.granularity,
             grain=view.grain,
             from_=view.start,
             to=view.end,

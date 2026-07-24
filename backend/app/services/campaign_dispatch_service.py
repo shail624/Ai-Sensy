@@ -42,6 +42,7 @@ from app.models.campaign import (
     Campaign,
     CampaignRecipient,
 )
+from app.models.message import Message
 from app.models.user import User
 from app.repositories.campaign import (
     CampaignBatchRepository,
@@ -256,12 +257,17 @@ class CampaignDispatchService:
 
     async def _accept(
         self, sender: SendService, campaign: Campaign, recipient: CampaignRecipient
-    ):
+    ) -> Message | None:
         """Hand one recipient's message to SendService, or record why it cannot be sent."""
         contact = await self._contacts.get_by_id(recipient.contact_id)
         template = await self._templates.get_by_id(campaign.template_id)
-        if contact is None or template is None:
-            await self._skip(recipient, code="missing_ref", detail="contact or template is gone")
+        number = await self._numbers.get_by_id(campaign.phone_number_id)
+        if contact is None or template is None or number is None:
+            await self._skip(
+                recipient,
+                code="missing_ref",
+                detail="contact, template, or sending number is gone",
+            )
             return None
 
         variables = recipient.variables_json or {}
@@ -269,7 +275,7 @@ class CampaignDispatchService:
             return await sender.accept(
                 organization_id=campaign.organization_id,
                 actor=await self._creator(campaign),
-                number=await self._numbers.get_by_id(campaign.phone_number_id),
+                number=number,
                 to=contact.phone_e164,
                 message_type=MessageType.TEMPLATE,
                 content={

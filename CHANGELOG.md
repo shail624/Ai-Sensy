@@ -11,6 +11,22 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Module 11 strict typing completion
+
+**Added**
+- Added precise SQLAlchemy result/expression types, analytics fact-model unions, callback/iterator
+  contracts, JSON container types, and focused invariant tests across repository and service seams.
+- Missing linked templates, WABAs, or campaign sending numbers now take explicit existing domain
+  outcomes instead of surfacing as attribute errors; malformed internal priority cursors are rejected.
+
+**Changed**
+- Eliminated the remaining 120 strict-mypy findings across 45 files. Raw `mypy app` now passes for
+  all 227 backend source files under the unchanged strict configuration and pinned mypy 2.3.0.
+- Retired the temporary baseline, wrapper, and wrapper tests exactly as ADR-0004 required once the
+  direct strict gate became clean. ADR-0004 is retained as a superseded transition record.
+- Runtime APIs, routes, permissions, tenant scoping, SQL queries, queue behavior, database schema,
+  migrations, and the 133-path OpenAPI contract remain unchanged.
+
 ### 2026-07-25 — Module 11 strict-mypy ratchet
 
 **Added**
