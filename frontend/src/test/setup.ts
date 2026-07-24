@@ -33,6 +33,19 @@ if (typeof window.PointerEvent === "undefined") {
   window.PointerEvent = PointerEventPolyfill as unknown as typeof window.PointerEvent;
 }
 
+// Nor `Blob.prototype.text()`, which the import wizard uses to read a CSV's header row in the
+// browser. FileReader is implemented, so route through it.
+if (typeof Blob !== "undefined" && typeof Blob.prototype.text !== "function") {
+  Blob.prototype.text = function text(this: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(this);
+    });
+  };
+}
+
 // This jsdom build exposes no Storage implementation; provide an in-memory one so code that
 // persists preferences (theme, sidebar) and the session refresh token behaves as it does in a
 // browser instead of silently no-op'ing.

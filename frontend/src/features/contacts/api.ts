@@ -7,6 +7,7 @@ import type {
   BulkProgress,
   ContactsPage,
   ExportProgress,
+  ImportProgress,
   JobAccepted,
   SegmentRule,
 } from "@/features/contacts/types";
@@ -138,6 +139,51 @@ export function useContactExport(exportId: string | null) {
     refetchInterval: (query) =>
       query.state.data?.download_url || query.state.data?.status === "failed" ? false : POLL_MS,
   });
+}
+
+export interface ContactImportInput {
+  uploadId: string;
+  format: string;
+  /** `{ csvHeader: target }`, where a target is a contact field or `attr.<key>` (Doc 04 §30). */
+  mapping: Record<string, string>;
+  dedupStrategy: string;
+}
+
+/** Start an import over an already-uploaded file. Always `202` — the rows are read by a worker. */
+export function useStartContactImport() {
+  return useMutation({
+    mutationFn: async ({
+      uploadId,
+      format,
+      mapping,
+      dedupStrategy,
+    }: ContactImportInput): Promise<JobAccepted> =>
+      unwrap(
+        await api.POST("/api/v1/contacts/import", {
+          body: { upload_id: uploadId, format, mapping, dedup_strategy: dedupStrategy },
+        }),
+      ),
+  });
+}
+
+/** Poll an import until it stops moving. */
+export function useContactImport(importId: string | null) {
+  return useQuery({
+    queryKey: ["contacts", "import", importId],
+    queryFn: async (): Promise<ImportProgress> =>
+      unwrap(
+        await api.GET("/api/v1/contacts/import/{import_id}", {
+          params: { path: { import_id: importId! } },
+        }),
+      ),
+    enabled: Boolean(importId),
+    refetchInterval: (query) => (TERMINAL.has(query.state.data?.status ?? "") ? false : POLL_MS),
+  });
+}
+
+/** True once an import has finished, whether or not every row landed. */
+export function importIsSettled(progress: ImportProgress | undefined): boolean {
+  return Boolean(progress && TERMINAL.has(progress.status));
 }
 
 /** Drop every cached contact list — call once a bulk job has changed the underlying rows. */

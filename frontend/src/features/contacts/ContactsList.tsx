@@ -1,4 +1,4 @@
-import { Contact as ContactIcon } from "lucide-react";
+import { Contact as ContactIcon, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,10 +6,12 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
+import { ImportWizard } from "@/features/contacts/ImportWizard";
 import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
 import { useCustomAttributeDefinitions, useTags } from "@/features/customer-profile/api";
+import { useHasPermission } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
 
@@ -47,6 +49,8 @@ export function ContactsList(): JSX.Element {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Room the docked bulk bar needs on phones — reported by the bar, which knows its own height. */
   const [dockedSpace, setDockedSpace] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const canImport = useHasPermission("contacts:import");
 
   const filters = useMemo<ContactFilters>(() => {
     const attributes: Record<string, string> = {};
@@ -113,7 +117,27 @@ export function ContactsList(): JSX.Element {
         {page?.total != null ? (
           <Badge tone="neutral">{page.total.toLocaleString()}</Badge>
         ) : null}
+        {canImport ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="ml-auto"
+            leftIcon={<Upload className="h-4 w-4" />}
+            onClick={() => setImporting(true)}
+          >
+            Import
+          </Button>
+        ) : null}
       </header>
+
+      {importing ? (
+        <ImportWizard
+          onClose={() => {
+            setImporting(false);
+            void contacts.refetch();
+          }}
+        />
+      ) : null}
 
       {/* Search + filters */}
       <div className="mb-4">
@@ -151,6 +175,11 @@ export function ContactsList(): JSX.Element {
               hasActiveFilters(filters) ? (
                 <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
                   Clear filters
+                </Button>
+              ) : canImport ? (
+                // First run: the Design Book's own call to action (B3.1 "Empty").
+                <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
+                  Import your contacts
                 </Button>
               ) : undefined
             }
