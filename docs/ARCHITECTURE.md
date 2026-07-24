@@ -92,7 +92,7 @@ constants) and `app/db` (engine, session, declarative base, mixins).
 | Web framework | **FastAPI** | Async, type-driven, OpenAPI out of the box. |
 | ORM | **SQLAlchemy 2.0 (async)** | Mature, typed `Mapped[]` API, portable across MySQL/SQLite. |
 | Migrations | **Alembic** | First-class SQLAlchemy migrations, async env. |
-| DB driver | **asyncmy** (MySQL) / **aiosqlite** (tests) | Fast async MySQL driver; SQLite keeps tests hermetic and fast. |
+| DB driver | **aiomysql** (MySQL) / **aiosqlite** (tests) | Async MySQL in production; SQLite keeps tests hermetic and fast. |
 | Validation | **Pydantic v2 + pydantic-settings** | Fast, strict, env-driven settings. |
 | Password hashing | **argon2-cffi (Argon2id)** | OWASP-recommended; avoids bcrypt's 72-byte limit and passlib version pitfalls. |
 | Tokens | **PyJWT** | Standard, minimal, well-audited. |
@@ -100,7 +100,8 @@ constants) and `app/db` (engine, session, declarative base, mixins).
 | Background jobs | **Celery + Redis** | Battle-tested distributed task queue. |
 | Tests | **pytest + pytest-asyncio + httpx.AsyncClient** | Full async API testing without a live server. |
 
-> **Python version:** production images target **Python 3.13** (`python:3.13-slim`).
+> **Python version:** production images target **Python 3.13** on the digest-pinned
+> `python:3.13.14-alpine3.24` base.
 > The pinned dependencies also run on 3.14 so the suite can be executed on a
 > developer machine that has a newer interpreter.
 

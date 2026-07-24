@@ -1,14 +1,12 @@
 # Backend production image (Doc 08 §6 — pinned, non-root, minimal).
-# Multi-stage: build wheels, then a slim runtime. Targets Python 3.13.
+# Multi-stage: build wheels, then an Alpine runtime. Targets Python 3.13.
 
 # ---- Builder ----
-FROM python:3.13-slim AS builder
+FROM python:3.13.14-alpine3.24@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0 AS builder
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache build-base
 # `pyproject.toml` declares `readme = "README.md"`; setuptools resolves that path at build time, so
 # the file must be present or the install aborts with a FileNotFoundError before a single
 # dependency is fetched.
@@ -22,12 +20,12 @@ COPY app ./app
 RUN pip install --prefix=/install .
 
 # ---- Runtime ----
-FROM python:3.13-slim AS runtime
+FROM python:3.13.14-alpine3.24@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0 AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 # Non-root runtime user (Doc 08 §26 — least privilege / container hardening).
-RUN groupadd --system app && useradd --system --gid app --home /app app
+RUN addgroup -S app && adduser -S -G app -h /app app
 
 # Create the mount points **in the image**, owned by the runtime user.
 #

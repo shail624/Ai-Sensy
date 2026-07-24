@@ -11,6 +11,31 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Module 11 security and release-gate automation
+
+**Added**
+- Added cumulative, provider-neutral `static`, `pre-merge`, and `release` quality profiles covering
+  Ruff, strict mypy, OpenAPI drift, frontend lint/types, both full test suites, production build,
+  Bandit SAST, dependency audits, tracked-source vulnerability/secret/IaC scanning, Compose/image
+  contracts, production image scans, smoke checks, and CycloneDX SBOM evidence.
+- Added deterministic tests for fail-fast orchestration, tracked-only scanner snapshots, Compose
+  invariants, synthetic secret handling, and non-root/health image metadata. ADR-0005 records the
+  gate boundaries and scanner pin.
+
+**Security**
+- The first blocking audit found `asyncmy` 0.2.11 affected by critical unpatched SQL injection
+  (`GHSA-qhqw-rrw9-25rm`). Replaced only the SQLAlchemy driver boundary with pinned `aiomysql`
+  0.3.2 / PyMySQL 1.2.0; application layering, SQLAlchemy repositories, schema, routes, permissions,
+  queue behavior, and the 133-path contract are unchanged.
+- Production application image tags now fail closed when `IMAGE_TAG` is absent, and the deployment
+  template demonstrates the immutable release tag `1.0.0-rc1` instead of `latest`.
+- Backend and frontend build/runtime bases, plus the production Redis and edge-nginx images, are
+  pinned by immutable manifest digest. The application runtimes use current Alpine layers; both
+  rebuilt application images pass the blocking HIGH/CRITICAL scan and emit CycloneDX SBOMs.
+- The tracked source snapshot is clean at HIGH/CRITICAL across vulnerability, secret, and IaC
+  scanning; backend SAST and production dependency audit are clean. Moderate React Router
+  advisories remain visible and require an explicit later v7 migration.
+
 ### 2026-07-25 — Module 11 strict typing completion
 
 **Added**

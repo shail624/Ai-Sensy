@@ -35,6 +35,8 @@ coverage.xml
 *.cover
 .mypy_cache/
 .ruff_cache/
+.quality-artifacts/
+.quality-cache/
 
 # ---- Environment ----
 # Real environment files never enter the repository; the *.example templates always must, because

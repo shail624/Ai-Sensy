@@ -29,7 +29,7 @@ x-backend-image: &backend-image
   build:
     context: ./backend
     dockerfile: Dockerfile
-  image: wa-platform/backend:${IMAGE_TAG:-latest}
+  image: wa-platform/backend:${IMAGE_TAG:?IMAGE_TAG is required}
 
 x-backend-env: &backend-env
   ENVIRONMENT: production
@@ -41,7 +41,7 @@ x-backend-env: &backend-env
   # no stored token can be read back, which surfaces as a 500 on onboarding rather than as a
   # configuration error. Rotating it makes existing stored tokens undecryptable; re-enter them.
   TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?TOKEN_ENCRYPTION_KEY is required}
-  DATABASE_URL: mysql+asyncmy://${DB_USER:?}:${DB_PASSWORD:?}@mysql:3306/${DB_NAME:?}?charset=utf8mb4
+  DATABASE_URL: mysql+aiomysql://${DB_USER:?}:${DB_PASSWORD:?}@mysql:3306/${DB_NAME:?}?charset=utf8mb4
   DB_HOST: mysql
   DB_PORT: "3306"
   # Redis carries the broker, the cache, the rate gate and the idempotency store. It is
@@ -106,7 +106,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     restart: unless-stopped
     logging: *default-logging
     # AOF on: Redis carries the broker queue, so losing it loses queued work (Doc 06 §12.6
@@ -242,7 +242,7 @@ services:
       args:
         # Empty = same-origin; the edge proxy serves the API under /api on this origin.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
-    image: wa-platform/frontend:${IMAGE_TAG:-latest}
+    image: wa-platform/frontend:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: unless-stopped
     logging: *default-logging
     expose:
@@ -250,7 +250,7 @@ services:
 
   # ---- Edge reverse proxy --------------------------------------------------------------------------
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
     restart: unless-stopped
     logging: *default-logging
     ports:

@@ -3,8 +3,12 @@
 # The runtime carries no Node and no source — only the compiled assets.
 
 # ---- Builder ----
-FROM node:20-alpine AS builder
+FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS builder
 WORKDIR /build
+
+# The base's bundled npm 11.16.0 contains fixed-version-available tar/undici findings. Keep the
+# build tool explicit; it is not copied into the runtime image.
+RUN npm install --global npm@11.17.0
 
 # Dependencies first, so a source-only change reuses the install layer. `npm ci` installs exactly
 # what `package-lock.json` pins, including devDependencies — `tsc` and `vite` are both dev deps and
@@ -21,7 +25,7 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # ---- Runtime ----
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46 AS runtime
 
 # Serve-only config: SPA history fallback plus long-lived caching for fingerprinted assets.
 # Proxying, compression and security headers belong to the edge proxy, not here.

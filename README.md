@@ -63,6 +63,18 @@ Single-tenant, self-hosted, not SaaS.
 - Backend lint and type gate: `cd backend && ruff check app tests scripts && mypy app`
 - Frontend: `cd frontend && npm test`
 
+The provider-neutral Module 11 gate is the automation entry point for local and CI execution:
+
+```bash
+python scripts/quality_gate.py static       # offline lint, types, and contract drift
+python scripts/quality_gate.py pre-merge    # full tests/build plus source security gates
+python scripts/quality_gate.py release      # production images, smoke, scans, and SBOMs
+```
+
+Run it with the backend virtual environment's Python. The two heavier profiles require current
+advisory-network access; `release` also requires Docker. Machine-readable evidence is written to
+the ignored `.quality-artifacts/` directory.
+
 ## Production deployment
 
 ```bash
@@ -79,7 +91,8 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 `v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
 deployment topology, and the frontend application across the principal product areas. FR-CON-04
 Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
-is Module 11 hardening: the backend now passes its unchanged strict-mypy policy directly.
+is Module 11 hardening: strict backend typing and provider-neutral security/release gates are
+complete; deployed-stack E2E, performance, and observability evidence are next.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.

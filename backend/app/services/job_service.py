@@ -36,7 +36,8 @@ from app.services.audit_service import AuditAction, AuditService
 def fingerprint(task_name: str, error_class: str | None, error_detail: str | None) -> str:
     """Group identical root causes so a spike shows one cause, not thousands (Doc 06 §7.4)."""
     shape = f"{task_name}|{error_class or ''}|{(error_detail or '')[:120]}"
-    return hashlib.sha1(shape.encode("utf-8")).hexdigest()  # noqa: S324 - grouping key, not security
+    # This is a compact, stable grouping label, never a signature, credential, or integrity check.
+    return hashlib.sha1(shape.encode("utf-8")).hexdigest()  # nosec B324
 
 
 class JobService:

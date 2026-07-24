@@ -17,7 +17,10 @@ dependencies = [
     "pydantic-settings>=2.5",
     "sqlalchemy[asyncio]>=2.0.35",
     "alembic>=1.13",
-    "asyncmy>=0.2.9",            # async MySQL driver (production)
+    # asyncmy <=0.2.11 has an unpatched critical SQL-injection advisory
+    # (GHSA-qhqw-rrw9-25rm). Keep the replacement and its escaping layer pinned.
+    "aiomysql==0.3.2",           # async MySQL driver (production)
+    "PyMySQL==1.2.0",
     "aiosqlite>=0.20",           # async SQLite driver (tests / local)
     "redis>=5.0",
     "celery>=5.4",
@@ -38,6 +41,9 @@ dev = [
     "ruff>=0.6",
     # Pin the blocking type gate so local and automated runs interpret annotations identically.
     "mypy==2.3.0",
+    # Security gates are pinned so their rule/output changes are explicit review events.
+    "bandit==1.9.4",
+    "pip-audit==2.10.1",
 ]
 
 [build-system]

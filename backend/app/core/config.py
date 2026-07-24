@@ -184,7 +184,7 @@ class Settings(BaseSettings):
         if self.database_url:
             return self.database_url
         return (
-            f"mysql+asyncmy://{self.db_user}:{self.db_password}"
+            f"mysql+aiomysql://{self.db_user}:{self.db_password}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
         )
 
