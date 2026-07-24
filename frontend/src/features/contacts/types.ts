@@ -7,3 +7,9 @@ export type ContactSearchRequest = components["schemas"]["ContactSearchRequest"]
 export type SegmentRule = components["schemas"]["SegmentRuleModel"];
 export type Tag = components["schemas"]["TagResponse"];
 export type AttributeDefinition = components["schemas"]["AttributeDefinitionResponse"];
+export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
+export type BulkProgress = components["schemas"]["BulkProgressResponse"];
+export type ExportProgress = components["schemas"]["ExportProgressResponse"];
+
+/** The bulk edits the API accepts (`BULK_ACTIONS`, Doc 04 §30). */
+export type BulkAction = "add_tags" | "remove_tags" | "set_attributes";

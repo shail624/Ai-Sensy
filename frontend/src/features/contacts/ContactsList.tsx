@@ -1,10 +1,11 @@
-import { Contact as ContactIcon, X } from "lucide-react";
+import { Contact as ContactIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
+import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
 import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
@@ -44,6 +45,8 @@ function LoadingRows(): JSX.Element {
 export function ContactsList(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  /** Room the docked bulk bar needs on phones — reported by the bar, which knows its own height. */
+  const [dockedSpace, setDockedSpace] = useState(0);
 
   const filters = useMemo<ContactFilters>(() => {
     const attributes: Record<string, string> = {};
@@ -102,11 +105,8 @@ export function ContactsList(): JSX.Element {
     });
   }
 
-  const hasSelection = selectedIds.size > 0;
-
   return (
-    // On phones the bulk bar docks to the bottom edge, so the page reserves room for it.
-    <div className={`mx-auto max-w-7xl px-4 py-6 sm:px-6 ${hasSelection ? "pb-24 md:pb-6" : ""}`}>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6" style={{ paddingBottom: 24 + dockedSpace }}>
       {/* Header */}
       <header className="mb-5 flex items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-text-primary">Contacts</h1>
@@ -125,23 +125,13 @@ export function ContactsList(): JSX.Element {
         />
       </div>
 
-      {/* Bulk selection bar — sticky above the fold on phones (DS-14), inline from `md` up. */}
-      {hasSelection ? (
-        <div className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-3 rounded-xl border border-accent bg-accent-soft px-4 py-2.5 shadow-lg md:static md:mb-3 md:shadow-none">
-          <span className="text-sm font-semibold text-accent">
-            {selectedIds.size} selected
-          </span>
-          <span className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon={<X className="h-4 w-4" />}
-            onClick={() => setSelectedIds(new Set())}
-          >
-            Clear
-          </Button>
-        </div>
-      ) : null}
+      {/* Bulk actions — docked to the bottom edge on phones (DS-14), inline from `md` up. */}
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        onClear={() => setSelectedIds(new Set())}
+        rules={rules}
+        onDockedHeightChange={setDockedSpace}
+      />
 
       {contacts.isLoading ? (
         <LoadingRows />
