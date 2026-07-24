@@ -38,7 +38,7 @@ export function StatCard({ label, value, icon, change, invertTrend = false, hint
         {hasTrend ? (
           <span
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-              good ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+              good ? "bg-success-soft text-success-on-soft" : "bg-danger-soft text-danger-on-soft"
             }`}
           >
             <Trend aria-hidden className="h-3 w-3" />

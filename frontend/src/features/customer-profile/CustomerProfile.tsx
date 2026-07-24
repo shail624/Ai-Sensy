@@ -1,11 +1,20 @@
 import type { ReactNode } from "react";
 
-import { ErrorState, Spinner } from "@/components/ui";
+import { Avatar, Badge, ErrorState, Spinner } from "@/components/ui";
+import type { BadgeTone } from "@/components/ui";
 import {
   apiErrorMessage,
   useContact,
   useCustomAttributeDefinitions,
 } from "@/features/customer-profile/api";
+
+/** Opt-in vocabulary → a status pill; anything unknown renders neutrally rather than guessing. */
+const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
+  opted_in: { tone: "success", label: "Opted in" },
+  opted_out: { tone: "danger", label: "Opted out" },
+  pending: { tone: "warning", label: "Pending" },
+  unknown: { tone: "neutral", label: "Unknown" },
+};
 
 import { AssignmentSection } from "./sections/AssignmentSection";
 import { ConversationHistorySection } from "./sections/ConversationHistorySection";
@@ -61,14 +70,21 @@ export function CustomerProfile({
   }
 
   const person = contact.data;
+  const name = person.full_name ?? person.profile_name ?? person.phone_e164;
+  const status = OPT_IN[person.opt_in_status] ?? { tone: "neutral" as const, label: person.opt_in_status };
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      <header className="mb-4">
-        <h2 className="text-xl font-bold text-text-primary">
-          {person.full_name ?? person.profile_name ?? person.phone_e164}
-        </h2>
-        <p className="text-sm text-text-secondary">{person.phone_e164}</p>
+      {/* Identity header (Doc 05 B3.2): who this is, and their standing, before any detail. */}
+      <header className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:gap-4 sm:p-5">
+        <Avatar name={name} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-xl font-bold tracking-tight text-text-primary">{name}</h2>
+          <p className="truncate text-sm tabular-nums text-text-secondary">{person.phone_e164}</p>
+        </div>
+        <Badge tone={status.tone} dot>
+          {status.label}
+        </Badge>
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -244,7 +244,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
           )}
 
           {mode === "delete" && (
-            <p className="rounded-lg border border-danger bg-danger-soft px-3 py-2.5 text-sm text-danger">
+            <p className="rounded-lg border border-danger bg-danger-soft px-3 py-2.5 text-sm text-danger-on-soft">
               Deleted contacts stop receiving messages and leave every segment. This cannot be undone
               from here.
             </p>

@@ -1,19 +1,13 @@
+import { Badge } from "@/components/ui";
 import type { MatchType, Segment } from "@/features/segments/types";
 import { isStale, MATCH_TYPE_EXPLANATIONS, MATCH_TYPE_LABELS } from "@/features/segments/types";
 import { formatCount } from "@/lib/format";
 
-function chip(tone: string): string {
-  return `inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${tone}`;
-}
-
 export function MatchTypeChip({ value }: { value: string }): JSX.Element {
   return (
-    <span
-      title={MATCH_TYPE_EXPLANATIONS[value as MatchType]}
-      className={chip("border-border text-text-secondary")}
-    >
+    <Badge tone="neutral" title={MATCH_TYPE_EXPLANATIONS[value as MatchType]}>
       {MATCH_TYPE_LABELS[value as MatchType] ?? value}
-    </span>
+    </Badge>
   );
 }
 
@@ -28,54 +22,50 @@ export function MatchTypeChip({ value }: { value: string }): JSX.Element {
 export function CountChip({ segment }: { segment: Segment }): JSX.Element {
   if (isStale(segment)) {
     return (
-      <span
+      <Badge
+        tone="warning"
+        dot
         title="The rules changed since this was last evaluated. Refresh to recompute the size."
-        className={chip("border-warning text-warning")}
       >
         Not evaluated
-      </span>
+      </Badge>
     );
   }
   const count = segment.cached_count ?? 0;
   return (
-    <span
-      className={chip(count === 0 ? "border-border text-text-disabled" : "border-success text-success")}
-    >
+    <Badge tone={count === 0 ? "neutral" : "success"} dot>
       {formatCount(count)} contact{count === 1 ? "" : "s"}
-    </span>
+    </Badge>
   );
 }
 
 /** Every segment the platform creates is dynamic; the flag is shown where it is part of the record. */
 export function DynamicChip({ dynamic }: { dynamic: boolean }): JSX.Element {
   return (
-    <span
+    <Badge
+      tone={dynamic ? "info" : "neutral"}
       title={
         dynamic
           ? "Evaluated live against the contact list every time it is used."
           : "A fixed list rather than a live filter."
       }
-      className={chip(dynamic ? "border-info text-info" : "border-border text-text-secondary")}
     >
       {dynamic ? "Dynamic" : "Static"}
-    </span>
+    </Badge>
   );
 }
 
 export function RuleCountChip({ count }: { count: number }): JSX.Element {
   if (count === 0) {
     return (
-      <span
-        title="A segment with no conditions matches every contact."
-        className={chip("border-warning text-warning")}
-      >
+      <Badge tone="warning" title="A segment with no conditions matches every contact.">
         No conditions
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className={chip("border-border text-text-secondary")}>
+    <Badge tone="neutral">
       {count} condition{count === 1 ? "" : "s"}
-    </span>
+    </Badge>
   );
 }

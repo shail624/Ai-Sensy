@@ -1,7 +1,8 @@
+import { ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { EmptyState, ErrorState, Spinner } from "@/components/ui";
+import { EmptyState, ErrorState, Skeleton } from "@/components/ui";
 // The administration feature owns the shared list footer; importing it keeps one implementation of
 // how these lists page.
 import { AdminPagination } from "@/features/admin";
@@ -16,9 +17,28 @@ import {
 } from "@/features/segments/selectors";
 import { MATCH_TYPE_LABELS, MATCH_TYPES } from "@/features/segments/types";
 import { formatCount, formatDate } from "@/lib/format";
+import { useIsCompact } from "@/lib/useMediaQuery";
 
 const FIELD_CLASS =
-  "rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary";
+  "h-9 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+
+/** Table-shaped placeholder, so the page keeps its layout while the list loads. */
+function LoadingRows(): JSX.Element {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
+          <Skeleton className="h-3.5 w-48" />
+          <Skeleton className="ml-auto h-5 w-24 rounded-full" />
+          <Skeleton className="hidden h-5 w-24 rounded-full sm:block" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const TH = "px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-disabled";
+const TD = "px-4 py-3 align-middle";
 
 const SORTS: SegmentSort[] = ["name", "-name", "-cached_count", "-updated_at", "-created_at"];
 
@@ -75,6 +95,7 @@ export function SegmentList(): JSX.Element {
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("segments:write");
 
+  const compact = useIsCompact();
   const segments = useSegments();
   const all = useMemo(() => segments.data ?? [], [segments.data]);
   const page = useMemo(() => selectSegmentPage(all, query), [all, query]);
@@ -86,7 +107,7 @@ export function SegmentList(): JSX.Element {
     setSearchParams(writeQuery({ ...query, ...next, page: 1 }));
   }
 
-  if (segments.isLoading) return <Spinner label="Loading segments…" />;
+  if (segments.isLoading) return <LoadingRows />;
 
   if (segments.isError) {
     return (
@@ -104,24 +125,29 @@ export function SegmentList(): JSX.Element {
         </p>
       ) : null}
 
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-none">
-            <label htmlFor="segments-search" className="text-xs font-medium text-text-secondary">
-              Search
-            </label>
-            <input
-              id="segments-search"
-              type="search"
-              value={query.q}
-              onChange={(event) => apply({ q: event.target.value })}
-              placeholder="Name or description…"
-              className={FIELD_CLASS}
-            />
-          </div>
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-[220px] flex-1">
+          <label htmlFor="segments-search" className="sr-only">
+            Search
+          </label>
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled"
+          />
+          <input
+            id="segments-search"
+            type="search"
+            value={query.q}
+            onChange={(event) => apply({ q: event.target.value })}
+            placeholder="Name or description…"
+            className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-text-primary placeholder:text-text-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          />
+        </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="segments-state" className="text-xs font-medium text-text-secondary">
+        <SlidersHorizontal aria-hidden className="hidden h-4 w-4 text-text-disabled sm:block" />
+
+        <div className="flex flex-col gap-1">
+            <label htmlFor="segments-state" className="sr-only">
               State
             </label>
             <select
@@ -140,7 +166,7 @@ export function SegmentList(): JSX.Element {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="segments-match" className="text-xs font-medium text-text-secondary">
+            <label htmlFor="segments-match" className="sr-only">
               Logic
             </label>
             <select
@@ -159,7 +185,7 @@ export function SegmentList(): JSX.Element {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="segments-sort" className="text-xs font-medium text-text-secondary">
+            <label htmlFor="segments-sort" className="sr-only">
               Sort
             </label>
             <select
@@ -175,12 +201,11 @@ export function SegmentList(): JSX.Element {
               ))}
             </select>
           </div>
-        </div>
 
         {canWrite ? (
           <Link
             to="/segments/new"
-            className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-fg shadow-sm hover:bg-accent-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             New segment
           </Link>
@@ -203,57 +228,99 @@ export function SegmentList(): JSX.Element {
         />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
-                <tr>
-                  <th scope="col" className="px-3 py-2">Segment</th>
-                  <th scope="col" className="px-3 py-2">Size</th>
-                  <th scope="col" className="hidden px-3 py-2 lg:table-cell">Conditions</th>
-                  <th scope="col" className="hidden px-3 py-2 xl:table-cell">Logic</th>
-                  <th scope="col" className="hidden px-3 py-2 xl:table-cell">Updated</th>
-                  <th scope="col" className="px-3 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {page.rows.map((segment) => (
-                  <tr key={segment.id} className="border-b border-border last:border-0 hover:bg-hover">
-                    <td className="px-3 py-2">
+          {compact ? (
+            <ul className="space-y-2.5">
+              {page.rows.map((segment) => (
+                <li
+                  key={segment.id}
+                  className="rounded-2xl border border-border bg-surface p-3.5 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
                       <Link
                         to={`/segments/${segment.id}`}
-                        className="font-medium text-text-primary hover:text-accent focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        className="block truncate font-semibold text-text-primary focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       >
                         {segment.name}
                       </Link>
                       {segment.description ? (
-                        <p className="max-w-md truncate text-xs text-text-secondary">
-                          {segment.description}
-                        </p>
+                        <p className="truncate text-xs text-text-secondary">{segment.description}</p>
                       ) : null}
-                      <div className="mt-1 flex flex-wrap gap-1 lg:hidden">
-                        <RuleCountChip count={segment.rules.length} />
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <CountChip segment={segment} />
-                    </td>
-                    <td className="hidden px-3 py-2 lg:table-cell">
-                      <RuleCountChip count={segment.rules.length} />
-                    </td>
-                    <td className="hidden px-3 py-2 xl:table-cell">
-                      <MatchTypeChip value={segment.match_type} />
-                    </td>
-                    <td className="hidden px-3 py-2 text-text-secondary xl:table-cell">
-                      {formatDate(segment.updated_at)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <SegmentActions segment={segment} compact />
-                    </td>
+                    </div>
+                    <SegmentActions segment={segment} compact />
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <CountChip segment={segment} />
+                    <RuleCountChip count={segment.rules.length} />
+                    <MatchTypeChip value={segment.match_type} />
+                  </div>
+                  <p className="mt-2 text-xs text-text-disabled">
+                    Updated {formatDate(segment.updated_at)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface-2">
+                    <th scope="col" className={TH}>Segment</th>
+                    <th scope="col" className={TH}>Size</th>
+                    <th scope="col" className={`${TH} hidden lg:table-cell`}>Conditions</th>
+                    <th scope="col" className={`${TH} hidden xl:table-cell`}>Logic</th>
+                    <th scope="col" className={`${TH} hidden xl:table-cell`}>Updated</th>
+                    <th scope="col" className={`${TH} text-right`}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {page.rows.map((segment) => (
+                    <tr
+                      key={segment.id}
+                      className="group border-b border-border transition-colors last:border-0 hover:bg-hover"
+                    >
+                      <td className={TD}>
+                        <div className="flex items-center gap-2">
+                          <div className="min-w-0">
+                            <Link
+                              to={`/segments/${segment.id}`}
+                              className="font-semibold text-text-primary hover:text-accent focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                            >
+                              {segment.name}
+                            </Link>
+                            {segment.description ? (
+                              <p className="max-w-md truncate text-xs text-text-secondary">
+                                {segment.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          <ChevronRight
+                            aria-hidden
+                            className="h-4 w-4 shrink-0 text-text-disabled opacity-0 transition-opacity group-hover:opacity-100"
+                          />
+                        </div>
+                      </td>
+                      <td className={TD}>
+                        <CountChip segment={segment} />
+                      </td>
+                      <td className={`${TD} hidden lg:table-cell`}>
+                        <RuleCountChip count={segment.rules.length} />
+                      </td>
+                      <td className={`${TD} hidden xl:table-cell`}>
+                        <MatchTypeChip value={segment.match_type} />
+                      </td>
+                      <td className={`${TD} hidden text-text-secondary xl:table-cell`}>
+                        {formatDate(segment.updated_at)}
+                      </td>
+                      <td className={`${TD} text-right`}>
+                        <SegmentActions segment={segment} compact />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <AdminPagination
             page={page.page}

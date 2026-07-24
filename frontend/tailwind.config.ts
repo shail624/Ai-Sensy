@@ -29,11 +29,29 @@ const config: Config = {
           strong: "var(--color-accent-strong)",
           soft: "var(--color-accent-soft)",
           fg: "var(--color-accent-fg)",
+          // Text on the matching soft fill, at DS-10's 4.5:1 in both themes.
+          "on-soft": "var(--color-accent-on-soft)",
         },
-        success: { DEFAULT: "var(--color-success)", soft: "var(--color-success-soft)" },
-        warning: { DEFAULT: "var(--color-warning)", soft: "var(--color-warning-soft)" },
-        danger: { DEFAULT: "var(--color-danger)", soft: "var(--color-danger-soft)" },
-        info: { DEFAULT: "var(--color-info)", soft: "var(--color-info-soft)" },
+        success: {
+          DEFAULT: "var(--color-success)",
+          soft: "var(--color-success-soft)",
+          "on-soft": "var(--color-success-on-soft)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning)",
+          soft: "var(--color-warning-soft)",
+          "on-soft": "var(--color-warning-on-soft)",
+        },
+        danger: {
+          DEFAULT: "var(--color-danger)",
+          soft: "var(--color-danger-soft)",
+          "on-soft": "var(--color-danger-on-soft)",
+        },
+        info: {
+          DEFAULT: "var(--color-info)",
+          soft: "var(--color-info-soft)",
+          "on-soft": "var(--color-info-on-soft)",
+        },
         // Reserved channel accent — WhatsApp identity marker only (Doc 05 DS-5).
         channel: "#25D366",
       },

@@ -21,6 +21,13 @@
   --color-accent-strong: #4a41d6;
   --color-accent-soft: #eeecfd;
   --color-accent-fg: #ffffff;
+  /* Text on the matching `-soft` fill. The base tone is tuned for solid marks (dots, bars) and does
+     not reach 4.5:1 as 12px text on its own tint, which DS-10 requires in both themes. */
+  --color-accent-on-soft: #4038c9;
+  --color-success-on-soft: #0a6c33;
+  --color-warning-on-soft: #935700;
+  --color-danger-on-soft: #b21c33;
+  --color-info-on-soft: #14568f;
   --color-success: #12a150;
   --color-success-soft: #e7f6ee;
   --color-warning: #d98207;
@@ -52,6 +59,11 @@
   --color-accent-strong: #928bf5;
   --color-accent-soft: #1e2145;
   --color-accent-fg: #ffffff;
+  --color-accent-on-soft: #a9a3f7;
+  --color-success-on-soft: #4fd98a;
+  --color-warning-on-soft: #f5b769;
+  --color-danger-on-soft: #f8899a;
+  --color-info-on-soft: #74bdf8;
   --color-success: #29c46a;
   --color-success-soft: #12271c;
   --color-warning: #f0a13a;
@@ -84,6 +96,11 @@
     --color-accent-strong: #928bf5;
     --color-accent-soft: #1e2145;
     --color-accent-fg: #ffffff;
+    --color-accent-on-soft: #a9a3f7;
+    --color-success-on-soft: #4fd98a;
+    --color-warning-on-soft: #f5b769;
+    --color-danger-on-soft: #f8899a;
+    --color-info-on-soft: #74bdf8;
     --color-success: #29c46a;
     --color-success-soft: #12271c;
     --color-warning: #f0a13a;

@@ -1,5 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
+
+import { CustomerProfile } from "@/features/customer-profile";
 
 import { AssignmentSection } from "@/features/customer-profile/sections/AssignmentSection";
 import { ConversationHistorySection } from "@/features/customer-profile/sections/ConversationHistorySection";
@@ -7,6 +11,23 @@ import { CustomAttributesSection } from "@/features/customer-profile/sections/Cu
 import { IdentitySection } from "@/features/customer-profile/sections/IdentitySection";
 import { NotesSection } from "@/features/customer-profile/sections/NotesSection";
 import type { AttributeDefinition, Contact, Note } from "@/features/customer-profile/types";
+
+/** Responses the mocked client serves, swapped per test. */
+const apiResponses: { value: Record<string, unknown> } = { value: {} };
+
+vi.mock("@/lib/api/client", () => {
+  const GET = async (path: string) =>
+    path in apiResponses.value
+      ? { data: apiResponses.value[path] }
+      : { error: new Error(`no stub for ${path}`) };
+  const write = async () => ({ error: new Error("network disabled under test") });
+  return {
+    api: { GET, POST: write, PATCH: write, PUT: write, DELETE: write },
+    authClient: { POST: write },
+    setSessionExpiredHandler: vi.fn(),
+    refreshOnce: vi.fn(),
+  };
+});
 
 function contactFixture(overrides: Partial<Contact> = {}): Contact {
   return {
@@ -92,5 +113,44 @@ describe("customer profile sections", () => {
     ];
     render(<NotesSection notes={notes} />);
     expect(screen.getByText("Called back")).toBeInTheDocument();
+  });
+});
+
+// --- Profile header ------------------------------------------------------------------------------
+
+describe("CustomerProfile header", () => {
+  const responses: Record<string, unknown> = {};
+
+  function withProviders(ui: React.ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("leads with the identity and the opt-in standing", async () => {
+    responses["/api/v1/contacts/{contact_id}"] = contactFixture();
+    responses["/api/v1/custom-attributes"] = [];
+    apiResponses.value = responses;
+
+    withProviders(<CustomerProfile contactId="c1" />);
+
+    expect(await screen.findByRole("heading", { name: "Priya Sharma" })).toBeInTheDocument();
+    expect(screen.getAllByText("+15551234567").length).toBeGreaterThan(0);
+    expect(screen.getByText("Opted in")).toBeInTheDocument();
+  });
+
+  it("renders an unknown opt-in value verbatim rather than guessing", async () => {
+    apiResponses.value = {
+      "/api/v1/contacts/{contact_id}": contactFixture({ opt_in_status: "revoked" }),
+      "/api/v1/custom-attributes": [],
+    };
+
+    withProviders(<CustomerProfile contactId="c1" />);
+
+    // Both the header pill and the identity section show it, neither translates it.
+    expect((await screen.findAllByText("revoked")).length).toBeGreaterThan(0);
   });
 });

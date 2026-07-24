@@ -687,6 +687,28 @@ describe("SegmentList", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
+
+  it("reflows to stacked cards below md, keeping every fact the table carries", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    responses["/api/v1/segments"] = [segmentFixture()];
+    withProviders(<SegmentList />);
+
+    await screen.findByRole("link", { name: "Lapsed customers" });
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0);
+    expect(screen.getByText("1,240 contacts")).toBeInTheDocument();
+    expect(screen.getByText("1 condition")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });
 
 // --- Detail --------------------------------------------------------------------------------------------------------
