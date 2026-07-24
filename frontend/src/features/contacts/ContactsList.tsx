@@ -30,8 +30,8 @@ function LoadingRows(): JSX.Element {
         <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
           <Skeleton className="h-4 w-4" />
           <Skeleton className="h-8 w-8 rounded-full" />
-          <Skeleton className="h-3.5 w-40" />
-          <Skeleton className="ml-auto h-3.5 w-28" />
+          <Skeleton className="h-3.5 w-32 sm:w-40" />
+          <Skeleton className="ml-auto hidden h-3.5 w-28 sm:block" />
           <Skeleton className="h-5 w-20 rounded-full" />
         </div>
       ))}
@@ -102,8 +102,11 @@ export function ContactsList(): JSX.Element {
     });
   }
 
+  const hasSelection = selectedIds.size > 0;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    // On phones the bulk bar docks to the bottom edge, so the page reserves room for it.
+    <div className={`mx-auto max-w-7xl px-4 py-6 sm:px-6 ${hasSelection ? "pb-24 md:pb-6" : ""}`}>
       {/* Header */}
       <header className="mb-5 flex items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-text-primary">Contacts</h1>
@@ -122,9 +125,9 @@ export function ContactsList(): JSX.Element {
         />
       </div>
 
-      {/* Bulk selection bar */}
-      {selectedIds.size > 0 ? (
-        <div className="mb-3 flex items-center gap-3 rounded-xl border border-accent/25 bg-accent-soft px-4 py-2.5">
+      {/* Bulk selection bar — sticky above the fold on phones (DS-14), inline from `md` up. */}
+      {hasSelection ? (
+        <div className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-3 rounded-xl border border-accent bg-accent-soft px-4 py-2.5 shadow-lg md:static md:mb-3 md:shadow-none">
           <span className="text-sm font-semibold text-accent">
             {selectedIds.size} selected
           </span>

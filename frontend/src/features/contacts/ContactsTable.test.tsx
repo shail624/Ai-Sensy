@@ -1,9 +1,23 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ContactsTable } from "@/features/contacts/ContactsTable";
 import type { Contact } from "@/features/contacts/types";
+
+/** Force the compact (phone) branch: only `max-width` queries match. */
+function useCompactViewport(): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query.includes("max-width"),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
 
 function contactFixture(overrides: Partial<Contact> = {}): Contact {
   return {
@@ -68,6 +82,87 @@ describe("ContactsTable", () => {
   });
 
   it("shows a reactivation-status column when a key is provided", () => {
+    renderTable({
+      contacts: [contactFixture({ attributes: { reactivation_status: "pending" } })],
+      reactivationKey: "reactivation_status",
+    });
+    expect(screen.getByText("Reactivation status")).toBeInTheDocument();
+    expect(screen.getByText("pending")).toBeInTheDocument();
+  });
+});
+
+describe("ContactsTable — compact (below md)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("reflows to stacked cards instead of a table", () => {
+    useCompactViewport();
+    renderTable();
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Priya Sharma" })).toHaveAttribute("href", "/contacts/c1");
+    expect(screen.getByText("+15551234567")).toBeInTheDocument();
+    expect(screen.getByText("Opted in")).toBeInTheDocument();
+  });
+
+  it("keeps a per-card checkbox and the select-all control", () => {
+    useCompactViewport();
+    const onToggle = vi.fn();
+    const onToggleAll = vi.fn();
+    renderTable({ onToggle, onToggleAll });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /select priya/i }));
+    expect(onToggle).toHaveBeenCalledWith("c1");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /select all contacts/i }));
+    expect(onToggleAll).toHaveBeenCalled();
+  });
+
+  it("selects a card on long press", () => {
+    useCompactViewport();
+    vi.useFakeTimers();
+    const onToggle = vi.fn();
+    renderTable({ onToggle });
+
+    const card = screen.getAllByRole("listitem")[0]!;
+    fireEvent.pointerDown(card, { pointerType: "touch", clientX: 10, clientY: 10 });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(onToggle).toHaveBeenCalledWith("c1");
+  });
+
+  it("cancels the long press when the finger scrolls away", () => {
+    useCompactViewport();
+    vi.useFakeTimers();
+    const onToggle = vi.fn();
+    renderTable({ onToggle });
+
+    const card = screen.getAllByRole("listitem")[0]!;
+    fireEvent.pointerDown(card, { pointerType: "touch", clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(card, { pointerType: "touch", clientX: 10, clientY: 90 });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("tapping a card toggles selection once a selection is active", () => {
+    useCompactViewport();
+    const onToggle = vi.fn();
+    renderTable({ onToggle, selectedIds: new Set(["c9"]) });
+
+    fireEvent.click(screen.getAllByRole("listitem")[0]!);
+    expect(onToggle).toHaveBeenCalledWith("c1");
+  });
+
+  it("carries the reactivation status onto the card", () => {
+    useCompactViewport();
     renderTable({
       contacts: [contactFixture({ attributes: { reactivation_status: "pending" } })],
       reactivationKey: "reactivation_status",

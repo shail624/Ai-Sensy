@@ -16,6 +16,23 @@ if (!window.matchMedia) {
   }));
 }
 
+// jsdom implements no PointerEvent either, so a dispatched pointer event arrives with its
+// coordinates and pointerType stripped. The compact layouts read both (press-and-hold to select),
+// so extend MouseEvent — it already carries clientX/clientY.
+if (typeof window.PointerEvent === "undefined") {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    readonly pointerType: string;
+
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? "";
+    }
+  }
+  window.PointerEvent = PointerEventPolyfill as unknown as typeof window.PointerEvent;
+}
+
 // This jsdom build exposes no Storage implementation; provide an in-memory one so code that
 // persists preferences (theme, sidebar) and the session refresh token behaves as it does in a
 // browser instead of silently no-op'ing.
