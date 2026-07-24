@@ -27,7 +27,7 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_90%,transparent)] px-3 backdrop-blur sm:px-5">
       <button type="button" aria-label="Open navigation" onClick={onOpenMobileNav} className={`${iconBtn} lg:hidden`}>
         <Menu aria-hidden className="h-[18px] w-[18px]" />
       </button>

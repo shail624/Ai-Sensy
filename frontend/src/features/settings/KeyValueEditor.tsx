@@ -244,7 +244,7 @@ export function KeyValueEditor({
             })}
 
             {adding ? (
-              <tr className="border-b border-border last:border-0 bg-surface-2/40">
+              <tr className="border-b border-border last:border-0 bg-surface-2">
                 <td className="px-3 py-2 align-top">
                   <label htmlFor="new-setting-key" className="sr-only">
                     New setting key

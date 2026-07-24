@@ -209,7 +209,7 @@ interface RowProps {
 
 function QueueRow({ queue, workers, activity }: RowProps): JSX.Element {
   return (
-    <tr className={`border-b border-border last:border-0 ${isStalled(queue) ? "bg-danger/5" : ""}`}>
+    <tr className={`border-b border-border last:border-0 ${isStalled(queue) ? "bg-[color-mix(in_srgb,var(--color-danger)_8%,transparent)]" : ""}`}>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
           <QueueChip name={queue.name} />

@@ -243,7 +243,7 @@ function RuleRow({
   }
 
   return (
-    <div className="rounded-md border border-border bg-surface-2/40 p-2">
+    <div className="rounded-md border border-border bg-surface-2 p-2">
       {!first ? (
         <p className="mb-1 text-xs font-semibold uppercase text-text-disabled">and</p>
       ) : null}

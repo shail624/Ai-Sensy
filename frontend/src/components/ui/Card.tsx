@@ -14,7 +14,7 @@ export function Card({ children, className = "", interactive = false, padding = 
     <div
       className={`rounded-2xl border border-border bg-surface shadow-sm ${
         padding ? "p-5" : ""
-      } ${interactive ? "transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md" : ""} ${className}`}
+      } ${interactive ? "transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] hover:shadow-md" : ""} ${className}`}
     >
       {children}
     </div>

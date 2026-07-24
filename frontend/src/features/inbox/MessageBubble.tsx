@@ -121,7 +121,7 @@ export function MessageBubble({ message, onReact, canReact, reactions = [] }: Pr
         <div
           className={`rounded-lg border px-3 py-2 text-sm ${
             outbound
-              ? "border-accent/40 bg-surface-2 text-text-primary"
+              ? "border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] bg-surface-2 text-text-primary"
               : "border-border bg-surface text-text-primary"
           }`}
         >

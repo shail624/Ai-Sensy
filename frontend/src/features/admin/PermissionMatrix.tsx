@@ -73,7 +73,7 @@ export function PermissionMatrix({
                 editingRole !== undefined && codes.every((code) => holds(editingRole, code));
 
               return [
-                <tr key={`${group.resource}-header`} className="bg-surface-2/60">
+                <tr key={`${group.resource}-header`} className="bg-surface-2">
                   <th
                     scope="rowgroup"
                     colSpan={roles.length + 1}
