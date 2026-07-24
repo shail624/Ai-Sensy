@@ -15,7 +15,7 @@ interface Props {
 }
 
 const SELECT =
-  "h-9 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
+  "h-9 max-md:h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
 
 function activeFilterCount(filters: ContactFilters): number {
   return (filters.tagId ? 1 : 0) + Object.values(filters.attributes).filter(Boolean).length;

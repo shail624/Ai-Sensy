@@ -23,9 +23,10 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: "bg-danger text-white hover:opacity-90 shadow-sm",
 };
 
+// Desktop density is unchanged; below `md` every button clears DS-10's 40x40 touch target.
 const SIZES: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-9 px-4 text-sm",
+  sm: "h-8 max-md:h-10 px-3 text-xs",
+  md: "h-9 max-md:h-10 px-4 text-sm",
   lg: "h-11 px-5 text-sm",
 };
 

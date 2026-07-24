@@ -339,7 +339,7 @@ function ContactCard({
     >
       <div className="flex items-start gap-3">
         {/* The label carries the padding, so the tap target clears 24×24 (WCAG 2.5.8). */}
-        <label className="-m-2 cursor-pointer p-2" onClick={(event) => event.stopPropagation()}>
+        <label className="-m-2.5 cursor-pointer p-2.5" onClick={(event) => event.stopPropagation()}>
           <input
             type="checkbox"
             aria-label={`Select ${name}`}

@@ -21,21 +21,59 @@ const PANEL: Record<"center" | "sheet", string> = {
   sheet: "max-h-[85vh] w-full overflow-y-auto rounded-t-2xl sm:max-w-lg sm:rounded-lg",
 };
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /**
- * Accessible modal dialog — focus is moved in on open, Escape and backdrop click close it, and the
- * surface is labelled by its heading (Doc 05 accessibility baseline).
+ * Accessible modal dialog — focus moves in on open, Tab is trapped inside, Escape and backdrop click
+ * close it, focus returns to whatever opened it, and the surface is labelled by its heading
+ * (Doc 05 DS-10 "Focus management").
  */
 export function Modal({ title, onClose, children, variant = "center" }: ModalProps): JSX.Element {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Kept in a ref so an inline `onClose` arrow does not re-run the focus effect on every render.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
+    const invoker = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
+
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      // No visibility filter: the dialogs put real controls behind `sr-only` (the file input), and
+      // those belong in the tab order exactly as they are.
+      const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === panel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
+
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      // Returning focus to the invoker keeps a keyboard user where they were (DS-10).
+      invoker?.focus?.();
+    };
+  }, []);
 
   return (
     <div

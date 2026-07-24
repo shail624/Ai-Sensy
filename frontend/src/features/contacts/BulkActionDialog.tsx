@@ -29,7 +29,7 @@ const TITLES: Record<BulkMode, string> = {
 const EXPORT_FORMATS = ["csv", "xlsx", "json"] as const;
 
 const FIELD =
-  "h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
+  "h-9 max-md:h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
 
 interface Props {
   mode: BulkMode;

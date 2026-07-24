@@ -39,7 +39,7 @@ const DEDUP = [
 ] as const;
 
 const FIELD =
-  "h-9 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+  "h-9 max-md:h-10 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 interface Props {
   onClose: () => void;
