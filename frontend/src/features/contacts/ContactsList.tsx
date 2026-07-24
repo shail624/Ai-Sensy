@@ -1,20 +1,14 @@
+import { Contact as ContactIcon, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { EmptyState, ErrorState, Spinner } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
-import {
-  buildRules,
-  hasActiveFilters,
-  type ContactFilters,
-} from "@/features/contacts/buildRules";
+import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
-import {
-  useCustomAttributeDefinitions,
-  useTags,
-} from "@/features/customer-profile/api";
+import { useCustomAttributeDefinitions, useTags } from "@/features/customer-profile/api";
 
 const PAGE_SIZE = 25;
 
@@ -26,6 +20,23 @@ function filtersToParams(filters: ContactFilters): URLSearchParams {
     if (value) params.set(`attr_${key}`, value);
   }
   return params;
+}
+
+/** A table-shaped skeleton so the page keeps its layout while the first page loads. */
+function LoadingRows(): JSX.Element {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-3.5 w-40" />
+          <Skeleton className="ml-auto h-3.5 w-28" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** The Contacts list: server-backed search/filter/pagination via the generated client, with search,
@@ -51,9 +62,8 @@ export function ContactsList(): JSX.Element {
   const definitions = useCustomAttributeDefinitions();
   const enumAttributes = (definitions.data ?? []).filter((def) => def.data_type === "enum");
   const reactivationKey =
-    enumAttributes.find(
-      (def) => /reactivat/i.test(def.key_name) || /reactivat/i.test(def.label),
-    )?.key_name ?? null;
+    enumAttributes.find((def) => /reactivat/i.test(def.key_name) || /reactivat/i.test(def.label))
+      ?.key_name ?? null;
 
   const rules = buildRules(filters, tags.data ?? [], definitions.data ?? []);
   const contacts = useContactSearch({ rules, cursor, limit: PAGE_SIZE });
@@ -93,11 +103,16 @@ export function ContactsList(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-4 sm:p-6">
-      <header className="mb-4">
-        <h2 className="text-xl font-bold text-text-primary">Contacts</h2>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      {/* Header */}
+      <header className="mb-5 flex items-center gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Contacts</h1>
+        {page?.total != null ? (
+          <Badge tone="neutral">{page.total.toLocaleString()}</Badge>
+        ) : null}
       </header>
 
+      {/* Search + filters */}
       <div className="mb-4">
         <ContactsToolbar
           filters={filters}
@@ -107,23 +122,47 @@ export function ContactsList(): JSX.Element {
         />
       </div>
 
+      {/* Bulk selection bar */}
       {selectedIds.size > 0 ? (
-        <div className="mb-3 flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
-          <span>{selectedIds.size} selected</span>
-          <button type="button" onClick={() => setSelectedIds(new Set())} className="text-accent hover:underline">
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-accent/25 bg-accent-soft px-4 py-2.5">
+          <span className="text-sm font-semibold text-accent">
+            {selectedIds.size} selected
+          </span>
+          <span className="flex-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={<X className="h-4 w-4" />}
+            onClick={() => setSelectedIds(new Set())}
+          >
             Clear
-          </button>
+          </Button>
         </div>
       ) : null}
 
       {contacts.isLoading ? (
-        <Spinner label="Loading contacts…" />
+        <LoadingRows />
       ) : contacts.isError ? (
         <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState
-          title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
-        />
+        <div className="rounded-2xl border border-border bg-surface shadow-sm">
+          <EmptyState
+            icon={<ContactIcon className="h-6 w-6" />}
+            title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
+            description={
+              hasActiveFilters(filters)
+                ? "Try a broader search or clear the filters to see everyone."
+                : "Import a CSV or add your first customer to start reactivating."
+            }
+            action={
+              hasActiveFilters(filters) ? (
+                <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
       ) : (
         <>
           <ContactsTable
@@ -133,27 +172,27 @@ export function ContactsList(): JSX.Element {
             onToggleAll={toggleAll}
             reactivationKey={reactivationKey}
           />
-          <nav aria-label="Pagination" className="mt-3 flex items-center justify-end gap-2">
-            <button
-              type="button"
+          <nav aria-label="Pagination" className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={!page?.prev_cursor}
               onClick={() => {
                 if (page?.prev_cursor) goToCursor(page.prev_cursor);
               }}
-              className="rounded-md border border-border px-3 py-1 text-sm hover:bg-hover disabled:opacity-50"
             >
               Previous
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={!page?.next_cursor}
               onClick={() => {
                 if (page?.next_cursor) goToCursor(page.next_cursor);
               }}
-              className="rounded-md border border-border px-3 py-1 text-sm hover:bg-hover disabled:opacity-50"
             >
               Next
-            </button>
+            </Button>
           </nav>
         </>
       )}

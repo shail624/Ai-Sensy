@@ -11,18 +11,22 @@ import {
   TriangleAlert,
   UserPlus,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { PageContainer, visibleNavItems } from "@/components/layout";
-import { Badge, Button, Card, CardHeader, EmptyState, SkeletonStat, StatCard } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, SkeletonStat, StatCard } from "@/components/ui";
 import {
   useAnalyticsFreshness,
   useAnalyticsSeries,
   useAnalyticsSummary,
 } from "@/features/analytics/api";
 import { formatKpi, formatLag } from "@/features/analytics/format";
-import { SeriesChart } from "@/features/analytics/SeriesChart";
+// Lazy so recharts (~400 kB) stays in the on-demand analytics chunk rather than the eager bundle
+// the whole app loads — the Design Book's "lazy-load analytics chunk" performance rule.
+const SeriesChart = lazy(() =>
+  import("@/features/analytics/SeriesChart").then((m) => ({ default: m.SeriesChart })),
+);
 import { DEFAULT_SERIES_METRICS } from "@/features/analytics/types";
 import type { AnalyticsFilterState } from "@/features/analytics/types";
 import { useQueues } from "@/features/operations/api";
@@ -116,7 +120,9 @@ function DeliveryTrendCard(): JSX.Element {
         }
       />
       <div className="mt-4">
-        <SeriesChart series={series.data?.series ?? []} kind="area" height={260} />
+        <Suspense fallback={<Skeleton className="h-[260px] w-full rounded-lg" />}>
+          <SeriesChart series={series.data?.series ?? []} kind="area" height={260} />
+        </Suspense>
       </div>
     </Card>
   );
