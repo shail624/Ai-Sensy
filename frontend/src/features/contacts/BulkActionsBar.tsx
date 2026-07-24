@@ -1,4 +1,4 @@
-import { Download, Tag, TagsIcon, Trash2, X } from "lucide-react";
+import { Download, Megaphone, Tag, TagsIcon, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui";
@@ -34,6 +34,7 @@ export function BulkActionsBar({
 }: Props): JSX.Element | null {
   const canWrite = useHasPermission("contacts:write");
   const canExport = useHasPermission("contacts:export");
+  const canWriteCampaigns = useHasPermission("campaigns:write");
   const compact = useIsCompact();
   const [mode, setMode] = useState<BulkMode | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export function BulkActionsBar({
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [compact, selectionSize, canWrite, canExport, onDockedHeightChange]);
+  }, [compact, selectionSize, canWrite, canExport, canWriteCampaigns, onDockedHeightChange]);
 
   if (selectionSize === 0) return null;
   const ids = [...selectedIds];
@@ -93,6 +94,17 @@ export function BulkActionsBar({
               Attribute
             </Button>
           </>
+        ) : null}
+
+        {canWriteCampaigns ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Megaphone className="h-4 w-4" />}
+            onClick={() => setMode("add_to_campaign")}
+          >
+            Campaign
+          </Button>
         ) : null}
 
         {canExport ? (

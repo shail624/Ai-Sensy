@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge, Button, Modal, Spinner } from "@/components/ui";
+import { isEditable, useCampaigns, useUpdateCampaign } from "@/features/campaigns";
 import {
   isSettled,
   useBulkDeleteContacts,
@@ -16,7 +18,13 @@ import { apiErrorMessage } from "@/lib/api/errors";
 import { useIsCompact } from "@/lib/useMediaQuery";
 
 /** Every bulk operation the API exposes for a contact selection. */
-export type BulkMode = "add_tags" | "remove_tags" | "set_attributes" | "delete" | "export";
+export type BulkMode =
+  | "add_tags"
+  | "remove_tags"
+  | "set_attributes"
+  | "delete"
+  | "export"
+  | "add_to_campaign";
 
 const TITLES: Record<BulkMode, string> = {
   add_tags: "Add tags",
@@ -24,9 +32,16 @@ const TITLES: Record<BulkMode, string> = {
   set_attributes: "Set an attribute",
   delete: "Delete contacts",
   export: "Export contacts",
+  add_to_campaign: "Add to a campaign",
 };
 
 const EXPORT_FORMATS = ["csv", "xlsx", "json"] as const;
+
+/** `audience_ref` is an open object in the contract, so read the list defensively. */
+function existingContactIds(audienceRef: Record<string, unknown> | null | undefined): string[] {
+  const raw = audienceRef?.contact_ids;
+  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : [];
+}
 
 const FIELD =
   "h-9 max-md:h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
@@ -59,7 +74,12 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
   const [format, setFormat] = useState<string>("csv");
   const [bulkId, setBulkId] = useState<string | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
+  const [campaignId, setCampaignId] = useState("");
+  const [addedTo, setAddedTo] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+  const campaigns = useCampaigns();
+  const addToCampaign = useUpdateCampaign();
   const edit = useBulkEditContacts();
   const remove = useBulkDeleteContacts();
   const startExport = useStartContactExport();
@@ -67,9 +87,13 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
   const exportJob = useContactExport(exportId);
 
   const definition = (definitions.data ?? []).find((item) => item.key_name === attributeKey);
-  const pending = edit.isPending || remove.isPending || startExport.isPending;
+  // Only a draft can still take a new audience; the server answers 409 for anything else.
+  const editableCampaigns = (campaigns.data ?? []).filter(isEditable);
+  const chosenCampaign = editableCampaigns.find((item) => item.id === campaignId);
+  const pending =
+    edit.isPending || remove.isPending || startExport.isPending || addToCampaign.isPending;
   const running = Boolean(bulkId) && !isSettled(progress.data);
-  const startError = edit.error ?? remove.error ?? startExport.error;
+  const startError = edit.error ?? remove.error ?? startExport.error ?? addToCampaign.error;
 
   function confirm(): void {
     if (mode === "delete") {
@@ -78,6 +102,23 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
     }
     if (mode === "export") {
       startExport.mutate({ format, rules }, { onSuccess: (accepted) => setExportId(accepted.job.id) });
+      return;
+    }
+    if (mode === "add_to_campaign") {
+      if (!chosenCampaign) return;
+      // The audience is replaced wholesale, so merge with what the campaign already targets.
+      const existing = existingContactIds(chosenCampaign.audience_ref);
+      addToCampaign.mutate(
+        {
+          campaignId: chosenCampaign.id,
+          body: {
+            audience_type: "list",
+            audience_ref: { contact_ids: [...new Set([...existing, ...ids])] },
+            row_version: chosenCampaign.row_version,
+          },
+        },
+        { onSuccess: () => setAddedTo(chosenCampaign.name) },
+      );
       return;
     }
     const payload =
@@ -91,6 +132,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
   const ready =
     mode === "delete" ||
     mode === "export" ||
+    (mode === "add_to_campaign" ? Boolean(campaignId) : false) ||
     (mode === "set_attributes" ? Boolean(attributeKey && attributeValue) : selectedTags.length > 0);
 
   function finish(): void {
@@ -101,7 +143,21 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
 
   return (
     <Modal title={TITLES[mode]} variant={compact ? "sheet" : "center"} onClose={onClose}>
-      {bulkId ? (
+      {addedTo ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="success" dot>
+              Added
+            </Badge>
+            <span className="text-sm text-text-secondary">
+              {ids.length.toLocaleString()} contact{ids.length === 1 ? "" : "s"} added to {addedTo}.
+            </span>
+          </div>
+          <Button block onClick={finish}>
+            Done
+          </Button>
+        </div>
+      ) : bulkId ? (
         <BulkResult progress={progress.data} onDone={finish} />
       ) : exportId ? (
         <ExportResult
@@ -220,6 +276,48 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
                   />
                 )}
               </div>
+            </div>
+          )}
+
+          {mode === "add_to_campaign" && (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="bulk-campaign" className="mb-1 block text-xs font-semibold text-text-secondary">
+                  Draft campaign
+                </label>
+                {campaigns.isLoading ? (
+                  <Spinner />
+                ) : editableCampaigns.length === 0 ? (
+                  <p className="text-sm text-text-disabled">
+                    No draft campaigns. A campaign can only take a new audience while it is a draft.
+                  </p>
+                ) : (
+                  <select
+                    id="bulk-campaign"
+                    value={campaignId}
+                    onChange={(event) => setCampaignId(event.target.value)}
+                    className={FIELD}
+                  >
+                    <option value="">Choose a campaign…</option>
+                    {editableCampaigns.map((campaign) => (
+                      <option key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary">
+                The selection is merged into the campaign audience; contacts it already targets are not
+                duplicated.
+              </p>
+              <Button
+                variant="secondary"
+                block
+                onClick={() => navigate("/campaigns/new", { state: { contactIds: ids } })}
+              >
+                Or start a new campaign from these contacts
+              </Button>
             </div>
           )}
 

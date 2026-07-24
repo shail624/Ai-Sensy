@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
 
 // Permission-gated surfaces read the session; the roster is swapped per test.
-const permissions = { value: ["contacts:read", "contacts:write", "contacts:export"] };
+const permissions = {
+  value: ["contacts:read", "contacts:write", "contacts:export", "campaigns:write"],
+};
 vi.mock("@/lib/auth", () => ({
   useAuth: () => ({
     status: "authenticated",
@@ -19,6 +21,31 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 const posts: { path: string; body: unknown }[] = [];
+const patches: { path: string; body: unknown }[] = [];
+const navigations: { to: string; state: unknown }[] = [];
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => (to: string, options?: { state?: unknown }) => {
+      navigations.push({ to, state: options?.state });
+    },
+  };
+});
+
+function campaignFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "cam1",
+    type: "campaign",
+    name: "Reactivation blast",
+    status: "draft",
+    audience_type: "list",
+    audience_ref: { contact_ids: ["c9"] },
+    row_version: 3,
+    ...overrides,
+  };
+}
 const progress = {
   value: {
     id: "b1",
@@ -48,6 +75,10 @@ const GETS: Record<string, unknown> = {
       updated_at: "2026-07-01T00:00:00Z",
     },
   ],
+  "/api/v1/campaigns": {
+    data: [campaignFixture(), campaignFixture({ id: "cam2", name: "Already sent", status: "sent" })],
+    page: { limit: 50, has_more: false, total: 2 },
+  },
   "/api/v1/custom-attributes": [
     {
       id: "a1",
@@ -73,9 +104,13 @@ vi.mock("@/lib/api/client", () => {
     posts.push({ path, body: init.body });
     return { data: { job: { id: "b1", type: "bulk", status: "queued", poll_url: "/x" } } };
   };
+  const PATCH = async (path: string, init: { body: unknown }) => {
+    patches.push({ path, body: init.body });
+    return { data: campaignFixture({ row_version: 4 }) };
+  };
   const write = async () => ({ error: new Error("network disabled under test") });
   return {
-    api: { GET, POST, PATCH: write, PUT: write, DELETE: write },
+    api: { GET, POST, PATCH, PUT: write, DELETE: write },
     authClient: { POST: write },
     setSessionExpiredHandler: vi.fn(),
     refreshOnce: vi.fn(),
@@ -109,7 +144,9 @@ function renderBar(selected = ["c1", "c2"], onClear = vi.fn()) {
 
 beforeEach(() => {
   posts.length = 0;
-  permissions.value = ["contacts:read", "contacts:write", "contacts:export"];
+  patches.length = 0;
+  navigations.length = 0;
+  permissions.value = ["contacts:read", "contacts:write", "contacts:export", "campaigns:write"];
   progress.value = { ...progress.value, job_status: "running", errors: [], error_report_url: null };
 });
 
@@ -122,7 +159,7 @@ describe("BulkActionsBar", () => {
   it("shows the count and every permitted action", () => {
     renderBar();
     expect(screen.getByText("2 selected")).toBeInTheDocument();
-    for (const label of ["Tag", "Untag", "Attribute", "Export", "Delete", "Clear"]) {
+    for (const label of ["Tag", "Untag", "Attribute", "Campaign", "Export", "Delete", "Clear"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
   });
@@ -131,7 +168,7 @@ describe("BulkActionsBar", () => {
     permissions.value = ["contacts:read"];
     renderBar();
     expect(screen.getByText("2 selected")).toBeInTheDocument();
-    for (const label of ["Tag", "Untag", "Attribute", "Export", "Delete"]) {
+    for (const label of ["Tag", "Untag", "Attribute", "Campaign", "Export", "Delete"]) {
       expect(screen.queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
     expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
@@ -206,6 +243,39 @@ describe("BulkActionsBar", () => {
       path: "/api/v1/contacts/export",
       body: { format: "xlsx", match_type: "all", rules: RULES },
     });
+  });
+
+  it("offers only draft campaigns and merges the selection into the audience", async () => {
+    renderBar();
+    fireEvent.click(screen.getByRole("button", { name: "Campaign" }));
+
+    await dialog().findByRole("option", { name: "Reactivation blast" });
+    expect(dialog().queryByRole("option", { name: "Already sent" })).not.toBeInTheDocument();
+
+    fireEvent.change(dialog().getByLabelText("Draft campaign"), { target: { value: "cam1" } });
+    fireEvent.click(dialog().getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({
+      path: "/api/v1/campaigns/{campaign_id}",
+      body: {
+        audience_type: "list",
+        audience_ref: { contact_ids: ["c9", "c1", "c2"] },
+        row_version: 3,
+      },
+    });
+    expect(await screen.findByText(/added to Reactivation blast/)).toBeInTheDocument();
+  });
+
+  it("hands the selection to the campaign wizard instead of rebuilding it", async () => {
+    renderBar();
+    fireEvent.click(screen.getByRole("button", { name: "Campaign" }));
+    fireEvent.click(
+      await dialog().findByRole("button", { name: /start a new campaign from these contacts/i }),
+    );
+    expect(navigations).toEqual([
+      { to: "/campaigns/new", state: { contactIds: ["c1", "c2"] } },
+    ]);
   });
 
   it("reports partial success with its per-item errors", async () => {

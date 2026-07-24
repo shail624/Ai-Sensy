@@ -99,6 +99,15 @@ export function blankCampaign(): CampaignFormValues {
   };
 }
 
+/**
+ * A new campaign aimed at an explicit set of contacts — the `list` audience the contract already
+ * models (`AudienceRef.contact_ids`). Used when the contacts list hands a selection to the wizard,
+ * so audience composition keeps one implementation.
+ */
+export function contactsToForm(contactIds: string[]): CampaignFormValues {
+  return { ...blankCampaign(), audience_type: "list", contact_ids: contactIds };
+}
+
 /** Read a stored mapping list back into form values, tolerating anything unexpected. */
 function toMappings(raw: unknown): MappingValues[] {
   if (!Array.isArray(raw)) return [];

@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { CampaignWizard, duplicateToForm } from "@/features/campaigns";
+import { CampaignWizard, contactsToForm, duplicateToForm } from "@/features/campaigns";
 import type { Campaign } from "@/features/campaigns";
 
 /**
@@ -13,7 +13,10 @@ import type { Campaign } from "@/features/campaigns";
  */
 export function CampaignCreatePage(): JSX.Element {
   const location = useLocation();
-  const source = (location.state as { duplicateOf?: Campaign } | null)?.duplicateOf;
+  const state = location.state as { duplicateOf?: Campaign; contactIds?: string[] } | null;
+  const source = state?.duplicateOf;
+  // A selection handed over from the contacts list opens the wizard on a `list` audience.
+  const contactIds = state?.contactIds;
 
   return (
     <PageContainer>
@@ -27,7 +30,11 @@ export function CampaignCreatePage(): JSX.Element {
         title={source ? `Duplicate "${source.name}"` : "New campaign"}
         description="Choose the message, the audience and when it goes out. Nothing is sent until you say so."
       />
-      <CampaignWizard initialValues={source ? duplicateToForm(source) : undefined} />
+      <CampaignWizard
+        initialValues={
+          source ? duplicateToForm(source) : contactIds?.length ? contactsToForm(contactIds) : undefined
+        }
+      />
     </PageContainer>
   );
 }
