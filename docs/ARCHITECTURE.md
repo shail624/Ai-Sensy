@@ -98,7 +98,7 @@ constants) and `app/db` (engine, session, declarative base, mixins).
 | Tokens | **PyJWT** | Standard, minimal, well-audited. |
 | HTTP client | **httpx** (async) | For Meta Cloud API calls (from Module 4). |
 | Background jobs | **Celery + Redis** | Battle-tested distributed task queue. |
-| Tests | **pytest + pytest-asyncio + httpx.AsyncClient** | Full async API testing without a live server. |
+| Tests | **pytest/Vitest + Playwright Chromium + httpx** | Hermetic logic/API coverage plus one focused real-stack browser journey and a deployed latency canary. |
 
 > **Python version:** production images target **Python 3.13** on the digest-pinned
 > `python:3.13.14-alpine3.24` base.
@@ -123,6 +123,9 @@ See [`docs/modules/01-authentication.md`](modules/01-authentication.md) for the 
 ---
 
 ## 6. Directory layout
+
+The root `e2e/` package owns the pinned Playwright journey, while root `scripts/` owns the
+provider-neutral quality, security, image, and deployed-stack orchestration.
 
 ```
 Ai Sensy Project/

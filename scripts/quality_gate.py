@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 FRONTEND = ROOT / "frontend"
+E2E = ROOT / "e2e"
 ARTIFACTS = ROOT / ".quality-artifacts"
 CACHE = ROOT / ".quality-cache"
 PYTEST_BASETEMP = BACKEND / f".pytest-run-quality-{os.getpid()}"
@@ -99,6 +100,7 @@ def _base_steps(python: str, npm: str) -> list[Step]:
         ),
         Step("frontend lint", (npm, "run", "lint"), FRONTEND),
         Step("frontend types", (npm, "run", "typecheck"), FRONTEND),
+        Step("browser test types", (npm, "run", "typecheck"), E2E),
     ]
 
 
@@ -166,6 +168,11 @@ def _security_steps(python: str, npm: str, docker: str) -> list[Step]:
             FRONTEND,
         ),
         Step(
+            "browser test dependency audit",
+            (npm, "audit", "--audit-level=high"),
+            E2E,
+        ),
+        Step(
             "tracked-source vulnerability, secret, and IaC scan",
             (python, os.fspath(ROOT / "scripts" / "trivy_scan.py"), "source"),
             ROOT,
@@ -228,15 +235,39 @@ def _release_steps(python: str, docker: str) -> list[Step]:
     ]
 
 
+def _deployed_steps(python: str, docker: str) -> list[Step]:
+    tag = os.environ.get("WA_QUALITY_IMAGE_TAG", "quality-gate")
+    runner_image = f"wa-platform/e2e:{tag}"
+    return [
+        Step(
+            "browser runner build",
+            (docker, "build", "--pull", "--tag", runner_image, os.fspath(E2E)),
+        ),
+        Step(
+            "isolated deployed-stack browser and performance gate",
+            (
+                python,
+                os.fspath(ROOT / "scripts" / "deployed_stack_gate.py"),
+                "--app-image-tag",
+                tag,
+                "--runner-image",
+                runner_image,
+            ),
+        ),
+    ]
+
+
 def build_steps(profile: str) -> list[Step]:
     python = resolve_python()
     npm = resolve_npm()
     steps = _base_steps(python, npm)
-    if profile in {"pre-merge", "release"}:
+    if profile in {"pre-merge", "release", "deployed"}:
         steps.extend(_test_steps(python, npm))
         steps.extend(_security_steps(python, npm, resolve_docker()))
-    if profile == "release":
+    if profile in {"release", "deployed"}:
         steps.extend(_release_steps(python, resolve_docker()))
+    if profile == "deployed":
+        steps.extend(_deployed_steps(python, resolve_docker()))
     return steps
 
 
@@ -266,8 +297,11 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "profile",
-        choices=("static", "pre-merge", "release"),
-        help="static is offline; pre-merge adds tests and source security; release adds images",
+        choices=("static", "pre-merge", "release", "deployed"),
+        help=(
+            "static is offline; pre-merge adds tests/source security; release adds images; "
+            "deployed adds an isolated real-stack gate"
+        ),
     )
     parser.add_argument("--list", action="store_true", help="print the selected steps without running them")
     return parser

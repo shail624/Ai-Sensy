@@ -235,7 +235,7 @@ curl -fsS -H "Authorization: Bearer $TOKEN" http://<host>/api/v1/queues
 Run after every deploy:
 
 1. **Sign in** through the SPA at `http://<host>/`.
-2. **Create a contact** → Contacts → New.
+2. **Import one controlled CSV contact** through Contacts → Import and confirm the worker completes it.
 3. **Confirm the webhook**: send a WhatsApp message to the registered number; it appears in Inbox.
 4. **Reply** from the Inbox inside the 24-hour window.
 5. **Analytics freshness**: `GET /api/v1/analytics/freshness` — lag under 15 minutes once one
@@ -244,6 +244,11 @@ Run after every deploy:
 7. **Open the CSV in Excel** and confirm a contact name beginning `=` is prefixed with `'`
    (formula-injection neutralisation) while phone numbers keep their leading `+`.
 8. **Executive gating**: a user without `analytics:executive` gets 403 on `/api/v1/analytics/costs`.
+
+Before promotion, `python scripts/quality_gate.py deployed` automates the safe repository subset of
+this verification against a uniquely named, disposable production-Compose stack. It logs in through
+the real SPA, imports and finds a contact through the jobs worker, and enforces the standard-read
+p95 budget. It does not replace the registered-number, Meta sandbox, analytics, or RBAC checks above.
 
 Backfill so the dashboard is not empty on day one:
 

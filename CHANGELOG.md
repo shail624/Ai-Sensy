@@ -11,6 +11,24 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Module 11 deployed-stack E2E and performance canary
+
+**Added**
+- Added the cumulative `deployed` quality profile. It starts the unchanged ten-service production
+  topology under a unique Compose project with synthetic secrets and disposable volumes, bootstraps
+  an Owner through the existing CLI, captures evidence, and guarantees project-scoped cleanup.
+- Added a digest-pinned Playwright 1.61.1 Chromium runner and one focused real-UI journey: login →
+  Contacts → CSV upload/mapping → queued import → persisted contact search/profile. This exercises
+  nginx, the SPA, API, MySQL, Redis broker, and jobs worker without a provider or customer send.
+- Added a 30-sample authenticated standard-read canary using nearest-rank p95 and the frozen <300 ms
+  target; the first isolated run passed at 7.9 ms. ADR-0006 records the boundary from full load tests.
+
+**Changed**
+- Pinned the production MySQL 8.0 image by immutable manifest digest. The release contract now
+  rejects unpinned third-party service images as well as unpinned application Dockerfile stages.
+- Corrected the deployment smoke runbook to use the existing Contacts import UI instead of referring
+  to a nonexistent direct-create control; APIs, permissions, routing, and product behavior are unchanged.
+
 ### 2026-07-25 — Module 11 security and release-gate automation
 
 **Added**

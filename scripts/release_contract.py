@@ -122,6 +122,9 @@ def validate_contract(
     for name, service in services.items():
         if _image_uses_latest(service.get("image")):
             problems.append(f"{name} resolves to a mutable latest image")
+        image = service.get("image")
+        if "build" not in service and (not isinstance(image, str) or "@sha256:" not in image):
+            problems.append(f"{name} external image is not pinned by digest")
         logging = service.get("logging")
         options = logging.get("options", {}) if isinstance(logging, dict) else {}
         if options.get("max-size") != "10m" or str(options.get("max-file")) != "5":

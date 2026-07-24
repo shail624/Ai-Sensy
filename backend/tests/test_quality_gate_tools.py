@@ -13,10 +13,19 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from scripts import image_contract, quality_gate, release_contract, trivy_scan  # noqa: E402
+from scripts import (  # noqa: E402
+    deployed_stack_gate,
+    image_contract,
+    performance_canary,
+    quality_gate,
+    release_contract,
+    trivy_scan,
+)
 
 
-def _service(*, image: str = "example/service:1", healthcheck: bool = True) -> dict[str, object]:
+def _service(
+    *, image: str = "example/service:1@sha256:abc", healthcheck: bool = True
+) -> dict[str, object]:
     value: dict[str, object] = {
         "image": image,
         "restart": "unless-stopped",
@@ -109,6 +118,30 @@ def test_release_contract_rejects_unpinned_application_base(
     assert problems.count("frontend Dockerfile has an unpinned base stage") == 1
 
 
+def test_release_contract_rejects_unpinned_external_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        Path,
+        "read_text",
+        lambda self, encoding=None: (
+            "FROM example@sha256:abc AS runtime\nUSER nginx\nHEALTHCHECK x"
+            if "frontend" in self.parts
+            else "FROM example@sha256:abc AS runtime\nUSER app\nHEALTHCHECK x"
+        ),
+    )
+    model = _valid_model()
+    services = model["services"]
+    assert isinstance(services, dict)
+    services["mysql"]["image"] = "mysql:8.0"
+
+    problems = release_contract.validate_contract(
+        model, _valid_compose_text(), "IMAGE_TAG=1.0.0-rc1"
+    )
+
+    assert "mysql external image is not pinned by digest" in problems
+
+
 def test_image_contract_rejects_root_or_missing_healthcheck() -> None:
     assert image_contract.validate_metadata({"Config": {"User": "root"}}) == [
         "runtime user is root or unspecified",
@@ -138,6 +171,23 @@ def test_quality_runner_stops_at_first_failure(monkeypatch: pytest.MonkeyPatch) 
     ]
     assert quality_gate.run_steps(steps) == 7
     assert calls == [("tool", "one"), ("tool", "two")]
+
+
+def test_deployed_profile_is_cumulative(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(quality_gate, "resolve_python", lambda: "python")
+    monkeypatch.setattr(quality_gate, "resolve_npm", lambda: "npm")
+    monkeypatch.setattr(quality_gate, "resolve_docker", lambda: "docker")
+
+    names = [step.name for step in quality_gate.build_steps("deployed")]
+
+    assert names[0] == "backend lint"
+    assert "backend tests" in names
+    assert "tracked-source vulnerability, secret, and IaC scan" in names
+    assert "production image vulnerability scan and SBOM" in names
+    assert names[-2:] == [
+        "browser runner build",
+        "isolated deployed-stack browser and performance gate",
+    ]
 
 
 def test_source_snapshot_includes_only_git_reported_files(
@@ -172,3 +222,15 @@ def test_render_compose_does_not_echo_synthetic_secrets(monkeypatch: pytest.Monk
     assert isinstance(env, dict)
     assert env["SECRET_KEY"] == "quality-gate-secret-key"
     assert captured["capture_output"] is True
+
+
+def test_performance_canary_uses_auditable_nearest_rank() -> None:
+    assert performance_canary.percentile([30.0, 10.0, 20.0, 40.0], 0.50) == 20.0
+    assert performance_canary.percentile([30.0, 10.0, 20.0, 40.0], 0.95) == 40.0
+
+
+def test_deployed_compose_commands_are_scoped_to_generated_projects() -> None:
+    command = deployed_stack_gate.compose_command("docker", "wa-e2e-123-abc", "down")
+    assert command[2:4] == ("--project-name", "wa-e2e-123-abc")
+    with pytest.raises(ValueError, match="non-isolated"):
+        deployed_stack_gate.compose_command("docker", "wa-platform", "down")

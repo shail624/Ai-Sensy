@@ -29,6 +29,9 @@ Single-tenant, self-hosted, not SaaS.
 └── CHANGELOG.md
 ```
 
+`e2e/` contains the pinned Playwright Chromium journey; root `scripts/` contains the
+provider-neutral quality, security, image, and deployed-stack gates.
+
 ## Prerequisites
 
 - Python 3.13+ (3.14 also works for local tests), Node.js 20+, and Docker (for MySQL/Redis).
@@ -56,6 +59,11 @@ Single-tenant, self-hosted, not SaaS.
    npm run dev
    ```
    App at http://localhost:5173
+4. **Browser-test tooling** (required by the repository quality gate):
+   ```
+   cd e2e
+   npm ci
+   ```
 
 ## Tests
 
@@ -69,11 +77,13 @@ The provider-neutral Module 11 gate is the automation entry point for local and 
 python scripts/quality_gate.py static       # offline lint, types, and contract drift
 python scripts/quality_gate.py pre-merge    # full tests/build plus source security gates
 python scripts/quality_gate.py release      # production images, smoke, scans, and SBOMs
+python scripts/quality_gate.py deployed     # release + isolated real-stack browser/perf gate
 ```
 
-Run it with the backend virtual environment's Python. The two heavier profiles require current
-advisory-network access; `release` also requires Docker. Machine-readable evidence is written to
-the ignored `.quality-artifacts/` directory.
+Run it with the backend virtual environment's Python. The heavier profiles require current
+advisory-network access; `release` and `deployed` also require Docker. The deployed profile uses a
+unique Compose project with disposable volumes, never a developer or production database.
+Machine-readable evidence is written to the ignored `.quality-artifacts/` directory.
 
 ## Production deployment
 
@@ -91,8 +101,8 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 `v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
 deployment topology, and the frontend application across the principal product areas. FR-CON-04
 Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
-is Module 11 hardening: strict backend typing and provider-neutral security/release gates are
-complete; deployed-stack E2E, performance, and observability evidence are next.
+is Module 11 hardening: strict backend typing, security/release automation, and the isolated
+deployed-stack E2E/performance canary are complete; observability and commissioning evidence are next.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.
