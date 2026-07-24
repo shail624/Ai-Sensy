@@ -11,6 +11,7 @@ import { MediaUploadDialog } from "@/features/media/MediaUploadDialog";
 import { displayName } from "@/features/media/selectors";
 import type { MediaAsset } from "@/features/media/types";
 import { isDeletable } from "@/features/media/types";
+import { useCopiedFlag } from "@/lib/useCopiedFlag";
 
 const ACTION_CLASS =
   "rounded-md border border-border px-2 py-1 text-xs text-text-primary hover:bg-hover disabled:opacity-50";
@@ -36,7 +37,7 @@ interface Props {
 export function MediaActions({ asset, onDeleted, compact = false }: Props): JSX.Element {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [replacing, setReplacing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, markCopied, resetCopied] = useCopiedFlag();
 
   const canWrite = useHasPermission("media:write");
   const remove = useDeleteMedia();
@@ -50,12 +51,11 @@ export function MediaActions({ asset, onDeleted, compact = false }: Props): JSX.
   async function copyId(): Promise<void> {
     try {
       await navigator.clipboard?.writeText(asset.id);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      markCopied();
     } catch {
       // Clipboard access can be refused (insecure context, denied permission). The id is on screen
       // and selectable either way, so this fails quietly rather than raising an alarm.
-      setCopied(false);
+      resetCopied();
     }
   }
 

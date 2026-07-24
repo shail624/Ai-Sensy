@@ -41,10 +41,14 @@ each only manifests in a worker process or at the edge proxy.
   `proxy_hide_header` set that `/api/` already had, so each probe returned two copies of every
   security header and leaked the API's HSTS over plain HTTP.
 
-**Known, not fixed** — `ExportService.download_url` builds `media_id=f"export-{...}"` while every
-media route types `media_id` as a UUID, so a completed export's download link always returns 422
-and the SPA renders it as a direct link. Business logic, therefore out of scope for a deployment
-validation pass; recorded for the owner.
+**Correction (2026-07-24)** — this entry originally closed with a "Known, not fixed" note about
+`ExportService.download_url` signing `export-<uuid>` onto a UUID-typed media route and returning 422.
+That defect **was** fixed later the same day, in `c86d11c`, which added
+`/api/v1/artifacts/{artifact_id}/download` and made `LocalStorageProvider.signed_url` route by id
+shape; the note was simply never removed. Verified on 2026-07-24 against the running stack (the
+artifacts route answers 400 for a missing signature rather than 404) and by
+`tests/test_api_export.py::test_export_download_url_serves_the_csv`, which downloads a real export
+with no `Authorization` header and asserts its bytes. Recorded as `docs/adr/0001`.
 
 ---
 

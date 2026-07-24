@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui";
 import type { ApiKeyCreated } from "@/features/admin/types";
 import { formatDateTime } from "@/lib/format";
+import { useCopiedFlag } from "@/lib/useCopiedFlag";
 
 interface Props {
   created: ApiKeyCreated;
@@ -23,18 +24,17 @@ export function ApiKeySecretDialog({
   rotationLeftOldKeyLive,
   onClose,
 }: Props): JSX.Element {
-  const [copied, setCopied] = useState(false);
+  const [copied, markCopied, resetCopied] = useCopiedFlag();
   const [acknowledged, setAcknowledged] = useState(false);
 
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard?.writeText(created.secret);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      markCopied();
     } catch {
       // Clipboard access can be refused (insecure context, denied permission). The secret is on
       // screen and selectable, so this fails quietly rather than raising an alarm.
-      setCopied(false);
+      resetCopied();
     }
   }
 
