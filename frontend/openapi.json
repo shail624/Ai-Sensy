@@ -1839,6 +1839,53 @@
         }
       }
     },
+    "/api/v1/contacts/import/inspect": {
+      "post": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "Read an uploaded file's columns before mapping (imports nothing)",
+        "description": "Header row, one sample row and a size estimate for an already-uploaded file.\n\nExists because `.xlsx` is a ZIP container: a browser cannot read its headers without shipping a\nsecond spreadsheet parser, and two parsers would be free to disagree about what a column is\ncalled. The server already parses workbooks for the import itself, so it answers the question\nwith the same code (docs/adr/0002).",
+        "operationId": "inspect_import_api_v1_contacts_import_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportInspectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportInspectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/contacts/import": {
       "post": {
         "tags": [
@@ -12651,6 +12698,91 @@
         ],
         "title": "ImportCreateRequest",
         "description": "``POST /contacts/import`` (Doc 04 §14.1 sample)."
+      },
+      "ImportInspectRequest": {
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "default": "csv"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_id"
+        ],
+        "title": "ImportInspectRequest",
+        "description": "``POST /contacts/import/inspect`` — read an uploaded file's shape, import nothing."
+      },
+      "ImportInspectResponse": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "import_inspection"
+          },
+          "headers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Headers"
+          },
+          "sample_row": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sample Row"
+          },
+          "sheet_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Name"
+          },
+          "estimated_rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Rows"
+          },
+          "errors": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "headers",
+          "sample_row",
+          "sheet_name",
+          "estimated_rows",
+          "errors"
+        ],
+        "title": "ImportInspectResponse",
+        "description": "Just enough for the wizard's mapping step (Doc 05 B3.3 step 2)."
       },
       "ImportProgressResponse": {
         "properties": {

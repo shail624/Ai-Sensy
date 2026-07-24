@@ -5,6 +5,7 @@ import { Badge, Button, Modal, Spinner } from "@/components/ui";
 import {
   importIsSettled,
   useContactImport,
+  useInspectContactImport,
   useInvalidateContacts,
   useStartContactImport,
 } from "@/features/contacts/api";
@@ -14,14 +15,16 @@ import {
   FIELD_LABELS,
   FULL_READ_LIMIT,
   MAX_UPLOAD_BYTES,
+  MAX_XLSX_INSPECT_BYTES,
   REQUIRED_TARGET,
   SKIP,
   autoMap,
   formatBytes,
+  headerValidationError,
   mappingIsValid,
   readPreview,
   toRequestMapping,
-  type CsvPreview,
+  type FilePreview,
 } from "@/features/contacts/importFile";
 import { useCustomAttributeDefinitions } from "@/features/customer-profile/api";
 import { useUploadMedia } from "@/features/media/api";
@@ -31,6 +34,7 @@ import { useIsCompact } from "@/lib/useMediaQuery";
 /** The five steps of Doc 05 B3.3, in order. */
 const STEPS = ["Upload", "Map columns", "Options", "Review", "Import"] as const;
 type Step = 0 | 1 | 2 | 3 | 4;
+type ImportFormat = "csv" | "xlsx";
 
 const DEDUP = [
   { value: "skip", label: "Skip duplicates", hint: "Keep the contact already on file, ignore the row." },
@@ -46,20 +50,23 @@ interface Props {
 }
 
 /**
- * Contact import (Doc 05 B3.3). Headers and the preview are read in the browser, so mapping is
- * immediate and no file reaches the server until the import actually starts; the row work itself is
- * a job, polled to a partial-success result with a downloadable error report.
+ * Contact import (Doc 05 B3.3). CSV previews stay in the browser; XLSX is uploaded and inspected by
+ * the backend's existing openpyxl parser so the mapping and worker cannot disagree. Row work itself
+ * remains a job, polled to a partial-success result with a downloadable error report.
  */
 export function ImportWizard({ onClose }: Props): JSX.Element {
   const compact = useIsCompact();
   const definitions = useCustomAttributeDefinitions();
   const invalidateContacts = useInvalidateContacts();
   const upload = useUploadMedia();
+  const inspect = useInspectContactImport();
   const start = useStartContactImport();
 
   const [step, setStep] = useState<Step>(0);
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<CsvPreview | null>(null);
+  const [format, setFormat] = useState<ImportFormat | null>(null);
+  const [uploadId, setUploadId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<FilePreview | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [dedup, setDedup] = useState<string>("skip");
   const [fileError, setFileError] = useState<string | null>(null);
@@ -78,25 +85,68 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
 
   async function accept(candidate: File): Promise<void> {
     setFileError(null);
-    if (!/\.csv$/i.test(candidate.name)) {
-      setFileError("Choose a CSV file. Excel files are not supported here yet.");
+    setFile(null);
+    setFormat(null);
+    setPreview(null);
+    setUploadId(null);
+    setMapping({});
+    const candidateFormat: ImportFormat | null = /\.csv$/i.test(candidate.name)
+      ? "csv"
+      : /\.xlsx$/i.test(candidate.name)
+        ? "xlsx"
+        : null;
+    if (!candidateFormat) {
+      setFileError("Choose a CSV or Excel (.xlsx) file.");
       return;
     }
     if (candidate.size > MAX_UPLOAD_BYTES) {
       setFileError(`That file is ${formatBytes(candidate.size)}. The limit is 100 MB.`);
       return;
     }
-    const complete = candidate.size <= FULL_READ_LIMIT;
-    const text = await (complete ? candidate.text() : candidate.slice(0, 64 * 1024).text());
-    const parsed = readPreview(text, { complete });
-    if (parsed.headers.length === 0) {
-      setFileError("That file has no header row.");
+    if (candidateFormat === "xlsx" && candidate.size > MAX_XLSX_INSPECT_BYTES) {
+      setFileError(
+        `That workbook is ${formatBytes(candidate.size)}. Excel inspection supports up to 25 MB.`,
+      );
       return;
     }
+
     setFile(candidate);
-    setPreview(parsed);
-    setMapping(autoMap(parsed.headers, definitions.data ?? []));
-    setStep(1);
+    setFormat(candidateFormat);
+    try {
+      let parsed: FilePreview;
+      if (candidateFormat === "csv") {
+        const complete = candidate.size <= FULL_READ_LIMIT;
+        const text = await (complete
+          ? candidate.text()
+          : candidate.slice(0, 64 * 1024).text());
+        parsed = readPreview(text, { complete });
+        const problem = headerValidationError(parsed.headers);
+        if (problem) throw new Error(problem);
+      } else {
+        const asset = await upload.mutateAsync({ file: candidate, mediaType: "document" });
+        setUploadId(asset.id);
+        const found = await inspect.mutateAsync({ uploadId: asset.id, format: "xlsx" });
+        if (found.errors.length > 0) {
+          throw new Error(found.errors.map((error) => error.message).join(" "));
+        }
+        parsed = {
+          headers: found.headers,
+          rows: found.sample_row.length > 0 ? [found.sample_row] : [],
+          rowCount: found.estimated_rows,
+          truncated: false,
+          sheetName: found.sheet_name,
+          rowCountEstimated: true,
+        };
+      }
+      setPreview(parsed);
+      setMapping(autoMap(parsed.headers, definitions.data ?? []));
+      setStep(1);
+    } catch (error) {
+      setFile(null);
+      setFormat(null);
+      setUploadId(null);
+      setFileError(apiErrorMessage(error));
+    }
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>): void {
@@ -111,23 +161,20 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
   }
 
   function startImport(): void {
-    if (!file) return;
+    if (!file || !format) return;
     setStep(4);
-    upload.mutate(
-      { file, mediaType: "document" },
-      {
-        onSuccess: (asset) =>
-          start.mutate(
-            {
-              uploadId: asset.id,
-              format: "csv",
-              mapping: toRequestMapping(mapping),
-              dedupStrategy: dedup,
-            },
-            { onSuccess: (accepted) => setImportId(accepted.job.id) },
-          ),
-      },
-    );
+    const begin = (sourceId: string): void =>
+      start.mutate(
+        {
+          uploadId: sourceId,
+          format,
+          mapping: toRequestMapping(mapping),
+          dedupStrategy: dedup,
+        },
+        { onSuccess: (accepted) => setImportId(accepted.job.id) },
+      );
+    if (uploadId) begin(uploadId);
+    else upload.mutate({ file, mediaType: "document" }, { onSuccess: (asset) => begin(asset.id) });
   }
 
   /** Guard the exit once a file is loaded and the import has not been handed to the server. */
@@ -140,6 +187,7 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
 
   const mapped = Object.values(mapping).filter((target) => target !== SKIP).length;
   const startError = upload.error ?? start.error;
+  const inspecting = upload.isPending || inspect.isPending;
 
   return (
     <Modal title="Import contacts" variant={compact ? "sheet" : "center"} onClose={requestClose}>
@@ -166,21 +214,29 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
           <div
             onDragOver={(event) => event.preventDefault()}
             onDrop={onDrop}
+            aria-busy={inspecting}
             className="rounded-xl border-2 border-dashed border-border bg-surface-2 px-4 py-8 text-center"
           >
             <Upload aria-hidden className="mx-auto mb-2 h-6 w-6 text-text-disabled" />
-            <p className="text-sm font-medium text-text-primary">Drop a CSV here</p>
-            <p className="mb-3 text-xs text-text-secondary">Up to 100 MB, with a header row.</p>
+            <p className="text-sm font-medium text-text-primary">Drop a CSV or Excel file here</p>
+            <p className="mb-3 text-xs text-text-secondary">
+              CSV up to 100 MB · Excel (.xlsx) up to 25 MB, with a header row.
+            </p>
             <input
               ref={inputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={onPick}
               className="sr-only"
-              aria-label="Choose a CSV file"
+              aria-label="Choose a CSV or Excel file"
             />
-            <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
-              Choose a file
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={inspecting}
+              onClick={() => inputRef.current?.click()}
+            >
+              {inspecting ? "Inspecting workbook…" : "Choose a file"}
             </Button>
           </div>
           {fileError ? (
@@ -294,11 +350,12 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
       {step === 3 && (
         <dl className="space-y-2 text-sm">
           <Row label="File" value={`${file?.name ?? ""} · ${formatBytes(file?.size ?? 0)}`} />
+          {preview?.sheetName ? <Row label="Worksheet" value={preview.sheetName} /> : null}
           <Row
             label="Rows"
             value={
               preview?.rowCount != null
-                ? preview.rowCount.toLocaleString()
+                ? `${preview.rowCountEstimated ? "About " : ""}${preview.rowCount.toLocaleString()}`
                 : "counted by the server while it reads the file"
             }
           />
@@ -337,7 +394,9 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
             <Button
               block
               disabled={
-                (step === 0 && !file) || (step === 1 && !mappingIsValid(mapping)) || definitions.isLoading
+                (step === 0 && (!file || !preview || inspecting)) ||
+                (step === 1 && !mappingIsValid(mapping)) ||
+                definitions.isLoading
               }
               onClick={() => (step === 3 ? startImport() : setStep((step + 1) as Step))}
             >

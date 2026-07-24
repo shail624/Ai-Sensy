@@ -584,6 +584,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contacts/import/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read an uploaded file's columns before mapping (imports nothing)
+         * @description Header row, one sample row and a size estimate for an already-uploaded file.
+         *
+         *     Exists because `.xlsx` is a ZIP container: a browser cannot read its headers without shipping a
+         *     second spreadsheet parser, and two parsers would be free to disagree about what a column is
+         *     called. The server already parses workbooks for the import itself, so it answers the question
+         *     with the same code (docs/adr/0002).
+         */
+        post: operations["inspect_import_api_v1_contacts_import_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contacts/import": {
         parameters: {
             query?: never;
@@ -3762,6 +3787,45 @@ export interface components {
             dedup_strategy: string;
         };
         /**
+         * ImportInspectRequest
+         * @description ``POST /contacts/import/inspect`` — read an uploaded file's shape, import nothing.
+         */
+        ImportInspectRequest: {
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /**
+             * Format
+             * @default csv
+             */
+            format: string;
+        };
+        /**
+         * ImportInspectResponse
+         * @description Just enough for the wizard's mapping step (Doc 05 B3.3 step 2).
+         */
+        ImportInspectResponse: {
+            /**
+             * Type
+             * @default import_inspection
+             */
+            type: string;
+            /** Headers */
+            headers: string[];
+            /** Sample Row */
+            sample_row: string[];
+            /** Sheet Name */
+            sheet_name: string | null;
+            /** Estimated Rows */
+            estimated_rows: number | null;
+            /** Errors */
+            errors: {
+                [key: string]: string;
+            }[];
+        };
+        /**
          * ImportProgressResponse
          * @description ``GET /contacts/import/{uuid}`` — progress + error report link (FR-CON-05).
          */
@@ -6869,6 +6933,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactTimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_import_api_v1_contacts_import_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportInspectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportInspectResponse"];
                 };
             };
             /** @description Validation Error */

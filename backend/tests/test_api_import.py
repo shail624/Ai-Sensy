@@ -205,3 +205,166 @@ async def test_import_is_retry_safe(client, make_user, session_factory) -> None:
         again = await ImportService(session).run(import_id)
     assert again.status == STATUS_COMPLETED
     assert (await client.get("/api/v1/contacts", headers=h)).json()["page"]["total"] == 2
+
+
+# --- Inspection: read the shape, import nothing (ADR-0002) ------------------
+def _xlsx_bytes(rows: list[list[object]], title: str = "Contacts") -> bytes:
+    """A real workbook, written with the same library the importer reads with."""
+    import io
+
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = title
+    for row in rows:
+        sheet.append(row)
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+async def _upload_xlsx(client, h, data: bytes, name: str = "contacts.xlsx") -> str:
+    resp = await client.post(
+        "/api/v1/media/upload",
+        headers=h,
+        files={
+            "file": (
+                name,
+                data,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+        data={"media_type": "document"},
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
+
+
+def test_inspect_xlsx_reads_headers_sample_and_sheet() -> None:
+    from app.crm.formats import inspect_xlsx
+
+    data = _xlsx_bytes(
+        [["Phone", "Name", "Plan"], ["+14155550001", "Alice", "gold"], ["+14155550002", "Bob", "s"]],
+        title="Sheet A",
+    )
+    found = inspect_xlsx(data)
+    assert found.headers == ["Phone", "Name", "Plan"]
+    assert found.sample_row == ["+14155550001", "Alice", "gold"]
+    assert found.sheet_name == "Sheet A"
+    assert found.estimated_rows == 2
+    assert found.errors == []
+
+
+def test_inspect_xlsx_renders_cells_exactly_as_the_importer_does() -> None:
+    """A phone number typed as a number must not come back in scientific notation."""
+    from app.crm.formats import inspect_xlsx, read_xlsx
+
+    data = _xlsx_bytes([["Phone", "Age"], [14155550001, 42]])
+    found = inspect_xlsx(data)
+    imported = read_xlsx(data)
+    assert found.sample_row == ["14155550001", "42"]
+    assert imported[0] == {"Phone": "14155550001", "Age": "42"}
+
+
+def test_inspect_reports_header_problems_without_failing() -> None:
+    from app.crm.formats import inspect_csv, inspect_xlsx
+
+    blank = inspect_xlsx(_xlsx_bytes([["Phone", None, "Phone"], ["+1", "x", "+2"]]))
+    codes = {error["code"] for error in blank.errors}
+    assert codes == {"blank", "duplicate"}
+
+    empty = inspect_csv(b"")
+    assert empty.headers == []
+    assert empty.errors[0]["code"] == "missing"
+
+
+def test_inspect_skips_blank_rows_when_choosing_the_sample() -> None:
+    from app.crm.formats import inspect_xlsx
+
+    found = inspect_xlsx(_xlsx_bytes([["Phone"], [None], ["+14155550001"]]))
+    assert found.sample_row == ["+14155550001"]
+
+
+async def test_inspect_endpoint_returns_the_wizard_metadata(client, make_user) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    upload_id = await _upload_xlsx(
+        client, h, _xlsx_bytes([["Phone", "Name"], ["+14155550001", "Alice"]])
+    )
+
+    resp = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": upload_id, "format": "xlsx"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["headers"] == ["Phone", "Name"]
+    assert body["sample_row"] == ["+14155550001", "Alice"]
+    assert body["sheet_name"] == "Contacts"
+    assert body["estimated_rows"] == 1
+    assert body["errors"] == []
+    assert body["type"] == "import_inspection"
+
+
+async def test_inspect_imports_nothing(client, make_user) -> None:
+    """Inspection must not create contacts, and must not create an import job."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    upload_id = await _upload_xlsx(
+        client, h, _xlsx_bytes([["Phone", "Name"], ["+14155550001", "Alice"]])
+    )
+
+    await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": upload_id, "format": "xlsx"},
+    )
+
+    contacts = await client.post("/api/v1/contacts/search", headers=h, json={"rules": []})
+    assert contacts.json()["data"] == []
+    jobs = await client.get("/api/v1/jobs", headers=h)
+    assert all(job["task_name"] != "app.crm.tasks.run_contact_import" for job in jobs.json()["data"])
+
+
+async def test_inspect_rejects_unknown_upload_bad_format_and_unreadable_bytes(
+    client, make_user
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+
+    missing = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": str(uuid.uuid4()), "format": "xlsx"},
+    )
+    assert missing.status_code == 404
+
+    upload_id = await _upload_csv(client, h)
+    bad_format = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": upload_id, "format": "pdf"},
+    )
+    assert bad_format.status_code == 422
+
+    not_a_workbook = await _upload_xlsx(client, h, b"this is not a zip container")
+    unreadable = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": not_a_workbook, "format": "xlsx"},
+    )
+    assert unreadable.status_code == 422
+    assert unreadable.json()["errors"][0]["code"] == "unreadable"
+
+
+async def test_inspect_requires_the_import_permission(client, make_user) -> None:
+    await make_user(email="reader@vi.co", password=PASSWORD, roles=["viewer"])
+    h = await _headers(client, "reader@vi.co")
+    resp = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=h,
+        json={"upload_id": str(uuid.uuid4()), "format": "xlsx"},
+    )
+    assert resp.status_code == 403

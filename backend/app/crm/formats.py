@@ -11,9 +11,11 @@ the import pipeline's mapping, validation and error report work on it unchanged.
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from openpyxl import Workbook, load_workbook
@@ -80,6 +82,114 @@ def read_xlsx(data: bytes) -> list[dict[str, str]]:
         return parsed
     finally:
         workbook.close()
+
+
+@dataclass(frozen=True, slots=True)
+class FileInspection:
+    """What the import wizard needs before it can offer a column mapping (Doc 05 B3.3 step 2).
+
+    Deliberately *not* the file's data: inspection reads the header row, one sample row and
+    whatever the container can cheaply tell us about its size. Nothing is imported, nothing is
+    written, and no job is created.
+    """
+
+    headers: list[str]
+    sample_row: list[str]
+    sheet_name: str | None
+    estimated_rows: int | None
+    errors: list[dict[str, str]]
+
+
+def _header_errors(headers: list[str]) -> list[dict[str, str]]:
+    """Problems worth showing the operator before they map anything."""
+    errors: list[dict[str, str]] = []
+    if not headers:
+        errors.append(
+            {"field": "headers", "code": "missing", "message": "The file has no header row."}
+        )
+        return errors
+    if any(name == "" for name in headers):
+        errors.append(
+            {
+                "field": "headers",
+                "code": "blank",
+                "message": "One or more columns have no name and cannot be mapped.",
+            }
+        )
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for name in headers:
+        if not name:
+            continue
+        if name in seen:
+            duplicates.add(name)
+        else:
+            seen.add(name)
+    if duplicates:
+        errors.append(
+            {
+                "field": "headers",
+                "code": "duplicate",
+                "message": f"Repeated column names: {', '.join(duplicates)}.",
+            }
+        )
+    return errors
+
+
+def inspect_xlsx(data: bytes) -> FileInspection:
+    """Header, one sample row and a row estimate from the first worksheet.
+
+    Uses the same read-only streaming load as :func:`read_xlsx` and the same cell rendering, so the
+    headers shown here are by construction the headers the importer will see. It stops after the
+    sample row rather than materialising the sheet.
+
+    ``max_row`` comes from the sheet's stored dimension, which a generator may omit or overstate —
+    hence *estimated*; the import itself always reports the true count.
+    """
+    workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    try:
+        sheet = workbook.worksheets[0]
+        rows = sheet.iter_rows(values_only=True)
+        try:
+            raw_header = next(rows)
+        except StopIteration:
+            return FileInspection([], [], sheet.title, None, _header_errors([]))
+        headers = [_cell(name) for name in raw_header]
+        sample: list[str] = []
+        for row in rows:
+            if all(cell is None for cell in row):
+                continue  # trailing blank rows are an artefact of the file, not data
+            sample = [_cell(value) for value in row][: len(headers)]
+            break
+        total = sheet.max_row
+        estimated = max(total - 1, 0) if isinstance(total, int) else None
+        return FileInspection(headers, sample, sheet.title, estimated, _header_errors(headers))
+    finally:
+        workbook.close()
+
+
+def inspect_csv(data: bytes) -> FileInspection:
+    """The same shape for CSV, decoded exactly as the importer decodes it."""
+    text = data.decode("utf-8-sig", errors="replace")
+    reader = csv.reader(io.StringIO(text))
+    try:
+        headers = [str(name).strip() for name in next(reader)]
+    except StopIteration:
+        return FileInspection([], [], None, None, _header_errors([]))
+    sample: list[str] = []
+    count = 0
+    for row in reader:
+        if not any(str(cell).strip() for cell in row):
+            continue
+        count += 1
+        if not sample:
+            sample = [str(cell).strip() for cell in row][: len(headers)]
+    return FileInspection(headers, sample, None, count, _header_errors(headers))
+
+
+def inspect(data: bytes, file_format: str) -> FileInspection:
+    """Dispatch on the declared format; the caller has already checked it is supported."""
+    return inspect_xlsx(data) if file_format == "xlsx" else inspect_csv(data)
 
 
 class ExportWriter(Protocol):

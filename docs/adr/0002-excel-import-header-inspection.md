@@ -1,6 +1,6 @@
 # ADR-0002 — How the import wizard learns an Excel file's column headers
 
-- **Status:** **Proposed — awaiting owner decision.** Nothing implemented.
+- **Status:** **Accepted — 2026-07-25.** Implemented by the Excel-import release gate.
 - **Scope:** contact import (Doc 05 B3.3), API surface, frontend bundle
 - **Decision needed because:** B3.3 promises "CSV/Excel"; the shipped wizard is CSV-only.
 
@@ -44,7 +44,7 @@ So the capability exists; only its *reach* is missing.
 | Consistency | **One parser.** The headers shown are by construction the headers the importer will use. |
 | Stack fidelity | No new dependency, client or server. |
 
-## Recommendation — **Option B**
+## Decision — **Option B**
 
 Ranked on objective criteria:
 
@@ -58,14 +58,15 @@ Ranked on objective criteria:
    fixtures and an owner.
 
 Accepted trade-offs: one extra round trip, server CPU per inspection, and a file that reaches the
-server before the operator commits — mitigated by a size ceiling and by the fact that the file has to
-be uploaded to be imported at all.
+server before the operator commits. Inspection runs inline with a 25 MB workbook ceiling and moves
+the synchronous openpyxl work off the async request loop. The import itself remains an unchanged
+background job. CSV preview remains in the browser.
 
-**If the answer is instead "Excel is out of scope",** the smaller change is to amend Doc 05 B3.3 to
-say CSV, and the shipped wizard is already conformant.
+## Consequences
 
-## Not decided here
-
-Whether inspection runs inline in the API or is handed to the existing job queue. Inline is simpler
-and adequate under a size ceiling; the queue is the escape hatch if operators routinely import
-workbooks large enough to matter.
+- `POST /api/v1/contacts/import/inspect` is additive and requires `contacts:import`.
+- The response contains the first worksheet's headers, one sample row, worksheet name, estimated
+  data-row count, and header validation errors. It creates no import job and writes no contacts.
+- `.xlsx` inspection and import use the same openpyxl cell rendering; SheetJS is not introduced.
+- Workbooks above the inspection ceiling are rejected before parsing. Moving inspection to the
+  existing queue remains the scale escape hatch if the accepted ceiling is later raised.

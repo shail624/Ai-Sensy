@@ -7,6 +7,7 @@ import type {
   BulkProgress,
   ContactsPage,
   ExportProgress,
+  ImportInspection,
   ImportProgress,
   JobAccepted,
   SegmentRule,
@@ -147,6 +148,29 @@ export interface ContactImportInput {
   /** `{ csvHeader: target }`, where a target is a contact field or `attr.<key>` (Doc 04 §30). */
   mapping: Record<string, string>;
   dedupStrategy: string;
+}
+
+export interface ContactImportInspectionInput {
+  uploadId: string;
+  format: string;
+}
+
+/**
+ * Read the uploaded workbook with the backend's import parser before offering column mapping.
+ * Inspection creates neither contacts nor an import job (ADR-0002).
+ */
+export function useInspectContactImport() {
+  return useMutation({
+    mutationFn: async ({
+      uploadId,
+      format,
+    }: ContactImportInspectionInput): Promise<ImportInspection> =>
+      unwrap(
+        await api.POST("/api/v1/contacts/import/inspect", {
+          body: { upload_id: uploadId, format },
+        }),
+      ),
+  });
 }
 
 /** Start an import over an already-uploaded file. Always `202` — the rows are read by a worker. */

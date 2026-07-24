@@ -804,8 +804,9 @@ WABA, Phone Numbers, Webhooks, Queue Monitor, System Health, Audit Logs, Setting
   summary) → **5 Progress** (live processed/total, then result: succeeded/failed + **download error
   report**).
 - **Components:** stepper, dropzone, mapping table, radio groups, progress, partial-success result.
-- **Permissions:** `contacts:import`. **APIs:** upload → `POST /media/upload`; `POST /contacts/import`;
-  poll `GET /contacts/import/{job}`; SSE progress.
+- **Permissions:** `contacts:import`. **APIs:** upload → `POST /media/upload`; Excel mapping metadata →
+  `POST /contacts/import/inspect` (the existing browser parser remains authoritative for CSV preview);
+  `POST /contacts/import`; poll `GET /contacts/import/{job}`; SSE progress.
 - **Empty/Error:** invalid file → inline; per-row errors → downloadable report; can background the job and
   get a notification on completion.
 - **Keyboard/Mobile/A11y:** stepper keyboard-navigable; exit-guard on unsaved; mobile single-column steps.
@@ -1652,7 +1653,6 @@ Added **Part F (F1–F15)** without altering Parts A–E; re-reviewed as the sam
 *End of Document 5 — UI/UX Design Specification (Version 1.1, FROZEN). Parts A–F = v1.0 baseline; **Part G
 (Executive Business Dashboard)** added in the final additive pass — business-outcome view built on the KPI
 Catalog (Doc 6 §48) and the business-event ledger (Doc 3 §21); distinct from the operational dashboard (B2).*
-
 
 
 

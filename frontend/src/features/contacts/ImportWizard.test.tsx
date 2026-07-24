@@ -21,6 +21,16 @@ const importProgress = {
     completed_at: null as string | null,
   },
 };
+const inspection = {
+  value: {
+    type: "import_inspection",
+    headers: ["Phone Number", "Full Name"],
+    sample_row: ["+14155550001", "Priya Sharma"],
+    sheet_name: "Contacts",
+    estimated_rows: 2,
+    errors: [] as { field: string; code: string; message: string }[],
+  },
+};
 
 vi.mock("@/lib/api/client", () => {
   const GET = async (path: string) => {
@@ -32,6 +42,7 @@ vi.mock("@/lib/api/client", () => {
   const POST = async (path: string, init: { body: Record<string, unknown> }) => {
     posts.push({ path, body: init.body });
     if (path === "/api/v1/media/upload") return { data: { id: "media-1", media_type: "document" } };
+    if (path === "/api/v1/contacts/import/inspect") return { data: inspection.value };
     return { data: { job: { id: "i1", type: "import", status: "queued", poll_url: "/x" } } };
   };
   const write = async () => ({ error: new Error("network disabled under test") });
@@ -47,6 +58,12 @@ const CSV = "Phone Number,Full Name,Loyalty tier\n+14155550001,Priya Sharma,gold
 
 function csvFile(name = "contacts.csv", content = CSV): File {
   return new File([content], name, { type: "text/csv" });
+}
+
+function xlsxFile(): File {
+  return new File(["mock workbook bytes"], "contacts.xlsx", {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
 }
 
 function renderWizard(onClose = vi.fn()) {
@@ -67,7 +84,7 @@ function dialog() {
 
 /** Walk from the dropzone to the review step with a valid mapping. */
 async function reachReview(): Promise<void> {
-  fireEvent.change(screen.getByLabelText("Choose a CSV file"), {
+  fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
     target: { files: [csvFile()] },
   });
   await screen.findByText(/3 columns/);
@@ -77,6 +94,14 @@ async function reachReview(): Promise<void> {
 
 beforeEach(() => {
   posts.length = 0;
+  inspection.value = {
+    type: "import_inspection",
+    headers: ["Phone Number", "Full Name"],
+    sample_row: ["+14155550001", "Priya Sharma"],
+    sheet_name: "Contacts",
+    estimated_rows: 2,
+    errors: [],
+  };
   importProgress.value = { ...importProgress.value, status: "running", error_report_url: null };
   vi.spyOn(window, "confirm").mockReturnValue(true);
 });
@@ -85,21 +110,21 @@ describe("ImportWizard", () => {
   it("opens on the upload step", () => {
     renderWizard();
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", "Import contacts");
-    expect(screen.getByText("Drop a CSV here")).toBeInTheDocument();
+    expect(screen.getByText("Drop a CSV or Excel file here")).toBeInTheDocument();
     expect(dialog().getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 
-  it("refuses a file that is not a CSV", async () => {
+  it("refuses a file that is not CSV or XLSX", async () => {
     renderWizard();
-    fireEvent.change(screen.getByLabelText("Choose a CSV file"), {
-      target: { files: [new File(["x"], "contacts.xlsx", { type: "application/vnd.ms-excel" })] },
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
+      target: { files: [new File(["x"], "contacts.xls", { type: "application/vnd.ms-excel" })] },
     });
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Choose a CSV file/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Choose a CSV or Excel/);
   });
 
   it("auto-maps the columns it recognises and leaves the rest alone", async () => {
     renderWizard();
-    fireEvent.change(screen.getByLabelText("Choose a CSV file"), {
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
       target: { files: [csvFile()] },
     });
 
@@ -112,7 +137,7 @@ describe("ImportWizard", () => {
 
   it("blocks the mapping step until a phone column is chosen", async () => {
     renderWizard();
-    fireEvent.change(screen.getByLabelText("Choose a CSV file"), {
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
       target: { files: [csvFile("c.csv", "Name,Tier\nPriya,gold\n")] },
     });
 
@@ -158,7 +183,9 @@ describe("ImportWizard", () => {
 
   it("carries the chosen duplicate strategy", async () => {
     renderWizard();
-    fireEvent.change(screen.getByLabelText("Choose a CSV file"), { target: { files: [csvFile()] } });
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
+      target: { files: [csvFile()] },
+    });
     await screen.findByText(/3 columns/);
     fireEvent.click(dialog().getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("radio", { name: /Overwrite/ }));
@@ -194,7 +221,9 @@ describe("ImportWizard", () => {
   it("guards the exit once a file is loaded", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     const onClose = renderWizard();
-    fireEvent.change(screen.getByLabelText("Choose a CSV file"), { target: { files: [csvFile()] } });
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
+      target: { files: [csvFile()] },
+    });
     await screen.findByText(/3 columns/);
 
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
@@ -204,5 +233,57 @@ describe("ImportWizard", () => {
     confirmSpy.mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("inspects XLSX with the backend parser and reuses that upload for the import", async () => {
+    renderWizard();
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
+      target: { files: [xlsxFile()] },
+    });
+
+    expect(await screen.findByText(/2 columns/)).toBeInTheDocument();
+    expect(screen.getByText("+14155550001")).toBeInTheDocument();
+    expect(posts.map((call) => call.path)).toEqual([
+      "/api/v1/media/upload",
+      "/api/v1/contacts/import/inspect",
+    ]);
+    expect(posts[1]?.body).toEqual({ upload_id: "media-1", format: "xlsx" });
+
+    fireEvent.click(dialog().getByRole("button", { name: "Continue" }));
+    fireEvent.click(dialog().getByRole("button", { name: "Continue" }));
+    expect(screen.getByText("Contacts")).toBeInTheDocument();
+    expect(screen.getByText("About 2")).toBeInTheDocument();
+    fireEvent.click(dialog().getByRole("button", { name: "Start import" }));
+
+    await waitFor(() => expect(posts).toHaveLength(3));
+    expect(posts[2]).toEqual({
+      path: "/api/v1/contacts/import",
+      body: {
+        upload_id: "media-1",
+        format: "xlsx",
+        mapping: { "Phone Number": "phone_e164", "Full Name": "full_name" },
+        dedup_strategy: "skip",
+      },
+    });
+  });
+
+  it("shows workbook header validation returned by inspection", async () => {
+    inspection.value = {
+      ...inspection.value,
+      errors: [
+        {
+          field: "headers",
+          code: "duplicate",
+          message: "Repeated column names: Phone.",
+        },
+      ],
+    };
+    renderWizard();
+    fireEvent.change(screen.getByLabelText("Choose a CSV or Excel file"), {
+      target: { files: [xlsxFile()] },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Repeated column names: Phone.");
+    expect(dialog().getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 });

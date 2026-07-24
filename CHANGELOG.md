@@ -11,6 +11,24 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Excel import inspection (FR-CON-04)
+
+**Added**
+- Added the permission-gated `POST /api/v1/contacts/import/inspect` contract for workbook headers,
+  one sample row, worksheet name, estimated data-row count, and non-mutating header validation.
+- The inspection path reuses the importer's existing openpyxl parser and cell rendering, runs its
+  synchronous workbook work outside the async request loop, and applies a 25 MB inspection ceiling.
+- The contact import wizard now accepts `.xlsx`, uploads it for inspection before mapping, and keeps
+  the existing browser parser for CSV. No SheetJS or second workbook parser was introduced.
+
+**Changed**
+- ADR-0002 moved from proposed to accepted. Docs 4 §14.1 and 5 B3.3 record the additive inspection
+  API; the existing async import endpoint and its request contract are unchanged.
+- Recovered the canonical project state from Git and executable gates: synchronized the README,
+  implementation tracker, roadmap statuses, and deployment guide with the post-RC1 repository.
+- Excluded generated `.pytest-run*` directories from Git and the backend Docker build context; an
+  unreadable local pytest directory can no longer block production image packaging.
+
 ### 2026-07-23 — Docker deployment validation (first execution of the containerised stack)
 
 The production stack was built and run for the first time. Four defects were reproduced in the

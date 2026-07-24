@@ -39,6 +39,8 @@ from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
 from app.schemas.export_job import ExportCreateRequest, ExportProgressResponse
 from app.schemas.import_job import (
     ImportCreateRequest,
+    ImportInspectRequest,
+    ImportInspectResponse,
     ImportProgressResponse,
     JobAcceptedResponse,
     JobEnvelope,
@@ -333,6 +335,35 @@ async def contact_timeline(
 
 
 # --- Contact import (Doc 04 §14.1) — async only, always 202 -----------------
+@router.post(
+    "/contacts/import/inspect",
+    response_model=ImportInspectResponse,
+    summary="Read an uploaded file's columns before mapping (imports nothing)",
+)
+async def inspect_import(
+    payload: ImportInspectRequest, session: SessionDep, actor: ContactsImportActor
+) -> ImportInspectResponse:
+    """Header row, one sample row and a size estimate for an already-uploaded file.
+
+    Exists because `.xlsx` is a ZIP container: a browser cannot read its headers without shipping a
+    second spreadsheet parser, and two parsers would be free to disagree about what a column is
+    called. The server already parses workbooks for the import itself, so it answers the question
+    with the same code (docs/adr/0002).
+    """
+    found = await ImportService(session).inspect(
+        organization_id=actor.organization_id,
+        upload_id=payload.upload_id,
+        file_format=payload.format,
+    )
+    return ImportInspectResponse(
+        headers=found.headers,
+        sample_row=found.sample_row,
+        sheet_name=found.sheet_name,
+        estimated_rows=found.estimated_rows,
+        errors=found.errors,
+    )
+
+
 @router.post(
     "/contacts/import",
     response_model=JobAcceptedResponse,

@@ -35,13 +35,18 @@ export const ATTR_PREFIX = "attr.";
 export const FULL_READ_LIMIT = 5 * 1024 * 1024;
 /** The server's ceiling for a `document` upload. */
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+/** Keep inline workbook inspection bounded (ADR-0002). CSV continues to use the upload ceiling. */
+export const MAX_XLSX_INSPECT_BYTES = 25 * 1024 * 1024;
 
-export interface CsvPreview {
+export interface FilePreview {
   headers: string[];
   rows: string[][];
   /** Data rows in the file, or `null` when only a slice was read. */
   rowCount: number | null;
   truncated: boolean;
+  /** Present only for workbook previews, which inspect the first worksheet. */
+  sheetName: string | null;
+  rowCountEstimated: boolean;
 }
 
 /**
@@ -109,7 +114,7 @@ export function parseCsv(text: string, maxRecords = Number.POSITIVE_INFINITY): s
 }
 
 /** Headers plus the first rows, for the mapping preview. */
-export function readPreview(text: string, options: { complete: boolean; maxRows?: number }): CsvPreview {
+export function readPreview(text: string, options: { complete: boolean; maxRows?: number }): FilePreview {
   const maxRows = options.maxRows ?? 5;
   const records = parseCsv(text, options.complete ? Number.POSITIVE_INFINITY : maxRows + 1);
   const [headers = [], ...rows] = records;
@@ -118,7 +123,24 @@ export function readPreview(text: string, options: { complete: boolean; maxRows?
     rows: rows.slice(0, maxRows),
     rowCount: options.complete ? rows.length : null,
     truncated: !options.complete,
+    sheetName: null,
+    rowCountEstimated: false,
   };
+}
+
+/** Reject headers that cannot be represented by the source-column → target mapping contract. */
+export function headerValidationError(headers: string[]): string | null {
+  if (headers.length === 0) return "That file has no header row.";
+  if (headers.some((header) => header === "")) return "Every column needs a header name.";
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const header of headers) {
+    if (seen.has(header)) duplicates.add(header);
+    else seen.add(header);
+  }
+  return duplicates.size > 0
+    ? `Column names must be unique. Repeated: ${[...duplicates].sort().join(", ")}.`
+    : null;
 }
 
 /** Compare headers ignoring case, spacing and punctuation, so "Phone Number" matches "phone_number". */

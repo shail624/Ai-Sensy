@@ -16,6 +16,7 @@ no-ops under ``skip``/``merge``, so a retried task converges rather than duplica
 
 from __future__ import annotations
 
+import asyncio
 import uuid as uuidlib
 from collections.abc import Callable
 from typing import Any
@@ -32,7 +33,7 @@ from app.crm.csv_io import (
     map_and_validate,
     read_csv,
 )
-from app.crm.formats import IMPORT_FORMATS, read_xlsx
+from app.crm.formats import IMPORT_FORMATS, FileInspection, inspect, read_xlsx
 from app.db.mixins import utcnow
 from app.models.job_records import (
     DEDUP_OVERWRITE,
@@ -55,6 +56,9 @@ from app.storage.base import get_provider
 
 #: How often progress is flushed while streaming rows.
 _PROGRESS_EVERY = 25
+#: Inspection runs on the request path, so it refuses a file big enough to hurt tail latency.
+#: The import itself has no such ceiling — it streams in a worker.
+_INSPECT_MAX_BYTES = 25 * 1024 * 1024
 
 
 class ImportService:
@@ -93,6 +97,56 @@ class ImportService:
             )
         if errors:
             raise ValidationError("The import mapping is invalid.", errors=errors)
+
+    async def inspect(
+        self,
+        *,
+        organization_id: int,
+        upload_id: uuidlib.UUID,
+        file_format: str,
+    ) -> FileInspection:
+        """Read an uploaded file's header row and one sample row. Imports nothing.
+
+        Same parser, same cell rendering and same decoding as the worker path, so the mapping the
+        operator builds here is the mapping the import will apply. No job is created and nothing is
+        written; this is a read of bytes that are already stored.
+        """
+        if file_format not in IMPORT_FORMATS:
+            raise ValidationError(
+                "Unsupported import format.",
+                errors=[
+                    {
+                        "field": "format",
+                        "code": "unsupported",
+                        "message": f"supported: {list(IMPORT_FORMATS)}",
+                    }
+                ],
+            )
+        asset = await self._media.get_active_by_uuid(organization_id, upload_id.bytes)
+        if asset is None:
+            raise NotFoundError("Uploaded file not found.")
+        if asset.byte_size > _INSPECT_MAX_BYTES:
+            raise ValidationError(
+                "That file is too large to inspect.",
+                errors=[
+                    {
+                        "field": "upload_id",
+                        "code": "too_large",
+                        "message": f"limit {_INSPECT_MAX_BYTES} bytes",
+                    }
+                ],
+            )
+        provider = get_provider(settings.storage_backend)
+        data = await provider.get(asset.storage_key)
+        try:
+            # openpyxl is synchronous. Keep its ZIP/XML work off the event loop so one workbook
+            # inspection cannot stall unrelated API requests.
+            return await asyncio.to_thread(inspect, data, file_format)
+        except Exception as exc:  # openpyxl raises a zoo of exceptions on a malformed workbook
+            raise ValidationError(
+                "That file could not be read.",
+                errors=[{"field": "upload_id", "code": "unreadable", "message": str(exc)[:200]}],
+            ) from exc
 
     async def start(
         self,

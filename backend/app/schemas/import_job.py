@@ -19,6 +19,27 @@ class ImportCreateRequest(BaseModel):
     dedup_strategy: str = DEDUP_SKIP
 
 
+class ImportInspectRequest(BaseModel):
+    """``POST /contacts/import/inspect`` — read an uploaded file's shape, import nothing."""
+
+    upload_id: uuidlib.UUID
+    format: str = "csv"
+
+
+class ImportInspectResponse(BaseModel):
+    """Just enough for the wizard's mapping step (Doc 05 B3.3 step 2)."""
+
+    type: str = "import_inspection"
+    headers: list[str]
+    sample_row: list[str]
+    #: Worksheet the headers came from; ``None`` for CSV, which has no sheets.
+    sheet_name: str | None
+    #: From the workbook's stored dimension, so a generator may omit or overstate it. The import
+    #: itself always reports the true count.
+    estimated_rows: int | None
+    errors: list[dict[str, str]]
+
+
 class JobEnvelope(BaseModel):
     """The ``job`` object of a 202 response (Doc 04 §3)."""
 

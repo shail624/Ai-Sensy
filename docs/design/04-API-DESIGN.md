@@ -423,6 +423,7 @@ boolean is returned instead). This is called out because it's the single most se
 | DELETE | `/contacts/{uuid}/tags/{tag_uuid}` | Remove a tag | `contacts:write` | `write` | 404 |
 | PUT | `/contacts/{uuid}/attributes` | Set custom attribute values | `contacts:write` | `write` | 422(type) |
 | POST | `/contacts/search` | Advanced AND/OR search (JSON body) | `contacts:read` | `read` | 422(bad rule) |
+| POST | `/contacts/import/inspect` | Inspect uploaded CSV/Excel headers and one sample row (imports nothing) | `contacts:import` | `read` | 404, 422(format/file/size) |
 | POST | `/contacts/import` | Start CSV/Excel import (async) | `contacts:import` | `bulk` | 202(job), 422 |
 | GET | `/contacts/import/{job_uuid}` | Import progress + error report link | `contacts:import` | `read` | 404 |
 | POST | `/contacts/export` | Start export (CSV/Excel/JSON, async) | `contacts:export` | `bulk` | 202(job) |
@@ -1558,7 +1559,6 @@ Senior Frontend, Security, Performance, DevOps, QA**; issues found were fixed be
 
 *End of Document 4 — API Design Specification (Version 1.0, FROZEN). Awaiting owner approval before
 generating Document 5 (Queue & Scheduler Design).*
-
 
 
 

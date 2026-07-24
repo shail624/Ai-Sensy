@@ -10,6 +10,7 @@ export type AttributeDefinition = components["schemas"]["AttributeDefinitionResp
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
 export type BulkProgress = components["schemas"]["BulkProgressResponse"];
 export type ExportProgress = components["schemas"]["ExportProgressResponse"];
+export type ImportInspection = components["schemas"]["ImportInspectResponse"];
 export type ImportProgress = components["schemas"]["ImportProgressResponse"];
 
 /** The bulk edits the API accepts (`BULK_ACTIONS`, Doc 04 §30). */

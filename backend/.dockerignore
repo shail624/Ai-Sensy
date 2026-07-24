@@ -21,6 +21,7 @@ dist/
 
 # ---- Test & lint caches ----
 .pytest_cache/
+.pytest-run*/
 .ruff_cache/
 .mypy_cache/
 .coverage

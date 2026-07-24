@@ -2,13 +2,11 @@
 
 Covers building, migrating, starting, verifying, upgrading and rolling back the production stack.
 
-> **These manifests have not been executed.** They were authored and statically validated in an
-> environment without a Docker daemon: the Compose file is parsed and its anchors resolved, the
-> worker pools are checked against the queue registry programmatically, the entrypoint passes
-> `sh -n`, and the nginx files are structurally checked — but no image has been built and no
-> container has been started. Treat the first deployment as a commissioning exercise: run §2–§8 on
-> a staging host and confirm each check before pointing production traffic at it. §14 lists what
-> to watch for.
+> **These manifests were first executed and validated on 2026-07-23.** That run exposed and fixed
+> worker event-loop reuse, storage registration, nginx re-resolution, and duplicate probe-header
+> defects; the evidence is recorded in `CHANGELOG.md`. Every new release must still run §2–§8 on a
+> staging host and confirm each check before production traffic is moved. §14 lists what to watch
+> for.
 
 ---
 

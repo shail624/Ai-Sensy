@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   autoMap,
   formatBytes,
+  headerValidationError,
   mappingIsValid,
   parseCsv,
   readPreview,
@@ -67,12 +68,26 @@ describe("readPreview", () => {
     ]);
     expect(preview.rowCount).toBe(2);
     expect(preview.truncated).toBe(false);
+    expect(preview.sheetName).toBeNull();
+    expect(preview.rowCountEstimated).toBe(false);
   });
 
   it("reports no row count when only a slice was read", () => {
     const preview = readPreview("phone\n+1\n", { complete: false });
     expect(preview.rowCount).toBeNull();
     expect(preview.truncated).toBe(true);
+  });
+});
+
+describe("headerValidationError", () => {
+  it("rejects missing, blank and repeated column names", () => {
+    expect(headerValidationError([])).toMatch(/no header row/i);
+    expect(headerValidationError(["Phone", ""])).toMatch(/header name/i);
+    expect(headerValidationError(["Phone", "Name", "Phone"])).toMatch(/Repeated: Phone/);
+  });
+
+  it("accepts unique named columns", () => {
+    expect(headerValidationError(["Phone", "Name"])).toBeNull();
   });
 });
 

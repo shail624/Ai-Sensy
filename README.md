@@ -75,5 +75,10 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 
 ## Implementation status
 
-Module 1 (Foundation + Authentication + RBAC) is being built step by step per the
-frozen documents. See `CHANGELOG.md` and Doc 12 §56 (module manifest) for scope.
+`v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
+deployment topology, and the frontend application across the principal product areas. Post-RC1
+work is focused on frontend CRM completion and deployment hardening; the current unreleased
+milestone adds Excel contact-import inspection and `.xlsx` support to the existing import wizard.
+
+See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
+changes. The frozen design documents remain the authority for product behavior and contracts.
