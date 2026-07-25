@@ -21,6 +21,33 @@
 
 ---
 
+## 2026-07-25 implementation-state addendum
+
+This document remains the historical gap analysis produced against the 103-path, migration-0023
+repository. The current source of truth is OpenAPI 3.1.0 with 133 paths and migration head `0027`.
+The following corrections prevent architecture intent from being mistaken for executable behavior:
+
+- **GAP-01 is delivered.** First-class tasks, activities, due/overdue work queues, assignment,
+  outcomes, and timeline integration exist in the current contracts and UI.
+- **GAP-04 is partially delivered.** Synchronized custom inbox views and pins exist. Saved lead-board
+  views do not, because the current API exposes pipeline/stage configuration but not lead-card listing.
+- **GAP-09 is delivered.** The inbox supports bulk status, assignment, and label actions through the
+  existing conversation contracts.
+- Pipeline and stage administration are executable, but a customer/lead Kanban cannot truthfully
+  load cards, mutate stage placement, or persist board views without additive lead-placement APIs.
+- Workflow automation and AI are architecture designs, not runtimes. No automation definition/run
+  contract or AI provider/interaction/approval contract exists; Phase 3 therefore exposes only
+  disabled, human-controlled composition seams.
+- Contact-linked document records, KYC decisions, SIM orders/activation, scan batches/results, and
+  payments remain genuine contract gaps. Existing media, CRM attributes, tasks, campaigns, segments,
+  and analytics are reused rather than duplicated or reinterpreted as those records.
+
+The verified Phase 3 realization and exact remaining contract backlog are recorded in
+`docs/design/18-PHASE-3-REACTIVATION-AUTOMATION-PLATFORM.md`. The original competitive analysis and
+priorities below are retained unchanged as a point-in-time decision record.
+
+---
+
 ## Executive summary
 
 Measured against four full CRMs, our WhatsApp platform is **already at or beyond CRM standard on
@@ -483,7 +510,6 @@ SaaS tenancy / public sign-up · payment processing beyond WhatsApp-native messa
 
 *End of Document 13 — CRM Feature Gap Analysis. Additive addendum to the frozen architecture;
 awaiting owner approval to freeze. No backend, OpenAPI, or Doc 01–12 change is proposed or implied.*
-
 
 
 

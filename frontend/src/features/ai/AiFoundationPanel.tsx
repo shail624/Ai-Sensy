@@ -6,6 +6,7 @@ import { Badge, Card } from "@/components/ui";
 export type AiCapability =
   | "reply"
   | "summary"
+  | "document"
   | "campaign"
   | "template"
   | "audience"
@@ -14,6 +15,7 @@ export type AiCapability =
 const CAPABILITIES: Record<AiCapability, { label: string; description: string; icon: typeof Bot }> = {
   reply: { label: "AI reply", description: "Draft a grounded reply for an agent to review and send.", icon: MessageSquareText },
   summary: { label: "AI summary", description: "Condense the conversation into an editable customer brief.", icon: Sparkles },
+  document: { label: "Document summary", description: "Prepare a source-linked document brief for a human verifier.", icon: Sparkles },
   campaign: { label: "Campaign suggestions", description: "Suggest an objective, tone, and compliant campaign outline.", icon: Lightbulb },
   template: { label: "Template suggestions", description: "Draft template structure for review before Meta submission.", icon: MessageSquareText },
   audience: { label: "Audience suggestions", description: "Recommend reusable audiences without changing segment rules.", icon: Users },

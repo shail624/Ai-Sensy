@@ -12,6 +12,24 @@
 
 ---
 
+## Phase 3 realization update — 2026-07-25
+
+| Product workflow | Realized state |
+|---|---|
+| Reactivation workspace | Complete navigation and premium workflow composition for eligibility, interested customers, pipeline, KYC, documents, SIM, activation, completion, and reports |
+| Customer pipeline | Existing pipeline/stage configuration is real; the ten-stage reactivation blueprint is visible, while lead cards and transitions remain contract-gated |
+| Customer 360 | Complete 13-tab information architecture with existing data reused and absent documents/KYC/SIM/payments/audit domains labelled honestly |
+| Document Center | Existing media list/upload/preview/storage reused; contact linking, versions, verification, expiry, and workflow status remain contract-gated |
+| Scan Studio | Added as a separate adapter/queue boundary, never merged with the official Meta WhatsApp channel |
+| Automation | Accessible visual blueprint is complete; persistence, execution, scheduling, retries, and customer sends remain disabled pending approved contracts |
+| Reporting | Existing analytics KPIs, funnel, and exports reused; reactivation/KYC/SIM/scan metrics are not fabricated |
+| AI foundations | Document-summary seam added; all AI remains provider-deferred, human-controlled, and unable to mutate or send |
+
+The detailed implementation, release evidence, and Phase 4 contract backlog are recorded in
+`docs/design/18-PHASE-3-REACTIVATION-AUTOMATION-PLATFORM.md`.
+
+---
+
 ## Phase 2 realization update — 2026-07-25
 
 | Product workflow | Realized state |

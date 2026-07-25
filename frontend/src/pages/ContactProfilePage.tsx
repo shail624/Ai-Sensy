@@ -16,7 +16,7 @@ export function ContactProfilePage(): JSX.Element {
     <CustomerProfile
       contactId={contactId}
       extensionSlot={<TasksSectionForProfile contactId={contactId} />}
-      footer={<AiFoundationPanel capabilities={["summary", "reply"]} context="the customer profile and governed engagement history" />}
+      footer={<AiFoundationPanel capabilities={["summary", "document", "reply"]} context="the customer profile and governed engagement history" />}
     />
   );
 }

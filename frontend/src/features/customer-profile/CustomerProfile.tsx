@@ -1,9 +1,9 @@
-import { Activity, History, MessageCircle, Megaphone, Sparkles } from "lucide-react";
+import { Activity, MessageCircle, Megaphone, Sparkles } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Avatar, Badge, Button, ErrorState, Skeleton } from "@/components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorState, Section, Skeleton } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui";
 import { apiErrorMessage, useContact, useCustomAttributeDefinitions } from "@/features/customer-profile/api";
 import { useHasPermission } from "@/lib/auth";
@@ -26,9 +26,9 @@ const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
   unknown: { tone: "neutral", label: "Unknown" },
 };
 
-const TABS = ["overview", "engagement", "activity", "documents", "reactivation"] as const;
+const TABS = ["overview", "timeline", "conversation", "campaign-history", "documents", "kyc", "sim", "payments", "tasks", "internal-notes", "audit", "activity", "ai"] as const;
 type ProfileTab = (typeof TABS)[number];
-const TAB_LABELS: Record<ProfileTab, string> = { overview: "Overview", engagement: "Engagement", activity: "Timeline & activity", documents: "Documents", reactivation: "Reactivation" };
+const TAB_LABELS: Record<ProfileTab, string> = { overview: "Overview", timeline: "Timeline", conversation: "Conversation", "campaign-history": "Campaign History", documents: "Documents", kyc: "KYC", sim: "SIM", payments: "Payments", tasks: "Tasks", "internal-notes": "Internal Notes", audit: "Audit", activity: "Activity", ai: "AI Assistant" };
 
 interface CustomerProfileProps {
   contactId: string;
@@ -43,6 +43,7 @@ export function CustomerProfile({ contactId, extensionSlot, footer }: CustomerPr
   const definitions = useCustomAttributeDefinitions();
   const canInbox = useHasPermission("inbox:read");
   const canCampaign = useHasPermission("campaigns:write");
+  const canAudit = useHasPermission("audit:read");
 
   if (contact.isLoading) {
     return <PageContainer><Skeleton className="h-5 w-48" /><div className="mt-5 rounded-2xl border border-border bg-surface p-6"><Skeleton className="h-16 w-full" /><Skeleton className="mt-6 h-72 w-full" /></div></PageContainer>;
@@ -73,12 +74,18 @@ export function CustomerProfile({ contactId, extensionSlot, footer }: CustomerPr
       </div>
 
       {tab === "overview" ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><div className="space-y-4"><IdentitySection contact={person} /><CustomAttributesSection contact={person} definitions={definitions.data ?? []} /></div><div className="space-y-4"><TagsSection contact={person} /><AssignmentSection />{extensionSlot ? <section aria-label="Customer work" className="space-y-4">{extensionSlot}</section> : null}</div></div> : null}
-      {tab === "engagement" ? <div className="grid grid-cols-1 gap-4 xl:grid-cols-2"><CampaignHistorySection contactId={contactId} /><ConversationHistorySection /><div className="xl:col-span-2"><NotesSection /></div></div> : null}
-      {tab === "activity" ? <div className="grid gap-4 lg:grid-cols-[1fr_20rem]"><TimelineSection contactId={contactId} /><div className="rounded-2xl border border-border bg-surface p-5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent"><History aria-hidden className="h-5 w-5" /></span><h2 className="mt-4 text-sm font-semibold text-text-primary">Activity log</h2><p className="mt-2 text-sm leading-relaxed text-text-secondary">The append-only contact timeline is the activity log for this customer. Campaign, task and contact events share one chronological source instead of duplicate panels.</p><div className="mt-4 flex items-center gap-2 text-xs text-text-disabled"><Activity aria-hidden className="h-4 w-4" />Auditable customer events</div></div></div> : null}
+      {tab === "timeline" ? <TimelineSection contactId={contactId} /> : null}
+      {tab === "conversation" ? <ConversationHistorySection /> : null}
+      {tab === "campaign-history" ? <CampaignHistorySection contactId={contactId} /> : null}
       {tab === "documents" ? <DocumentsSection /> : null}
-      {tab === "reactivation" ? <ReactivationSection contact={person} /> : null}
-
-      {footer ? <footer className="mt-4">{footer}</footer> : null}
+      {tab === "kyc" ? <ReactivationSection contact={person} focus="kyc" /> : null}
+      {tab === "sim" ? <ReactivationSection contact={person} focus="sim" /> : null}
+      {tab === "payments" ? <Section title="Payments" description="Revenue remains an explicit Phase 3 reporting placeholder."><EmptyState compact title="No payment contract" description="The platform processes no payment records and does not infer revenue from campaigns, tasks, or reactivation attributes." /></Section> : null}
+      {tab === "tasks" ? extensionSlot ?? <EmptyState title="No task workspace connected" /> : null}
+      {tab === "internal-notes" ? <NotesSection /> : null}
+      {tab === "audit" ? <Section title="Audit" description="Immutable organization audit remains the authority for administrative and workflow changes."><EmptyState compact title="Contact-specific audit filter unavailable" description="The current audit API does not expose a contact-scoped contract, so unrelated entries are not embedded here." action={canAudit ? <Button variant="secondary" onClick={() => navigate("/admin/audit")}>Open audit trail</Button> : undefined} /></Section> : null}
+      {tab === "activity" ? <Section title="Activity" description="Customer, task, campaign, and CRM events share the append-only timeline instead of a duplicate activity ledger."><div className="flex flex-col items-start gap-3 rounded-xl border border-border bg-surface-2 p-4"><div className="flex items-center gap-2 text-sm font-semibold text-text-primary"><Activity aria-hidden className="h-4 w-4 text-accent" />One chronological source</div><p className="text-sm leading-relaxed text-text-secondary">Use Timeline for the complete verified history. Task completion can append outcomes into that same event stream.</p><Button variant="secondary" onClick={() => setTab("timeline")}>Open timeline</Button></div></Section> : null}
+      {tab === "ai" ? footer ?? <Section title="AI Assistant"><EmptyState compact title="AI provider not connected" /></Section> : null}
     </PageContainer>
   );
 }

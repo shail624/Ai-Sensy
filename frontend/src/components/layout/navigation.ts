@@ -14,6 +14,7 @@ import {
   Shield,
   SlidersHorizontal,
   Sparkles,
+  ScanSearch,
   Users,
   Workflow,
 } from "lucide-react";
@@ -136,6 +137,11 @@ export const navItems: NavItem[] = [
     label: "Pipelines", path: "/pipelines", available: true, glyph: "Pl", icon: Workflow,
     group: "Tools", permission: "contacts:read",
     description: "Track leads through your qualification stages.",
+  },
+  {
+    label: "Scan Studio", path: "/scan", available: true, glyph: "Sc", icon: ScanSearch,
+    group: "Tools", permission: "contacts:read",
+    description: "Independent number-scan batches and CRM hand-off.",
   },
   {
     label: "WhatsApp", path: "/channels", available: true, glyph: "Wa", icon: MessageSquareText,

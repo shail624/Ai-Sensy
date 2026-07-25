@@ -3,8 +3,8 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { Badge, Button, Card, CardHeader, EmptyState } from "@/components/ui";
-import { PipelineList } from "@/features/pipelines";
-import { REACTIVATION_SECTIONS } from "@/features/reactivation";
+import { AiFoundationPanel } from "@/features/ai";
+import { DocumentCenter, ReactivationPipelineBoard, ReactivationReports, REACTIVATION_SECTIONS } from "@/features/reactivation";
 
 export function ReactivationPage(): JSX.Element {
   const location = useLocation();
@@ -15,8 +15,8 @@ export function ReactivationPage(): JSX.Element {
       <PageHeader
         eyebrow="Vi customer journey"
         title={active?.label ?? "Reactivation"}
-        description={active?.description ?? "A focused workspace that composes the existing CRM, tasks, documents and analytics foundations without introducing Phase 3 domain logic."}
-        meta={<><Badge tone={active?.phase === "Connected" ? "success" : "info"} dot>{active?.phase ?? "UI foundation"}</Badge><span>Backend domain workflow is intentionally unchanged</span></>}
+        description={active?.description ?? "One governed workspace for the complete reactivation journey, built over the production CRM and explicit domain integration boundaries."}
+        meta={<><Badge tone={active?.phase === "Connected" ? "success" : "info"} dot>{active?.phase ?? "Phase 3 workspace"}</Badge><span>Verified data only · no inferred customer state</span></>}
       />
 
       <nav aria-label="Reactivation sections" className="mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface p-2 shadow-sm">
@@ -35,8 +35,8 @@ export function ReactivationOverview(): JSX.Element {
   return <div className="space-y-6">
     <Card className="overflow-hidden" padding={false}>
       <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="p-6 sm:p-8"><CardHeader title="One governed customer journey" description="Reusable CRM components today, dedicated domain data only when Phase 3 is approved." icon={<Sparkles aria-hidden className="h-5 w-5" />} /><div className="mt-6 grid gap-3 sm:grid-cols-2">{REACTIVATION_SECTIONS.slice(0,8).map((section) => {const Icon=section.icon; return <Link key={section.key} to={section.path} className="group flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 transition-colors hover:border-accent"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface text-accent"><Icon aria-hidden className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-text-primary">{section.label}</span><span className="block text-xs text-text-secondary">{section.phase}</span></span><ArrowRight aria-hidden className="h-4 w-4 text-text-disabled group-hover:text-accent" /></Link>;})}</div></div>
-        <div className="border-t border-border bg-[linear-gradient(145deg,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><h2 className="text-sm font-semibold text-text-primary">Phase 1 boundaries</h2><ul className="mt-4 space-y-3">{[[CheckCircle2,"CRM, tasks, media and analytics are reused"],[ShieldCheck,"Permissions and audit boundaries remain intact"],[DatabaseZap,"No eligibility, KYC, SIM or activation schema added"]].map(([Icon,label]) => {const Glyph=Icon as typeof CheckCircle2; return <li key={label as string} className="flex gap-3 text-sm leading-relaxed text-text-secondary"><Glyph aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-success" />{label as string}</li>;})}</ul></div>
+        <div className="p-6 sm:p-8"><CardHeader title="One governed customer journey" description="Reusable CRM components today; dedicated domain data appears only after its additive contract is approved." icon={<Sparkles aria-hidden className="h-5 w-5" />} /><div className="mt-6 grid gap-3 sm:grid-cols-2">{REACTIVATION_SECTIONS.map((section) => {const Icon=section.icon; return <Link key={section.key} to={section.path} className="group flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 transition-colors hover:border-accent"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface text-accent"><Icon aria-hidden className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-text-primary">{section.label}</span><span className="block text-xs text-text-secondary">{section.phase}</span></span><ArrowRight aria-hidden className="h-4 w-4 text-text-disabled group-hover:text-accent" /></Link>;})}</div></div>
+        <div className="border-t border-border bg-[linear-gradient(145deg,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><h2 className="text-sm font-semibold text-text-primary">Phase 3 operating model</h2><ul className="mt-4 space-y-3">{[[CheckCircle2,"CRM, tasks, media and analytics are reused"],[ShieldCheck,"Permissions and audit boundaries remain intact"],[DatabaseZap,"Absent domain records are clearly contract-gated"]].map(([Icon,label]) => {const Glyph=Icon as typeof CheckCircle2; return <li key={label as string} className="flex gap-3 text-sm leading-relaxed text-text-secondary"><Glyph aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-success" />{label as string}</li>;})}</ul></div>
       </div>
     </Card>
   </div>;
@@ -45,19 +45,25 @@ export function ReactivationOverview(): JSX.Element {
 export function ReactivationWorkspace(): JSX.Element {
   const location = useLocation();
   const section = REACTIVATION_SECTIONS.find((item) => location.pathname.startsWith(item.path));
-  if (section?.key === "pipeline") return <PipelineList />;
+  if (section?.key === "pipeline") return <ReactivationPipelineBoard />;
+  if (section?.key === "documents") return <DocumentCenter />;
+  if (section?.key === "reports") return <ReactivationReports />;
 
   const actionByKey: Record<string, { label: string; path: string }> = {
     eligible: { label: "Build an eligibility segment", path: "/segments/new" },
     bulk: { label: "Open contact import", path: "/contacts?import=1" },
     interested: { label: "Open customer CRM", path: "/contacts" },
-    kyc: { label: "Open verification tasks", path: "/tasks" },
+    kyc: { label: "Open verification tasks", path: "/tasks?type=verification" },
     documents: { label: "Open document library", path: "/media?type=document" },
     sim: { label: "Open fulfilment tasks", path: "/tasks" },
     activation: { label: "Open customer pipeline", path: "/pipelines" },
-    reports: { label: "Open messaging analytics", path: "/analytics" },
+    completed: { label: "Open customer CRM", path: "/contacts" },
   };
   const action = section ? actionByKey[section.key] : undefined;
   const Icon = section?.icon ?? Sparkles;
-  return <Card className="overflow-hidden" padding={false}><div className="grid min-h-[360px] lg:grid-cols-[1fr_22rem]"><div className="p-6 sm:p-8"><Badge tone={section?.phase === "Connected" ? "success" : "info"} dot>{section?.phase ?? "Foundation"}</Badge><h2 className="mt-4 text-xl font-bold text-text-primary">{section?.label ?? "Reactivation workspace"}</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{section?.description}</p><div className="mt-6 rounded-2xl border border-border bg-surface-2 p-5"><h3 className="text-sm font-semibold text-text-primary">What works in Phase 1</h3><p className="mt-2 text-sm leading-relaxed text-text-secondary">This workspace routes operators into the existing, production-tested CRM capability. Domain records and actions remain unavailable until their backend milestone, so the interface never invents customer status.</p>{action ? <Link to={action.path} className="mt-5 inline-block"><Button rightIcon={<ArrowRight className="h-4 w-4" />}>{action.label}</Button></Link> : null}</div></div><div className="flex items-center justify-center border-t border-border bg-[radial-gradient(circle_at_top,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><EmptyState icon={<Icon className="h-7 w-7" />} title="Ready for governed data" description="The production layout is complete; records appear only after the dedicated domain API is delivered." /></div></div></Card>;
+  return <div className="space-y-5"><Card className="overflow-hidden" padding={false}><div className="grid min-h-[360px] lg:grid-cols-[1fr_22rem]"><div className="p-6 sm:p-8"><Badge tone={section?.phase === "Connected" ? "success" : "info"} dot>{section?.phase ?? "Foundation"}</Badge><h2 className="mt-4 text-xl font-bold text-text-primary">{section?.label ?? "Reactivation workspace"}</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{section?.description}</p><div className="mt-6 rounded-2xl border border-border bg-surface-2 p-5"><h3 className="text-sm font-semibold text-text-primary">Production capability</h3><p className="mt-2 text-sm leading-relaxed text-text-secondary">Operators continue through the existing CRM, task, segment, campaign, media, and audit systems. Dedicated eligibility, KYC, SIM, activation, and completion records remain unavailable until additive contracts are approved.</p>{action ? <Link to={action.path} className="mt-5 inline-block"><Button rightIcon={<ArrowRight className="h-4 w-4" />}>{action.label}</Button></Link> : null}</div></div><div className="flex items-center justify-center border-t border-border bg-[radial-gradient(circle_at_top,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><EmptyState icon={<Icon className="h-7 w-7" />} title="Ready for governed data" description="Search, filters, bulk actions, history, and SLA views activate when this domain has a server-owned record." /></div></div></Card>{section?.key === "kyc" ? <StatusJourney title="KYC review model" statuses={["Pending", "Submitted", "Verified", "Rejected", "Approved"]} /> : null}{section?.key === "sim" ? <StatusJourney title="SIM lifecycle model" statuses={["Ordered", "Packed", "Dispatched", "Delivered", "Activated", "Completed"]} /> : null}{section?.key === "kyc" ? <AiFoundationPanel capabilities={["summary", "document"]} context="governed customer documents; analysis remains provider- and reviewer-gated" /> : null}</div>;
+}
+
+function StatusJourney({ title, statuses }: { title: string; statuses: string[] }): JSX.Element {
+  return <Card className="p-4" padding={false}><div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-text-primary">{title}</h2><p className="mt-1 text-xs text-text-secondary">Reference state model only; reviewer, notes, tracking, approval, and audit require a dedicated record.</p></div><Badge tone="neutral">Contract gated</Badge></div><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{statuses.map((status,index) => <div key={status} className="flex shrink-0 items-center gap-2"><span className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-text-primary">{status}</span>{index<statuses.length-1 ? <ArrowRight aria-hidden className="h-4 w-4 text-text-disabled" /> : null}</div>)}</div></Card>;
 }

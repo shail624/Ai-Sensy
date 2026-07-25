@@ -48,8 +48,12 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(contact).toBeVisible();
   await contact.click();
   await expect(page.getByText(contactName, { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("tab", { name: "KYC", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "SIM", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Tasks", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "AI Assistant", exact: true })).toBeVisible();
 
-  // Phase 2 release evidence: the marketer and reporting surfaces must be reachable through
+  // Phase 3 release evidence: engagement, reactivation, automation, and scan surfaces must be reachable through
   // the same production edge, authenticated shell, RBAC policy, and API contract.
   await page.goto("/broadcasts");
   await expect(page.getByRole("heading", { name: "Broadcast Center" })).toBeVisible();
@@ -59,9 +63,22 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Engagement funnel" })).toBeVisible();
 
+  await page.goto("/reactivation");
+  await expect(page.getByRole("heading", { name: "Reactivation", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "One governed customer journey" })).toBeVisible();
+
+  await page.goto("/automation");
+  await expect(page.getByRole("heading", { name: "Automation", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Trigger", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save automation" })).toBeDisabled();
+
+  await page.goto("/scan");
+  await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();
+  await expect(page.getByText("Architecture boundary enforced", { exact: true })).toBeVisible();
+
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/broadcasts");
-  await expect(page.getByRole("heading", { name: "Broadcast Center" })).toBeVisible();
+  await page.goto("/scan");
+  await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );

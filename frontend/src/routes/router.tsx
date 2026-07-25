@@ -21,14 +21,8 @@ import {
   PreferencesPanel,
 } from "@/features/settings";
 import { AdminIndexRedirect, AdminPage } from "@/pages/AdminPage";
-import { AutomationPage } from "@/pages/AutomationPage";
 import { PipelineDetailPage } from "@/pages/PipelineDetailPage";
 import { PipelinesPage } from "@/pages/PipelinesPage";
-import {
-  ReactivationOverview,
-  ReactivationPage,
-  ReactivationWorkspace,
-} from "@/pages/ReactivationPage";
 import { SegmentCreatePage } from "@/pages/SegmentCreatePage";
 import { SegmentDetailPage } from "@/pages/SegmentDetailPage";
 import { SegmentEditPage } from "@/pages/SegmentEditPage";
@@ -61,15 +55,15 @@ import { TemplateEditPage } from "@/pages/TemplateEditPage";
 import { TemplatesPage } from "@/pages/TemplatesPage";
 import { RequireAnonymous, RequireAnyPermission, RequireAuth, RequirePermission } from "@/routes/guards";
 
-/**
- * Analytics is the only route that pulls in a charting library, so it is loaded on demand: the
- * chart code never reaches a user who does not open the dashboard, and the initial bundle stays
- * the size it was before Phase 8. Everything else is small enough that splitting would cost a
- * round-trip for no benefit.
- */
+/** Heavy analytics and Phase 3 workspace routes load only when opened. */
 const AnalyticsPage = lazy(async () => ({
   default: (await import("@/pages/AnalyticsPage")).AnalyticsPage,
 }));
+const AutomationPage = lazy(async () => ({ default: (await import("@/pages/AutomationPage")).AutomationPage }));
+const ReactivationPage = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationPage }));
+const ReactivationOverview = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationOverview }));
+const ReactivationWorkspace = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationWorkspace }));
+const ScanPage = lazy(async () => ({ default: (await import("@/pages/ScanPage")).ScanPage }));
 
 function LazyRoute({ children }: { children: React.ReactNode }): JSX.Element {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
@@ -187,7 +181,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "automation",
-            element: <AutomationPage />,
+            element: <LazyRoute><AutomationPage /></LazyRoute>,
           },
           {
             path: "reactivation",
@@ -195,21 +189,27 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "",
-                element: <ReactivationPage />,
+                element: <LazyRoute><ReactivationPage /></LazyRoute>,
                 children: [
-                  { index: true, element: <ReactivationOverview /> },
-                  { path: "eligible", element: <ReactivationWorkspace /> },
-                  { path: "bulk-eligibility", element: <ReactivationWorkspace /> },
-                  { path: "interested", element: <ReactivationWorkspace /> },
-                  { path: "pipeline", element: <ReactivationWorkspace /> },
-                  { path: "kyc", element: <ReactivationWorkspace /> },
-                  { path: "documents", element: <ReactivationWorkspace /> },
-                  { path: "sim-orders", element: <ReactivationWorkspace /> },
-                  { path: "activation", element: <ReactivationWorkspace /> },
-                  { path: "reports", element: <ReactivationWorkspace /> },
+                  { index: true, element: <LazyRoute><ReactivationOverview /></LazyRoute> },
+                  { path: "eligible", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "bulk-eligibility", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "interested", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "pipeline", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "kyc", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "documents", element: <RequirePermission code="media:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
+                  { path: "sim-orders", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "activation", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "completed", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
+                  { path: "reports", element: <RequirePermission code="analytics:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
                 ],
               },
             ],
+          },
+          {
+            path: "scan",
+            element: <RequirePermission code="contacts:read" />,
+            children: [{ index: true, element: <LazyRoute><ScanPage /></LazyRoute> }],
           },
           {
             // Accounts and numbers share one permission — a number belongs to an account, so there

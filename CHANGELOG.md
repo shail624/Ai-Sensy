@@ -11,6 +11,28 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Phase 3 reactivation platform and automation foundations
+
+**Added**
+- Added the complete Reactivation workspace navigation: eligible numbers, bulk eligibility,
+  interested customers, customer pipeline, KYC, Document Center, SIM orders, Activation Queue,
+  completed cases, and reports.
+- Added an honest reactivation pipeline blueprint over the existing pipeline/stage authority,
+  a real media-backed Document Center, real analytics-backed reports, and the complete 13-tab
+  Customer 360 information architecture.
+- Added a separate Scan Studio adapter/queue boundary and an accessible visual automation
+  blueprint builder with trigger, condition, internal-action, delay, tag, assignment, wait,
+  webhook, campaign, notification, and mandatory human-approval nodes.
+- Added focused Phase 3 boundary tests and extended the isolated production browser journey
+  through Reactivation, Automation, Scan Studio, and a 390 × 844 responsive check.
+
+**Changed**
+- Reactivation, Automation, and Scan Studio are route-split production chunks; the main bundle
+  decreased from the Phase 2 baseline despite the new UI surfaces.
+- Backend APIs, OpenAPI, database schema, permissions, tenant isolation, Celery/task behavior,
+  provider behavior, and business rules remain unchanged. Missing document/KYC/SIM/scan/
+  automation-runtime contracts are shown as disabled, explicit boundaries rather than simulated data.
+
 ### 2026-07-25 — Phase 2 customer engagement platform
 
 **Added**
