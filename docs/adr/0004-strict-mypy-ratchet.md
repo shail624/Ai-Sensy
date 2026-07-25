@@ -36,8 +36,8 @@ Keep the existing strict mypy configuration unchanged and add a versioned, monot
   a regression; a lower count marks the baseline stale until the explicit write command lowers it.
 - A same-version baseline write refuses every increased allowance. A checker-version replacement
   requires a separate `--allow-version-change` flag and review of the full baseline diff.
-- The raw finding total remains visible on every run. The ratchet is transitional and is deleted
-  with its zero baseline once `mypy app` is clean.
+- While the ratchet was active, its every execution reported the raw finding total. The wrapper and
+  zero baseline were deleted once `mypy app` became clean; direct strict mypy is the current gate.
 - Strict rules are never globally disabled. Any localized cast or suppression must sit at a typed
   third-party boundary and remain reviewable in source.
 
