@@ -12,6 +12,24 @@
 
 ---
 
+## Phase 2 realization update — 2026-07-25
+
+| Product workflow | Realized state |
+|---|---|
+| Shared Inbox | Extended: synchronized custom inboxes/pins, folders, multi-agent context, mentions, labels, snooze status, customer sidebar, AI seam, and bulk status/assignment/label actions |
+| Customer 360 | Complete on existing contracts: identity, attributes, tags, tasks/reminders, histories, notes, lifecycle, recent interactions, and honest document/KYC states |
+| Campaign Builder | Complete: Audience → Template → Preview → Schedule → Approval → Confirmation → Analytics |
+| Template Center | Complete: categories, search/filters, preview, variables, version history, approval state, and favorites |
+| Segments | Complete: dynamic rules, reusable audiences, estimates, filters, and recents |
+| Broadcast Center | Added as a dedicated view over the existing campaign engine |
+| Analytics | Extended with engagement funnel, delivery/read, campaign, employee, export, and honest template boundary |
+| AI foundations | UI integration complete; provider execution remains deliberately deferred and human approval remains mandatory |
+
+The detailed implementation and contract boundaries are recorded in
+`docs/design/17-PHASE-2-CUSTOMER-ENGAGEMENT-PLATFORM.md`.
+
+---
+
 ## A. Authentication, Users, Roles, Permissions
 
 | Feature | Best reference | Feasibility | Our approach |

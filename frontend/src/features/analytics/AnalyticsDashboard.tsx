@@ -15,6 +15,8 @@ import { ExportActions } from "@/features/analytics/ExportActions";
 import { FreshnessIndicator } from "@/features/analytics/FreshnessIndicator";
 import { KpiCards } from "@/features/analytics/KpiCards";
 import { SeriesChart } from "@/features/analytics/SeriesChart";
+import { EngagementFunnel } from "@/features/analytics/EngagementFunnel";
+import { AiFoundationPanel } from "@/features/ai";
 import type {
   AnalyticsFilterState,
   Compare,
@@ -107,12 +109,20 @@ export function AnalyticsDashboard(): JSX.Element {
 
   return (
     <div className="space-y-4">
+      <nav aria-label="Analytics dashboards" className="sticky top-0 z-10 flex gap-1 overflow-x-auto rounded-xl border border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_94%,transparent)] p-1.5 shadow-sm backdrop-blur-xl">
+        {[
+          ["overview", "Overview"], ["delivery", "Delivery & read"], ["campaigns", "Campaigns"],
+          ["templates", "Templates"], ["employees", "Employees"], ["exports", "Export center"],
+        ].map(([id, label]) => <a key={id} href={`#analytics-${id}`} className="min-h-9 shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-text-secondary hover:bg-hover hover:text-text-primary">{label}</a>)}
+      </nav>
+
+      <div id="analytics-overview" className="scroll-mt-20">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <AnalyticsFilters filters={filters} onChange={apply} />
         <div className="flex flex-col items-end gap-2">
           <FreshnessIndicator />
-          <ExportActions filters={filters} />
         </div>
+      </div>
       </div>
 
       {summary.isLoading ? (
@@ -124,7 +134,8 @@ export function AnalyticsDashboard(): JSX.Element {
         />
       )}
 
-      <Section title="Delivery over time">
+      <div id="analytics-delivery" className="scroll-mt-20">
+      <Section title="Delivery and read trends">
         {series.isLoading ? (
           <ChartSkeleton />
         ) : series.isError ? (
@@ -140,6 +151,7 @@ export function AnalyticsDashboard(): JSX.Element {
           />
         )}
       </Section>
+      </div>
 
       <Section title="Volume by period">
         {series.isLoading ? (
@@ -158,6 +170,7 @@ export function AnalyticsDashboard(): JSX.Element {
           />
         </Section>
 
+        <div id="analytics-campaigns" className="scroll-mt-20">
         <Section title="Campaign performance">
           <BreakdownTable
             title="Campaign"
@@ -171,8 +184,10 @@ export function AnalyticsDashboard(): JSX.Element {
             rateLabel="Delivery"
           />
         </Section>
+        </div>
 
-        <Section title="Agent performance">
+        <div id="analytics-employees" className="scroll-mt-20">
+        <Section title="Employee performance">
           <BreakdownTable
             title="Agent"
             query={agents}
@@ -185,6 +200,7 @@ export function AnalyticsDashboard(): JSX.Element {
             rateLabel="Resolved"
           />
         </Section>
+        </div>
 
         {isExecutive ? (
           <Section title="Spend by message type">
@@ -199,6 +215,27 @@ export function AnalyticsDashboard(): JSX.Element {
           </Section>
         ) : null}
       </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Section title="Engagement funnel" description="Verified sent, delivered, and read totals for the selected range.">
+          <EngagementFunnel totals={summary.data?.totals} />
+        </Section>
+        <div id="analytics-templates" className="scroll-mt-20">
+          <Section title="Template performance">
+            <p className="rounded-xl border border-border bg-surface-subtle px-4 py-3 text-sm leading-relaxed text-text-secondary">
+              Template approval and quality are available in Template Center. The current analytics contract does not carry a template dimension, so usage performance is not inferred from campaign names.
+            </p>
+          </Section>
+        </div>
+      </div>
+
+      <div id="analytics-exports" className="scroll-mt-20">
+        <Section title="Export center" description="Create governed CSV, Excel, or JSON evidence from the active date range.">
+          <ExportActions filters={filters} />
+        </Section>
+      </div>
+
+      <AiFoundationPanel capabilities={["insights"]} context="the verified analytics rollups and selected date range" />
     </div>
   );
 }

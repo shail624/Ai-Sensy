@@ -1,5 +1,5 @@
 import { BookmarkPlus, Radio, Search, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { TagChip } from "@/components/ui";
 import { useAssignableUsers } from "@/features/inbox/api";
@@ -17,6 +17,7 @@ interface Props {
   savedViews: SavedInboxView[];
   onSaveView: (name: string) => void;
   onDeleteView: (id: string) => void;
+  currentUserId?: string;
 }
 
 /** Search + status/assignee/tag filters over the inbox list (Doc 04 §18.1). */
@@ -27,9 +28,21 @@ export function ConversationFilters({
   savedViews,
   onSaveView,
   onDeleteView,
+  currentUserId,
 }: Props): JSX.Element {
   const users = useAssignableUsers();
   const [viewName, setViewName] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function focusSearch(event: KeyboardEvent): void {
+      if (event.key !== "/" || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
 
   return (
     <div className="space-y-3 border-b border-border bg-surface p-3">
@@ -49,17 +62,39 @@ export function ConversationFilters({
         </label>
         <Search aria-hidden className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-text-disabled" />
         <input
+          ref={searchRef}
           id="inbox-search"
           type="search"
           value={filters.q ?? ""}
           onChange={(event) => onChange({ ...filters, q: event.target.value || undefined })}
           placeholder="Search name or number…"
           className={`${FIELD_CLASS} pl-8`}
-        />
+      />
+      </div>
+
+      <div aria-label="Inbox folders" className="flex gap-1 overflow-x-auto pb-1">
+        {[
+          { label: "All", next: {} },
+          ...(currentUserId ? [{ label: "Mine", next: { assignee: currentUserId } }] : []),
+          { label: "Unassigned", next: { assignee: "unassigned" } },
+          { label: "Open", next: { status: "open" } },
+          { label: "Snoozed", next: { status: "snoozed" } },
+        ].map((folder) => (
+          <button
+            key={folder.label}
+            type="button"
+            onClick={() => onChange(folder.next)}
+            className="min-h-8 shrink-0 rounded-full border border-border px-3 text-xs font-medium text-text-secondary hover:bg-hover hover:text-text-primary"
+          >
+            {folder.label}
+          </button>
+        ))}
       </div>
 
       {savedViews.length > 0 ? (
-        <div aria-label="Saved inbox views" className="flex gap-1 overflow-x-auto pb-1">
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-disabled">Custom inboxes</p>
+          <div aria-label="Custom inboxes" className="flex gap-1 overflow-x-auto pb-1">
           {savedViews.map((view) => (
             <span key={view.id} className="inline-flex shrink-0 items-center rounded-full border border-border bg-surface-subtle">
               <button type="button" onClick={() => onChange(view.filters)} className="px-2.5 py-1 text-xs font-medium text-text-primary">
@@ -70,6 +105,7 @@ export function ConversationFilters({
               </button>
             </span>
           ))}
+          </div>
         </div>
       ) : null}
 
@@ -145,12 +181,12 @@ export function ConversationFilters({
           setViewName("");
         }}
       >
-        <label htmlFor="saved-view-name" className="sr-only">Saved view name</label>
+        <label htmlFor="saved-view-name" className="sr-only">Custom inbox name</label>
         <input
           id="saved-view-name"
           value={viewName}
           onChange={(event) => setViewName(event.target.value)}
-          placeholder="Name this view"
+          placeholder="Save as custom inbox"
           maxLength={40}
           className={FIELD_CLASS}
         />

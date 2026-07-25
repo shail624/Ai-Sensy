@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { InboxFilters } from "@/features/inbox/types";
+import { usePreferences, useUpdatePreferences } from "@/features/settings/api";
 
 const CHANGE_EVENT = "wa-inbox-preferences";
 
@@ -23,21 +24,25 @@ function storageKey(userId: string | undefined): string {
 
 function read(userId: string | undefined): InboxPreferences {
   try {
-    const parsed = JSON.parse(localStorage.getItem(storageKey(userId)) ?? "null") as Partial<InboxPreferences> | null;
-    return {
-      pinned: Array.isArray(parsed?.pinned)
-        ? parsed.pinned.filter((value): value is string => typeof value === "string")
-        : [],
-      savedViews: Array.isArray(parsed?.savedViews)
-        ? parsed.savedViews.filter(
-            (view): view is SavedInboxView =>
-              typeof view?.id === "string" && typeof view?.name === "string" && Boolean(view.filters),
-          )
-        : [],
-    };
+    return parse(JSON.parse(localStorage.getItem(storageKey(userId)) ?? "null"));
   } catch {
     return EMPTY;
   }
+}
+
+function parse(value: unknown): InboxPreferences {
+  const parsed = value && typeof value === "object" ? value as Partial<InboxPreferences> : null;
+  return {
+    pinned: Array.isArray(parsed?.pinned)
+      ? parsed.pinned.filter((entry): entry is string => typeof entry === "string")
+      : [],
+    savedViews: Array.isArray(parsed?.savedViews)
+      ? parsed.savedViews.filter(
+          (view): view is SavedInboxView =>
+            typeof view?.id === "string" && typeof view?.name === "string" && Boolean(view.filters),
+        )
+      : [],
+  };
 }
 
 function write(userId: string | undefined, value: InboxPreferences): void {
@@ -48,6 +53,9 @@ function write(userId: string | undefined, value: InboxPreferences): void {
 /** Per-user presentation preferences. Operational conversation state always remains server-owned. */
 export function useInboxPreferences(userId: string | undefined) {
   const [value, setValue] = useState<InboxPreferences>(() => read(userId));
+  const server = usePreferences();
+  const update = useUpdatePreferences();
+  const syncServer = update.mutate;
 
   useEffect(() => {
     const sync = () => setValue(read(userId));
@@ -60,26 +68,45 @@ export function useInboxPreferences(userId: string | undefined) {
     };
   }, [userId]);
 
+  // Phase 2 promotes custom inboxes and pins to the existing server preference store. Browser
+  // storage remains an instant/offline cache and is migrated on the first signed-in read.
+  useEffect(() => {
+    if (!userId || !server.data) return;
+    if (Object.hasOwn(server.data, "inbox_workspace")) {
+      write(userId, parse(server.data.inbox_workspace));
+      return;
+    }
+    const current = read(userId);
+    if (current.pinned.length > 0 || current.savedViews.length > 0) {
+      syncServer({ inbox_workspace: current });
+    }
+  }, [server.data, syncServer, userId]);
+
+  const persist = useCallback((next: InboxPreferences) => {
+    write(userId, next);
+    if (userId) syncServer({ inbox_workspace: next });
+  }, [syncServer, userId]);
+
   const togglePinned = useCallback((conversationId: string) => {
     const current = read(userId);
-    write(userId, {
+    persist({
       ...current,
       pinned: current.pinned.includes(conversationId)
         ? current.pinned.filter((id) => id !== conversationId)
         : [conversationId, ...current.pinned],
     });
-  }, [userId]);
+  }, [persist, userId]);
 
   const saveView = useCallback((name: string, filters: InboxFilters) => {
     const current = read(userId);
     const id = `${Date.now()}`;
-    write(userId, { ...current, savedViews: [...current.savedViews, { id, name, filters }] });
-  }, [userId]);
+    persist({ ...current, savedViews: [...current.savedViews, { id, name, filters }] });
+  }, [persist, userId]);
 
   const deleteView = useCallback((id: string) => {
     const current = read(userId);
-    write(userId, { ...current, savedViews: current.savedViews.filter((view) => view.id !== id) });
-  }, [userId]);
+    persist({ ...current, savedViews: current.savedViews.filter((view) => view.id !== id) });
+  }, [persist, userId]);
 
   return useMemo(
     () => ({ ...value, togglePinned, saveView, deleteView }),

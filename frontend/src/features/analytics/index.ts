@@ -1,4 +1,5 @@
 export { AnalyticsDashboard } from "./AnalyticsDashboard";
+export { EngagementFunnel } from "./EngagementFunnel";
 export { AnalyticsFilters } from "./AnalyticsFilters";
 export { BreakdownTable } from "./BreakdownTable";
 export { ExportActions } from "./ExportActions";

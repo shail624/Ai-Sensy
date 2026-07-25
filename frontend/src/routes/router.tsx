@@ -43,6 +43,7 @@ import { CampaignCreatePage } from "@/pages/CampaignCreatePage";
 import { CampaignDetailPage } from "@/pages/CampaignDetailPage";
 import { CampaignEditPage } from "@/pages/CampaignEditPage";
 import { CampaignsPage } from "@/pages/CampaignsPage";
+import { BroadcastsPage } from "@/pages/BroadcastsPage";
 // `ComingSoonPage` is no longer routed: every destination in the navigation is now built. The
 // component remains for a future unbuilt module rather than being deleted along with its tests.
 import { ContactProfilePage } from "@/pages/ContactProfilePage";
@@ -135,6 +136,11 @@ export const router = createBrowserRouter([
                 children: [{ index: true, element: <CampaignEditPage /> }],
               },
             ],
+          },
+          {
+            path: "broadcasts",
+            element: <RequirePermission code="campaigns:read" />,
+            children: [{ index: true, element: <BroadcastsPage /> }],
           },
           {
             path: "templates",

@@ -19,6 +19,8 @@ import {
 import type { TemplateListQuery, TemplateSort } from "@/features/templates/types";
 import { CATEGORIES, DEFAULT_LIST_QUERY, STATUSES } from "@/features/templates/types";
 import { formatCount } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
+import { useWorkspacePreferences } from "@/lib/workspace";
 
 const BUTTON_CLASS =
   "rounded-md border border-border px-3 py-1 text-sm hover:bg-hover disabled:opacity-50";
@@ -66,6 +68,8 @@ export function TemplateList(): JSX.Element {
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("templates:write");
   const canSync = useHasPermission("templates:sync");
+  const { user } = useAuth();
+  const workspace = useWorkspacePreferences(user?.id);
 
   const templates = useTemplates();
   const sync = useSyncTemplates();
@@ -161,7 +165,11 @@ export function TemplateList(): JSX.Element {
         />
       ) : (
         <>
-          <TemplateTable templates={page.rows} />
+          <TemplateTable
+            templates={page.rows}
+            favoritePaths={workspace.favorites}
+            onToggleFavorite={workspace.toggleFavorite}
+          />
 
           <nav
             aria-label="Pagination"

@@ -38,7 +38,7 @@ const STEP_LABELS: Record<StepKey, string> = {
   preview: "Preview",
   delivery: "Schedule",
   approval: "Approval",
-  review: "Send",
+  review: "Confirmation",
 };
 
 /** Which fields each step owns, so "Next" validates only what is on screen. */
@@ -200,6 +200,11 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
             {index + 1}. {STEP_LABELS[key]}
           </button>
         ))}
+        {!editing ? (
+          <span className="rounded-lg px-3 py-2 text-sm font-semibold text-text-disabled" aria-label="Analytics becomes available after launch">
+            {steps.length + 1}. Analytics
+          </span>
+        ) : null}
       </nav>
       </div>
 

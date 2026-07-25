@@ -17,17 +17,19 @@ import {
 import { collateReactions } from "@/features/inbox/messageContent";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
-import { NotesPanel } from "@/features/inbox/NotesPanel";
+import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
 import type { TagSummary } from "@/features/inbox/types";
 import { useHasPermission } from "@/lib/auth";
 
 interface Props {
   conversationId: string;
   tags: TagSummary[];
+  pinned?: boolean;
+  onTogglePinned?: () => void;
 }
 
 /** The open conversation: header + controls, message history, composer, and internal notes. */
-export function ConversationThread({ conversationId, tags }: Props): JSX.Element {
+export function ConversationThread({ conversationId, tags, pinned = false, onTogglePinned = () => undefined }: Props): JSX.Element {
   const conversation = useConversation(conversationId);
   const messages = useMessages(conversationId);
   const markRead = useMarkRead(conversationId);
@@ -142,9 +144,7 @@ export function ConversationThread({ conversationId, tags }: Props): JSX.Element
           <MessageComposer conversation={thread} />
         </div>
 
-        <aside className="w-full shrink-0 overflow-y-auto border-t border-border p-3 lg:w-72 lg:border-l lg:border-t-0">
-          <NotesPanel conversationId={conversationId} />
-        </aside>
+        <InboxContextPanel conversation={thread} pinned={pinned} onTogglePinned={onTogglePinned} />
       </div>
     </div>
   );

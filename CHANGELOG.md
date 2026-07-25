@@ -11,6 +11,24 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Phase 2 customer engagement platform
+
+**Added**
+- Added server-synchronized custom inboxes and pins, quick folders, teammate mention insertion,
+  customer/notes/AI context, expanded bulk actions, and explicit contract-gated merge/timed-snooze states.
+- Added a dedicated Broadcast Center over the existing campaign engine, template favorites, segment
+  recents, factual engagement funnel, analytics dashboard navigation/export center, and Phase 2 AI seams.
+- Added the Phase 2 realization record, updated research feature matrix, and focused architecture-
+  boundary regression coverage.
+
+**Changed**
+- Extended the campaign journey through Confirmation and the post-launch Analytics destination, and
+  upgraded Customer 360, Template Center, Segments, and Analytics entry points.
+- Extended the isolated production browser journey through Broadcast Center, Analytics, the factual
+  engagement funnel, and a 390 × 844 no-horizontal-overflow check.
+- Backend APIs, OpenAPI, database schema, permissions, tenant isolation, queue behavior, provider
+  behavior, and business rules remain unchanged.
+
 ### 2026-07-25 — Phase 1 enterprise product transformation
 
 **Added**

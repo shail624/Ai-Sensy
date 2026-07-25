@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { CampaignWizard, contactsToForm, duplicateToForm } from "@/features/campaigns";
+import { AiFoundationPanel } from "@/features/ai";
 import type { Campaign } from "@/features/campaigns";
 
 /**
@@ -30,6 +31,9 @@ export function CampaignCreatePage(): JSX.Element {
         title={source ? `Duplicate "${source.name}"` : "New campaign"}
         description="Choose the message, the audience and when it goes out. Nothing is sent until you say so."
       />
+      <div className="mb-5">
+        <AiFoundationPanel compact capabilities={["campaign", "audience"]} context="the campaign objective and selected audience" />
+      </div>
       <CampaignWizard
         initialValues={
           source ? duplicateToForm(source) : contactIds?.length ? contactsToForm(contactIds) : undefined

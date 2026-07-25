@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
-import { apiErrorMessage, useAddNote, useDeleteNote, useNotes } from "@/features/inbox/api";
+import { apiErrorMessage, useAddNote, useAssignableUsers, useDeleteNote, useNotes } from "@/features/inbox/api";
 import { useHasPermission } from "@/lib/auth";
 
 /** Internal notes — staff-only, never sent to the customer (FR-INB-03). */
@@ -9,6 +9,7 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
   const [draft, setDraft] = useState("");
   const canWrite = useHasPermission("inbox:write");
   const notes = useNotes(conversationId);
+  const teammates = useAssignableUsers();
   const addNote = useAddNote(conversationId);
   const deleteNote = useDeleteNote(conversationId);
 
@@ -58,9 +59,26 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
             rows={2}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Add an internal note…"
+            placeholder="Add an internal note or mention a teammate…"
             className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
           />
+          {(teammates.data ?? []).length > 0 ? (
+            <div className="flex gap-1 overflow-x-auto pb-1" aria-label="Mention a teammate">
+              {(teammates.data ?? []).slice(0, 8).map((teammate) => (
+                <button
+                  key={teammate.id}
+                  type="button"
+                  onClick={() => setDraft((value) => `${value}${value && !value.endsWith(" ") ? " " : ""}@${teammate.full_name} `)}
+                  className="shrink-0 rounded-full border border-border px-2 py-1 text-[11px] text-text-secondary hover:bg-hover"
+                >
+                  @{teammate.full_name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-[11px] leading-relaxed text-text-disabled">
+            Mentions are preserved in the staff-only note. Notification delivery is not claimed by the current API.
+          </p>
           {addNote.error ? <ErrorState message={apiErrorMessage(addNote.error)} /> : null}
           <button
             type="button"

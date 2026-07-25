@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { cloneDraft, TemplateEditor } from "@/features/templates";
+import { AiFoundationPanel } from "@/features/ai";
 import type { Template } from "@/features/templates";
 
 /**
@@ -28,6 +29,9 @@ export function TemplateCreatePage(): JSX.Element {
         title={source ? `Clone "${source.name}"` : "New template"}
         description="Build the message, then save it as a draft or submit it to Meta for review."
       />
+      <div className="mb-5">
+        <AiFoundationPanel compact capabilities={["template"]} context="the template category, language, and compliance constraints" />
+      </div>
       <TemplateEditor initialDraft={source ? cloneDraft(source) : undefined} />
     </PageContainer>
   );

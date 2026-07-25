@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCheck, X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -7,6 +7,7 @@ import { useTags } from "@/features/customer-profile/api";
 import {
   apiErrorMessage,
   useAssignableUsers,
+  useBulkAddConversationTags,
   useBulkAssignConversations,
   useBulkSetConversationStatus,
   useConversations,
@@ -16,6 +17,7 @@ import { ConversationList } from "@/features/inbox/ConversationList";
 import { ConversationThread } from "@/features/inbox/ConversationThread";
 import { useInboxPreferences } from "@/features/inbox/preferences";
 import type { InboxFilters } from "@/features/inbox/types";
+import { CONVERSATION_STATUSES, STATUS_LABELS, type ConversationStatus } from "@/features/inbox/types";
 import { useAuth } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
@@ -55,11 +57,12 @@ export function Inbox(): JSX.Element {
   const assignees = useAssignableUsers();
   const bulkStatus = useBulkSetConversationStatus();
   const bulkAssign = useBulkAssignConversations();
+  const bulkTags = useBulkAddConversationTags();
   const rows = conversations.data?.data ?? [];
   const page = conversations.data?.page;
   const tagOptions = (tags.data ?? []).map((tag) => ({ id: tag.id, name: tag.name, color: tag.color ?? null }));
-  const bulkPending = bulkStatus.isPending || bulkAssign.isPending;
-  const bulkError = bulkStatus.error ?? bulkAssign.error;
+  const bulkPending = bulkStatus.isPending || bulkAssign.isPending || bulkTags.isPending;
+  const bulkError = bulkStatus.error ?? bulkAssign.error ?? bulkTags.error;
 
   function applyFilters(next: InboxFilters): void {
     setSearchParams(writeParams(next, selectedId));
@@ -91,6 +94,7 @@ export function Inbox(): JSX.Element {
           savedViews={preferences.savedViews}
           onSaveView={(name) => preferences.saveView(name, filters)}
           onDeleteView={preferences.deleteView}
+          currentUserId={user?.id}
         />
 
         {selection.length > 0 ? (
@@ -101,15 +105,22 @@ export function Inbox(): JSX.Element {
                 <X aria-hidden className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+              <label className="sr-only" htmlFor="bulk-status">Change status for selected conversations</label>
+              <select
+                id="bulk-status"
+                aria-label="Change status for selected conversations"
+                defaultValue=""
                 disabled={bulkPending}
-                onClick={() => void bulkStatus.mutateAsync({ ids: selection, status: "resolved" }).then(() => setSelection([]))}
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-accent px-2 py-2 text-xs font-semibold text-accent-fg disabled:opacity-50"
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  void bulkStatus.mutateAsync({ ids: selection, status: event.target.value as ConversationStatus }).then(() => setSelection([]));
+                }}
+                className="rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-primary"
               >
-                <CheckCheck aria-hidden className="h-3.5 w-3.5" /> Resolve
-              </button>
+                <option value="">Change status…</option>
+                {CONVERSATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
+              </select>
               <label className="sr-only" htmlFor="bulk-assignee">Assign selected conversations</label>
               <select
                 id="bulk-assignee"
@@ -124,6 +135,21 @@ export function Inbox(): JSX.Element {
               >
                 <option value="">Assign…</option>
                 {(assignees.data ?? []).map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.full_name}</option>)}
+              </select>
+              <label className="sr-only" htmlFor="bulk-tag">Label selected conversations</label>
+              <select
+                id="bulk-tag"
+                aria-label="Label selected conversations"
+                defaultValue=""
+                disabled={bulkPending}
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  void bulkTags.mutateAsync({ ids: selection, tagId: event.target.value }).then(() => setSelection([]));
+                }}
+                className="rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-primary"
+              >
+                <option value="">Add label…</option>
+                {tagOptions.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
               </select>
             </div>
             {bulkError ? <p role="alert" className="mt-2 text-xs text-danger">{apiErrorMessage(bulkError)}</p> : null}
@@ -165,7 +191,13 @@ export function Inbox(): JSX.Element {
               <ArrowLeft aria-hidden className="h-4 w-4" /> Back to conversations
             </button>
             <div className="min-h-0 flex-1">
-              <ConversationThread key={selectedId} conversationId={selectedId} tags={tagOptions} />
+              <ConversationThread
+                key={selectedId}
+                conversationId={selectedId}
+                tags={tagOptions}
+                pinned={preferences.pinned.includes(selectedId)}
+                onTogglePinned={() => preferences.togglePinned(selectedId)}
+              />
             </div>
           </div>
         ) : (

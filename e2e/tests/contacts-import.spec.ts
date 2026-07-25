@@ -48,5 +48,23 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(contact).toBeVisible();
   await contact.click();
   await expect(page.getByText(contactName, { exact: true }).first()).toBeVisible();
+
+  // Phase 2 release evidence: the marketer and reporting surfaces must be reachable through
+  // the same production edge, authenticated shell, RBAC policy, and API contract.
+  await page.goto("/broadcasts");
+  await expect(page.getByRole("heading", { name: "Broadcast Center" })).toBeVisible();
+  await expect(page.getByText("One campaign engine", { exact: true })).toBeVisible();
+
+  await page.goto("/analytics");
+  await expect(page.getByRole("heading", { name: "Analytics", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Engagement funnel" })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/broadcasts");
+  await expect(page.getByRole("heading", { name: "Broadcast Center" })).toBeVisible();
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
   expect(serverErrors).toEqual([]);
 });

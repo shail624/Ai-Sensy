@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Megaphone,
   MessageSquareText,
+  RadioTower,
   Image,
   Settings,
   Shield,
@@ -85,6 +86,11 @@ export const navItems: NavItem[] = [
     label: "Campaigns", path: "/campaigns", available: true, glyph: "Ca", icon: Megaphone,
     group: "Workspace", permission: "campaigns:read",
     description: "Build, schedule and monitor WhatsApp broadcasts.",
+  },
+  {
+    label: "Broadcasts", path: "/broadcasts", available: true, glyph: "B", icon: RadioTower,
+    group: "Workspace", permission: "campaigns:read",
+    description: "Launch governed broadcasts through the campaign engine.",
   },
   {
     label: "Templates", path: "/templates", available: true, glyph: "T", icon: MessageSquareText,

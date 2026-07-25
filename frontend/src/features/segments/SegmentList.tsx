@@ -17,7 +17,9 @@ import {
 } from "@/features/segments/selectors";
 import { MATCH_TYPE_LABELS, MATCH_TYPES } from "@/features/segments/types";
 import { formatCount, formatDate } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { useIsCompact } from "@/lib/useMediaQuery";
+import { useWorkspacePreferences } from "@/lib/workspace";
 
 const FIELD_CLASS =
   "h-9 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
@@ -94,6 +96,8 @@ export function SegmentList(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("segments:write");
+  const { user } = useAuth();
+  const workspace = useWorkspacePreferences(user?.id);
 
   const compact = useIsCompact();
   const segments = useSegments();
@@ -239,6 +243,7 @@ export function SegmentList(): JSX.Element {
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/segments/${segment.id}`}
+                        onClick={() => workspace.recordRecent({ label: segment.name, path: `/segments/${segment.id}` })}
                         className="block truncate font-semibold text-text-primary focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       >
                         {segment.name}
@@ -284,6 +289,7 @@ export function SegmentList(): JSX.Element {
                           <div className="min-w-0">
                             <Link
                               to={`/segments/${segment.id}`}
+                              onClick={() => workspace.recordRecent({ label: segment.name, path: `/segments/${segment.id}` })}
                               className="font-semibold text-text-primary hover:text-accent focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                             >
                               {segment.name}

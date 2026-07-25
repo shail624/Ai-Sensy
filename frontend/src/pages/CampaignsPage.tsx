@@ -7,8 +7,9 @@ export function CampaignsPage(): JSX.Element {
     <PageContainer>
       <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Campaigns" }]} />
       <PageHeader
+        eyebrow="Engagement orchestration"
         title="Campaigns"
-        description="Broadcast an approved template to a segment, a set of tags, or a list of contacts."
+        description="Build, duplicate as a reusable campaign pattern, schedule, approve, and measure governed engagement."
       />
       <CampaignList />
     </PageContainer>

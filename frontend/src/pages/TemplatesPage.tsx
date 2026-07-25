@@ -7,8 +7,9 @@ export function TemplatesPage(): JSX.Element {
     <PageContainer>
       <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Templates" }]} />
       <PageHeader
-        title="Templates"
-        description="Message templates and their approval status. Only an approved template can be broadcast."
+        eyebrow="Reusable content"
+        title="Template Center"
+        description="Search, filter, preview, favorite, version, and govern every WhatsApp template from one registry."
       />
       <TemplateList />
     </PageContainer>

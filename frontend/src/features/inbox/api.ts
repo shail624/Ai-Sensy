@@ -230,6 +230,22 @@ export function useBulkAssignConversations() {
   });
 }
 
+/** Composes the existing tag endpoint for selected threads; it does not invent a batch contract. */
+export function useBulkAddConversationTags() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, tagId }: { ids: string[]; tagId: string }) => {
+      await Promise.all(ids.map(async (conversationId) =>
+        unwrap(await api.POST("/api/v1/conversations/{conversation_id}/tags", {
+          params: { path: { conversation_id: conversationId } },
+          body: { tag_ids: [tagId] },
+        })),
+      ));
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
 export function useMarkRead(conversationId: string) {
   return useConversationMutation(conversationId, async () =>
     unwrap(
