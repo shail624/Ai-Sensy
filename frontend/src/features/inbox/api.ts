@@ -198,6 +198,38 @@ export function useSetConversationStatus(conversationId: string) {
   );
 }
 
+/** Composes the existing per-conversation status endpoint for a user-selected bulk operation. */
+export function useBulkSetConversationStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: ConversationStatus }) => {
+      await Promise.all(ids.map(async (conversationId) =>
+        unwrap(await api.POST("/api/v1/conversations/{conversation_id}/status", {
+          params: { path: { conversation_id: conversationId } },
+          body: { status },
+        })),
+      ));
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
+/** Composes the existing assignment endpoint; no batch contract or server behavior is introduced. */
+export function useBulkAssignConversations() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, assigneeId }: { ids: string[]; assigneeId: string }) => {
+      await Promise.all(ids.map(async (conversationId) =>
+        unwrap(await api.POST("/api/v1/conversations/{conversation_id}/assign", {
+          params: { path: { conversation_id: conversationId } },
+          body: { assignee_id: assigneeId },
+        })),
+      ));
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
 export function useMarkRead(conversationId: string) {
   return useConversationMutation(conversationId, async () =>
     unwrap(

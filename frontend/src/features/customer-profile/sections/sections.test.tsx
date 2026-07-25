@@ -29,6 +29,11 @@ vi.mock("@/lib/api/client", () => {
   };
 });
 
+vi.mock("@/lib/auth", () => ({
+  useHasPermission: () => true,
+  useAuth: () => ({ hasPermission: () => true }),
+}));
+
 function contactFixture(overrides: Partial<Contact> = {}): Contact {
   return {
     id: "c1",

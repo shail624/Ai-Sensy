@@ -51,16 +51,16 @@ export function AdminPage(): JSX.Element {
         />
       ) : (
         <>
-          <nav aria-label="Administration sections" className="mb-4 flex flex-wrap gap-2">
+          <nav aria-label="Administration sections" className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-subtle p-1.5">
             {sections.map((section) => (
               <NavLink
                 key={section.key}
                 to={section.path}
                 className={({ isActive }) =>
-                  `rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                  `shrink-0 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                     isActive
-                      ? "border-accent text-accent"
-                      : "border-border text-text-secondary hover:bg-hover"
+                      ? "bg-surface text-accent shadow-sm ring-1 ring-border"
+                      : "text-text-secondary hover:bg-hover"
                   }`
                 }
               >

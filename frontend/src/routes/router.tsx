@@ -3,9 +3,17 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout";
 import { Spinner } from "@/components/ui";
-import { ApiKeysPanel, AuditPanel, RolesPanel, UsersPanel } from "@/features/admin";
+import { ApiKeysPanel, AuditPanel, PermissionsPanel, RolesPanel, UsersPanel } from "@/features/admin";
 import { NumberList, WabaList } from "@/features/channels";
-import { JobList, QueueMonitor } from "@/features/operations";
+import {
+  JobList,
+  LogsPanel,
+  OPERATIONS_PERMISSIONS,
+  OperationsOverview,
+  QueueMonitor,
+  SystemHealthPanel,
+  WebhooksPanel,
+} from "@/features/operations";
 import {
   ApplicationPanel,
   FeatureFlagsPanel,
@@ -13,8 +21,14 @@ import {
   PreferencesPanel,
 } from "@/features/settings";
 import { AdminIndexRedirect, AdminPage } from "@/pages/AdminPage";
+import { AutomationPage } from "@/pages/AutomationPage";
 import { PipelineDetailPage } from "@/pages/PipelineDetailPage";
 import { PipelinesPage } from "@/pages/PipelinesPage";
+import {
+  ReactivationOverview,
+  ReactivationPage,
+  ReactivationWorkspace,
+} from "@/pages/ReactivationPage";
 import { SegmentCreatePage } from "@/pages/SegmentCreatePage";
 import { SegmentDetailPage } from "@/pages/SegmentDetailPage";
 import { SegmentEditPage } from "@/pages/SegmentEditPage";
@@ -44,7 +58,7 @@ import { TemplateCreatePage } from "@/pages/TemplateCreatePage";
 import { TemplateDetailPage } from "@/pages/TemplateDetailPage";
 import { TemplateEditPage } from "@/pages/TemplateEditPage";
 import { TemplatesPage } from "@/pages/TemplatesPage";
-import { RequireAnonymous, RequireAuth, RequirePermission } from "@/routes/guards";
+import { RequireAnonymous, RequireAnyPermission, RequireAuth, RequirePermission } from "@/routes/guards";
 
 /**
  * Analytics is the only route that pulls in a charting library, so it is loaded on demand: the
@@ -166,6 +180,32 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            path: "automation",
+            element: <AutomationPage />,
+          },
+          {
+            path: "reactivation",
+            element: <RequirePermission code="contacts:read" />,
+            children: [
+              {
+                path: "",
+                element: <ReactivationPage />,
+                children: [
+                  { index: true, element: <ReactivationOverview /> },
+                  { path: "eligible", element: <ReactivationWorkspace /> },
+                  { path: "bulk-eligibility", element: <ReactivationWorkspace /> },
+                  { path: "interested", element: <ReactivationWorkspace /> },
+                  { path: "pipeline", element: <ReactivationWorkspace /> },
+                  { path: "kyc", element: <ReactivationWorkspace /> },
+                  { path: "documents", element: <ReactivationWorkspace /> },
+                  { path: "sim-orders", element: <ReactivationWorkspace /> },
+                  { path: "activation", element: <ReactivationWorkspace /> },
+                  { path: "reports", element: <ReactivationWorkspace /> },
+                ],
+              },
+            ],
+          },
+          {
             // Accounts and numbers share one permission — a number belongs to an account, so there
             // is no meaningful access to one without the other — hence a single gate on the shell.
             path: "channels",
@@ -217,18 +257,22 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            // Jobs and queues share one permission — a queue is only meaningful alongside the jobs
-            // that flow through it — so a single gate on the shell is the whole story.
+            // The shell accepts any operations permission; each destination keeps its own guard.
             path: "operations",
-            element: <RequirePermission code="system:read" />,
+            element: <RequireAnyPermission codes={OPERATIONS_PERMISSIONS} />,
             children: [
               {
                 path: "",
                 element: <OperationsPage />,
                 children: [
                   { index: true, element: <OperationsIndexRedirect /> },
-                  { path: "jobs", element: <JobList /> },
-                  { path: "queues", element: <QueueMonitor /> },
+                  { path: "overview", element: <RequirePermission code="system:read"><OperationsOverview /></RequirePermission> },
+                  { path: "jobs", element: <RequirePermission code="system:read"><JobList /></RequirePermission> },
+                  { path: "queues", element: <RequirePermission code="system:read"><QueueMonitor /></RequirePermission> },
+                  { path: "health", element: <RequirePermission code="system:read"><SystemHealthPanel /></RequirePermission> },
+                  { path: "logs", element: <RequirePermission code="system:read"><LogsPanel /></RequirePermission> },
+                  { path: "api", element: <RequirePermission code="apikeys:manage"><ApiKeysPanel /></RequirePermission> },
+                  { path: "webhooks", element: <RequirePermission code="waba:read"><WebhooksPanel /></RequirePermission> },
                 ],
               },
               // The detail page renders its own container, so it sits outside the tabbed shell.
@@ -251,6 +295,11 @@ export const router = createBrowserRouter([
                 path: "roles",
                 element: <RequirePermission code="roles:read" />,
                 children: [{ index: true, element: <RolesPanel /> }],
+              },
+              {
+                path: "permissions",
+                element: <RequirePermission code="roles:read" />,
+                children: [{ index: true, element: <PermissionsPanel /> }],
               },
               {
                 path: "api-keys",

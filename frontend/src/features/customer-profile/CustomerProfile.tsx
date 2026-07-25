@@ -1,14 +1,24 @@
-import type { ReactNode } from "react";
+import { Activity, History, MessageCircle, Megaphone, Sparkles } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { Avatar, Badge, ErrorState, Spinner } from "@/components/ui";
+import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
+import { Avatar, Badge, Button, ErrorState, Skeleton } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui";
-import {
-  apiErrorMessage,
-  useContact,
-  useCustomAttributeDefinitions,
-} from "@/features/customer-profile/api";
+import { apiErrorMessage, useContact, useCustomAttributeDefinitions } from "@/features/customer-profile/api";
+import { useHasPermission } from "@/lib/auth";
 
-/** Opt-in vocabulary → a status pill; anything unknown renders neutrally rather than guessing. */
+import { AssignmentSection } from "./sections/AssignmentSection";
+import { CampaignHistorySection } from "./sections/CampaignHistorySection";
+import { ConversationHistorySection } from "./sections/ConversationHistorySection";
+import { CustomAttributesSection } from "./sections/CustomAttributesSection";
+import { DocumentsSection } from "./sections/DocumentsSection";
+import { IdentitySection } from "./sections/IdentitySection";
+import { NotesSection } from "./sections/NotesSection";
+import { ReactivationSection } from "./sections/ReactivationSection";
+import { TagsSection } from "./sections/TagsSection";
+import { TimelineSection } from "./sections/TimelineSection";
+
 const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
   opted_in: { tone: "success", label: "Opted in" },
   opted_out: { tone: "danger", label: "Opted out" },
@@ -16,57 +26,30 @@ const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
   unknown: { tone: "neutral", label: "Unknown" },
 };
 
-import { AssignmentSection } from "./sections/AssignmentSection";
-import { ConversationHistorySection } from "./sections/ConversationHistorySection";
-import { CustomAttributesSection } from "./sections/CustomAttributesSection";
-import { IdentitySection } from "./sections/IdentitySection";
-import { NotesSection } from "./sections/NotesSection";
-import { TagsSection } from "./sections/TagsSection";
-import { TimelineSection } from "./sections/TimelineSection";
+const TABS = ["overview", "engagement", "activity", "documents", "reactivation"] as const;
+type ProfileTab = (typeof TABS)[number];
+const TAB_LABELS: Record<ProfileTab, string> = { overview: "Overview", engagement: "Engagement", activity: "Timeline & activity", documents: "Documents", reactivation: "Reactivation" };
 
 interface CustomerProfileProps {
   contactId: string;
-  /**
-   * Future extension point. Additive CRM modules — lead pipeline, follow-up, conversion, analytics —
-   * mount here as composed children, so the profile grows without editing this component or its
-   * sections. Rendered full-width below the core sections.
-   */
   extensionSlot?: ReactNode;
-  /** Optional footer region (e.g. quick actions), rendered last. */
   footer?: ReactNode;
 }
 
-/**
- * Reusable customer profile. Fetches the contact via React Query against the generated client and
- * lays the sections out responsively. Conversation-scoped sections (history/notes/assignment) render
- * their structure with honest empty states until their data is available in context. Future CRM
- * surfaces attach via `extensionSlot` rather than modifying this component.
- */
-export function CustomerProfile({
-  contactId,
-  extensionSlot,
-  footer,
-}: CustomerProfileProps): JSX.Element {
+export function CustomerProfile({ contactId, extensionSlot, footer }: CustomerProfileProps): JSX.Element {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<ProfileTab>("overview");
   const contact = useContact(contactId);
   const definitions = useCustomAttributeDefinitions();
+  const canInbox = useHasPermission("inbox:read");
+  const canCampaign = useHasPermission("campaigns:write");
 
   if (contact.isLoading) {
-    return (
-      <div className="p-6">
-        <Spinner label="Loading customer…" />
-      </div>
-    );
+    return <PageContainer><Skeleton className="h-5 w-48" /><div className="mt-5 rounded-2xl border border-border bg-surface p-6"><Skeleton className="h-16 w-full" /><Skeleton className="mt-6 h-72 w-full" /></div></PageContainer>;
   }
 
   if (contact.isError || !contact.data) {
-    return (
-      <div className="p-6">
-        <ErrorState
-          message={apiErrorMessage(contact.error)}
-          onRetry={() => void contact.refetch()}
-        />
-      </div>
-    );
+    return <PageContainer><Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts", to: "/contacts" }, { label: "Customer" }]} /><ErrorState message={apiErrorMessage(contact.error)} onRetry={() => void contact.refetch()} /></PageContainer>;
   }
 
   const person = contact.data;
@@ -74,41 +57,28 @@ export function CustomerProfile({
   const status = OPT_IN[person.opt_in_status] ?? { tone: "neutral" as const, label: person.opt_in_status };
 
   return (
-    <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      {/* Identity header (Doc 05 B3.2): who this is, and their standing, before any detail. */}
-      <header className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:gap-4 sm:p-5">
-        <Avatar name={name} size="lg" />
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-xl font-bold tracking-tight text-text-primary">{name}</h2>
-          <p className="truncate text-sm tabular-nums text-text-secondary">{person.phone_e164}</p>
-        </div>
-        <Badge tone={status.tone} dot>
-          {status.label}
-        </Badge>
-      </header>
+    <PageContainer>
+      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts", to: "/contacts" }, { label: name }]} />
+      <PageHeader eyebrow="Customer 360" title={name} description={`${person.phone_e164}${person.email ? ` · ${person.email}` : ""}`} meta={<><Badge tone={status.tone} dot>{status.label}</Badge><Badge tone={person.is_active_on_wa ? "success" : "neutral"}>{person.is_active_on_wa ? "WhatsApp active" : "WhatsApp status unknown"}</Badge></>} actions={<>{canInbox ? <Button variant="secondary" leftIcon={<MessageCircle className="h-4 w-4" />} onClick={() => navigate(`/inbox?q=${encodeURIComponent(person.phone_e164)}`)}>Open inbox</Button> : null}{canCampaign ? <Button leftIcon={<Megaphone className="h-4 w-4" />} onClick={() => navigate("/campaigns/new", { state: { contactIds: [person.id] } })}>Add to campaign</Button> : null}</>} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
-          <IdentitySection contact={person} />
-          <CustomAttributesSection contact={person} definitions={definitions.data ?? []} />
-          <TagsSection contact={person} />
-          <AssignmentSection />
+      <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
+          <Avatar name={name} size="lg" />
+          <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-text-primary">Customer profile</p><p className="mt-1 text-xs text-text-secondary">Created {new Date(person.created_at).toLocaleDateString()} · updated {new Date(person.updated_at).toLocaleDateString()}</p></div>
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-accent-soft px-3 py-2 text-xs font-medium text-accent"><Sparkles aria-hidden className="h-3.5 w-3.5" />Complete customer context</span>
         </div>
-        <div className="space-y-4">
-          <TimelineSection contactId={contactId} />
-          <ConversationHistorySection />
-          <NotesSection />
-        </div>
+        <nav aria-label="Customer profile sections" role="tablist" className="flex gap-1 overflow-x-auto border-t border-border px-2 py-2">
+          {TABS.map((key) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`min-h-10 shrink-0 rounded-xl px-3 text-sm font-medium transition-colors ${tab === key ? "bg-accent text-accent-fg shadow-sm" : "text-text-secondary hover:bg-hover hover:text-text-primary"}`}>{TAB_LABELS[key]}</button>)}
+        </nav>
       </div>
 
-      {/* Extension slot — future CRM modules (pipeline, follow-up, conversion, analytics) mount here. */}
-      {extensionSlot ? (
-        <section aria-label="Extensions" className="mt-4 space-y-4">
-          {extensionSlot}
-        </section>
-      ) : null}
+      {tab === "overview" ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><div className="space-y-4"><IdentitySection contact={person} /><CustomAttributesSection contact={person} definitions={definitions.data ?? []} /></div><div className="space-y-4"><TagsSection contact={person} /><AssignmentSection />{extensionSlot ? <section aria-label="Customer work" className="space-y-4">{extensionSlot}</section> : null}</div></div> : null}
+      {tab === "engagement" ? <div className="grid grid-cols-1 gap-4 xl:grid-cols-2"><CampaignHistorySection contactId={contactId} /><ConversationHistorySection /><div className="xl:col-span-2"><NotesSection /></div></div> : null}
+      {tab === "activity" ? <div className="grid gap-4 lg:grid-cols-[1fr_20rem]"><TimelineSection contactId={contactId} /><div className="rounded-2xl border border-border bg-surface p-5 shadow-sm"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent"><History aria-hidden className="h-5 w-5" /></span><h2 className="mt-4 text-sm font-semibold text-text-primary">Activity log</h2><p className="mt-2 text-sm leading-relaxed text-text-secondary">The append-only contact timeline is the activity log for this customer. Campaign, task and contact events share one chronological source instead of duplicate panels.</p><div className="mt-4 flex items-center gap-2 text-xs text-text-disabled"><Activity aria-hidden className="h-4 w-4" />Auditable customer events</div></div></div> : null}
+      {tab === "documents" ? <DocumentsSection /> : null}
+      {tab === "reactivation" ? <ReactivationSection contact={person} /> : null}
 
       {footer ? <footer className="mt-4">{footer}</footer> : null}
-    </div>
+    </PageContainer>
   );
 }

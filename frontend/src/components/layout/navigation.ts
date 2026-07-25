@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bot,
   Contact,
   Inbox,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Settings,
   Shield,
   SlidersHorizontal,
+  Sparkles,
   Users,
   Workflow,
 } from "lucide-react";
@@ -72,71 +74,81 @@ export function groupedNavItems(
 export const navItems: NavItem[] = [
   {
     label: "Dashboard", path: "/", available: true, glyph: "D", icon: LayoutDashboard,
-    group: "Overview", description: "Your workspace at a glance and today's follow-ups.",
-  },
-  {
-    label: "Contacts", path: "/contacts", available: true, glyph: "C", icon: Contact,
-    group: "Audience", permission: "contacts:read",
-    description: "Manage customers, tags and custom attributes.",
-  },
-  {
-    label: "Segments", path: "/segments", available: true, glyph: "Sg", icon: Users,
-    group: "Audience", permission: "segments:read",
-    description: "Build dynamic audiences from live contact rules.",
-  },
-  {
-    label: "Pipelines", path: "/pipelines", available: true, glyph: "Pl", icon: Workflow,
-    group: "Audience", permission: "contacts:read",
-    description: "Track leads through your qualification stages.",
+    group: "Workspace", description: "Your executive workspace, priorities and messaging performance.",
   },
   {
     label: "Inbox", path: "/inbox", available: true, glyph: "I", icon: Inbox,
-    group: "Engage", permission: "inbox:read",
+    group: "Workspace", permission: "inbox:read",
     description: "One shared team inbox for every conversation.",
   },
   {
     label: "Campaigns", path: "/campaigns", available: true, glyph: "Ca", icon: Megaphone,
-    group: "Engage", permission: "campaigns:read",
-    description: "Broadcast approved templates to your audiences.",
+    group: "Workspace", permission: "campaigns:read",
+    description: "Build, schedule and monitor WhatsApp broadcasts.",
   },
   {
     label: "Templates", path: "/templates", available: true, glyph: "T", icon: MessageSquareText,
-    group: "Engage", permission: "templates:read",
+    group: "Workspace", permission: "templates:read",
     description: "Author and sync WhatsApp message templates.",
   },
   {
+    label: "Contacts", path: "/contacts", available: true, glyph: "C", icon: Contact,
+    group: "Workspace", permission: "contacts:read",
+    description: "Manage customers, tags and custom attributes.",
+  },
+  {
+    label: "Segments", path: "/segments", available: true, glyph: "Sg", icon: Users,
+    group: "Workspace", permission: "segments:read",
+    description: "Build dynamic audiences from live contact rules.",
+  },
+  {
+    label: "Automation", path: "/automation", available: true, glyph: "Au", icon: Bot,
+    group: "Workspace", anyPermission: ["campaigns:read", "inbox:read", "contacts:read"],
+    description: "Governed workflow automation, ready for the next delivery phase.",
+  },
+  {
+    label: "Analytics", path: "/analytics", available: true, glyph: "A", icon: BarChart3,
+    group: "Workspace", permission: "analytics:read",
+    description: "Delivery, campaign and conversation reporting.",
+  },
+  {
+    label: "Reactivation", path: "/reactivation", available: true, glyph: "R", icon: Sparkles,
+    group: "Workspace", permission: "contacts:read",
+    description: "The Vi reactivation workspace and customer journey.",
+  },
+  {
     label: "Tasks", path: "/tasks", available: true, glyph: "Tk", icon: ListChecks,
-    group: "Engage", permission: "tasks:read",
+    group: "Tools", permission: "tasks:read",
     description: "Assign and track customer follow-up work.",
   },
   {
     label: "Media", path: "/media", available: true, glyph: "M", icon: Image,
-    group: "Engage", permission: "media:read",
+    group: "Tools", permission: "media:read",
     description: "Store and reuse images, documents and video.",
   },
   {
-    label: "Analytics", path: "/analytics", available: true, glyph: "A", icon: BarChart3,
-    group: "Insights", permission: "analytics:read",
-    description: "Delivery, campaign and conversation reporting.",
+    label: "Pipelines", path: "/pipelines", available: true, glyph: "Pl", icon: Workflow,
+    group: "Tools", permission: "contacts:read",
+    description: "Track leads through your qualification stages.",
   },
   {
     label: "WhatsApp", path: "/channels", available: true, glyph: "Wa", icon: MessageSquareText,
-    group: "Configure", permission: "waba:read",
+    group: "Tools", permission: "waba:read",
     description: "Connect business accounts and phone numbers.",
   },
   {
     label: "Operations", path: "/operations", available: true, glyph: "Op", icon: SlidersHorizontal,
-    group: "Configure", permission: "system:read",
-    description: "Queues, workers and background job health.",
+    group: "Platform", anyPermission: ["system:read", "apikeys:manage", "waba:read"],
+    description: "System health, queues, jobs, APIs and webhook operations.",
   },
   {
     label: "Admin", path: "/admin", available: true, glyph: "Ad", icon: Shield,
-    group: "Configure", anyPermission: ADMIN_PERMISSIONS,
+    group: "Platform", anyPermission: ADMIN_PERMISSIONS,
     description: "Users, roles, API keys and the audit log.",
   },
   {
     label: "Settings", path: "/settings", available: true, glyph: "S", icon: Settings,
-    group: "Configure", anyPermission: SETTINGS_PERMISSIONS,
+    group: "Platform", anyPermission: SETTINGS_PERMISSIONS,
     description: "Organization profile and feature flags.",
   },
 ];

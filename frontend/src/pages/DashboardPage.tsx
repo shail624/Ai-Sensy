@@ -1,6 +1,7 @@
 import {
   Activity,
   ArrowUpRight,
+  BrainCircuit,
   CheckCircle2,
   Clock3,
   Eye,
@@ -8,13 +9,14 @@ import {
   MessageSquareText,
   Send,
   ServerCog,
+  Sparkles,
   TriangleAlert,
   UserPlus,
 } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { PageContainer, visibleNavItems } from "@/components/layout";
+import { Breadcrumbs, PageContainer, PageHeader, visibleNavItems } from "@/components/layout";
 import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, SkeletonStat, StatCard } from "@/components/ui";
 import {
   useAnalyticsFreshness,
@@ -32,6 +34,7 @@ import type { AnalyticsFilterState } from "@/features/analytics/types";
 import { useQueues } from "@/features/operations/api";
 import { MyWorkQueue } from "@/features/tasks";
 import { useAuth, useHasPermission } from "@/lib/auth";
+import { useWorkspacePreferences } from "@/lib/workspace";
 
 // A fixed 7-day daily window is the right default for an at-a-glance health read; the full
 // Analytics screen owns the range picker.
@@ -181,6 +184,7 @@ function SystemHealthCard(): JSX.Element {
 
 export function DashboardPage(): JSX.Element {
   const { user, hasPermission } = useAuth();
+  const workspace = useWorkspacePreferences(user?.id);
   const canAnalytics = useHasPermission("analytics:read");
   const canSystem = useHasPermission("system:read");
   const canCampaigns = useHasPermission("campaigns:read");
@@ -193,20 +197,14 @@ export function DashboardPage(): JSX.Element {
 
   return (
     <PageContainer>
-      {/* Hero */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <p className="text-2xl font-bold tracking-tight text-text-primary">
-              {greeting()}, {firstName}
-            </p>
-            {canAnalytics ? <FreshnessBadge /> : null}
-          </div>
-          <p className="mt-1 text-sm text-text-secondary">
-            {"Here's how your WhatsApp messaging is performing today."}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <Breadcrumbs items={[{ label: "Dashboard" }]} />
+      <PageHeader
+        eyebrow="Executive workspace"
+        title={`${greeting()}, ${firstName}`}
+        description="A live view of customer engagement, team workload, and delivery health."
+        meta={canAnalytics ? <FreshnessBadge /> : undefined}
+        actions={
+          <>
           {canContacts ? (
             <Link to="/contacts">
               <Button variant="secondary" leftIcon={<UserPlus className="h-4 w-4" />}>
@@ -219,8 +217,9 @@ export function DashboardPage(): JSX.Element {
               <Button leftIcon={<Megaphone className="h-4 w-4" />}>New campaign</Button>
             </Link>
           ) : null}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {canAnalytics ? (
         <section aria-label="Key indicators" className="mb-6">
@@ -285,6 +284,76 @@ export function DashboardPage(): JSX.Element {
       </div>
 
       {/* Explore — everything the user can reach, never an empty page */}
+      <section aria-label="Workspace guidance" className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader
+            title="Recently viewed"
+            description="Continue where you left off"
+            icon={<Clock3 aria-hidden className="h-[18px] w-[18px]" />}
+          />
+          <div className="mt-3 space-y-1">
+            {workspace.recents.length > 0 ? (
+              workspace.recents.slice(0, 4).map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="flex items-center justify-between rounded-lg px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover"
+                >
+                  <span className="truncate">{item.label}</span>
+                  <ArrowUpRight aria-hidden className="h-4 w-4 text-text-disabled" />
+                </Link>
+              ))
+            ) : (
+              <p className="rounded-xl bg-surface-subtle px-3 py-4 text-sm leading-relaxed text-text-secondary">
+                Your recently visited workspaces will appear here as you explore.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="AI insights"
+            description="Decision support with human control"
+            icon={<BrainCircuit aria-hidden className="h-[18px] w-[18px]" />}
+          />
+          <div className="mt-3 rounded-xl border border-border bg-surface-subtle p-4">
+            <div className="flex items-center gap-2">
+              <Badge tone="neutral">Not enabled</Badge>
+              <span className="text-xs text-text-secondary">No generated claims</span>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+              Insights will only appear after an approved AI provider and review policy are configured.
+            </p>
+            <Link to="/automation" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
+              View automation foundation <ArrowUpRight aria-hidden className="h-4 w-4" />
+            </Link>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Workspace setup"
+            description="Three useful places to start"
+            icon={<Sparkles aria-hidden className="h-[18px] w-[18px]" />}
+          />
+          <div className="mt-3 space-y-2">
+            {[
+              { label: "Connect a WhatsApp number", path: "/settings/whatsapp" },
+              { label: "Organize contacts into segments", path: "/segments" },
+              { label: "Review delivery attention", path: "/operations/queues" },
+            ].map((item, index) => (
+              <Link key={item.path} to={item.path} className="flex items-center gap-3 rounded-lg p-2 hover:bg-hover">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+                  {index + 1}
+                </span>
+                <span className="text-sm font-medium text-text-primary">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      </section>
+
       <section aria-label="Modules">
         <h2 className="mb-3 text-sm font-semibold text-text-primary">Explore</h2>
         {exploreCards.length === 0 ? (

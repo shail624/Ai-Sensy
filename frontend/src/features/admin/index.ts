@@ -1,6 +1,7 @@
 export { UsersPanel } from "./UsersPanel";
 export { UserFormDialog } from "./UserFormDialog";
 export { RolesPanel } from "./RolesPanel";
+export { PermissionsPanel } from "./PermissionsPanel";
 export { RoleFormDialog } from "./RoleFormDialog";
 export { RoleAssignDialog } from "./RoleAssignDialog";
 export { PermissionMatrix } from "./PermissionMatrix";

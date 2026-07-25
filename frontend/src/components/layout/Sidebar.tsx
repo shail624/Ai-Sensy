@@ -1,8 +1,10 @@
+import { Star } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "@/lib/auth";
+import { useWorkspacePreferences } from "@/lib/workspace";
 
-import { groupedNavItems } from "./navigation";
+import { groupedNavItems, visibleNavItems } from "./navigation";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -12,35 +14,49 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX.Element {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const workspace = useWorkspacePreferences(user?.id);
   // Destinations the signed-in user is entitled to reach (Doc 12 RBAC), grouped for scanability.
   const groups = groupedNavItems(hasPermission);
+  const visible = visibleNavItems(hasPermission);
+  const favoriteItems = visible.filter((item) => workspace.favorites.includes(item.path));
 
   return (
     <nav
       aria-label="Primary"
-      className={`flex-col border-r border-border bg-surface ${collapsed ? "w-[4.5rem]" : "w-64"} ${className ?? ""}`}
+      className={`flex-col border-r border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_96%,var(--color-accent-soft))] transition-[width] duration-200 ${collapsed ? "w-[4.75rem]" : "w-[17rem]"} ${className ?? ""}`}
     >
-      <div className="flex h-16 items-center gap-3 px-4">
+      <div className="flex h-16 items-center gap-3 border-b border-border/70 px-4">
         <span
           aria-hidden
-          className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm"
+          className="brand-gradient flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-base font-bold text-white shadow-md"
         >
-          W
+          V
         </span>
         {!collapsed ? (
           <span className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-semibold text-text-primary">WA Platform</span>
-            <span className="truncate text-[11px] text-text-secondary">Business Messaging</span>
+            <span className="truncate text-sm font-bold tracking-tight text-text-primary">Vi Reactivation</span>
+            <span className="truncate text-[11px] text-text-secondary">Customer engagement suite</span>
           </span>
         ) : null}
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        {favoriteItems.length > 0 ? (
+          <div>
+            {!collapsed ? <p className="flex items-center gap-1.5 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-disabled"><Star aria-hidden className="h-3 w-3" /> Favorites</p> : <div className="mx-2 mb-1.5 h-px bg-border" aria-hidden />}
+            <ul className="space-y-0.5">
+              {favoriteItems.map((item) => {
+                const Icon = item.icon;
+                return <li key={`favorite-${item.path}`}><NavLink to={item.path} end={item.path === "/"} onClick={onNavigate} title={collapsed ? item.label : undefined} className={({isActive}) => `group flex min-h-10 items-center gap-3 rounded-xl px-2.5 text-sm font-medium transition-colors ${collapsed ? "justify-center" : ""} ${isActive ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-hover hover:text-text-primary"}`}><Icon aria-hidden className="h-[18px] w-[18px] shrink-0" />{!collapsed ? <span className="truncate">{item.label}</span> : null}</NavLink></li>;
+              })}
+            </ul>
+          </div>
+        ) : null}
         {groups.map((group) => (
           <div key={group.group}>
             {!collapsed ? (
-              <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-text-disabled">
+              <p className="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-text-disabled">
                 {group.group}
               </p>
             ) : (
@@ -57,7 +73,7 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
                       onClick={onNavigate}
                       title={collapsed ? item.label : undefined}
                       className={({ isActive }) =>
-                        `group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                        `group relative flex min-h-10 items-center gap-3 rounded-xl px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                           collapsed ? "justify-center" : ""
                         } ${
                           isActive
@@ -91,6 +107,16 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
           </div>
         ))}
       </div>
+
+      {!collapsed ? (
+        <div className="m-3 rounded-xl border border-border bg-surface px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-success shadow-[0_0_0_3px_var(--color-success-soft)]" />
+            <span className="text-xs font-medium text-text-primary">RC1 release baseline</span>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-text-disabled">Official Meta Cloud API · RC1 baseline</p>
+        </div>
+      ) : null}
     </nav>
   );
 }

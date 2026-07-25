@@ -11,6 +11,23 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-25 — Phase 1 enterprise product transformation
+
+**Added**
+- Added a business-first premium shell with responsive navigation, command palette, cross-module
+  search, favorites, recents, quick-create actions, keyboard shortcuts, and live attention signals.
+- Added customer-360 context, inbox saved views/pins/bulk actions and unread-wait SLA signals, an
+  approval-ready campaign journey, Operations control center, permission catalog, and honest
+  Automation/Reactivation foundations.
+- Added Phase 1 architecture-boundary regression coverage and the verified transformation record in
+  `docs/design/16-PHASE-1-ENTERPRISE-PRODUCT-TRANSFORMATION.md`.
+
+**Changed**
+- Reorganized navigation around business workflows and upgraded dashboard, sign-in, contacts,
+  customer profile, inbox, campaigns, Operations, Administration, Tasks, and Analytics presentation.
+- Backend APIs, OpenAPI, database schema, permissions, tenant isolation, queue behavior, Celery task
+  registration, provider behavior, and business rules are unchanged.
+
 ### 2026-07-25 — Module 11 defensive observability contracts
 
 **Added**

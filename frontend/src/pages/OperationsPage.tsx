@@ -2,21 +2,24 @@ import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { OPERATIONS_SECTIONS } from "@/features/operations";
+import { EmptyState } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
 
-/** `/operations` has no content of its own — the job list is the way in. */
+/** `/operations` redirects to the first destination the current user may access. */
 export function OperationsIndexRedirect(): JSX.Element {
-  return <Navigate to="/operations/jobs" replace />;
+  const { hasPermission } = useAuth();
+  const first = OPERATIONS_SECTIONS.find((section) => hasPermission(section.permission));
+  return first ? <Navigate to={first.path} replace /> : <Outlet />;
 }
 
 /**
- * The operations shell (Doc 05 B11.8) — jobs and queues under one header.
- *
- * Both sections sit behind `system:read`, so unlike Administration there is nothing per-tab to
- * gate: a user who can reach this page can reach both halves of it.
+ * The operations shell (Doc 05 B11.8), with destinations filtered by their existing permissions.
  */
 export function OperationsPage(): JSX.Element {
+  const { hasPermission } = useAuth();
   const location = useLocation();
-  const active = OPERATIONS_SECTIONS.find((section) =>
+  const sections = OPERATIONS_SECTIONS.filter((section) => hasPermission(section.permission));
+  const active = sections.find((section) =>
     location.pathname.startsWith(section.path),
   );
 
@@ -25,7 +28,7 @@ export function OperationsPage(): JSX.Element {
       <Breadcrumbs
         items={[
           { label: "Dashboard", to: "/" },
-          { label: "Operations", to: "/operations/jobs" },
+          { label: "Operations", to: sections[0]?.path },
           ...(active ? [{ label: active.label }] : []),
         ]}
       />
@@ -36,16 +39,17 @@ export function OperationsPage(): JSX.Element {
         }
       />
 
-      <nav aria-label="Operations sections" className="mb-4 flex flex-wrap gap-2">
-        {OPERATIONS_SECTIONS.map((section) => (
+      {sections.length === 0 ? <EmptyState title="You don't have access to this area" description="Ask an administrator if you need operational access." /> : <>
+      <nav aria-label="Operations sections" className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-subtle p-1.5">
+        {sections.map((section) => (
           <NavLink
             key={section.key}
             to={section.path}
             className={({ isActive }) =>
-              `rounded-md border px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+              `shrink-0 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                 isActive
-                  ? "border-accent text-accent"
-                  : "border-border text-text-secondary hover:bg-hover"
+                  ? "bg-surface text-accent shadow-sm ring-1 ring-border"
+                  : "text-text-secondary hover:bg-hover"
               }`
             }
           >
@@ -55,6 +59,7 @@ export function OperationsPage(): JSX.Element {
       </nav>
 
       <Outlet />
+      </>}
     </PageContainer>
   );
 }

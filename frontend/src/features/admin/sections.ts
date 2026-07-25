@@ -30,6 +30,13 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     description: "What each role may do, and who holds it.",
   },
   {
+    key: "permissions",
+    label: "Permissions",
+    path: "/admin/permissions",
+    permission: "roles:read",
+    description: "Read-only catalog of capabilities enforced by the platform.",
+  },
+  {
     key: "api-keys",
     label: "API keys",
     path: "/admin/api-keys",

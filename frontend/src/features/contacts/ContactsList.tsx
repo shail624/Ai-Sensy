@@ -2,6 +2,7 @@ import { Contact as ContactIcon, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
@@ -110,25 +111,24 @@ export function ContactsList(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6" style={{ paddingBottom: 24 + dockedSpace }}>
-      {/* Header */}
-      <header className="mb-5 flex items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Contacts</h1>
-        {page?.total != null ? (
-          <Badge tone="neutral">{page.total.toLocaleString()}</Badge>
-        ) : null}
-        {canImport ? (
+    <PageContainer>
+      <div style={{ paddingBottom: dockedSpace }}>
+      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
+      <PageHeader
+        eyebrow="Customer data"
+        title="Contacts"
+        description="Search, segment, and act on a complete customer record from one workspace."
+        meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
+        actions={canImport ? (
           <Button
             variant="secondary"
-            size="sm"
-            className="ml-auto"
             leftIcon={<Upload className="h-4 w-4" />}
             onClick={() => setImporting(true)}
           >
             Import
           </Button>
-        ) : null}
-      </header>
+        ) : undefined}
+      />
 
       {importing ? (
         <ImportWizard
@@ -218,6 +218,7 @@ export function ContactsList(): JSX.Element {
           </nav>
         </>
       )}
-    </div>
+      </div>
+    </PageContainer>
   );
 }

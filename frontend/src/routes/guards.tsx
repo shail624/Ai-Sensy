@@ -61,3 +61,16 @@ export function RequirePermission({
   }
   return <>{children ?? <Outlet />}</>;
 }
+
+/** Area-level gate where child sections intentionally enforce different existing permissions. */
+export function RequireAnyPermission({ codes }: { codes: string[] }): JSX.Element {
+  const { hasPermission } = useAuth();
+  if (!codes.some((code) => hasPermission(code))) {
+    return (
+      <div className="p-6">
+        <EmptyState title="You don't have access to this area" description="Ask an administrator if you need access." />
+      </div>
+    );
+  }
+  return <Outlet />;
+}

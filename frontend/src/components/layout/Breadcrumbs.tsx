@@ -1,3 +1,4 @@
+import { ChevronRight, Home } from "lucide-react";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 
@@ -9,8 +10,8 @@ export interface Crumb {
 /** Reusable breadcrumb trail. The last crumb is the current page (`aria-current`). */
 export function Breadcrumbs({ items }: { items: Crumb[] }): JSX.Element {
   return (
-    <nav aria-label="Breadcrumb" className="mb-3 text-xs text-text-secondary">
-      <ol className="flex flex-wrap items-center gap-1">
+    <nav aria-label="Breadcrumb" className="mb-4 text-xs text-text-secondary">
+      <ol className="flex min-h-6 flex-wrap items-center gap-1.5">
         {items.map((crumb, index) => {
           const isLast = index === items.length - 1;
           return (
@@ -19,8 +20,9 @@ export function Breadcrumbs({ items }: { items: Crumb[] }): JSX.Element {
                 {crumb.to && !isLast ? (
                   <Link
                     to={crumb.to}
-                    className="hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className="inline-flex items-center gap-1 rounded-md hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
+                    {index === 0 && crumb.label === "Dashboard" ? <Home aria-hidden className="h-3.5 w-3.5" /> : null}
                     {crumb.label}
                   </Link>
                 ) : (
@@ -34,7 +36,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }): JSX.Element {
               </li>
               {!isLast ? (
                 <li aria-hidden className="text-text-disabled">
-                  /
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </li>
               ) : null}
             </Fragment>

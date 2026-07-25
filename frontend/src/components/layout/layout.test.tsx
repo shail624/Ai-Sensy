@@ -76,7 +76,7 @@ describe("Sidebar", () => {
 
 describe("TopNav", () => {
   function renderTopNav() {
-    return render(
+    return renderAt(
       <ThemeProvider>
         <TopNav collapsed={false} onOpenMobileNav={vi.fn()} onToggleCollapse={vi.fn()} />
       </ThemeProvider>,
@@ -85,9 +85,9 @@ describe("TopNav", () => {
 
   it("shows the application title and placeholders", () => {
     renderTopNav();
-    expect(screen.getByRole("heading", { name: /whatsapp business platform/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("Search")).toBeDisabled();
-    expect(screen.getByLabelText(/notifications/i)).toBeInTheDocument();
+    expect(screen.getByText("Business workspace")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /search workspace/i })).toBeEnabled();
+    expect(screen.getByLabelText(/attention center/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/toggle color theme/i)).toBeInTheDocument();
   });
 
@@ -106,7 +106,7 @@ describe("TopNav", () => {
 
   it("toggles the sidebar", () => {
     const onToggleCollapse = vi.fn();
-    render(
+    renderAt(
       <ThemeProvider>
         <TopNav collapsed={false} onOpenMobileNav={vi.fn()} onToggleCollapse={onToggleCollapse} />
       </ThemeProvider>,

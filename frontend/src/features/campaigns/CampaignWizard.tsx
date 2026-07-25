@@ -30,20 +30,24 @@ import { blankSchedule, toScheduleRequest, validateSchedule } from "@/features/c
 import { templateShape } from "@/features/campaigns/templateShape";
 import type { Campaign } from "@/features/campaigns/types";
 
-type StepKey = "basics" | "audience" | "delivery" | "review";
+type StepKey = "audience" | "basics" | "preview" | "delivery" | "approval" | "review";
 
 const STEP_LABELS: Record<StepKey, string> = {
-  basics: "Message",
   audience: "Audience",
-  delivery: "Delivery",
-  review: "Review",
+  basics: "Template",
+  preview: "Preview",
+  delivery: "Schedule",
+  approval: "Approval",
+  review: "Send",
 };
 
 /** Which fields each step owns, so "Next" validates only what is on screen. */
 const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
-  basics: ["name", "phone_number_id", "template_id", "header", "body"],
   audience: ["audience_type", "segment_id", "tag_ids", "contact_ids"],
+  basics: ["name", "phone_number_id", "template_id", "header", "body"],
+  preview: [],
   delivery: [],
+  approval: [],
   review: [],
 };
 
@@ -60,7 +64,7 @@ interface Props {
 /**
  * The campaign wizard (Doc 05 B4.2) — one component for create, duplicate and edit.
  *
- * Create walks Message → Audience → Delivery → Review and ends by writing the draft, then applying
+ * Create walks Audience → Template → Preview → Schedule → Approval → Send and ends by writing the draft, then applying
  * the chosen delivery through the endpoint that owns it (`/dispatch` or `/schedule`). Edit drops
  * the Delivery step, because scheduling a campaign is a separate decision made on its own page, and
  * ends with a single PATCH carrying `row_version`.
@@ -73,7 +77,9 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
   const editing = campaign !== undefined;
 
   const steps: StepKey[] = useMemo(
-    () => (editing ? ["basics", "audience", "review"] : ["basics", "audience", "delivery", "review"]),
+    () => editing
+      ? ["audience", "basics", "preview", "approval", "review"]
+      : ["audience", "basics", "preview", "delivery", "approval", "review"],
     [editing],
   );
 
@@ -81,6 +87,7 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
   const [delivery, setDelivery] = useState<Delivery>("draft");
   const [schedule, setSchedule] = useState<ScheduleDraft>(blankSchedule);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [approvalAcknowledged, setApprovalAcknowledged] = useState(false);
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignSchema),
@@ -131,6 +138,7 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
       setScheduleError(problem);
       if (problem) return;
     }
+    if (step === "approval" && delivery !== "draft" && !approvalAcknowledged) return;
     const valid = await form.trigger(STEP_FIELDS[step]);
     if (!valid) return;
     setStepIndex((index) => Math.min(index + 1, steps.length - 1));
@@ -171,7 +179,8 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
 
   return (
     <form onSubmit={onSubmit}>
-      <nav aria-label="Wizard steps" className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-5 overflow-x-auto pb-1">
+      <nav aria-label="Wizard steps" className="flex min-w-max items-center gap-1 rounded-xl border border-border bg-surface-subtle p-1.5">
         {steps.map((key, index) => (
           <button
             key={key}
@@ -180,22 +189,32 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
             disabled={index > stepIndex}
             onClick={() => setStepIndex(index)}
             aria-current={index === stepIndex ? "step" : undefined}
-            className={`rounded-md border px-3 py-1 text-sm ${
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
               index === stepIndex
-                ? "border-accent text-accent"
+                ? "bg-surface text-accent shadow-sm ring-1 ring-border"
                 : index < stepIndex
-                  ? "border-border text-text-secondary hover:bg-hover"
-                  : "border-border text-text-disabled"
+                  ? "text-text-secondary hover:bg-hover"
+                  : "text-text-disabled"
             }`}
           >
             {index + 1}. {STEP_LABELS[key]}
           </button>
         ))}
       </nav>
+      </div>
 
-      <div className="rounded-lg border border-border bg-surface p-4">
+      <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         {step === "basics" ? <CampaignBasicsStep form={form} /> : null}
         {step === "audience" ? <CampaignAudienceStep form={form} /> : null}
+        {step === "preview" ? (
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-lg font-bold text-text-primary">Preview the customer experience</h2>
+              <p className="mt-1 text-sm text-text-secondary">Confirm the audience, template, sender, and variable mapping before choosing delivery.</p>
+            </div>
+            <CampaignReviewStep form={form} delivery="draft" schedule={schedule} campaignId={campaign?.id} />
+          </div>
+        ) : null}
         {step === "delivery" ? (
           <div className="space-y-4">
             <fieldset>
@@ -240,6 +259,28 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
             {scheduleError ? <ErrorState message={scheduleError} /> : null}
           </div>
         ) : null}
+        {step === "approval" ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-text-primary">Approval readiness</h2>
+              <p className="mt-1 text-sm text-text-secondary">Review accountability before the final send decision.</p>
+            </div>
+            <div className="rounded-xl border border-info bg-info-soft p-4 text-sm text-info-on-soft">
+              No server-side approval workflow is configured. Existing campaign permissions remain the source of authority; this checkpoint does not change the API or dispatch rules.
+            </div>
+            {delivery === "draft" ? (
+              <div className="rounded-xl border border-border bg-surface-subtle p-4 text-sm text-text-secondary">Drafts do not send messages and need no delivery acknowledgement.</div>
+            ) : (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 hover:bg-hover">
+                <input type="checkbox" checked={approvalAcknowledged} onChange={(event) => setApprovalAcknowledged(event.target.checked)} className="mt-0.5 h-4 w-4 accent-accent" />
+                <span>
+                  <span className="block text-sm font-semibold text-text-primary">I reviewed the audience, template, and delivery timing</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-text-secondary">The final action uses the existing permission-gated campaign endpoint. Messages handed to Meta cannot be recalled.</span>
+                </span>
+              </label>
+            )}
+          </div>
+        ) : null}
         {step === "review" ? (
           <CampaignReviewStep
             form={form}
@@ -256,7 +297,7 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="sticky bottom-0 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/95 p-3 shadow-lg backdrop-blur">
         <button
           type="button"
           className={BUTTON_CLASS}
@@ -282,8 +323,8 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
                     : "Create draft"}
           </button>
         ) : (
-          <button type="button" onClick={() => void next()} className={PRIMARY_CLASS}>
-            Next
+          <button type="button" disabled={step === "approval" && delivery !== "draft" && !approvalAcknowledged} onClick={() => void next()} className={PRIMARY_CLASS}>
+            Continue
           </button>
         )}
       </div>

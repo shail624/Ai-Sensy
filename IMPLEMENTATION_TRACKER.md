@@ -15,12 +15,12 @@ quality gates._
 - **OpenAPI:** 3.1.0 · 133 paths · `frontend/openapi.json` verified against the live app
 - **Backend:** 902 tests passed · Ruff clean · raw strict mypy clean across
   227 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 581 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 586 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 133-path contract; frontend nginx validates. The full production
   stack was first built and executed on 2026-07-23; its isolated automated gate now validates all
   service health, migrations, owner bootstrap, and project-scoped cleanup.
-- **Current phase:** Module 11 — Hardening & Deployment (M-F Enterprise)
+- **Current phase:** Phase 1 — Enterprise Product Transformation
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
@@ -30,7 +30,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** repository observability, redaction, and health contracts — **RELEASE READY**
+- **Current milestone:** premium enterprise product experience — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -43,6 +43,7 @@ quality gates._
 | Inbox + work | Shared inbox, notes, quick replies, conversation tags, reactions, task/activity engine, migrations `0023`–`0026` |
 | Analytics | Rollups, queries, report exports, migration `0027` |
 | Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
+| Phase 1 product experience | Business-first responsive shell; command palette/search; premium dashboard and sign-in; customer 360; saved-view/bulk inbox; approval-ready campaign journey; Operations/Admin centers; honest Automation/Reactivation foundations |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -60,8 +61,8 @@ quality gates._
 
 ## Remaining deliverables
 
-No repository implementation remains in the observability/redaction/health-contract milestone.
-Module 11 next needs target-environment monitoring and commissioning evidence: log shipping,
+No repository implementation remains in Phase 1. Later product phases are intentionally not started.
+Target-environment work still needs monitoring and commissioning evidence: log shipping,
 metrics/dashboards, alert firing and dead-man validation, and external synthetic checks. Full
 capacity certification remains a separate Performance Lab task. The AI assistant module remains
 intentionally deferred beyond RC1.
@@ -76,7 +77,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 567 kB main chunk; analytics is already lazy-loaded,
+- The production frontend build warns about a 647 kB main chunk; analytics is already lazy-loaded,
   but further route-level splitting remains a performance improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
 - The production dependency audit reports two moderate React Router advisories. Their fixed line is
