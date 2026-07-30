@@ -82,8 +82,11 @@ as roadmap deliverables, navigation, placeholders or integration promises.
 - **UI-3A delivered:** the existing six-step builder now uses a compact, scroll-free progress rail,
   guided step headers, audience and delivery choice cards, customer-facing message previews, and a
   concise final review. Optional AI foundations remain available but collapsed by default.
-- **UI-3B remaining:** marketer-friendly audience presets over existing segment and message-event
-  facts.
+- **UI-3B delivered:** four marketer-friendly quick-start audiences over supported contact and
+  engagement facts; preset-shaped saved segments surface as one-click choices in the campaign
+  builder, and the existing duplicate flow remains the governed follow-up path. Campaign-specific
+  read/click/failed cohorts are not inferred from the paginated recipient UI and remain gated on a
+  separately approved complete-audience contract.
 - Keep the existing governed Audience → Template → Preview → Schedule → Approval → Confirmation →
   Analytics path as the only dispatch authority.
 

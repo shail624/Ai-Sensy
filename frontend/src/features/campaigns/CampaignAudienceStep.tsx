@@ -1,6 +1,7 @@
 import { Check, Tag, UserRoundCheck, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
+import { Link } from "react-router-dom";
 
 import { EmptyState, ErrorState, Spinner, TagChip } from "@/components/ui";
 import { apiErrorMessage, useSegments, useTags } from "@/features/campaigns/api";
@@ -9,6 +10,10 @@ import { SELECTABLE_AUDIENCE_TYPES } from "@/features/campaigns/campaignForm";
 import { formatCount } from "@/features/campaigns/format";
 import { AUDIENCE_TYPE_LABELS } from "@/features/campaigns/types";
 import { buildRules, emptyFilters, useContactSearch } from "@/features/contacts";
+import {
+  audiencePresetById,
+  audiencePresetIdForSegment,
+} from "@/features/segments/audiencePresets";
 
 const FIELD_CLASS =
   "min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent-soft";
@@ -42,12 +47,24 @@ interface Props {
 export function CampaignAudienceStep({ form }: Props): JSX.Element {
   const { control, register, setValue, formState } = form;
   const audienceType = useWatch({ control, name: "audience_type" });
+  const segmentId = useWatch({ control, name: "segment_id" });
   const tagIds = useWatch({ control, name: "tag_ids" }) ?? [];
   const contactIds = useWatch({ control, name: "contact_ids" }) ?? [];
   const errors = formState.errors;
 
   const segments = useSegments(audienceType === "segment");
   const tags = useTags(audienceType === "tag");
+  const quickSegments = useMemo(
+    () =>
+      (segments.data ?? [])
+        .map((segment) => {
+          const presetId = audiencePresetIdForSegment(segment);
+          return presetId ? { segment, preset: audiencePresetById(presetId) } : null;
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        .slice(0, 4),
+    [segments.data],
+  );
 
   return (
     <div className="space-y-4">
@@ -110,6 +127,52 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
 
       {audienceType === "segment" ? (
         <div className="rounded-xl border border-border bg-surface-subtle p-4">
+          {quickSegments.length > 0 ? (
+            <div className="mb-4">
+              <p className={LABEL_CLASS}>Quick audiences</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {quickSegments.map(({ segment, preset }) => {
+                  const selected = segment.id === segmentId;
+                  return (
+                    <button
+                      key={segment.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setValue("segment_id", segment.id, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      className={`flex min-h-14 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                        selected
+                          ? "border-accent bg-accent-soft ring-1 ring-accent"
+                          : "border-border bg-surface hover:bg-hover"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-text-primary">
+                          {segment.name}
+                        </span>
+                        <span className="block text-xs text-text-secondary">
+                          {preset.shortLabel}
+                          {segment.cached_count !== null && segment.cached_count !== undefined
+                            ? ` · ${formatCount(segment.cached_count)} contacts`
+                            : " · Not evaluated"}
+                        </span>
+                      </span>
+                      {selected ? (
+                        <Check aria-hidden className="h-4 w-4 shrink-0 text-accent" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-text-disabled">
+                These are saved segments. Their rules are still resolved live when the campaign runs.
+              </p>
+            </div>
+          ) : null}
           <label htmlFor="campaign-segment" className={LABEL_CLASS}>
             Segment
           </label>
@@ -134,7 +197,18 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
                 ))}
               </select>
               {(segments.data ?? []).length === 0 ? (
-                <p className="mt-1 text-xs text-text-disabled">No segments have been created yet.</p>
+                <p className="mt-1 text-xs text-text-disabled">
+                  No segments have been created yet. Open{" "}
+                  <Link
+                    to="/segments"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-accent hover:underline"
+                  >
+                    audience presets
+                  </Link>{" "}
+                  to create one in a new tab.
+                </p>
               ) : null}
             </>
           )}

@@ -117,6 +117,11 @@ platform domains.
 
 **Size:** Medium. **Next milestone:** `UX-3B — audience and retargeting presets`.
 
+**Status (2026-07-30):** `UX-3B` is release ready for every fact the current contract can evaluate:
+four reviewed segment templates, saved-segment quick picks in campaigns, and the existing governed
+duplicate/follow-up path. Campaign-specific read/click/failed cohorts remain a future additive
+contract; the UI does not construct them from an incomplete recipient page.
+
 ### Phase 2 — Automation, chatbot flows and WhatsApp Forms
 
 **Objective:** deliver a real, versioned automation runtime rather than a decorative flow canvas.

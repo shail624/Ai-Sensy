@@ -11,6 +11,7 @@ import {
 } from "@/features/segments/api";
 import { RuleBuilder } from "@/features/segments/RuleBuilder";
 import { RuleSummary } from "@/features/segments/RuleSummary";
+import type { SegmentSeed } from "@/features/segments/audiencePresets";
 import type { RuleGroup } from "@/features/segments/selectors";
 import {
   flattenGroups,
@@ -40,7 +41,7 @@ interface Props {
    * Starting values without identity — how a duplicate opens prefilled from another segment while
    * still creating a new one. Ignored when `segment` is present, which supplies its own.
    */
-  initial?: Segment;
+  initial?: SegmentSeed;
 }
 
 /**

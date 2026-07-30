@@ -2,7 +2,12 @@ import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { SegmentEditor } from "@/features/segments";
-import type { Segment } from "@/features/segments";
+import type { Segment, SegmentSeed } from "@/features/segments";
+import {
+  audiencePresetById,
+  createAudiencePresetSeed,
+  isAudiencePresetId,
+} from "@/features/segments/audiencePresets";
 
 /**
  * Route page for creating a segment — and for duplicating one.
@@ -13,28 +18,48 @@ import type { Segment } from "@/features/segments";
  */
 export function SegmentCreatePage(): JSX.Element {
   const location = useLocation();
-  const source = (location.state as { duplicateOf?: Segment } | null)?.duplicateOf;
+  const state = location.state as
+    | { duplicateOf?: Segment; audiencePresetId?: unknown }
+    | null;
+  const source = state?.duplicateOf;
+  const presetId = isAudiencePresetId(state?.audiencePresetId)
+    ? state.audiencePresetId
+    : null;
+  const preset = presetId ? audiencePresetById(presetId) : null;
 
   // A copy starts un-evaluated and needs a distinct name; everything else carries across.
-  const seed: Segment | undefined = source
-    ? { ...source, name: `${source.name} (copy)`, cached_count: null, last_evaluated_at: null }
-    : undefined;
+  const seed: SegmentSeed | undefined = source
+    ? {
+        name: `${source.name} (copy)`,
+        description: source.description,
+        match_type: source.match_type,
+        rules: source.rules,
+      }
+    : presetId
+      ? createAudiencePresetSeed(presetId)
+      : undefined;
+  const modeLabel = source ? "Duplicate segment" : preset ? preset.label : "New segment";
 
   return (
     <PageContainer>
       <Breadcrumbs
         items={[
           { label: "Segments", to: "/segments" },
-          { label: source ? "Duplicate segment" : "New segment" },
+          { label: modeLabel },
         ]}
       />
       <PageHeader
-        title={source ? `Duplicate "${source.name}"` : "New segment"}
-        description="Build the conditions a contact must satisfy. Nothing is sent — a segment only selects."
+        eyebrow={preset ? "Audience preset" : undefined}
+        title={source ? `Duplicate "${source.name}"` : preset ? preset.label : "New segment"}
+        description={
+          preset
+            ? "Review the prepared condition and date before saving. This creates a normal reusable segment."
+            : "Build the conditions a contact must satisfy. Nothing is sent — a segment only selects."
+        }
       />
       {/* In duplicate mode the editor is still creating: the seed supplies the starting values but
           carries no identity, so it posts a new segment rather than patching the source. */}
-      <SegmentEditor key={source?.id ?? "new"} segment={undefined} initial={seed} />
+      <SegmentEditor key={source?.id ?? presetId ?? "new"} segment={undefined} initial={seed} />
     </PageContainer>
   );
 }

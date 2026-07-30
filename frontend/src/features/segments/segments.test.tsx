@@ -1,9 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { useForm, useWatch } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { visibleNavItems } from "@/components/layout/navigation";
+import { CampaignAudienceStep } from "@/features/campaigns/CampaignAudienceStep";
+import { blankCampaign, type CampaignFormValues } from "@/features/campaigns/campaignForm";
+import { AudiencePresetGallery } from "@/features/segments/AudiencePresetGallery";
 import { RuleBuilder, blankRule, defaultValueFor } from "@/features/segments/RuleBuilder";
 import { RuleSummary } from "@/features/segments/RuleSummary";
 import { SegmentActions } from "@/features/segments/SegmentActions";
@@ -11,6 +15,10 @@ import { CountChip, RuleCountChip } from "@/features/segments/SegmentBadges";
 import { SegmentDetail } from "@/features/segments/SegmentDetail";
 import { SegmentEditor } from "@/features/segments/SegmentEditor";
 import { SegmentList } from "@/features/segments/SegmentList";
+import {
+  audiencePresetIdForSegment,
+  createAudiencePresetSeed,
+} from "@/features/segments/audiencePresets";
 import type { RuleGroup, SegmentListQuery } from "@/features/segments/selectors";
 import {
   DEFAULT_LIST_QUERY,
@@ -32,6 +40,7 @@ import {
   operatorsFor,
   shapeFor,
 } from "@/features/segments/types";
+import { SegmentCreatePage } from "@/pages/SegmentCreatePage";
 
 // --- Fixtures -----------------------------------------------------------------------------------
 
@@ -135,14 +144,28 @@ vi.mock("@/lib/api/client", () => {
   };
 });
 
-function withProviders(ui: React.ReactElement) {
+function withProviders(
+  ui: React.ReactElement,
+  initialEntries: React.ComponentProps<typeof MemoryRouter>["initialEntries"] = ["/"],
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
     </QueryClientProvider>,
+  );
+}
+
+function CampaignAudienceHarness(): JSX.Element {
+  const form = useForm<CampaignFormValues>({ defaultValues: blankCampaign() });
+  const selected = useWatch({ control: form.control, name: "segment_id" });
+  return (
+    <>
+      <CampaignAudienceStep form={form} />
+      <output aria-label="Selected segment">{selected}</output>
+    </>
   );
 }
 
@@ -161,6 +184,106 @@ beforeEach(() => {
   for (const key of Object.keys(responses)) delete responses[key];
   writes.length = 0;
   navigate.mockClear();
+});
+
+// --- Audience presets ---------------------------------------------------------------------------
+
+describe("audience presets", () => {
+  it("builds ordinary, contract-supported segment rules with a visible fixed cutoff", () => {
+    const seed = createAudiencePresetSeed(
+      "recently_engaged",
+      new Date("2026-07-30T12:34:56.789Z"),
+    );
+
+    expect(seed.name).toBe("Recently engaged — last 30 days");
+    expect(seed.description).toContain("2026-06-30");
+    expect(seed.rules).toEqual([
+      {
+        group_index: 0,
+        field_source: "engagement",
+        field_key: "last_inbound_at",
+        operator: "gte",
+        value: "2026-06-30T12:34:56.000Z",
+      },
+    ]);
+  });
+
+  it("recognises saved preset-shaped segments without changing their rules", () => {
+    const engaged = segmentFixture({
+      rules: [
+        ruleFixture({
+          field_source: "engagement",
+          field_key: "last_inbound_at",
+          operator: "gte",
+          value: "2026-06-30T00:00:00Z",
+        }),
+      ],
+    });
+    const custom = segmentFixture();
+
+    expect(audiencePresetIdForSegment(engaged)).toBe("recently_engaged");
+    expect(audiencePresetIdForSegment(custom)).toBeNull();
+    expect(engaged.rules[0]?.value).toBe("2026-06-30T00:00:00Z");
+  });
+
+  it("offers each quick-start audience through the normal new-segment route", () => {
+    withProviders(<AudiencePresetGallery />);
+
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getByRole("link", { name: /Recently engaged/ })).toHaveAttribute(
+      "href",
+      "/segments/new",
+    );
+    expect(screen.getByText(/Dates are fixed/)).toBeInTheDocument();
+  });
+
+  it("opens a preset prefilled and creates it through the existing segment endpoint", async () => {
+    seedCatalogs();
+    responses["/api/v1/segments"] = segmentFixture({ id: "preset-segment" });
+    withProviders(<SegmentCreatePage />, [
+      {
+        pathname: "/segments/new",
+        state: { audiencePresetId: "recently_engaged" },
+      },
+    ]);
+
+    expect(await screen.findByLabelText("Name")).toHaveValue("Recently engaged — last 30 days");
+    expect(screen.getByLabelText("Field")).toHaveValue("last_inbound_at");
+    fireEvent.click(screen.getByRole("button", { name: "Create segment" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      path: "/api/v1/segments",
+      body: {
+        match_type: "all",
+        rules: [expect.objectContaining({ field_key: "last_inbound_at", operator: "gte" })],
+      },
+    });
+  });
+
+  it("selects a real saved quick audience in the campaign form", async () => {
+    responses["/api/v1/segments"] = [
+      segmentFixture({
+        id: "engaged-segment",
+        name: "Warm leads",
+        rules: [
+          ruleFixture({
+            field_source: "engagement",
+            field_key: "last_inbound_at",
+            operator: "gte",
+            value: "2026-06-30T00:00:00Z",
+          }),
+        ],
+      }),
+    ];
+    withProviders(<CampaignAudienceHarness />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Warm leads/ }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Selected segment")).toHaveTextContent("engaged-segment");
+      expect(screen.getByRole("combobox", { name: "Segment" })).toHaveValue("engaged-segment");
+    });
+  });
 });
 
 // --- Rule grammar ------------------------------------------------------------------------------------

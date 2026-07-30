@@ -11,6 +11,25 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Audience and retargeting presets
+
+**Added**
+- Added four marketer-friendly audience templates—recently engaged, needs reactivation, new
+  contacts and WhatsApp active—using only the existing segment rule grammar.
+- Added one-click quick audiences in the campaign audience step when matching saved segments
+  actually exist. Presets still open the normal segment editor for review and use the existing
+  create endpoint, live campaign resolution, consent filtering and approval journey.
+
+**Preserved**
+- No API, schema, permission, tenant-isolation, campaign dispatch or queue behavior changed.
+- Campaign-specific read/click/failed retargeting is not inferred from the recipient UI's partial
+  page; it remains unavailable until a complete audience contract is separately approved.
+
+**Validated**
+- Passed all 617 frontend tests, ESLint, TypeScript and the production build. Rebuilt the production
+  frontend image, passed its nginx image contract, recreated the frontend container healthy, and
+  returned HTTP 200 for `/segments` with the current bundle.
+
 ### 2026-07-30 — Payment and commerce scope removal
 
 **Changed**
