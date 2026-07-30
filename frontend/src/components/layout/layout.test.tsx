@@ -145,9 +145,10 @@ describe("PageHeader", () => {
 
 describe("DashboardPage", () => {
   it("keeps primary actions without repeating the navigation catalog", () => {
-    renderAt(<DashboardPage />);
+    const { container } = renderAt(<DashboardPage />);
     expect(screen.getByRole("link", { name: /live chat/i })).toHaveAttribute("href", "/inbox");
     expect(screen.getByRole("link", { name: /new campaign/i })).toHaveAttribute("href", "/campaigns/new");
+    expect(container.querySelector('a[href="/settings/whatsapp"]')).not.toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Quick links" })).not.toBeInTheDocument();
     expect(screen.queryByText("Recent")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Modules" })).not.toBeInTheDocument();

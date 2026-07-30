@@ -23,11 +23,22 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
   indicators, two primary actions, the existing personal work queue, and setup steps. Redundant
   quick-access and recent-route cards were removed; empty task buckets use the compact state so
   mobile users do not scroll through oversized blanks.
+- Added a setup-first WhatsApp overview derived only from the existing WABA and phone-number
+  contracts: connection readiness, quality, send capacity, default identity, and three governed
+  setup steps. Unsupported subscription, credit, quota, mobile-app, and advertising claims are
+  deliberately absent.
+
+**Fixed**
+- Replaced the dashboard's dead `/settings/whatsapp` onboarding destination with the existing
+  permission-governed account and number routes. APIs, permissions, schemas, and channel behavior
+  are unchanged.
 
 **Validated**
-- Passed 602 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production
-  frontend image and completed an authenticated visual audit at 1280 × 800 and 390 × 844 with no
-  horizontal overflow; advanced routes remained reachable through `More`.
+- Passed 606 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production
+  frontend image and passed its nginx runtime contract. The isolated ten-service gate verified an
+  authenticated browser journey, API/workers/queues/dependency health, cleanup, and a 22.7 ms p95
+  across 30 reads (<300 ms). The dashboard audit at 1280 × 800 and 390 × 844 found no horizontal
+  overflow, browser errors, or dead WhatsApp setup routes; advanced routes remain under `More`.
 
 ### 2026-07-30 — Phase 4A governed customer documents
 

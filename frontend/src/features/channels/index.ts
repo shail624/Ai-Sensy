@@ -14,5 +14,7 @@ export {
   HealthChip,
 } from "./ChannelBadges";
 export { CHANNEL_SECTIONS } from "./sections";
+export { WhatsAppOverview, buildWhatsAppOverview } from "./WhatsAppOverview";
 export type { ChannelSection } from "./sections";
+export type { WhatsAppOverviewSummary } from "./WhatsAppOverview";
 export type { Waba, PhoneNumber, WabaListQuery, NumberListQuery } from "./types";

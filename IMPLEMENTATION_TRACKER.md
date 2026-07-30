@@ -15,7 +15,7 @@ quality gates._
 - **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
 - **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
   232 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 602 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 606 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
@@ -25,7 +25,7 @@ quality gates._
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
 - **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
-  passed across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95 19.4 ms / 30
+  passed across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95 22.7 ms / 30
   samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
@@ -82,7 +82,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 670 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 678 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

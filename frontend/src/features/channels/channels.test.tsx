@@ -28,6 +28,10 @@ import {
 } from "@/features/channels/selectors";
 import { WabaActions } from "@/features/channels/WabaActions";
 import { WabaList } from "@/features/channels/WabaList";
+import {
+  buildWhatsAppOverview,
+  WhatsAppOverview,
+} from "@/features/channels/WhatsAppOverview";
 import type {
   NumberListQuery,
   PhoneNumber,
@@ -285,6 +289,75 @@ describe("selectors — phone numbers", () => {
 
   it("groups numbers by their owning account", () => {
     expect(numbersForWaba(rows, "w1").map((r) => r.id)).toEqual(["a", "c"]);
+  });
+});
+
+// --- Dashboard overview -----------------------------------------------------------------------------
+
+describe("WhatsAppOverview", () => {
+  it("derives readiness from the existing account and number contracts", () => {
+    const account = wabaFixture();
+    const number = numberFixture({ is_default: true });
+
+    expect(buildWhatsAppOverview([account], [number])).toMatchObject({
+      account,
+      number,
+      accountReady: true,
+      numberReady: true,
+      channelReady: true,
+      qualityLabel: "High",
+      completedSteps: 3,
+    });
+  });
+
+  it("does not present a degraded channel as ready", () => {
+    expect(
+      buildWhatsAppOverview(
+        [wabaFixture({ token_set: false })],
+        [numberFixture({ quality_rating: "RED" })],
+      ),
+    ).toMatchObject({
+      accountReady: false,
+      numberReady: true,
+      channelReady: false,
+      qualityLabel: "Low",
+      completedSteps: 1,
+    });
+  });
+
+  it("renders real channel identity, quality and capacity with governed routes", async () => {
+    responses["/api/v1/waba"] = { data: [wabaFixture()] };
+    responses["/api/v1/phone-numbers"] = { data: [numberFixture({ is_default: true })] };
+    withProviders(<WhatsAppOverview />);
+
+    const overview = await screen.findByRole("region", { name: "WhatsApp overview" });
+    expect(within(overview).getByText("3 of 3 ready")).toBeInTheDocument();
+    expect(within(overview).getAllByText("High").length).toBeGreaterThan(0);
+    expect(within(overview).getByText("80/sec")).toBeInTheDocument();
+    expect(within(overview).getAllByText("Vi Reactivation").length).toBeGreaterThan(0);
+    expect(within(overview).getByRole("link", { name: /manage/i })).toHaveAttribute(
+      "href",
+      "/channels/accounts",
+    );
+    expect(within(overview).getByRole("link", { name: /review channel health/i })).toHaveAttribute(
+      "href",
+      "/channels/numbers/n1",
+    );
+  });
+
+  it("guides an unconnected workspace without fabricating commercial data", async () => {
+    responses["/api/v1/waba"] = { data: [] };
+    responses["/api/v1/phone-numbers"] = { data: [] };
+    withProviders(<WhatsAppOverview />);
+
+    const overview = await screen.findByRole("region", { name: "WhatsApp overview" });
+    expect(within(overview).getByText("0 of 3 ready")).toBeInTheDocument();
+    expect(within(overview).getByText("No business account connected")).toBeInTheDocument();
+    expect(within(overview).getByRole("link", { name: /connect business account/i })).toHaveAttribute(
+      "href",
+      "/channels/accounts",
+    );
+    expect(within(overview).queryByText(/credit|plan|quota/i)).not.toBeInTheDocument();
   });
 });
 

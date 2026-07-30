@@ -72,3 +72,10 @@ is now a compact task-first home with four signals, two primary actions, persona
 rather than an executive chart, recent-route list, or duplicated module catalog. `Live Chat` is a
 navigation label for the unchanged inbox route and workflow. No route, permission, API, schema,
 queue, tenant, or business behavior changed.
+
+The home now leads with a setup-first WhatsApp overview for operators entitled to read channel
+configuration. Its status, quality, capacity, business identity, and progress are derived from the
+existing WABA and phone-number responses, and each setup step opens an existing governed route.
+This adopts the clarity of a guided customer-engagement product without copying another product's
+branding or presenting subscription, credit, quota, mobile-app, or advertising data that this
+platform does not own.

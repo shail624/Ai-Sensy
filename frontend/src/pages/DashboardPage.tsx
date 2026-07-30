@@ -15,6 +15,7 @@ import { Button, Card, CardHeader, SkeletonStat, StatCard } from "@/components/u
 import { useAnalyticsSummary } from "@/features/analytics/api";
 import { formatKpi } from "@/features/analytics/format";
 import type { AnalyticsFilterState } from "@/features/analytics/types";
+import { WhatsAppOverview } from "@/features/channels";
 import { MyWorkQueue } from "@/features/tasks";
 import { useAuth, useHasPermission } from "@/lib/auth";
 
@@ -76,11 +77,12 @@ export function DashboardPage(): JSX.Element {
   const canCampaigns = useHasPermission("campaigns:read");
   const canInbox = useHasPermission("inbox:read");
   const canTasks = useHasPermission("tasks:read");
+  const canChannels = useHasPermission("waba:read");
   const firstName = user?.full_name.trim().split(/\s+/)[0] ?? "there";
-  const setupActions = [
-    hasPermission("waba:read") ? { label: "Connect your WhatsApp number", path: "/settings/whatsapp" } : null,
+  const engagementActions = [
     hasPermission("contacts:import") ? { label: "Import your contacts", path: "/contacts?import=1" } : null,
     hasPermission("templates:write") ? { label: "Create a message template", path: "/templates/new" } : null,
+    hasPermission("campaigns:write") ? { label: "Launch a campaign", path: "/campaigns/new" } : null,
   ].filter((item): item is { label: string; path: string } => item !== null);
 
   return (
@@ -106,13 +108,15 @@ export function DashboardPage(): JSX.Element {
         }
       />
 
+      {canChannels ? <WhatsAppOverview /> : null}
+
       {canAnalytics ? (
         <section aria-label="Key indicators" className="mb-5">
           <KpiRow />
         </section>
       ) : null}
 
-      <div className={`grid grid-cols-1 gap-5 ${canTasks && setupActions.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+      <div className={`grid grid-cols-1 gap-5 ${canTasks && engagementActions.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
         {canTasks ? (
           <Card padding={false} className="p-4 sm:p-5">
             <CardHeader
@@ -132,11 +136,11 @@ export function DashboardPage(): JSX.Element {
         ) : null}
 
         <aside className="space-y-4">
-          {setupActions.length > 0 ? (
+          {engagementActions.length > 0 ? (
             <Card>
-              <CardHeader title="Get started" description="Complete the basics" />
+              <CardHeader title="Start engaging" description="Prepare an audience and send safely" />
               <div className="mt-2 space-y-1">
-                {setupActions.map((item, index) => (
+                {engagementActions.map((item, index) => (
                   <Link key={item.path} to={item.path} className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-hover">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">{index + 1}</span>
                     <span className="text-sm font-medium text-text-primary">{item.label}</span>
