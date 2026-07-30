@@ -2787,6 +2787,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automations/{automation_id}/test-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a deterministic automation test run */
+        post: operations["create_automation_test_run_api_v1_automations__automation_id__test_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automation runs */
+        get: operations["list_automation_runs_api_v1_automations__automation_id__runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an automation run and step attempts */
+        get: operations["get_automation_run_api_v1_automation_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3246,6 +3297,37 @@ export interface components {
              */
             created_at: string;
         };
+        /** AutomationAttemptResponse */
+        AutomationAttemptResponse: {
+            /** Id */
+            id: string;
+            /** Node Id */
+            node_id: string;
+            /** Node Kind */
+            node_kind: string;
+            /** Attempt No */
+            attempt_no: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "succeeded" | "failed" | "interrupted";
+            /** Output */
+            output: {
+                [key: string]: unknown;
+            } | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Detail */
+            error_detail: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+        };
         /** AutomationCreateRequest */
         AutomationCreateRequest: {
             /** Name */
@@ -3313,6 +3395,60 @@ export interface components {
             data: components["schemas"]["AutomationFlowResponse"][];
             /** Total */
             total: number;
+        };
+        /** AutomationRunResponse */
+        AutomationRunResponse: {
+            /** Id */
+            id: string;
+            /** Automation Id */
+            automation_id: string;
+            /** Version No */
+            version_no: number;
+            /**
+             * Mode
+             * @constant
+             */
+            mode: "test";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "retrying" | "succeeded" | "failed";
+            /** Correlation Id */
+            correlation_id: string;
+            /** Total Steps */
+            total_steps: number;
+            /** Completed Steps */
+            completed_steps: number;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Detail */
+            error_detail: string | null;
+            /** Attempts */
+            attempts: components["schemas"]["AutomationAttemptResponse"][];
+        };
+        /** AutomationRunsResponse */
+        AutomationRunsResponse: {
+            /** Data */
+            data: components["schemas"]["AutomationRunResponse"][];
+        };
+        /** AutomationTestRunRequest */
+        AutomationTestRunRequest: {
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            };
         };
         /** AutomationUpdateRequest */
         AutomationUpdateRequest: {
@@ -12381,6 +12517,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_automation_test_run_api_v1_automations__automation_id__test_runs_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationTestRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_automation_runs_api_v1_automations__automation_id__runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_automation_run_api_v1_automation_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunResponse"];
                 };
             };
             /** @description Validation Error */

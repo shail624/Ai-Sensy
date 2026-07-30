@@ -8,6 +8,8 @@ export type AutomationCreateRequest = components["schemas"]["AutomationCreateReq
 export type AutomationUpdateRequest = components["schemas"]["AutomationUpdateRequest"];
 export type AutomationValidation = components["schemas"]["AutomationValidationResponse"];
 export type AutomationVersion = components["schemas"]["AutomationVersionResponse"];
+export type AutomationRun = components["schemas"]["AutomationRunResponse"];
+export type AutomationAttempt = components["schemas"]["AutomationAttemptResponse"];
 export type AutomationStatus = AutomationFlow["status"];
 
 export function graphNodes(graph: AutomationGraph): AutomationNode[] {

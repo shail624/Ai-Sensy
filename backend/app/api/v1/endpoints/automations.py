@@ -5,9 +5,11 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, Header, Path, Query, Response, status
 
 from app.api.deps import SessionDep, require_permissions
+from app.automation.tasks import execute_automation_test_run
+from app.core.exceptions import ServiceUnavailableError
 from app.models.user import User
 from app.schemas.automation import (
     AutomationCreateRequest,
@@ -19,6 +21,12 @@ from app.schemas.automation import (
     AutomationVersionResponse,
     AutomationVersionsResponse,
 )
+from app.schemas.automation_runtime import (
+    AutomationRunResponse,
+    AutomationRunsResponse,
+    AutomationTestRunRequest,
+)
+from app.services.automation_runtime_service import AutomationRuntimeService
 from app.services.automation_service import AutomationService
 
 router = APIRouter()
@@ -217,3 +225,75 @@ async def enable_automation(
         expected_row_version=payload.expected_row_version,
     )
     return AutomationFlowResponse.of(view)
+
+
+@router.post(
+    "/automations/{automation_id}/test-runs",
+    response_model=AutomationRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start a deterministic automation test run",
+)
+async def create_automation_test_run(
+    automation_id: uuidlib.UUID,
+    payload: AutomationTestRunRequest,
+    response: Response,
+    session: SessionDep,
+    actor: AutomationWriter,
+    idempotency_key: Annotated[uuidlib.UUID, Header(alias="Idempotency-Key")],
+) -> AutomationRunResponse:
+    service = AutomationRuntimeService(session)
+    view, created, run_pk = await service.create_test_run(
+        organization_id=actor.organization_id,
+        actor=actor,
+        automation_id=automation_id,
+        idempotency_key=idempotency_key,
+        trigger_input=payload.input,
+    )
+    if not created:
+        response.status_code = status.HTTP_200_OK
+        return AutomationRunResponse.of(view)
+    try:
+        execute_automation_test_run.apply_async(
+            args=[run_pk], task_id=view.correlation_id
+        )
+    except Exception as exc:
+        await service.mark_dispatch_failed(run_pk, exc)
+        raise ServiceUnavailableError(
+            "The automation run was recorded but could not be queued."
+        ) from exc
+    return AutomationRunResponse.of(view)
+
+
+@router.get(
+    "/automations/{automation_id}/runs",
+    response_model=AutomationRunsResponse,
+    summary="List automation runs",
+)
+async def list_automation_runs(
+    automation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: AutomationReader,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> AutomationRunsResponse:
+    views = await AutomationRuntimeService(session).list_runs(
+        organization_id=actor.organization_id,
+        automation_id=automation_id,
+        limit=limit,
+    )
+    return AutomationRunsResponse(data=[AutomationRunResponse.of(view) for view in views])
+
+
+@router.get(
+    "/automation-runs/{run_id}",
+    response_model=AutomationRunResponse,
+    summary="Get an automation run and step attempts",
+)
+async def get_automation_run(
+    run_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: AutomationReader,
+) -> AutomationRunResponse:
+    view = await AutomationRuntimeService(session).get_run(
+        organization_id=actor.organization_id, run_id=run_id
+    )
+    return AutomationRunResponse.of(view)

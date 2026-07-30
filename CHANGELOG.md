@@ -11,6 +11,33 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Deterministic automation test runtime (MD5 Phase 2B)
+
+**Added**
+- Added tenant-scoped immutable-version test runs, step-attempt evidence, durable UUID idempotency,
+  deterministic DAG execution, checkpoint/resume, and migration `0030`.
+- Added the `automation.run` Jobs-pool route and tracked Celery task using the existing job,
+  retry and DLQ authorities; no new queue framework was introduced.
+- Added three permission-scoped OpenAPI routes, generated frontend contracts, safe test submission,
+  polling, recent run history and ordered attempt evidence in the existing automation builder.
+
+**Fixed**
+- Replaced the test-run UI's secure-origin-only `crypto.randomUUID()` assumption with UUID v4
+  generation backed by `crypto.getRandomValues()`. The isolated HTTP production gate now submits
+  and completes the real queued test run; a focused regression test covers the portable key path.
+
+**Preserved**
+- Test mode simulates every action. No live event or schedule, delay/wait, CRM/task/tag/assignment
+  mutation, provider/webhook/campaign call, approval/handoff, send, AI, Forms or commerce behavior
+  was introduced. Existing API, schema, permission and business behavior is otherwise unchanged.
+
+**Validated**
+- Passed 928 backend tests, Ruff, strict mypy across 242 files, OpenAPI drift validation, 627
+  frontend tests, TypeScript, ESLint and production builds. The rebuilt backend exposes 152 paths
+  and registers 24 tasks. The complete release and deployed profiles passed image contracts,
+  SAST/dependency/source/image scans, SBOM generation, migration, API/worker/queue health, a real
+  browser safe test run, readiness degradation, observability checks and an 18.423 ms p95 canary.
+
 ### 2026-07-30 — Versioned automation definitions (MD5 Phase 2A)
 
 **Added**

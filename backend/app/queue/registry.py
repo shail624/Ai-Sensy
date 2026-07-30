@@ -69,6 +69,7 @@ NOTIFICATIONS = "notifications"
 CLEANUP = "cleanup"
 MAINTENANCE = "maintenance"
 SCHEDULER_TICK = "scheduler.tick"
+AUTOMATION_RUN = "automation.run"
 DEFAULT = "default"
 
 DEST_DLQ = "dead_letter"
@@ -111,6 +112,8 @@ QUEUES: tuple[QueueSpec, ...] = (
               Priority.P4, Pool.MAINTENANCE, 3, 300, 900, DEST_PARK),
     QueueSpec(SCHEDULER_TICK, "Beat ticks that scan schedules and enqueue due work.",
               Priority.P0, Pool.CONTROL, 1, 30, 60, DEST_PARK),
+    QueueSpec(AUTOMATION_RUN, "Execute checkpointed automation runs from immutable versions.",
+              Priority.P2, Pool.JOBS, 5, 60, 120, DEST_DLQ),
     QueueSpec(DEFAULT, "Small miscellaneous tasks without a dedicated queue.",
               Priority.P3, Pool.JOBS, 3, 30, 60, DEST_DLQ),
 )

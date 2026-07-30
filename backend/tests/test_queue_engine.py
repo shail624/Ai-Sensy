@@ -19,7 +19,7 @@ def test_registry_declares_every_documented_queue() -> None:
         "campaigns.control", "sends.priority", "sends.bulk", "sends.retry",
         "webhooks.ingest", "webhooks.process", "inbound.process", "ai", "imports",
         "exports", "media", "templates.sync", "analytics.rollup", "notifications",
-        "cleanup", "maintenance", "scheduler.tick", "default",
+        "cleanup", "maintenance", "scheduler.tick", "automation.run", "default",
     } == names
 
 

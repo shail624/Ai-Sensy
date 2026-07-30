@@ -91,6 +91,7 @@ def _beat_schedule() -> dict[str, dict[str, object]]:
 #: one-line change here instead of depending on a package-layout convention.
 TASK_MODULES: tuple[str, ...] = (
     "app.analytics.tasks",
+    "app.automation.tasks",
     "app.channels.tasks",
     "app.crm.campaign_tasks",
     "app.crm.tasks",

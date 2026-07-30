@@ -119,6 +119,7 @@ class AuditAction:
     AUTOMATION_RESTORED = "automation.restored"
     AUTOMATION_DISABLED = "automation.disabled"
     AUTOMATION_ENABLED = "automation.enabled"
+    AUTOMATION_TEST_RUN_CREATED = "automation.test_run_created"
 
 
 class AuditService:

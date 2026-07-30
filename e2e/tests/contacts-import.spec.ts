@@ -81,7 +81,13 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(page.getByText("Draft saved safely.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Active version 1", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Run test" })).toBeDisabled();
+  await page.getByRole("button", { name: "Run test" }).click();
+  const testDialog = page.getByRole("dialog", { name: "Test automation" });
+  await expect(testDialog.getByText("nothing is sent or changed", { exact: false })).toBeVisible();
+  await testDialog.getByRole("button", { name: "Run safe test" }).click();
+  await expect(page.getByText("Simulation complete. No live effect was applied.")).toBeVisible({
+    timeout: 30_000,
+  });
 
   await page.goto("/scan");
   await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();

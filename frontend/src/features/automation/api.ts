@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AutomationCreateRequest,
   AutomationFlow,
+  AutomationRun,
   AutomationStatus,
   AutomationUpdateRequest,
   AutomationValidation,
@@ -18,6 +19,8 @@ export const automationKeys = {
   list: (q: string, status: AutomationStatus | "all") => ["automations", "list", q, status] as const,
   detail: (id: string) => ["automations", "detail", id] as const,
   versions: (id: string) => ["automations", "versions", id] as const,
+  runs: (id: string) => ["automations", "runs", id] as const,
+  run: (id: string) => ["automations", "run", id] as const,
 };
 
 export function useAutomations(q: string, status: AutomationStatus | "all") {
@@ -55,6 +58,60 @@ export function useAutomationVersions(id: string | null) {
         }),
       ).data,
     enabled: Boolean(id),
+  });
+}
+
+const ACTIVE_RUN_STATUSES = new Set(["queued", "running", "retrying"]);
+
+export function useAutomationRuns(id: string | null) {
+  return useQuery({
+    queryKey: automationKeys.runs(id ?? ""),
+    queryFn: async (): Promise<AutomationRun[]> =>
+      unwrap(
+        await api.GET("/api/v1/automations/{automation_id}/runs", {
+          params: { path: { automation_id: id! }, query: { limit: 20 } },
+        }),
+      ).data,
+    enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data?.some((run) => ACTIVE_RUN_STATUSES.has(run.status)) ? 1_000 : false,
+  });
+}
+
+export function useAutomationRun(id: string | null) {
+  return useQuery({
+    queryKey: automationKeys.run(id ?? ""),
+    queryFn: async (): Promise<AutomationRun> =>
+      unwrap(
+        await api.GET("/api/v1/automation-runs/{run_id}", {
+          params: { path: { run_id: id! } },
+        }),
+      ),
+    enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data && ACTIVE_RUN_STATUSES.has(query.state.data.status) ? 750 : false,
+  });
+}
+
+export function useCreateAutomationTestRun(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ input, idempotencyKey }: { input: Record<string, unknown>; idempotencyKey: string }): Promise<AutomationRun> =>
+      unwrap(
+        await api.POST("/api/v1/automations/{automation_id}/test-runs", {
+          params: {
+            path: { automation_id: id },
+            header: { "Idempotency-Key": idempotencyKey },
+          },
+          body: { input },
+        }),
+      ),
+    onSuccess: (run) => {
+      queryClient.setQueryData(automationKeys.run(run.id), run);
+      void queryClient.invalidateQueries({ queryKey: automationKeys.runs(id) });
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "audit"] });
+    },
   });
 }
 

@@ -1,18 +1,20 @@
 import {
   Bell, CheckCircle2, ChevronDown, ChevronUp, Clock3, GitBranch, GripVertical,
-  Megaphone, RotateCcw, Save, Send, Tags, Trash2, UserRound, Webhook, Zap,
+  Megaphone, Play, RotateCcw, Save, Send, Tags, Trash2, UserRound, Webhook, Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { Badge, Button, EmptyState, ErrorState, Spinner } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Modal, Spinner } from "@/components/ui";
 import {
-  apiErrorMessage, useAutomationVersions, useDisableAutomation, useEnableAutomation,
-  usePublishAutomation, useRestoreAutomation, useUpdateAutomation, useValidateAutomation,
+  apiErrorMessage, useAutomationRun, useAutomationRuns, useAutomationVersions,
+  useCreateAutomationTestRun, useDisableAutomation, useEnableAutomation, usePublishAutomation,
+  useRestoreAutomation, useUpdateAutomation, useValidateAutomation,
 } from "@/features/automation/api";
 import type { AutomationEdge, AutomationFlow, AutomationGraph, AutomationNode } from "@/features/automation/types";
 import { graphEdges, graphNodes } from "@/features/automation/types";
 import { useCampaigns, useTags } from "@/features/campaigns/api";
 import { useHasPermission } from "@/lib/auth";
+import { createIdempotencyKey } from "@/lib/idempotency";
 
 type NodeKind = AutomationNode["kind"];
 
@@ -112,6 +114,10 @@ export function AutomationBuilder({ flow, canWrite, canPublish }: { flow: Automa
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testInput, setTestInput] = useState("{}");
+  const [testInputError, setTestInputError] = useState<string | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const update = useUpdateAutomation(flow.id);
   const validate = useValidateAutomation(flow.id);
   const resetValidation = validate.reset;
@@ -120,6 +126,9 @@ export function AutomationBuilder({ flow, canWrite, canPublish }: { flow: Automa
   const enable = useEnableAutomation(flow.id);
   const restore = useRestoreAutomation(flow.id);
   const versions = useAutomationVersions(flow.id);
+  const runs = useAutomationRuns(flow.id);
+  const selectedRun = useAutomationRun(selectedRunId);
+  const runTest = useCreateAutomationTestRun(flow.id);
   const canReadTags = useHasPermission("contacts:read");
   const canReadCampaigns = useHasPermission("campaigns:read");
   const tags = useTags(canReadTags);
@@ -134,11 +143,15 @@ export function AutomationBuilder({ flow, canWrite, canPublish }: { flow: Automa
     setNotice(null);
   }, [flow.id]);
 
+  useEffect(() => {
+    if (!selectedRunId && runs.data?.[0]) setSelectedRunId(runs.data[0].id);
+  }, [runs.data, selectedRunId]);
+
   const graph = useMemo(() => ({ nodes, edges }), [nodes, edges]);
   const dirty = name !== flow.name || description !== (flow.description ?? "") || JSON.stringify(graph) !== JSON.stringify({ nodes: flow.graph.nodes ?? [], edges: flow.graph.edges ?? [] });
   const active = nodes.find((node) => node.id === selected) ?? null;
-  const busy = update.isPending || publish.isPending || disable.isPending || enable.isPending || restore.isPending;
-  const error = update.error ?? validate.error ?? publish.error ?? disable.error ?? enable.error ?? restore.error;
+  const busy = update.isPending || publish.isPending || disable.isPending || enable.isPending || restore.isPending || runTest.isPending;
+  const error = update.error ?? validate.error ?? publish.error ?? disable.error ?? enable.error ?? restore.error ?? runTest.error;
 
   function add(kind: NodeKind): void {
     let node = createNode(kind);
@@ -160,7 +173,29 @@ export function AutomationBuilder({ flow, canWrite, canPublish }: { flow: Automa
     await publish.mutateAsync(flow.row_version); setNotice("Immutable version published.");
   }
 
-  return <div className="space-y-4">
+  async function startTestRun(): Promise<void> {
+    let input: unknown;
+    try {
+      input = JSON.parse(testInput);
+    } catch {
+      setTestInputError("Enter valid JSON test data.");
+      return;
+    }
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+      setTestInputError("Test data must be one JSON object.");
+      return;
+    }
+    const run = await runTest.mutateAsync({
+      input: input as Record<string, unknown>,
+      idempotencyKey: createIdempotencyKey(),
+    });
+    setSelectedRunId(run.id);
+    setTestInputError(null);
+    setTestOpen(false);
+    setNotice("Test run queued safely. Every action will be simulated.");
+  }
+
+  return <><div className="space-y-4">
     <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">
         <label className="text-xs font-semibold text-text-secondary">Automation name<input className={inputClass} disabled={!canWrite} value={name} onChange={(event) => setName(event.target.value)} /></label>
@@ -182,10 +217,11 @@ export function AutomationBuilder({ flow, canWrite, canPublish }: { flow: Automa
       </section>
 
         <aside className="border-t border-border p-4 xl:border-l xl:border-t-0"><h2 className="text-xs font-semibold uppercase tracking-wide text-text-disabled">Inspector</h2>{active ? <><h3 className="mt-4 text-base font-semibold text-text-primary">{NODE_DEFINITIONS[active.kind].label}</h3><p className="mt-1 text-xs leading-relaxed text-text-secondary">{NODE_DEFINITIONS[active.kind].description}</p><NodeInspector node={active} tags={tags.data ?? []} campaigns={campaigns.data ?? []} onChange={(changed) => setNodes((current) => current.map((node) => node.id === changed.id ? changed : node))} onRemove={() => { const next = nodes.filter((node) => node.id !== active.id); setNodes(next); setEdges(linearGraph(next).edges ?? []); setSelected(null); }} /></> : <p className="mt-4 text-sm text-text-secondary">Select a step to configure it.</p>}
-        <div className="mt-6 border-t border-border pt-4"><Button variant="secondary" block disabled title="Available after the run ledger and retry/DLQ milestone">Run test</Button><p className="mt-3 text-[11px] leading-relaxed text-text-disabled">Fail-safe: this milestone stores definitions only. No trigger, schedule, mutation, webhook or customer message can execute.</p></div>
+        <div className="mt-6 border-t border-border pt-4"><Button variant="secondary" block leftIcon={<Play className="h-4 w-4" />} disabled={!canWrite || !flow.active_version_no || dirty || flow.has_unpublished_changes || busy} onClick={() => setTestOpen(true)}>Run test</Button><p className="mt-3 text-[11px] leading-relaxed text-text-disabled">Safe test mode uses the immutable version and records every step. Actions are simulated; no business record or customer message can change.</p></div>
+        <div className="mt-6 border-t border-border pt-4"><div className="flex items-center justify-between"><h3 className="text-xs font-semibold uppercase tracking-wide text-text-disabled">Test runs</h3>{runs.isLoading || selectedRun.isFetching ? <Spinner /> : null}</div><div className="mt-3 space-y-2">{runs.data?.slice(0, 5).map((run) => <button key={run.id} type="button" onClick={() => setSelectedRunId(run.id)} aria-pressed={selectedRunId === run.id} className={`w-full rounded-xl border p-3 text-left ${selectedRunId === run.id ? "border-accent bg-accent-soft" : "border-border bg-surface-2"}`}><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-text-primary">Version {run.version_no}</span><Badge tone={run.status === "succeeded" ? "success" : run.status === "failed" ? "danger" : "info"}>{run.status}</Badge></div><p className="mt-1 text-[11px] text-text-secondary">{run.completed_steps}/{run.total_steps} steps · {new Date(run.created_at).toLocaleString()}</p></button>)}</div>{runs.data?.length === 0 ? <p className="mt-3 text-xs text-text-disabled">No test runs yet.</p> : null}{selectedRun.data ? <div className="mt-3 rounded-xl border border-border bg-surface-2 p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-text-primary">Run evidence</span><Badge tone={selectedRun.data.status === "succeeded" ? "success" : selectedRun.data.status === "failed" ? "danger" : "info"}>{selectedRun.data.status}</Badge></div><ol className="mt-2 space-y-1">{selectedRun.data.attempts.map((attempt) => <li key={attempt.id} className="flex items-center justify-between gap-2 text-[11px]"><span className="truncate text-text-secondary">{attempt.node_id}</span><span className={attempt.status === "succeeded" ? "text-success" : attempt.status === "failed" ? "text-danger" : "text-text-disabled"}>{attempt.status}</span></li>)}</ol>{selectedRun.data.status === "succeeded" ? <p className="mt-2 text-[11px] leading-relaxed text-text-disabled">Simulation complete. No live effect was applied.</p> : null}{selectedRun.data.error_detail ? <p className="mt-2 text-[11px] text-danger">{selectedRun.data.error_detail}</p> : null}</div> : null}</div>
         <div className="mt-6 border-t border-border pt-4"><div className="flex items-center justify-between"><h3 className="text-xs font-semibold uppercase tracking-wide text-text-disabled">Versions</h3>{versions.isLoading ? <Spinner /> : null}</div><div className="mt-3 space-y-2">{versions.data?.map((version) => <div key={version.id} className="rounded-xl border border-border bg-surface-2 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-text-primary">Version {version.version_no}</span>{flow.active_version_no === version.version_no ? <Badge tone="success">Active</Badge> : null}</div><p className="mt-1 text-[11px] text-text-secondary">{new Date(version.published_at).toLocaleString()}</p>{canWrite && flow.active_version_no !== version.version_no ? <Button className="mt-2" size="sm" variant="ghost" disabled={busy || dirty} leftIcon={<RotateCcw className="h-3.5 w-3.5" />} onClick={() => void restore.mutateAsync({ versionNo: version.version_no, rowVersion: flow.row_version })}>Restore to draft</Button> : null}</div>)}{versions.data?.length === 0 ? <p className="text-xs text-text-disabled">No published versions yet.</p> : null}</div></div>
         {canPublish && flow.active_version_no ? <div className="mt-4">{flow.status === "disabled" ? <Button block variant="secondary" disabled={busy || dirty} onClick={() => void enable.mutateAsync(flow.row_version)}>Enable definition</Button> : <Button block variant="secondary" disabled={busy || dirty} onClick={() => void disable.mutateAsync(flow.row_version)}>Disable definition</Button>}</div> : null}
       </aside>
     </div>
-  </div>;
+  </div>{testOpen ? <Modal title="Test automation" onClose={() => setTestOpen(false)}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void startTestRun(); }}><div className="rounded-xl border border-accent/30 bg-accent-soft p-3 text-xs leading-relaxed text-accent">This uses the active immutable version. Every action is simulated and recorded; nothing is sent or changed.</div><label className="block text-sm font-medium text-text-secondary">Test data (JSON)<textarea autoFocus className={`${inputClass} min-h-40 py-2 font-mono text-xs`} value={testInput} onChange={(event) => { setTestInput(event.target.value); setTestInputError(null); }} spellCheck={false} /></label>{testInputError ? <p role="alert" className="text-sm text-danger">{testInputError}</p> : null}<div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setTestOpen(false)}>Cancel</Button><Button type="submit" loading={runTest.isPending} leftIcon={<Play className="h-4 w-4" />}>Run safe test</Button></div></form></Modal> : null}</>;
 }

@@ -20,7 +20,12 @@ from app.models.analytics import (
 from app.models.api_key import ApiKey
 from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
 from app.models.audit import AuditLog
-from app.models.automation import AutomationFlow, AutomationFlowVersion
+from app.models.automation import (
+    AutomationFlow,
+    AutomationFlowVersion,
+    AutomationRun,
+    AutomationStepAttempt,
+)
 from app.models.campaign import (
     Campaign,
     CampaignBatch,
@@ -63,6 +68,8 @@ __all__ = [
     "AuditLog",
     "AutomationFlow",
     "AutomationFlowVersion",
+    "AutomationRun",
+    "AutomationStepAttempt",
     "BulkJob",
     "Campaign",
     "CampaignBatch",

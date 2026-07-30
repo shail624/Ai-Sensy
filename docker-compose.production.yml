@@ -199,7 +199,7 @@ services:
     environment:
       <<: *backend-env
       WORKER_NAME: jobs
-      WORKER_QUEUES: imports,exports,media,default,templates.sync,analytics.rollup,notifications,cleanup,maintenance,ai
+      WORKER_QUEUES: imports,exports,media,default,templates.sync,analytics.rollup,notifications,cleanup,maintenance,ai,automation.run
       WORKER_CONCURRENCY: ${WORKER_JOBS_CONCURRENCY:-4}
     # An export or import can run for minutes; give it room to land before SIGKILL.
     stop_grace_period: 120s

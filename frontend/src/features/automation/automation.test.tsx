@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutomationWorkspace } from "@/features/automation/AutomationWorkspace";
-import type { AutomationFlow, AutomationVersion } from "@/features/automation/types";
+import type { AutomationFlow, AutomationRun, AutomationVersion } from "@/features/automation/types";
 
 const { permissions, get, post, patch } = vi.hoisted(() => ({
   permissions: { value: ["automations:read", "automations:write", "automations:publish"] },
@@ -19,6 +19,7 @@ vi.mock("@/lib/api/client", () => ({
 
 let current: AutomationFlow;
 let versions: AutomationVersion[];
+let runs: AutomationRun[];
 
 function fixture(overrides: Partial<AutomationFlow> = {}): AutomationFlow {
   return {
@@ -36,10 +37,12 @@ function renderWorkspace(path = "/automation?flow=a1") {
 
 beforeEach(() => {
   permissions.value = ["automations:read", "automations:write", "automations:publish"];
-  current = fixture(); versions = [];
+  current = fixture(); versions = []; runs = [];
   get.mockReset(); post.mockReset(); patch.mockReset();
   get.mockImplementation(async (path: string) => {
     if (path.endsWith("/versions")) return { data: { data: versions } };
+    if (path.endsWith("/runs")) return { data: { data: runs } };
+    if (path.startsWith("/api/v1/automation-runs/")) return { data: runs[0] };
     if (path === "/api/v1/automations") return { data: { data: [current], total: 1 } };
     if (path.includes("/automations/")) return { data: current };
     return { error: new Error("unexpected GET") };
@@ -57,6 +60,16 @@ beforeEach(() => {
     if (path === "/api/v1/automations") {
       current = fixture({ id: "a2", name: options?.body?.name ?? "New automation" });
       return { data: current };
+    }
+    if (path.endsWith("/test-runs")) {
+      const run: AutomationRun = {
+        id: "run-1", automation_id: current.id, version_no: 1, mode: "test", status: "queued",
+        correlation_id: "correlation-1", total_steps: 2, completed_steps: 0,
+        created_by: "Priya", created_at: "2026-07-30T12:00:00Z", started_at: null,
+        finished_at: null, error_code: null, error_detail: null, attempts: [],
+      };
+      runs = [run];
+      return { data: run };
     }
     return { data: current };
   });
@@ -86,7 +99,22 @@ describe("versioned automation authoring", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Publish" }));
     await waitFor(() => expect(post.mock.calls.map((call) => call[0])).toContain("/api/v1/automations/{automation_id}/publish"));
-    expect(screen.getByRole("button", { name: "Run test" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Run test" })).toBeEnabled());
+  });
+
+  it("queues a safe test run with explicit JSON and shows durable history", async () => {
+    current = fixture({ status: "published", active_version_no: 1, has_unpublished_changes: false });
+    renderWorkspace();
+    await screen.findByDisplayValue("Lead welcome");
+    fireEvent.click(screen.getByRole("button", { name: "Run test" }));
+    expect(screen.getByRole("dialog", { name: "Test automation" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Test data (JSON)"), {
+      target: { value: '{"contact":{"tier":"gold"}}' },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run safe test" }));
+    await waitFor(() => expect(post.mock.calls.map((call) => call[0])).toContain("/api/v1/automations/{automation_id}/test-runs"));
+    expect(await screen.findByText("Test run queued safely. Every action will be simulated.")).toBeVisible();
+    expect(await screen.findByText("0/2 steps", { exact: false })).toBeVisible();
   });
 
   it("shows fail-closed publication issues without calling publish", async () => {
