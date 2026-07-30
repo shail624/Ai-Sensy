@@ -36,7 +36,9 @@ The benchmark was refreshed from AiSensy's official pages on 2026-07-30:
 
 The official feature set currently groups the product around broadcasts and segmentation,
 multi-agent support, chatbot automation, forms/webviews, payments, Click-to-WhatsApp advertising,
-AI agents, retargeting/click tracking, acquisition tools, commerce and integrations.
+AI agents, retargeting/click tracking, acquisition tools, commerce and integrations. Payments and
+commerce are benchmark features only; the product owner has explicitly excluded them from this
+platform's scope.
 
 ## 3. Verified position today
 
@@ -52,13 +54,22 @@ AI agents, retargeting/click tracking, acquisition tools, commerce and integrati
 | Executable chatbot/automation flow runtime | Contract gap | Phase 2 |
 | WhatsApp Forms and governed webviews | Contract gap | Phase 2 |
 | Click-to-WhatsApp Ads and Ads Manager | Contract gap | Phase 3 |
-| Payment/order/refund processing | Contract gap | Phase 4 |
-| Catalog, cart and abandoned-cart journeys | Contract gap | Phase 4 |
+| Payment/order/refund processing | Explicitly out of scope | Do not implement |
+| Catalog, cart and abandoned-cart journeys | Explicitly out of scope | Do not implement |
 | Governed conversational AI agents | Contract gap | Phase 5 |
 | Managed integration catalog | Contract gap | Phase 5 |
 
 Placeholder tabs, architecture documents and disabled AI seams are not counted as implemented
 features. Only executable contracts and validated production behavior count.
+
+### Explicit product exclusions
+
+- Payments, payment collection, transaction processing, settlement and refunds.
+- Product catalogs, carts, checkout, orders and abandoned-cart commerce journeys.
+- Payment or commerce placeholders, navigation entries and connector promises.
+
+These exclusions are owner decisions, not deferred milestones. Matching the selected customer jobs
+is the goal; copying every competitor feature is not.
 
 ## 4. Delivery rules
 
@@ -165,33 +176,36 @@ AI-assisted ad recommendations remain drafts until a user explicitly approves th
 
 **Size:** Extra large. **Track:** `PAR-ADS`.
 
-### Phase 4 — Payments, catalog and commerce journeys
+### Phase 4 — Advanced analytics, reporting and team operations
 
-**Objective:** support conversion inside WhatsApp with a provider-neutral financial ledger.
+**Objective:** turn verified engagement and operational facts into clear decisions without adding a
+financial or commerce domain.
 
 **Contract foundation**
 
-- Provider abstraction for payment links/requests and verified callbacks.
-- Orders, order items, payment attempts, settlements, refunds and immutable status history.
-- Product/catalog, cart and checkout references without duplicating external commerce ownership.
-- Signed webhooks, idempotency keys, amount/currency validation and reconciliation jobs.
-- Regional compliance, retention, least-privilege access and PII redaction.
-- Shopify/WooCommerce-style adapter boundaries for catalog, checkout and abandoned-cart events.
+- Saved report definitions, filters, ownership and delivery schedules.
+- Server-owned campaign, cohort, agent, response-time and resolution aggregates.
+- Metric definitions with numerator, denominator, timezone and data-freshness metadata.
+- Report-run ledger, immutable export artifacts, retention and failure recovery.
+- Analytics permissions, tenant isolation and audit evidence for saved/shared reports.
+- No revenue, payment, order or commerce metric may be inferred without a real source contract;
+  those domains remain excluded.
 
 **Product experience**
 
-- Payment request composer using approved message paths.
-- Customer 360 order/payment timeline backed only by ledger records.
-- Failed/pending payment follow-up and abandoned-cart journeys through Phase 2 automation.
-- Refund/reconciliation operations with explicit human authority.
+- Simple campaign and retargeting performance views with drill-down to verified contacts/events.
+- Team workload, first-response, unresolved-chat and service-level views from inbox facts.
+- Saved dashboards and scheduled in-product report exports.
+- Clear freshness, empty-data and partial-data explanations on every report.
 
 **Exit gate**
 
-- Payment and order state is reproducible from signed provider evidence.
-- Replayed callbacks cannot duplicate charges, orders, refunds or outbound messages.
-- No card or bank secrets are stored outside the provider-approved boundary.
+- Every displayed metric is traceable to a documented server-owned fact.
+- UI totals and exported totals reconcile for the same filters and timezone.
+- Scheduled report failures are visible, retryable and audited.
+- No payment, catalog, order or commerce surface is introduced.
 
-**Size:** Extra large. **Tracks:** `PAR-PAY`, then `PAR-COM`.
+**Size:** Large. **Milestone family:** analytics and reporting convergence.
 
 ### Phase 5 — Governed AI agents and integration ecosystem
 
@@ -257,6 +271,6 @@ credential, compliance and operational decisions and must not be represented as 
 ## 8. Final definition of comparable
 
 The product is AiSensy-comparable when all five phases are release-ready and a business can perform
-the benchmark jobs—acquire, segment, broadcast, converse, automate, collect, convert, analyze and
-integrate—using real governed behavior. The final experience should remain recognizably this
+the selected benchmark jobs—acquire, segment, broadcast, converse, automate, collect leads, analyze
+and integrate—using real governed behavior. The final experience should remain recognizably this
 platform: simpler where possible, stronger in reliability and governance, and never a clone.

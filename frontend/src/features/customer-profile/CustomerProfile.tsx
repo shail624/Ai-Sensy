@@ -26,9 +26,9 @@ const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
   unknown: { tone: "neutral", label: "Unknown" },
 };
 
-const TABS = ["overview", "timeline", "conversation", "campaign-history", "documents", "kyc", "sim", "payments", "tasks", "internal-notes", "audit", "activity", "ai"] as const;
+const TABS = ["overview", "timeline", "conversation", "campaign-history", "documents", "kyc", "sim", "tasks", "internal-notes", "audit", "activity", "ai"] as const;
 type ProfileTab = (typeof TABS)[number];
-const TAB_LABELS: Record<ProfileTab, string> = { overview: "Overview", timeline: "Timeline", conversation: "Conversation", "campaign-history": "Campaign History", documents: "Documents", kyc: "KYC", sim: "SIM", payments: "Payments", tasks: "Tasks", "internal-notes": "Internal Notes", audit: "Audit", activity: "Activity", ai: "AI Assistant" };
+const TAB_LABELS: Record<ProfileTab, string> = { overview: "Overview", timeline: "Timeline", conversation: "Conversation", "campaign-history": "Campaign History", documents: "Documents", kyc: "KYC", sim: "SIM", tasks: "Tasks", "internal-notes": "Internal Notes", audit: "Audit", activity: "Activity", ai: "AI Assistant" };
 
 interface CustomerProfileProps {
   contactId: string;
@@ -80,7 +80,6 @@ export function CustomerProfile({ contactId, extensionSlot, footer }: CustomerPr
       {tab === "documents" ? <DocumentsSection contactId={contactId} /> : null}
       {tab === "kyc" ? <ReactivationSection contact={person} focus="kyc" /> : null}
       {tab === "sim" ? <ReactivationSection contact={person} focus="sim" /> : null}
-      {tab === "payments" ? <Section title="Payments" description="Revenue remains an explicit Phase 3 reporting placeholder."><EmptyState compact title="No payment contract" description="The platform processes no payment records and does not infer revenue from campaigns, tasks, or reactivation attributes." /></Section> : null}
       {tab === "tasks" ? extensionSlot ?? <EmptyState title="No task workspace connected" /> : null}
       {tab === "internal-notes" ? <NotesSection /> : null}
       {tab === "audit" ? <Section title="Audit" description="Immutable organization audit remains the authority for administrative and workflow changes."><EmptyState compact title="Contact-specific audit filter unavailable" description="The current audit API does not expose a contact-scoped contract, so unrelated entries are not embedded here." action={canAudit ? <Button variant="secondary" onClick={() => navigate("/admin/audit")}>Open audit trail</Button> : undefined} /></Section> : null}

@@ -42,18 +42,19 @@ Official benchmark sources used for this refresh:
 The repository also exceeds the benchmark in campaign retry/resume safety, queue isolation,
 tenant controls, auditable operations, governed customer documents, and data ownership.
 
-## Genuine gaps that require new contracts
+## Genuine gaps and explicit scope exclusions
 
-These must not be represented by mock cards or fake data.
+Planned gaps must not be represented by mock cards or fake data. Excluded domains must not appear
+as roadmap deliverables, navigation, placeholders or integration promises.
 
 | Gap | Required foundation before UI | Planned track |
 |---|---|---|
 | Executable chatbot/automation flows | Versioned flow schema, run ledger, approvals, retry/DLQ and permissions | PAR-AUTO |
 | WhatsApp Forms and webviews | Form/version/submission contracts, consent, hosting and webhook projection | PAR-FORM |
 | Click-to-WhatsApp Ads / Ads Manager | Meta Ads authorization, account/campaign/creative models and spend sync | PAR-ADS |
-| WhatsApp payments | Provider abstraction, order/payment/refund ledger and regional compliance | PAR-PAY |
+| WhatsApp payments | Explicitly excluded by the product owner | Not planned |
 | AI agents | Provider policy, knowledge sources, tool permissions, evaluation and human handoff | PAR-AI |
-| Commerce and abandoned-cart journeys | Product/cart/order domain plus Shopify/WooCommerce adapters | PAR-COM |
+| Commerce and abandoned-cart journeys | Explicitly excluded by the product owner | Not planned |
 | Broad integration catalog | Credential vault, connector lifecycle, sync cursors and failure operations | PAR-INT |
 
 ## Delivery sequence
@@ -88,9 +89,12 @@ These must not be represented by mock cards or fake data.
 
 ### PAR tracks — additive product domains
 
-Execute PAR-AUTO, PAR-FORM, PAR-ADS, PAR-PAY, PAR-AI, PAR-COM and PAR-INT only after their API,
+Execute PAR-AUTO, PAR-FORM, PAR-ADS, PAR-AI and PAR-INT only after their API,
 schema, permission, tenant, audit, failure and test contracts are approved. Each track ships behind
 its own quality evidence and never alters the completed send path.
+
+Payments, product catalogs, carts, checkout, orders, refunds and commerce journeys are deliberately
+outside this product roadmap and must not be introduced by a future parity effort.
 
 ## Acceptance standard
 

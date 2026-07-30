@@ -145,6 +145,7 @@ describe("CustomerProfile header", () => {
     expect(await screen.findByRole("heading", { name: "Priya Sharma" })).toBeInTheDocument();
     expect(screen.getAllByText("+15551234567").length).toBeGreaterThan(0);
     expect(screen.getByText("Opted in")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Payments" })).not.toBeInTheDocument();
   });
 
   it("renders an unknown opt-in value verbatim rather than guessing", async () => {

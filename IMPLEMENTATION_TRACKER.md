@@ -46,7 +46,7 @@ quality gates._
 | Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
 | Phase 1 product experience | Business-first responsive shell; command palette/search; premium dashboard and sign-in; customer 360; saved-view/bulk inbox; approval-ready campaign journey; Operations/Admin centers; honest Automation/Reactivation foundations |
 | Phase 2 customer engagement | Server-synchronized inbox custom views/pins; customer/notes/AI thread context; governed Broadcast Center; template favorites; segment recents; factual engagement funnel; export navigation; human-controlled AI integration seams |
-| Phase 3 reactivation + automation | Ten-route Reactivation workspace; ten-stage pipeline blueprint; 13-tab Customer 360; document boundary; analytics-backed reports; separate Scan Studio boundary; accessible non-executing automation canvas; document-summary AI seam |
+| Phase 3 reactivation + automation | Ten-route Reactivation workspace; ten-stage pipeline blueprint; 12-tab Customer 360; document boundary; analytics-backed reports; separate Scan Studio boundary; accessible non-executing automation canvas; document-summary AI seam |
 | Phase 4A governed documents | Tenant-scoped document workflow shared by Customer 360 and Reactivation; media reuse; least-privilege RBAC; optimistic concurrency; immutable version and decision evidence |
 | Compact engagement shell | Six-item task rail by default, permission-aware advanced navigation, original teal engagement palette, and preserved responsive/keyboard navigation |
 | Guided campaign journey | Scroll-free progress rail; clear six-step hierarchy; audience/delivery choice cards; customer message preview; compact review/actions; optional AI assistance collapsed by default |
@@ -73,6 +73,8 @@ recorded in Design Document 20, with the five-phase execution sequence in Design
 UX-3B and all additive product domains remain separately
 governed milestones rather than simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
+Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
+from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
 metrics/dashboards, alert firing and dead-man validation, and external synthetic checks. Full
 capacity certification remains a separate Performance Lab task. The AI assistant module remains
@@ -88,7 +90,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 695 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 694 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

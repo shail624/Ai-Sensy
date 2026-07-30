@@ -19,7 +19,7 @@ visible only as explicit, disabled integration boundaries.
 |---|---|---|
 | Reactivation workspace | Permission-aware routes for Eligible Numbers, Bulk Eligibility, Interested Customers, Customer Pipeline, KYC, Document Center, SIM Orders, Activation Queue, Completed, and Reports | Existing route/permission shell; contract-gated domain seams |
 | Customer pipeline | Canonical Lead → Eligibility Check → Interested → Documents Received → Verification → KYC Approved → SIM Ordered → Activation Pending → Activated → Completed blueprint; pipeline selector and search use existing pipeline/stage data | Existing pipeline and stage APIs; lead-card movement remains unavailable |
-| Customer 360 | Overview, Timeline, Conversation, Campaign History, Documents, KYC, SIM, Payments, Tasks, Internal Notes, Audit, Activity, and AI Assistant | Existing contact/timeline/conversation/campaign/task APIs plus explicit gaps |
+| Customer 360 | Overview, Timeline, Conversation, Campaign History, Documents, KYC, SIM, Tasks, Internal Notes, Audit, Activity, and AI Assistant | Existing contact/timeline/conversation/campaign/task APIs plus explicit gaps |
 | Document Center | Existing media list, upload, preview, and storage behavior embedded in the reactivation workflow | Existing media API and permissions |
 | KYC and SIM | Typed CRM attributes can be projected without claiming a workflow record; verification, approval, ordering, and activation mutations remain unavailable | Existing contact attributes only |
 | Scan Studio | Separate operator surface and adapter/queue blueprint; never represented as the official Meta Cloud channel | UI boundary only; CRM import/segments remain the supported adjacent workflows |
@@ -35,8 +35,8 @@ visible only as explicit, disabled integration boundaries.
   permit drag/drop mutation, assignment, SLA timers, activity feeds, or saved lead views.
 - Media upload, list, preview, and storage are real. Contact-linked document records, versions,
   verification decisions, expiry, and document workflow statuses are not in the contract.
-- KYC records, identity-verification decisions, SIM orders, activation records, completion records,
-  payment records, and their reporting dimensions do not exist and are never simulated.
+- KYC records, identity-verification decisions, SIM orders, activation records and completion
+  records do not exist and are never simulated.
 - Scan Studio is deliberately separate from the official WhatsApp Cloud channel. No scan batch,
   adapter, classification, retry, comparison, progress, export, or result contract exists yet.
 - The automation canvas is a local design aid. No versioned workflow schema, persistence API,
@@ -78,8 +78,8 @@ with additive, reviewed contracts for the specific domain it intends to make ope
    separation from the Meta Cloud provider adapter.
 5. Versioned automation definitions, permissions, approval policy, run ledger, scheduler/runtime,
    retries/DLQ, and audited integration execution.
-6. Payment records and reactivation-specific analytics dimensions only if separately approved.
-7. AI provider, policy, interaction-record, approval, and audit contracts; never autonomous send.
+6. AI provider, policy, interaction-record, approval, and audit contracts; never autonomous send.
 
 Phase 4A realized item 1 on 2026-07-30 through the additive contract in Design Document 19 and
-ADR-0008. Items 2–7 remain unimplemented and contract-gated; Phase 3 itself remains unchanged.
+ADR-0008. Items 2–6 remain unimplemented and contract-gated. Payments, catalogs and commerce are
+owner-excluded rather than deferred; their former Customer 360 placeholder has been removed.

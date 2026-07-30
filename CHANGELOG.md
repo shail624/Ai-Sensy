@@ -11,12 +11,27 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Payment and commerce scope removal
+
+**Changed**
+- Recorded the owner's explicit decision that payments, transaction processing, product catalogs,
+  carts, checkout, orders, refunds and commerce journeys are not product roadmap deliverables.
+- Replaced the five-phase plan's former payment/commerce phase with advanced analytics, reporting
+  and team operations.
+- Removed the non-functional Payments placeholder from Customer 360, leaving 12 contract-relevant
+  sections. No backend API, schema, permission or business behavior changed.
+
+**Validated**
+- Passed the focused Customer 360 regression, all 612 frontend tests, ESLint, TypeScript and the
+  production build. Rebuilt the frontend image, passed its nginx image contract, recreated the
+  frontend container healthy, and returned HTTP 200 for the Customer 360 route with the new bundle.
+
 ### 2026-07-30 — Five-phase parity execution plan
 
 **Added**
 - Added Design Document 21, a five-phase path from the verified repository baseline to an
   AiSensy-comparable but original product: simplicity/retargeting, automation/forms, ads,
-  payments/commerce, and governed AI/integrations.
+  analytics/team operations, and governed AI/integrations.
 - Defined the required data, API, permission, audit, failure-recovery and quality gates for every
   phase so genuine gaps cannot be presented as implemented UI.
 
@@ -60,7 +75,8 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 **Added**
 - Added the active AiSensy-inspired parity roadmap, separating verified product coverage from
-  genuine automation, forms, ads, payments, AI-agent, commerce, and integration contract work.
+  genuine automation, forms, ads, AI-agent and integration contract work while explicitly
+  excluding payments and commerce.
 
 **Changed**
 - Made the six-destination desktop task rail compact by default, with one permission-aware `More`
