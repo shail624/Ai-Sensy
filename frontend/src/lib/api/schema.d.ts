@@ -2649,10 +2649,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List automations */
+        get: operations["list_automations_api_v1_automations_get"];
+        put?: never;
+        /** Create an automation draft */
+        post: operations["create_automation_api_v1_automations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an automation draft */
+        get: operations["get_automation_api_v1_automations__automation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update an automation draft */
+        patch: operations["update_automation_api_v1_automations__automation_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate an automation draft for publication */
+        post: operations["validate_automation_api_v1_automations__automation_id__validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish an immutable automation version */
+        post: operations["publish_automation_api_v1_automations__automation_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List immutable automation versions */
+        get: operations["list_automation_versions_api_v1_automations__automation_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/versions/{version_no}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore an automation version to the draft */
+        post: operations["restore_automation_version_api_v1_automations__automation_id__versions__version_no__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable an automation */
+        post: operations["disable_automation_api_v1_automations__automation_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable an automation's active version */
+        post: operations["enable_automation_api_v1_automations__automation_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionConfig */
+        ActionConfig: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "create_task";
+            /** Title */
+            title: string;
+        };
+        /** ActionNode */
+        ActionNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "action";
+            config: components["schemas"]["ActionConfig"];
+        };
         /**
          * AnalyticsBreakdownResponse
          * @description A grouped table — the entry point to drill-down (Doc 15 §16).
@@ -2925,6 +3086,50 @@ export interface components {
              */
             created_at: string;
         };
+        /** ApprovalConfig */
+        ApprovalConfig: {
+            /**
+             * Permission
+             * @enum {string}
+             */
+            permission: "messages:send" | "campaigns:send";
+        };
+        /** ApprovalNode */
+        ApprovalNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "approval";
+            config: components["schemas"]["ApprovalConfig"];
+        };
+        /** AssignmentConfig */
+        AssignmentConfig: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "round_robin" | "user";
+            /** User Id */
+            user_id?: string | null;
+        };
+        /** AssignmentNode */
+        AssignmentNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "assignment";
+            config: components["schemas"]["AssignmentConfig"];
+        };
         /** AttributeDefinitionCreateRequest */
         AttributeDefinitionCreateRequest: {
             /** Key Name */
@@ -3040,6 +3245,131 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** AutomationCreateRequest */
+        AutomationCreateRequest: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            graph?: components["schemas"]["AutomationGraph"];
+        };
+        /** AutomationEdge */
+        AutomationEdge: {
+            /** Id */
+            id: string;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /** Label */
+            label?: string | null;
+        };
+        /** AutomationFlowResponse */
+        AutomationFlowResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "published" | "disabled";
+            graph: components["schemas"]["AutomationGraph"];
+            /** Active Version No */
+            active_version_no: number | null;
+            /** Has Unpublished Changes */
+            has_unpublished_changes: boolean;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Created By */
+            created_by: string | null;
+            /** Updated By */
+            updated_by: string | null;
+        };
+        /** AutomationGraph */
+        AutomationGraph: {
+            /** Nodes */
+            nodes?: (components["schemas"]["TriggerNode"] | components["schemas"]["ConditionNode"] | components["schemas"]["ActionNode"] | components["schemas"]["DelayNode"] | components["schemas"]["TagNode"] | components["schemas"]["AssignmentNode"] | components["schemas"]["WaitNode"] | components["schemas"]["WebhookNode"] | components["schemas"]["CampaignNode"] | components["schemas"]["NotificationNode"] | components["schemas"]["ApprovalNode"])[];
+            /** Edges */
+            edges?: components["schemas"]["AutomationEdge"][];
+        };
+        /** AutomationListResponse */
+        AutomationListResponse: {
+            /** Data */
+            data: components["schemas"]["AutomationFlowResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** AutomationUpdateRequest */
+        AutomationUpdateRequest: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            graph?: components["schemas"]["AutomationGraph"] | null;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /** AutomationValidationIssueResponse */
+        AutomationValidationIssueResponse: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Node Id */
+            node_id: string | null;
+        };
+        /** AutomationValidationResponse */
+        AutomationValidationResponse: {
+            /** Valid */
+            valid: boolean;
+            /** Issues */
+            issues: components["schemas"]["AutomationValidationIssueResponse"][];
+        };
+        /** AutomationVersionGuardRequest */
+        AutomationVersionGuardRequest: {
+            /** Expected Row Version */
+            expected_row_version?: number | null;
+        };
+        /** AutomationVersionResponse */
+        AutomationVersionResponse: {
+            /** Id */
+            id: string;
+            /** Version No */
+            version_no: number;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            graph: components["schemas"]["AutomationGraph"];
+            /** Content Hash */
+            content_hash: string;
+            /** Published By */
+            published_by: string | null;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+        };
+        /** AutomationVersionsResponse */
+        AutomationVersionsResponse: {
+            /** Data */
+            data: components["schemas"]["AutomationVersionResponse"][];
         };
         /** Body_upload_media_api_v1_media_upload_post */
         Body_upload_media_api_v1_media_upload_post: {
@@ -3162,6 +3492,14 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CampaignConfig */
+        CampaignConfig: {
+            /**
+             * Campaign Id
+             * Format: uuid
+             */
+            campaign_id: string;
+        };
         /** CampaignCreateRequest */
         CampaignCreateRequest: {
             /** Name */
@@ -3221,6 +3559,19 @@ export interface components {
         CampaignListResponse: {
             /** Data */
             data: components["schemas"]["CampaignResponse"][];
+        };
+        /** CampaignNode */
+        CampaignNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "campaign";
+            config: components["schemas"]["CampaignConfig"];
         };
         /**
          * CampaignPreviewResponse
@@ -3413,6 +3764,31 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** ConditionConfig */
+        ConditionConfig: {
+            /** Field */
+            field: string;
+            /**
+             * Operator
+             * @enum {string}
+             */
+            operator: "eq" | "ne" | "contains" | "exists" | "gt" | "gte" | "lt" | "lte";
+            /** Value */
+            value?: string | number | boolean | string[] | null;
+        };
+        /** ConditionNode */
+        ConditionNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "condition";
+            config: components["schemas"]["ConditionConfig"];
         };
         /**
          * ContactAttributesRequest
@@ -3756,6 +4132,24 @@ export interface components {
              * @default report
              */
             mode: string;
+        };
+        /** DelayConfig */
+        DelayConfig: {
+            /** Seconds */
+            seconds: number;
+        };
+        /** DelayNode */
+        DelayNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "delay";
+            config: components["schemas"]["DelayConfig"];
         };
         /** DependencyStatus */
         DependencyStatus: {
@@ -4573,6 +4967,24 @@ export interface components {
             /** Data */
             data: components["schemas"]["NoteResponse"][];
         };
+        /** NotificationConfig */
+        NotificationConfig: {
+            /** Message */
+            message: string;
+        };
+        /** NotificationNode */
+        NotificationNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "notification";
+            config: components["schemas"]["NotificationConfig"];
+        };
         /** OrganizationResponse */
         OrganizationResponse: {
             /** Id */
@@ -5139,6 +5551,14 @@ export interface components {
             /** Data */
             data: components["schemas"]["StatusHistoryEntry"][];
         };
+        /** TagConfig */
+        TagConfig: {
+            /**
+             * Tag Id
+             * Format: uuid
+             */
+            tag_id: string;
+        };
         /** TagCreateRequest */
         TagCreateRequest: {
             /** Name */
@@ -5147,6 +5567,19 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** TagNode */
+        TagNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "tag";
+            config: components["schemas"]["TagConfig"];
         };
         /** TagResponse */
         TagResponse: {
@@ -5679,6 +6112,29 @@ export interface components {
             refresh_token: string;
             user: components["schemas"]["UserSummary"];
         };
+        /** TriggerConfig */
+        TriggerConfig: {
+            /**
+             * Event
+             * @enum {string}
+             */
+            event: "message.received" | "contact.created" | "lead.stage_changed" | "schedule";
+            /** Schedule Cron */
+            schedule_cron?: string | null;
+        };
+        /** TriggerNode */
+        TriggerNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "trigger";
+            config: components["schemas"]["TriggerConfig"];
+        };
         /** UserCreateRequest */
         UserCreateRequest: {
             /**
@@ -5911,6 +6367,29 @@ export interface components {
             /** Row Version */
             row_version?: number | null;
         };
+        /** WaitConfig */
+        WaitConfig: {
+            /**
+             * Event
+             * @enum {string}
+             */
+            event: "message.received" | "lead.stage_changed" | "task.completed";
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
+        };
+        /** WaitNode */
+        WaitNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "wait";
+            config: components["schemas"]["WaitConfig"];
+        };
         /**
          * WebhookAckResponse
          * @description The body behind a fast ``200``.
@@ -5931,6 +6410,27 @@ export interface components {
              * @example 2
              */
             events: number;
+        };
+        /** WebhookConfig */
+        WebhookConfig: {
+            /**
+             * Webhook Id
+             * Format: uuid
+             */
+            webhook_id: string;
+        };
+        /** WebhookNode */
+        WebhookNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "webhook";
+            config: components["schemas"]["WebhookConfig"];
         };
         /**
          * WindowState
@@ -11546,6 +12046,341 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExportProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_automations_api_v1_automations_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                status?: ("draft" | "published" | "disabled")[] | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_automation_api_v1_automations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_automation_api_v1_automations__automation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_automation_api_v1_automations__automation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_automation_api_v1_automations__automation_id__validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationValidationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_automation_api_v1_automations__automation_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationVersionGuardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_automation_versions_api_v1_automations__automation_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationVersionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_automation_version_api_v1_automations__automation_id__versions__version_no__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationVersionGuardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_automation_api_v1_automations__automation_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationVersionGuardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_automation_api_v1_automations__automation_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationVersionGuardRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationFlowResponse"];
                 };
             };
             /** @description Validation Error */

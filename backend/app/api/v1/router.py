@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     attributes,
     audit,
     auth,
+    automations,
     campaigns,
     contact_documents,
     contacts,
@@ -87,3 +88,6 @@ api_router.include_router(tasks.router, tags=["Tasks"])
 
 # Phase 8 — Analytics & Reporting (Doc 15); permissions analytics:read/export/executive.
 api_router.include_router(analytics.router, tags=["Analytics"])
+
+# MD5 Phase 2A — versioned automation authoring only; no execution task is registered.
+api_router.include_router(automations.router, tags=["Automations"])

@@ -11,6 +11,34 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Versioned automation definitions (MD5 Phase 2A)
+
+**Added**
+- Added tenant-scoped automation drafts, bounded typed graphs, fail-closed semantic validation,
+  immutable content-addressed published versions, restore/enable/disable controls, optimistic
+  concurrency, audit events and migration `0029`.
+- Added least-privilege `automations:read`, `automations:write` and `automations:publish` permissions,
+  eight OpenAPI paths, regenerated TypeScript contracts, and a searchable versioned authoring
+  workspace. Execution remains visibly unavailable until the governed runtime milestone.
+
+**Fixed**
+- Prevented the compact sidebar's advanced-navigation panel from opening over active advanced
+  routes and intercepting workspace clicks.
+- Kept the successful draft-save confirmation visible when refreshed server state synchronizes
+  back into the builder.
+
+**Preserved**
+- No automation task, trigger, schedule, provider call, outbound webhook, CRM mutation, campaign
+  dispatch or customer message was introduced. Existing API behavior, send authority, queue routing,
+  Meta adapter, tenant isolation and business rules remain unchanged.
+
+**Validated**
+- Passed 921 backend tests, Ruff, strict mypy across 237 files, OpenAPI drift validation, 625
+  frontend tests, TypeScript, ESLint and production builds. The production backend retains 23
+  registered tasks and now exposes 149 paths. Rebuilt and contract-checked production images; the
+  isolated ten-service deployment passed migration, API/worker/queue health, real browser
+  create/save/publish, readiness degradation, log redaction and a 25.9 ms p95 read canary.
+
 ### 2026-07-30 — Campaign follow-up and chat-link acquisition
 
 **Added**

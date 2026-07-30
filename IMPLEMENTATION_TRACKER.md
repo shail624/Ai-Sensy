@@ -11,26 +11,26 @@ quality gates._
 - **Branch:** `feature/module6-queue-engine`
 - **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
   `baseline/fr-con-04-release-ready` at `b565d0f`
-- **Migration head:** `0028_contact_documents` (28 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
-  232 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 621 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Migration head:** `0029_automation_definitions` (29 linear revisions, base `0001`)
+- **OpenAPI:** 3.1.0 · 149 paths · `frontend/openapi.json` verified against the live app
+- **Backend:** 921 tests passed · Ruff clean · raw strict mypy clean across
+  237 source files (down from 251 findings; exact checker mypy 2.3.0)
+- **Frontend:** 625 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
-  the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
+  the backend image boots with the 149-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
-- **Current phase:** MD5 Phase 1 simplicity, retargeting and acquisition — **RELEASE READY**
+- **Current phase:** MD5 Phase 2 automation and Forms — **IN PROGRESS**
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
 - **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
-  passed across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95 22.7 ms / 30
-  samples (<300 ms target)
+  → durable automation draft/publish passed across nginx/SPA/API/MySQL/Redis/Celery; current
+  standard-read evidence is p95 25.9 ms / 30 samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** MD5 Phase 1 repository implementation — **RELEASE READY**
+- **Current milestone:** PAR-AUTO-01 versioned automation definitions — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -54,6 +54,7 @@ quality gates._
 | Audience and retargeting presets | Four marketer-friendly quick-start templates over verified segment facts; preset-shaped saved segments surface as one-click campaign audiences; existing duplicate journey remains the follow-up path; campaign-specific event cohorts remain contract-gated rather than inferred from partial recipient pages |
 | Campaign follow-up journey | Completed campaigns expose a clear Create follow-up action; the original definition opens as a fresh editable draft and still passes through the existing audience, schedule, approval and dispatch path |
 | Chat link and QR | Every real WhatsApp number can generate a private browser-only `wa.me` link, optional prefilled message and downloadable QR; no tracking, shortening, external QR service, API or schema was introduced |
+| Versioned automation definitions | Tenant-scoped durable drafts; typed bounded graph; fail-closed publication validation; immutable content-addressed versions; restore/enable/disable; least-privilege RBAC; audit; optimistic concurrency; generated API client; real searchable authoring workspace; migration `0029` |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -71,11 +72,12 @@ quality gates._
 
 ## Remaining deliverables
 
-No repository implementation remains in Phase 4A or MD5 Phase 1. The active AiSensy-inspired parity
-roadmap is recorded in Design Document 20, with the five-phase execution sequence in Design Document
-21. Phase 2 automation, chatbot flows and WhatsApp Forms is the next planned contract boundary. It
-and all other additive product domains remain separately
-governed milestones rather than simulated UI. The remaining Phase 4 contract backlog is recorded
+No repository implementation remains in Phase 4A, MD5 Phase 1, or Phase 2A. The active
+AiSensy-inspired parity roadmap is recorded in Design Document 20, with the five-phase execution
+sequence in Design Document 21. The next separately governed Phase 2 boundary is automation runtime:
+run/attempt ledger, trigger ingestion, idempotency, retries/DLQ and approval/handoff. WhatsApp Forms
+follows only after its own data/API/security contract. These remain real milestones rather than
+simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.

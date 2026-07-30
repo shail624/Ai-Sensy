@@ -48,12 +48,13 @@ export const campaignKeys = {
  * problem by switching to an endpoint that *does* declare its query; campaigns has no such
  * endpoint, and inventing untyped parameters here would mean hand-writing contract shape.
  */
-export function useCampaigns() {
+export function useCampaigns(enabled = true) {
   return useQuery({
     queryKey: campaignKeys.list(),
     queryFn: async (): Promise<Campaign[]> =>
       unwrap(await api.GET("/api/v1/campaigns")).data,
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

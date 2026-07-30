@@ -140,8 +140,8 @@ export const navItems: NavItem[] = [
   },
   {
     label: "Automation", path: "/automation", available: true, glyph: "Au", icon: Bot,
-    group: "Workspace", anyPermission: ["campaigns:read", "inbox:read", "contacts:read"],
-    description: "Governed workflow automation, ready for the next delivery phase.",
+    group: "Workspace", permission: "automations:read",
+    description: "Build and publish governed, versioned workflow definitions.",
   },
   {
     label: "Analytics", path: "/analytics", available: true, glyph: "A", icon: BarChart3,

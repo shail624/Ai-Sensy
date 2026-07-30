@@ -79,6 +79,8 @@ _EXPECTED_TABLES = {
     "contact_documents",
     "contact_document_versions",
     "contact_document_events",
+    "automation_flows",
+    "automation_flow_versions",
 }
 
 
@@ -118,7 +120,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0028_contact_documents"
+        assert version == "0029_automation_definitions"
     finally:
         con.close()
 

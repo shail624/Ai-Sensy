@@ -181,7 +181,8 @@ export const router = createBrowserRouter([
           },
           {
             path: "automation",
-            element: <LazyRoute><AutomationPage /></LazyRoute>,
+            element: <RequirePermission code="automations:read" />,
+            children: [{ index: true, element: <LazyRoute><AutomationPage /></LazyRoute> }],
           },
           {
             path: "reactivation",

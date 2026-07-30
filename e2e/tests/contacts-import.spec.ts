@@ -53,7 +53,7 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(page.getByRole("tab", { name: "Tasks", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "AI Assistant", exact: true })).toBeVisible();
 
-  // Phase 3 release evidence: engagement, reactivation, automation, and scan surfaces must be reachable through
+  // Product release evidence: engagement, reactivation, automation, and scan surfaces must be reachable through
   // the same production edge, authenticated shell, RBAC policy, and API contract.
   await page.goto("/broadcasts");
   await expect(page.getByRole("heading", { name: "Broadcast Center" })).toBeVisible();
@@ -69,8 +69,19 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
 
   await page.goto("/automation");
   await expect(page.getByRole("heading", { name: "Automation", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "New automation" }).click();
+  const automationDialog = page.getByRole("dialog", { name: "New automation" });
+  await automationDialog.getByLabel("Name").fill("Release Gate Automation");
+  await automationDialog.getByLabel("Description").fill("Deployed versioned authoring proof");
+  await automationDialog.getByRole("button", { name: "Create draft" }).click();
   await expect(page.getByRole("button", { name: "Trigger", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save automation" })).toBeDisabled();
+  await page.getByRole("button", { name: "Trigger", exact: true }).click();
+  await page.getByRole("button", { name: "Notification", exact: true }).click();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Draft saved safely.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByText("Active version 1", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run test" })).toBeDisabled();
 
   await page.goto("/scan");
   await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();

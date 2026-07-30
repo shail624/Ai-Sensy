@@ -1,10 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { navItems } from "@/components/layout/navigation";
 import { AiFoundationPanel } from "@/features/ai";
-import { AutomationBuilder } from "@/features/automation";
 import { ReactivationSection } from "@/features/customer-profile/sections/ReactivationSection";
 import type { Contact } from "@/features/customer-profile/types";
 import { REACTIVATION_SECTIONS, REACTIVATION_STAGE_BLUEPRINT } from "@/features/reactivation";
@@ -36,19 +35,6 @@ describe("Phase 3 reactivation and automation foundations", () => {
     render(<MemoryRouter><ScanWorkspace /></MemoryRouter>);
     expect(screen.getByText("Architecture boundary enforced")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload scan batch" })).toBeDisabled();
-  });
-
-  it("lets operators design an automation blueprint but never save or run it", () => {
-    render(<AutomationBuilder />);
-    fireEvent.click(screen.getByRole("button", { name: "Trigger" }));
-    fireEvent.click(screen.getByRole("button", { name: "Campaign" }));
-    expect(screen.getByText("Approval required")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Move Trigger up" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Move Trigger down" }));
-    expect(screen.getByRole("button", { name: "Move Trigger down" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Move Trigger up" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Save automation" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Run test" })).toBeDisabled();
   });
 
   it("projects typed CRM KYC and SIM values without claiming workflow records", () => {

@@ -65,6 +65,12 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /media/i })).toHaveAttribute("aria-current", "page");
   });
 
+  it("keeps the compact More panel closed on an advanced destination", () => {
+    renderAt(<Sidebar collapsed />, "/automation");
+    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "More tools" })).not.toBeInTheDocument();
+  });
+
   it("highlights the active route", () => {
     renderAt(<Sidebar collapsed={false} />, "/contacts");
     expect(screen.getByRole("link", { name: /contacts/i })).toHaveAttribute("aria-current", "page");

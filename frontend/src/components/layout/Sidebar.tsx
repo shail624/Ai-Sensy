@@ -97,11 +97,15 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
   const secondaryGroups = secondaryNavGroups(hasPermission);
   const secondary = secondaryGroups.flatMap((group) => group.items);
   const secondaryActive = secondary.some((item) => isCurrentPath(location.pathname, item.path));
-  const [moreOpen, setMoreOpen] = useState(secondaryActive);
+  const [moreOpen, setMoreOpen] = useState(!collapsed && secondaryActive);
 
   useEffect(() => {
+    if (collapsed) {
+      setMoreOpen(false);
+      return;
+    }
     if (secondaryActive) setMoreOpen(true);
-  }, [secondaryActive]);
+  }, [collapsed, secondaryActive]);
 
   const handleSecondaryNavigate = (): void => {
     if (collapsed) setMoreOpen(false);

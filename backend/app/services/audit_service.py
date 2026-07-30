@@ -113,6 +113,12 @@ class AuditAction:
     LEAD_STAGE_CREATED = "lead_stage.created"
     LEAD_STAGE_UPDATED = "lead_stage.updated"
     LEAD_STAGE_DELETED = "lead_stage.deleted"
+    AUTOMATION_CREATED = "automation.created"
+    AUTOMATION_UPDATED = "automation.updated"
+    AUTOMATION_PUBLISHED = "automation.published"
+    AUTOMATION_RESTORED = "automation.restored"
+    AUTOMATION_DISABLED = "automation.disabled"
+    AUTOMATION_ENABLED = "automation.enabled"
 
 
 class AuditService:
