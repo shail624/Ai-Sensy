@@ -127,6 +127,11 @@ a clear completed-campaign → fresh follow-up draft action. No analytics or tra
 Carousel templates remain contract-gated because the current template/send mapping has no complete
 card-variable, media and button contract.
 
+**Phase 1 repository status (2026-07-30): RELEASE READY.** Existing import, segment, campaign,
+approval, dispatch and analytics authorities now form the complete first-time journey. The audited
+carousel and campaign-event cohort gaps stay absent until additive contracts are approved; target-
+environment task-time baselines remain UAT evidence rather than repository implementation.
+
 ### Phase 2 — Automation, chatbot flows and WhatsApp Forms
 
 **Objective:** deliver a real, versioned automation runtime rather than a decorative flow canvas.

@@ -20,7 +20,7 @@ quality gates._
   the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
-- **Current phase:** UX convergence — original AiSensy-inspired engagement experience
+- **Current phase:** MD5 Phase 1 simplicity, retargeting and acquisition — **RELEASE READY**
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
@@ -30,7 +30,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** Phase 1 follow-up and chat acquisition utility — **RELEASE READY**
+- **Current milestone:** MD5 Phase 1 repository implementation — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -71,9 +71,10 @@ quality gates._
 
 ## Remaining deliverables
 
-No repository implementation remains in Phase 4A. The active AiSensy-inspired parity roadmap is
-recorded in Design Document 20, with the five-phase execution sequence in Design Document 21;
-The remaining five-phase roadmap deliverables and all additive product domains remain separately
+No repository implementation remains in Phase 4A or MD5 Phase 1. The active AiSensy-inspired parity
+roadmap is recorded in Design Document 20, with the five-phase execution sequence in Design Document
+21. Phase 2 automation, chatbot flows and WhatsApp Forms is the next planned contract boundary. It
+and all other additive product domains remain separately
 governed milestones rather than simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded

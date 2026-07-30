@@ -30,7 +30,8 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 - Passed all 621 frontend tests, ESLint, TypeScript and the production build. The production-only
   dependency audit remains at the two known moderate React Router advisories with no high/critical
   finding. Rebuilt the production frontend image, passed its nginx contract, recreated the container
-  healthy, and returned HTTP 200 for the number-detail route with the current bundle.
+  healthy, and returned HTTP 200 for the number-detail route with the current bundle. MD5 Phase 1
+  repository implementation is release ready; task-time baselines remain target UAT evidence.
 
 ### 2026-07-30 — Audience and retargeting presets
 
