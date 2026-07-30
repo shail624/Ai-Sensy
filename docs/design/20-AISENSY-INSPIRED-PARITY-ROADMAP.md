@@ -87,8 +87,20 @@ as roadmap deliverables, navigation, placeholders or integration promises.
   builder, and the existing duplicate flow remains the governed follow-up path. Campaign-specific
   read/click/failed cohorts are not inferred from the paginated recipient UI and remain gated on a
   separately approved complete-audience contract.
+- **UI-3C delivered:** a completed campaign labels the existing fresh-draft composition path as
+  `Create follow-up`, keeps the source definition, and requires the operator to review the new
+  audience, template, timing and approval before anything can send.
 - Keep the existing governed Audience → Template → Preview → Schedule → Approval → Confirmation →
   Analytics path as the only dispatch authority.
+
+### UX-4 — Chat acquisition utility
+
+- **Delivered:** a real phone number can generate its public `wa.me` link, optional prefilled
+  message and downloadable QR entirely in the browser. It performs no shortening, persistence,
+  tracking or third-party QR request and therefore needs no new backend authority.
+- **Contract-gated:** tracked acquisition campaigns and carousel templates remain absent. The
+  current template interpretation and send mapping do not define complete carousel-card variables,
+  media and button payloads, so the UI must not claim that support.
 
 ### PAR tracks — additive product domains
 

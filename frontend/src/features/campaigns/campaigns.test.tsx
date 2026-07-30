@@ -12,6 +12,7 @@ import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgr
 import {
   campaignToForm,
   duplicateToForm,
+  followUpToForm,
   toCreateRequest,
   toUpdateRequest,
 } from "@/features/campaigns/campaignForm";
@@ -290,6 +291,12 @@ describe("campaignForm", () => {
     expect(values.segment_id).toBe("s1");
   });
 
+  it("names a governed follow-up distinctly while keeping the source audience", () => {
+    const values = followUpToForm(campaignFixture({ audience_ref: { segment_id: "warm" } }));
+    expect(values.name).toBe("Reactivation July — follow-up");
+    expect(values.segment_id).toBe("warm");
+  });
+
   it("sends only the audience keys the chosen type uses", () => {
     const base = campaignToForm(campaignFixture());
     const asTag = toCreateRequest({ ...base, audience_type: "tag", tag_ids: ["t9"] });
@@ -505,6 +512,12 @@ describe("CampaignActions — permission gating", () => {
 
     expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it("turns duplication into a clear follow-up action after results are final", () => {
+    withProviders(<CampaignActions campaign={campaignFixture({ status: "completed" })} />);
+    expect(screen.getByRole("button", { name: "Create follow-up" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
   });
 
   it("gates a draft on send permission before it can be dispatched", () => {

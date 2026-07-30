@@ -159,6 +159,11 @@ export function duplicateToForm(campaign: Campaign): CampaignFormValues {
   return { ...campaignToForm(campaign), name: `${campaign.name} (copy)` };
 }
 
+/** A governed follow-up starts as a fresh draft with the source definition and a distinct name. */
+export function followUpToForm(campaign: Campaign): CampaignFormValues {
+  return { ...campaignToForm(campaign), name: `${campaign.name} — follow-up` };
+}
+
 /**
  * Only the audience keys the chosen type actually uses are sent. Carrying a stale `segment_id`
  * alongside a tag audience would leave the campaign describing an audience it does not target.

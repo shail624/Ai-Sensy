@@ -7,6 +7,7 @@ import {
 } from "@/features/channels/api";
 import { NumberEditDialog } from "@/features/channels/NumberEditDialog";
 import type { PhoneNumber } from "@/features/channels/types";
+import { WhatsAppChatLinkDialog } from "@/features/channels/WhatsAppChatLinkDialog";
 
 const ACTION_CLASS =
   "rounded-md border border-border px-2 py-1 text-xs text-text-primary hover:bg-hover disabled:opacity-50";
@@ -30,6 +31,7 @@ interface Props {
  */
 export function NumberActions({ number, compact = false }: Props): JSX.Element {
   const [editing, setEditing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const canManage = useHasPermission("waba:manage");
   const refresh = useRefreshNumber();
 
@@ -52,6 +54,12 @@ export function NumberActions({ number, compact = false }: Props): JSX.Element {
             Edit
           </button>
         ) : null}
+
+        {!compact ? (
+          <button type="button" className={ACTION_CLASS} onClick={() => setSharing(true)}>
+            Chat link &amp; QR
+          </button>
+        ) : null}
       </div>
 
       {refresh.isSuccess ? <p className="text-xs text-success">Updated from Meta.</p> : null}
@@ -60,6 +68,7 @@ export function NumberActions({ number, compact = false }: Props): JSX.Element {
       ) : null}
 
       {editing ? <NumberEditDialog number={number} onClose={() => setEditing(false)} /> : null}
+      {sharing ? <WhatsAppChatLinkDialog number={number} onClose={() => setSharing(false)} /> : null}
     </div>
   );
 }

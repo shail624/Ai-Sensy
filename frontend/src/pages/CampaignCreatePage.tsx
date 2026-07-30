@@ -2,7 +2,12 @@ import { Sparkles } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { CampaignWizard, contactsToForm, duplicateToForm } from "@/features/campaigns";
+import {
+  CampaignWizard,
+  contactsToForm,
+  duplicateToForm,
+  followUpToForm,
+} from "@/features/campaigns";
 import { AiFoundationPanel } from "@/features/ai";
 import type { Campaign } from "@/features/campaigns";
 
@@ -15,8 +20,13 @@ import type { Campaign } from "@/features/campaigns";
  */
 export function CampaignCreatePage(): JSX.Element {
   const location = useLocation();
-  const state = location.state as { duplicateOf?: Campaign; contactIds?: string[] } | null;
+  const state = location.state as {
+    duplicateOf?: Campaign;
+    contactIds?: string[];
+    intent?: "duplicate" | "follow_up";
+  } | null;
   const source = state?.duplicateOf;
+  const followUp = Boolean(source && state?.intent === "follow_up");
   // A selection handed over from the contacts list opens the wizard on a `list` audience.
   const contactIds = state?.contactIds;
 
@@ -25,13 +35,23 @@ export function CampaignCreatePage(): JSX.Element {
       <Breadcrumbs
         items={[
           { label: "Campaigns", to: "/campaigns" },
-          { label: source ? "Duplicate campaign" : "New campaign" },
+          { label: followUp ? "Follow-up campaign" : source ? "Duplicate campaign" : "New campaign" },
         ]}
       />
       <PageHeader
         eyebrow="Campaign builder"
-        title={source ? `Duplicate "${source.name}"` : "New campaign"}
-        description="Choose the message, the audience and when it goes out. Nothing is sent until you say so."
+        title={
+          followUp
+            ? `Follow up "${source?.name ?? "campaign"}"`
+            : source
+              ? `Duplicate "${source.name}"`
+              : "New campaign"
+        }
+        description={
+          followUp
+            ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
+            : "Choose the message, the audience and when it goes out. Nothing is sent until you say so."
+        }
       />
       <details className="group mx-auto mb-4 max-w-5xl rounded-xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
@@ -53,7 +73,13 @@ export function CampaignCreatePage(): JSX.Element {
       </details>
       <CampaignWizard
         initialValues={
-          source ? duplicateToForm(source) : contactIds?.length ? contactsToForm(contactIds) : undefined
+          source
+            ? followUp
+              ? followUpToForm(source)
+              : duplicateToForm(source)
+            : contactIds?.length
+              ? contactsToForm(contactIds)
+              : undefined
         }
       />
     </PageContainer>

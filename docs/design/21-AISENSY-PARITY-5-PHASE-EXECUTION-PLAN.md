@@ -122,6 +122,11 @@ four reviewed segment templates, saved-segment quick picks in campaigns, and the
 duplicate/follow-up path. Campaign-specific read/click/failed cohorts remain a future additive
 contract; the UI does not construct them from an incomplete recipient page.
 
+The same audit delivered a browser-only `wa.me` link and QR utility from real phone-number data and
+a clear completed-campaign → fresh follow-up draft action. No analytics or tracking is claimed.
+Carousel templates remain contract-gated because the current template/send mapping has no complete
+card-variable, media and button contract.
+
 ### Phase 2 — Automation, chatbot flows and WhatsApp Forms
 
 **Objective:** deliver a real, versioned automation runtime rather than a decorative flow canvas.

@@ -14,6 +14,7 @@ import {
 import { NumberActions } from "@/features/channels/NumberActions";
 import { NumberEditDialog } from "@/features/channels/NumberEditDialog";
 import { NumberList } from "@/features/channels/NumberList";
+import { buildWhatsAppChatLink } from "@/features/channels/WhatsAppChatLinkDialog";
 import {
   filterNumbers,
   filterWabas,
@@ -104,6 +105,10 @@ vi.mock("@/lib/auth", () => ({
     hasPermission: (code: string) => permissions.value.includes(code),
   }),
   useHasPermission: (code: string) => permissions.value.includes(code),
+}));
+
+vi.mock("qrcode", () => ({
+  toDataURL: vi.fn(async () => "data:image/png;base64,local-qr"),
 }));
 
 /** Canned responses per path, so the real hooks and components run without a network. */
@@ -438,18 +443,46 @@ describe("NumberActions", () => {
     withProviders(<NumberActions number={numberFixture()} />);
     expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chat link & QR" })).toBeInTheDocument();
   });
 
   it("leaves edit to the detail page in compact rows", () => {
     withProviders(<NumberActions number={numberFixture()} compact />);
     expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Chat link & QR" })).not.toBeInTheDocument();
   });
 
   it("hides every write control from a read-only operator", () => {
     permissions.value = ["waba:read"];
     withProviders(<NumberActions number={numberFixture()} />);
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chat link & QR" })).toBeInTheDocument();
+  });
+});
+
+describe("WhatsApp chat link and QR", () => {
+  it("builds a public click-to-chat URL from a formatted international number", () => {
+    expect(buildWhatsAppChatLink("+91 (111) 111-1111", "Hello there")).toBe(
+      "https://wa.me/911111111111?text=Hello+there",
+    );
+    expect(buildWhatsAppChatLink("invalid", "Hello")).toBeNull();
+  });
+
+  it("opens an offline-generated QR without requiring a write permission", async () => {
+    permissions.value = ["waba:read"];
+    withProviders(<NumberActions number={numberFixture()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Chat link & QR" }));
+    const dialog = screen.getByRole("dialog", { name: /Chat link for/ });
+    expect(within(dialog).getByLabelText("Shareable link")).toHaveValue(
+      "https://wa.me/911111111111",
+    );
+    expect(
+      await within(dialog).findByAltText(/QR code opening a WhatsApp chat/),
+    ).toHaveAttribute("src", "data:image/png;base64,local-qr");
+    expect(within(dialog).getByText(/does not upload/)).toBeInTheDocument();
   });
 });
 

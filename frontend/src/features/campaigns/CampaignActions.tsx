@@ -18,6 +18,7 @@ import {
   isCancellable,
   isDispatchable,
   isEditable,
+  isTerminal,
   isPausable,
   isResumable,
   isRetryable,
@@ -94,9 +95,16 @@ export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX
             className={ACTION_CLASS}
             // Duplicate is composed from the endpoints that exist: the wizard opens prefilled from
             // this campaign and creates a new draft. Nothing is copied server-side.
-            onClick={() => navigate("/campaigns/new", { state: { duplicateOf: campaign } })}
+            onClick={() =>
+              navigate("/campaigns/new", {
+                state: {
+                  duplicateOf: campaign,
+                  intent: isTerminal(campaign) ? "follow_up" : "duplicate",
+                },
+              })
+            }
           >
-            Duplicate
+            {isTerminal(campaign) ? "Create follow-up" : "Duplicate"}
           </button>
         ) : null}
 

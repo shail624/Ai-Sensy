@@ -15,7 +15,7 @@ quality gates._
 - **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
 - **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
   232 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 617 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 621 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
@@ -30,7 +30,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** UX-3B audience and retargeting presets — **RELEASE READY**
+- **Current milestone:** Phase 1 follow-up and chat acquisition utility — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -52,6 +52,8 @@ quality gates._
 | Guided campaign journey | Scroll-free progress rail; clear six-step hierarchy; audience/delivery choice cards; customer message preview; compact review/actions; optional AI assistance collapsed by default |
 | Live Chat simplicity | Requests/Active/My chats triage over existing filters; advanced controls on demand; compact conversation rows; customer context, notes, labels and AI assistance one click away |
 | Audience and retargeting presets | Four marketer-friendly quick-start templates over verified segment facts; preset-shaped saved segments surface as one-click campaign audiences; existing duplicate journey remains the follow-up path; campaign-specific event cohorts remain contract-gated rather than inferred from partial recipient pages |
+| Campaign follow-up journey | Completed campaigns expose a clear Create follow-up action; the original definition opens as a fresh editable draft and still passes through the existing audience, schedule, approval and dispatch path |
+| Chat link and QR | Every real WhatsApp number can generate a private browser-only `wa.me` link, optional prefilled message and downloadable QR; no tracking, shortening, external QR service, API or schema was introduced |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -91,7 +93,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 701 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 707 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

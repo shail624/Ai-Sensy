@@ -6,7 +6,7 @@ export { CampaignDetail } from "./CampaignDetail";
 export { CampaignWizard } from "./CampaignWizard";
 export { CampaignPreviewPanel } from "./CampaignPreviewPanel";
 export { CampaignStatusChip, CampaignProgressBar } from "./CampaignBadges";
-export { campaignToForm, duplicateToForm, contactsToForm } from "./campaignForm";
+export { campaignToForm, duplicateToForm, followUpToForm, contactsToForm } from "./campaignForm";
 // Published for the contacts bulk bar, so "add to campaign" edits an audience through the
 // campaign API rather than growing a parallel path (docs/adr/0003).
 export { useCampaigns, useUpdateCampaign } from "./api";

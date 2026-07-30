@@ -11,6 +11,27 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Campaign follow-up and chat-link acquisition
+
+**Added**
+- Added a clear `Create follow-up` action for completed campaigns. It composes the source definition
+  into a fresh, distinctly named draft and preserves the existing audience, editing, scheduling,
+  approval and dispatch authorities.
+- Added a phone-number-level WhatsApp chat-link utility with an optional prefilled message, local QR
+  generation, copy/test actions and a downloadable PNG. The QR encoder is loaded only when the
+  dialog opens; no phone number, message or link is sent to a QR service.
+
+**Preserved**
+- No backend API, schema, permission, tenant-isolation, campaign dispatch, queue or Meta adapter
+  behavior changed. Links are not shortened or tracked, and carousel support remains hidden because
+  its end-to-end template/send contract does not exist.
+
+**Validated**
+- Passed all 621 frontend tests, ESLint, TypeScript and the production build. The production-only
+  dependency audit remains at the two known moderate React Router advisories with no high/critical
+  finding. Rebuilt the production frontend image, passed its nginx contract, recreated the container
+  healthy, and returned HTTP 200 for the number-detail route with the current bundle.
+
 ### 2026-07-30 — Audience and retargeting presets
 
 **Added**
