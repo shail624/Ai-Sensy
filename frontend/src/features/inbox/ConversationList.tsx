@@ -1,4 +1,4 @@
-import { Check, Pin, PinOff } from "lucide-react";
+import { Check, Clock3, MessageCircle, Pin, PinOff } from "lucide-react";
 
 import { TagChip } from "@/components/ui";
 import type { Conversation, ConversationStatus } from "@/features/inbox/types";
@@ -18,12 +18,21 @@ function displayName(conversation: Conversation): string {
   return conversation.contact?.name ?? conversation.contact?.phone ?? "Unknown contact";
 }
 
+function initials(conversation: Conversation): string {
+  return displayName(conversation)
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 function responseSignal(conversation: Conversation): { label: string; className: string } | null {
   if (conversation.unread_count === 0 || !conversation.last_message_at) return null;
   const minutes = Math.max(0, Math.round((Date.now() - new Date(conversation.last_message_at).getTime()) / 60_000));
-  if (minutes >= 60) return { label: `SLA · ${Math.round(minutes / 60)}h waiting`, className: "bg-danger-soft text-danger-on-soft" };
-  if (minutes >= 15) return { label: `SLA · ${minutes}m waiting`, className: "bg-warning-soft text-warning-on-soft" };
-  return { label: "SLA · on track", className: "bg-success-soft text-success-on-soft" };
+  if (minutes >= 60) return { label: `${Math.round(minutes / 60)}h waiting`, className: "bg-danger-soft text-danger-on-soft" };
+  if (minutes >= 15) return { label: `${minutes}m waiting`, className: "bg-warning-soft text-warning-on-soft" };
+  return null;
 }
 
 interface Props {
@@ -36,7 +45,7 @@ interface Props {
   onToggleSelection?: (id: string) => void;
 }
 
-/** The inbox rail: one row per conversation, newest activity first. */
+/** Compact inbox rail: identity and unread urgency first, secondary metadata on demand. */
 export function ConversationList({
   conversations,
   selectedId,
@@ -70,45 +79,38 @@ export function ConversationList({
               type="button"
               onClick={() => onSelect(conversation.id)}
               aria-current={selected ? "true" : undefined}
-              className={`w-full py-3 pl-9 pr-9 text-left transition-colors hover:bg-hover ${
-                selected ? "bg-surface-2" : ""
-              }`}
+              className={`w-full py-3 pl-9 pr-9 text-left transition-colors hover:bg-hover ${selected ? "bg-surface-2" : ""}`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <span className="truncate text-sm font-medium text-text-primary">
-                  {displayName(conversation)}
+              <div className="flex gap-2.5">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${selected ? "bg-accent text-accent-fg" : "bg-accent-soft text-accent"}`}>
+                  {initials(conversation)}
                 </span>
-                <span className="shrink-0 text-xs text-text-disabled">
-                  {relativeTime(conversation.last_message_at)}
-                </span>
-              </div>
-
-              <p className="mt-0.5 truncate text-xs text-text-secondary">
-                {conversation.last_message_preview ?? "No messages yet"}
-              </p>
-
-              <div className="mt-1 flex flex-wrap items-center gap-1">
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-text-secondary">
-                  {STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status}
-                </span>
-                {conversation.window.is_open ? (
-                  <span className="rounded-full border border-success px-2 py-0.5 text-xs text-success">
-                    Window open
-                  </span>
-                ) : null}
-                {conversation.unread_count > 0 ? (
-                  <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-accent-fg">
-                    {conversation.unread_count}
-                  </span>
-                ) : null}
-                {signal ? (
-                  <span title="Response indicator derived from unread wait time; not a server policy" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${signal.className}`}>
-                    {signal.label}
-                  </span>
-                ) : null}
-                {conversation.tags.map((tag) => (
-                  <TagChip key={tag.id} name={tag.name} color={tag.color} />
-                ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-text-primary">{displayName(conversation)}</span>
+                    <span className="shrink-0 text-[11px] text-text-disabled">{relativeTime(conversation.last_message_at)}</span>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-text-secondary">{conversation.last_message_preview ?? "No messages yet"}</p>
+                  <div className="mt-2 flex min-h-5 items-center gap-1.5 overflow-hidden">
+                    <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-text-disabled">
+                      <span className={`h-1.5 w-1.5 rounded-full ${conversation.status === "open" ? "bg-success" : "bg-text-disabled"}`} />
+                      {STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status}
+                    </span>
+                    {conversation.window.is_open ? (
+                      <span title="WhatsApp service window is open" className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-success">
+                        <MessageCircle aria-hidden className="h-3 w-3" /> Window open
+                      </span>
+                    ) : null}
+                    {signal ? (
+                      <span title="Response indicator derived from unread wait time; not a server policy" className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${signal.className}`}>
+                        <Clock3 aria-hidden className="h-3 w-3" /> {signal.label}
+                      </span>
+                    ) : null}
+                    {conversation.tags.slice(0, 1).map((tag) => <TagChip key={tag.id} name={tag.name} color={tag.color} />)}
+                    {conversation.tags.length > 1 ? <span className="shrink-0 text-[10px] font-semibold text-text-disabled">+{conversation.tags.length - 1}</span> : null}
+                    {conversation.unread_count > 0 ? <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">{conversation.unread_count}</span> : null}
+                  </div>
+                </div>
               </div>
             </button>
             <button

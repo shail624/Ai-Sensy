@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { toListQuery } from "@/features/inbox/api";
+import { ConversationFilters } from "@/features/inbox/ConversationFilters";
 import { collateReactions } from "@/features/inbox/messageContent";
 import { ConversationList } from "@/features/inbox/ConversationList";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
@@ -139,6 +140,52 @@ describe("ConversationList", () => {
       />,
     );
     expect(screen.getByText("+91999")).toBeInTheDocument();
+  });
+});
+
+describe("ConversationFilters", () => {
+  it("maps the simple Live Chat views onto existing status and assignment filters", () => {
+    const onChange = vi.fn();
+    withProviders(
+      <ConversationFilters
+        filters={{}}
+        onChange={onChange}
+        tags={[]}
+        savedViews={[]}
+        onSaveView={vi.fn()}
+        onDeleteView={vi.fn()}
+        currentUserId="u1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Requests/i }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open", assignee: "unassigned" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Active/i }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open" });
+
+    fireEvent.click(screen.getByRole("button", { name: /My chats/i }));
+    expect(onChange).toHaveBeenLastCalledWith({ assignee: "u1" });
+  });
+
+  it("keeps advanced controls hidden until requested", () => {
+    withProviders(
+      <ConversationFilters
+        filters={{}}
+        onChange={vi.fn()}
+        tags={[]}
+        savedViews={[]}
+        onSaveView={vi.fn()}
+        onDeleteView={vi.fn()}
+        currentUserId="u1"
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "Advanced inbox filters" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByRole("region", { name: "Advanced inbox filters" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
+    expect(screen.getByLabelText("Assignee")).toBeInTheDocument();
   });
 });
 

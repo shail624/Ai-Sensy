@@ -11,6 +11,25 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Live Chat simplicity
+
+**Changed**
+- Replaced the crowded inbox folder strip with three task-first views: Requests (open and
+  unassigned), Active (all open), and My chats (assigned to the current user). These use the
+  existing status and assignment contracts and do not simulate chatbot or handoff state.
+- Moved status, assignee, label and saved-view management behind one advanced Filters control while
+  keeping search and saved inboxes immediately available.
+- Simplified conversation rows around customer identity, message preview, unread urgency and aged
+  waits; preserved status, service-window, labels, pinning and bulk selection.
+- Reduced permanent thread chrome to status and assignment. Customer context, editable labels,
+  notes, governed AI assistance, pinning and Customer 360 now open through the Details panel.
+  APIs, permissions, schemas, tenant rules and message behavior are unchanged.
+
+**Validated**
+- Passed 612 frontend tests, ESLint, TypeScript and the production build. Rebuilt the production
+  frontend image, passed its nginx image contract, recreated the frontend container healthy, and
+  returned HTTP 200 for `/inbox` with the new production bundle.
+
 ### 2026-07-30 — Guided campaign journey
 
 **Changed**

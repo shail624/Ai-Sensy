@@ -65,10 +65,13 @@ These must not be represented by mock cards or fake data.
 
 ### UX-2 — Live Chat simplicity
 
-- Present requesting, active and team-owned conversation views using existing inbox status,
-  assignment, pin, label and saved-view contracts.
-- Reduce the default thread chrome while keeping customer context, notes, history and bulk controls
-  one click away.
+- **Delivered:** Requests, Active and My chats views map truthfully onto the existing open-status,
+  unassigned and current-user assignment filters; no chatbot or handoff state is simulated.
+- **Delivered:** advanced status/assignee/label filters and saved views remain available on demand;
+  compact rows prioritize customer, message, unread and wait signals.
+- **Delivered:** the default thread keeps status and assignment visible while customer context,
+  editable labels, notes, AI assistance, pinning and Customer 360 stay one click away. Bulk controls
+  still appear only after explicit conversation selection.
 
 ### UX-3 — Campaign and retargeting shortcuts
 

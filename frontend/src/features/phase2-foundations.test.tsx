@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,6 +8,10 @@ import { AiFoundationPanel } from "@/features/ai";
 import { EngagementFunnel } from "@/features/analytics";
 import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
 import type { Conversation } from "@/features/inbox/types";
+
+vi.mock("@/lib/auth", () => ({
+  useHasPermission: () => true,
+}));
 
 const conversation: Conversation = {
   id: "conv-1",
@@ -51,11 +56,21 @@ describe("Phase 2 engagement foundations", () => {
 
   it("keeps customer context beside the thread and marks merge as contract-gated", () => {
     const onTogglePinned = vi.fn();
-    render(<MemoryRouter><InboxContextPanel conversation={conversation} pinned={false} onTogglePinned={onTogglePinned} /></MemoryRouter>);
+    const onClose = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <InboxContextPanel conversation={conversation} tags={conversation.tags} pinned={false} onTogglePinned={onTogglePinned} onClose={onClose} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
     expect(screen.getByText("Asha")).toBeInTheDocument();
     expect(screen.getByText("Priority")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Merge" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Pin" }));
     expect(onTogglePinned).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

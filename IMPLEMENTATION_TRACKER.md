@@ -15,7 +15,7 @@ quality gates._
 - **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
 - **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
   232 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 610 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 612 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
@@ -30,7 +30,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** guided campaign journey — **RELEASE READY**
+- **Current milestone:** Live Chat simplicity — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -50,6 +50,7 @@ quality gates._
 | Phase 4A governed documents | Tenant-scoped document workflow shared by Customer 360 and Reactivation; media reuse; least-privilege RBAC; optimistic concurrency; immutable version and decision evidence |
 | Compact engagement shell | Six-item task rail by default, permission-aware advanced navigation, original teal engagement palette, and preserved responsive/keyboard navigation |
 | Guided campaign journey | Scroll-free progress rail; clear six-step hierarchy; audience/delivery choice cards; customer message preview; compact review/actions; optional AI assistance collapsed by default |
+| Live Chat simplicity | Requests/Active/My chats triage over existing filters; advanced controls on demand; compact conversation rows; customer context, notes, labels and AI assistance one click away |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -68,7 +69,7 @@ quality gates._
 ## Remaining deliverables
 
 No repository implementation remains in Phase 4A. The active AiSensy-inspired parity roadmap is
-recorded in Design Document 20; UX-2 onward and all additive product domains remain separately
+recorded in Design Document 20; UX-3B and all additive product domains remain separately
 governed milestones rather than simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
@@ -86,7 +87,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 689 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 695 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
