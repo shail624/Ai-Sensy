@@ -79,29 +79,21 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
   return (
     <nav
       aria-label="Primary"
-      className={`flex-col border-r border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_96%,var(--color-accent-soft))] transition-[width] duration-200 ${collapsed ? "w-[4.75rem]" : "w-[17rem]"} ${className ?? ""}`}
+      className={`flex-col border-r border-border bg-surface transition-[width] duration-200 ${collapsed ? "w-[4.5rem]" : "w-60"} ${className ?? ""}`}
     >
-      <div className="flex h-16 items-center gap-3 border-b border-border/70 px-4">
+      <div className="flex h-14 items-center gap-2.5 border-b border-border/70 px-3">
         <span
           aria-hidden
-          className="brand-gradient flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-base font-bold text-white shadow-md"
+          className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
         >
           V
         </span>
         {!collapsed ? (
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-bold tracking-tight text-text-primary">Vi Reactivation</span>
-            <span className="truncate text-[11px] text-text-secondary">WhatsApp engagement</span>
-          </span>
+          <span className="truncate text-sm font-bold tracking-tight text-text-primary">Vi Reactivation</span>
         ) : null}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        {!collapsed ? (
-          <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-disabled">
-            Main
-          </p>
-        ) : null}
+      <div className="flex-1 overflow-y-auto px-3 py-3">
         <ul className="space-y-0.5">
           {primary.map((item) => (
             <NavEntry key={item.path} item={item} collapsed={collapsed} onNavigate={onNavigate} />

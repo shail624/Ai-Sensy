@@ -7,7 +7,7 @@ import { REACTIVATION_SECTIONS } from "@/features/reactivation/sections";
 describe("Phase 1 information architecture", () => {
   it("keeps the business workspace in the planned order", () => {
     expect(navItems.filter((item) => item.group === "Workspace").map((item) => item.label)).toEqual([
-      "Dashboard", "Inbox", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
+      "Dashboard", "Live Chat", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
     ]);
   });
 
@@ -18,10 +18,11 @@ describe("Phase 1 information architecture", () => {
 
   it("keeps the default sidebar focused without removing entitled destinations", () => {
     expect(primaryNavItems(() => true).map((item) => item.label)).toEqual([
-      "Dashboard", "Inbox", "Contacts", "Campaigns", "Templates", "Automation", "Analytics",
+      "Dashboard", "Live Chat", "Contacts", "Campaigns", "Templates", "Analytics",
     ]);
     const secondary = secondaryNavGroups(() => true).flatMap((group) => group.items);
     expect(secondary.map((item) => item.label)).toContain("Media");
+    expect(secondary.map((item) => item.label)).toContain("Automation");
     expect(secondary.map((item) => item.label)).toContain("Settings");
   });
 

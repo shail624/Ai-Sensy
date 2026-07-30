@@ -64,9 +64,11 @@ Administration, and Settings.
 
 ## 2026-07-30 simplicity refinement
 
-The responsive shell now keeps Dashboard, Inbox, Contacts, Campaigns, Templates, Automation, and
-Analytics visible by default. Every other permission-authorized route remains under one `More`
-control and in workspace search. Theme and shortcut help moved into the account menu; favorites
-remain available through search without duplicating sidebar destinations. The dashboard now favors
-live signals, common actions, recent work, and permission-aware onboarding instead of repeating the
-full module catalog. No route, permission, API, schema, queue, tenant, or business behavior changed.
+The responsive shell now keeps only Dashboard, Live Chat, Contacts, Campaigns, Templates, and
+Analytics visible by default. Automation and every other permission-authorized route remain under
+one `More` control and in workspace search. Theme and shortcut help moved into the account menu;
+favorites remain available through search without duplicating sidebar destinations. The dashboard
+is now a compact task-first home with four signals, two primary actions, personal work, and onboarding
+rather than an executive chart, recent-route list, or duplicated module catalog. `Live Chat` is a
+navigation label for the unchanged inbox route and workflow. No route, permission, API, schema,
+queue, tenant, or business behavior changed.

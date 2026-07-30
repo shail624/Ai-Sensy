@@ -16,7 +16,7 @@ function formatChange(change: number): string {
   return `${change > 0 ? "+" : ""}${(change * 100).toFixed(1)}%`;
 }
 
-/** A premium KPI tile: label, big value, coloured trend chip, and an accent icon. */
+/** A compact KPI tile: fast to scan without turning the dashboard into a wall of cards. */
 export function StatCard({ label, value, icon, change, invertTrend = false, hint }: StatCardProps): JSX.Element {
   const hasTrend = change !== null && change !== undefined && change !== 0;
   const positive = (change ?? 0) > 0;
@@ -24,17 +24,17 @@ export function StatCard({ label, value, icon, change, invertTrend = false, hint
   const Trend = positive ? TrendingUp : TrendingDown;
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-xl border border-border bg-surface p-3.5 shadow-sm sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">{label}</p>
         {icon ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
             {icon}
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-[26px] font-bold leading-none tracking-tight text-text-primary">{value}</p>
-      <div className="mt-3 flex items-center gap-2">
+      <p className="mt-1.5 text-xl font-bold leading-none tracking-tight text-text-primary sm:text-2xl">{value}</p>
+      <div className="mt-2 flex items-center gap-2">
         {hasTrend ? (
           <span
             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${

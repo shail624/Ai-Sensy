@@ -91,7 +91,7 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
 
   return (
     <>
-      <header className="relative z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_88%,transparent)] px-3 backdrop-blur-xl sm:px-5">
+      <header className="relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_92%,transparent)] px-3 backdrop-blur-xl sm:px-4">
         <button type="button" aria-label="Open navigation" onClick={onOpenMobileNav} className={`${iconBtn} lg:hidden`}>
           <Menu aria-hidden className="h-[18px] w-[18px]" />
         </button>
@@ -104,18 +104,13 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
           {collapsed ? <PanelLeftOpen aria-hidden className="h-[18px] w-[18px]" /> : <PanelLeftClose aria-hidden className="h-[18px] w-[18px]" />}
         </button>
 
-        <div className="hidden min-w-0 sm:block">
-          <p className="truncate text-sm font-semibold text-text-primary">WhatsApp Business</p>
-          <p className="truncate text-[11px] text-text-disabled">Customer engagement</p>
-        </div>
-
         <button
           type="button"
           onClick={() => setPaletteOpen(true)}
-          className="mx-auto flex h-10 min-w-0 max-w-md flex-1 items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 text-left text-sm text-text-secondary transition-colors hover:border-border-strong hover:bg-hover md:mx-6"
+          className="mr-auto flex h-9 min-w-0 max-w-sm flex-1 items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 text-left text-sm text-text-secondary transition-colors hover:border-border-strong hover:bg-hover md:ml-2 md:mr-5"
         >
           <Search aria-hidden className="h-4 w-4 shrink-0 text-text-disabled" />
-          <span className="truncate">Search contacts, chats or campaigns</span>
+          <span className="truncate">Search</span>
           <kbd className="ml-auto hidden rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-text-disabled sm:inline">⌘K</kbd>
         </button>
 

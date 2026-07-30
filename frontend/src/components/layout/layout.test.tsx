@@ -49,7 +49,7 @@ function renderAt(ui: React.ReactElement, path = "/") {
 describe("Sidebar", () => {
   it("keeps everyday destinations visible and places advanced areas under More", () => {
     renderAt(<Sidebar collapsed={false} />);
-    for (const label of ["Dashboard", "Inbox", "Contacts", "Campaigns", "Templates", "Automation", "Analytics"]) {
+    for (const label of ["Dashboard", "Live Chat", "Contacts", "Campaigns", "Templates", "Analytics"]) {
       expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
     expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
@@ -95,8 +95,8 @@ describe("TopNav", () => {
 
   it("shows the application title and placeholders", () => {
     renderTopNav();
-    expect(screen.getByText("WhatsApp Business")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /search contacts, chats or campaigns/i })).toBeEnabled();
+    expect(screen.queryByText("WhatsApp Business")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /search/i })).toBeEnabled();
     expect(screen.getByLabelText(/attention center/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/toggle color theme/i)).not.toBeInTheDocument();
   });
@@ -144,14 +144,12 @@ describe("PageHeader", () => {
 });
 
 describe("DashboardPage", () => {
-  it("shows a focused set of everyday quick links", () => {
+  it("keeps primary actions without repeating the navigation catalog", () => {
     renderAt(<DashboardPage />);
-    const quickLinks = within(screen.getByRole("navigation", { name: "Quick links" }));
-    expect(quickLinks.getByRole("link", { name: /inbox/i })).toHaveAttribute("href", "/inbox");
-    expect(quickLinks.getByRole("link", { name: /contacts/i })).toHaveAttribute("href", "/contacts");
-    expect(quickLinks.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
-    expect(quickLinks.getByRole("link", { name: /analytics/i })).toHaveAttribute("href", "/analytics");
-    expect(quickLinks.queryByRole("link", { name: /automation/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /live chat/i })).toHaveAttribute("href", "/inbox");
+    expect(screen.getByRole("link", { name: /new campaign/i })).toHaveAttribute("href", "/campaigns/new");
+    expect(screen.queryByRole("navigation", { name: "Quick links" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Recent")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Modules" })).not.toBeInTheDocument();
   });
 

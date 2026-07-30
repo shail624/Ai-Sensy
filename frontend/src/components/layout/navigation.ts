@@ -65,7 +65,6 @@ export const PRIMARY_NAV_PATHS = [
   "/contacts",
   "/campaigns",
   "/templates",
-  "/automation",
   "/analytics",
 ] as const;
 
@@ -110,7 +109,7 @@ export const navItems: NavItem[] = [
     group: "Workspace", description: "Your executive workspace, priorities and messaging performance.",
   },
   {
-    label: "Inbox", path: "/inbox", available: true, glyph: "I", icon: Inbox,
+    label: "Live Chat", path: "/inbox", available: true, glyph: "L", icon: Inbox,
     group: "Workspace", permission: "inbox:read",
     description: "One shared team inbox for every conversation.",
   },

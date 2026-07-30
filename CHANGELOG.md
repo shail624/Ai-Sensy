@@ -14,13 +14,15 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 ### 2026-07-30 — Simplified customer workspace
 
 **Changed**
-- Reduced the default sidebar from the full module catalog to seven everyday destinations; all
+- Reduced the default sidebar from the full module catalog to six task-first destinations; all
   entitled advanced, operational, and administrative areas remain available through one expanded
   `More` section and workspace search.
-- Removed duplicate favorite links from the sidebar, moved theme and shortcut help into the account
-  menu, simplified workspace language, and aligned desktop/mobile navigation order.
-- Replaced the dashboard's repeated all-module catalog and disabled AI placeholder with focused
-  quick links, recent work, permission-aware setup guidance, and the existing live business signals.
+- Renamed the existing inbox destination to `Live Chat` in navigation, removed duplicate favorite
+  links, moved theme and shortcut help into the account menu, and aligned desktop/mobile order.
+- Replaced the chart-heavy executive home with a compact task-first dashboard: four operational
+  indicators, two primary actions, the existing personal work queue, and setup steps. Redundant
+  quick-access and recent-route cards were removed; empty task buckets use the compact state so
+  mobile users do not scroll through oversized blanks.
 
 **Validated**
 - Passed 602 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production

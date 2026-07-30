@@ -82,7 +82,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 677 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 670 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

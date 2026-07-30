@@ -10,10 +10,10 @@ export function Skeleton({ className = "" }: SkeletonProps): JSX.Element {
 /** A ready-made skeleton for a stat/KPI card, so a loading dashboard keeps its layout. */
 export function SkeletonStat(): JSX.Element {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <Skeleton className="h-3 w-24" />
-      <Skeleton className="mt-3 h-7 w-20" />
-      <Skeleton className="mt-3 h-3 w-16" />
+      <Skeleton className="mt-2 h-6 w-20" />
+      <Skeleton className="mt-2 h-3 w-16" />
     </div>
   );
 }

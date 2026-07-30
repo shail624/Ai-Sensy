@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Section, Spinner } from "@/components/ui";
+import { ErrorState, Section, Spinner } from "@/components/ui";
 import { apiErrorMessage, useCurrentUser, useTaskStats, useTasks } from "@/features/tasks/api";
 import { TaskActions } from "@/features/tasks/TaskActions";
 import { TaskDue, TaskPriorityChip, TaskTypeChip } from "@/features/tasks/TaskBadges";
@@ -33,7 +33,7 @@ function Bucket({ label, count, query, enabled }: BucketProps): JSX.Element {
       ) : tasks.isError ? (
         <ErrorState message={apiErrorMessage(tasks.error)} onRetry={() => void tasks.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState title="Nothing here" />
+        <p className="py-1 text-center text-sm text-text-secondary">Nothing here</p>
       ) : (
         <ul className="space-y-2">
           {rows.map((task) => (
