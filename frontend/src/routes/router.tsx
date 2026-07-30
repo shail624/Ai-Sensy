@@ -197,7 +197,7 @@ export const router = createBrowserRouter([
                   { path: "interested", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
                   { path: "pipeline", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
                   { path: "kyc", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "documents", element: <RequirePermission code="media:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
+                  { path: "documents", element: <RequirePermission code="documents:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
                   { path: "sim-orders", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
                   { path: "activation", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
                   { path: "completed", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },

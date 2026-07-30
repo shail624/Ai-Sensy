@@ -3,7 +3,7 @@
 > Single source of truth for project state. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-07-25 · verified from Git, frozen designs, generated contracts, and executable
+_Last updated: 2026-07-30 · verified from Git, frozen designs, generated contracts, and executable
 quality gates._
 
 ## Current state
@@ -11,27 +11,26 @@ quality gates._
 - **Branch:** `feature/module6-queue-engine`
 - **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
   `baseline/fr-con-04-release-ready` at `b565d0f`
-- **Migration head:** `0027_analytics` (27 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 133 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 902 tests passed · Ruff clean · raw strict mypy clean across
-  227 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 595 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Migration head:** `0028_contact_documents` (28 linear revisions, base `0001`)
+- **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
+- **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
+  232 source files (down from 251 findings; exact checker mypy 2.3.0)
+- **Frontend:** 600 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
-  the backend image boots with the 133-path contract; frontend nginx validates. The full production
-  stack was first built and executed on 2026-07-23; its isolated automated gate now validates all
-  service health, migrations, owner bootstrap, and project-scoped cleanup.
-- **Current phase:** Phase 3 — Reactivation Platform and Automation Foundations
+  the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
+  automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
+  read performance, and project-scoped cleanup.
+- **Current phase:** Phase 4A — Governed Customer Documents
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
-- **Deployed gate:** Playwright login → queued CSV import → persisted Customer 360 → Broadcast
-  Center → Analytics → Reactivation → Automation → Scan Studio → mobile Scan Studio journey passed
-  across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95 12.6 ms / 30
+- **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
+  passed across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95 19.4 ms / 30
   samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** reactivation platform and automation foundations — **RELEASE READY**
+- **Current milestone:** governed customer documents — **RELEASE READY**
 
 ## Completed deliverables
 
@@ -43,10 +42,12 @@ quality gates._
 | Templates + campaigns | Template registry, adaptive rate gate, campaign audience/dispatch/lifecycle/scheduling/cost, migrations `0017`–`0022` |
 | Inbox + work | Shared inbox, notes, quick replies, conversation tags, reactions, task/activity engine, migrations `0023`–`0026` |
 | Analytics | Rollups, queries, report exports, migration `0027` |
+| Governed customer documents | Contact-linked document records, immutable versions, verification/rejection, expiry, archive, audit/history, signed previews, and migration `0028` |
 | Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
 | Phase 1 product experience | Business-first responsive shell; command palette/search; premium dashboard and sign-in; customer 360; saved-view/bulk inbox; approval-ready campaign journey; Operations/Admin centers; honest Automation/Reactivation foundations |
 | Phase 2 customer engagement | Server-synchronized inbox custom views/pins; customer/notes/AI thread context; governed Broadcast Center; template favorites; segment recents; factual engagement funnel; export navigation; human-controlled AI integration seams |
-| Phase 3 reactivation + automation | Ten-route Reactivation workspace; ten-stage pipeline blueprint; 13-tab Customer 360; media-backed Document Center; analytics-backed reports; separate Scan Studio boundary; accessible non-executing automation canvas; document-summary AI seam |
+| Phase 3 reactivation + automation | Ten-route Reactivation workspace; ten-stage pipeline blueprint; 13-tab Customer 360; document boundary; analytics-backed reports; separate Scan Studio boundary; accessible non-executing automation canvas; document-summary AI seam |
+| Phase 4A governed documents | Tenant-scoped document workflow shared by Customer 360 and Reactivation; media reuse; least-privilege RBAC; optimistic concurrency; immutable version and decision evidence |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -64,8 +65,8 @@ quality gates._
 
 ## Remaining deliverables
 
-No repository implementation remains in Phase 3. Phase 4 is intentionally not started; its
-contract backlog is recorded in Design Document 18 and requires separate approval.
+No repository implementation remains in Phase 4A. The remaining Phase 4 contract backlog is
+recorded in Design Documents 18 and 19 and requires separately approved milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
 metrics/dashboards, alert firing and dead-man validation, and external synthetic checks. Full
 capacity certification remains a separate Performance Lab task. The AI assistant module remains
@@ -81,7 +82,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 653 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 679 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

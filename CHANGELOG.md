@@ -11,6 +11,27 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Phase 4A governed customer documents
+
+**Added**
+- Added tenant-scoped customer document records with immutable media-backed versions, human
+  verification/rejection, explicit expiry, archive, signed previews, audit history, customer
+  timeline projection, optimistic concurrency, and migration `0028`.
+- Added least-privilege `documents:read`, `documents:write`, and `documents:verify` permissions and
+  one shared premium document workspace for Customer 360 and Reactivation.
+- Added generated 141-path OpenAPI/TypeScript contracts, 10 backend API regressions, and 5 frontend
+  workflow regressions.
+
+**Fixed**
+- Updated the production backend image contract from the stale 133-path assertion to the verified
+  141-path contract. The failure was limited to release evidence; application APIs and behavior
+  were already correct and remain unchanged. Regression coverage now pins the image assertion.
+
+**Validated**
+- Passed 912 backend and 600 frontend tests, Ruff, strict mypy, ESLint, TypeScript, OpenAPI drift,
+  dependency/source/image security gates, production builds, image contracts/SBOMs, and the
+  isolated API/worker/queue/browser smoke gate (30-read p95 19.4 ms, budget <300 ms).
+
 ### 2026-07-25 — Phase 3 reactivation platform and automation foundations
 
 **Added**

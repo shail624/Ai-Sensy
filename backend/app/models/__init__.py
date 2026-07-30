@@ -28,6 +28,11 @@ from app.models.campaign import (
     CampaignSchedule,
 )
 from app.models.contact import Contact
+from app.models.contact_document import (
+    ContactDocument,
+    ContactDocumentEvent,
+    ContactDocumentVersion,
+)
 from app.models.contact_event import ContactEvent
 from app.models.conversation import Conversation
 from app.models.conversation_tag import conversation_tags
@@ -62,6 +67,9 @@ __all__ = [
     "CampaignRetry",
     "CampaignSchedule",
     "Contact",
+    "ContactDocument",
+    "ContactDocumentEvent",
+    "ContactDocumentVersion",
     "ContactAttributeValue",
     "ContactEvent",
     "Conversation",

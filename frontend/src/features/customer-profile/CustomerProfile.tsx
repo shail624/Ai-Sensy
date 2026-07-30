@@ -77,7 +77,7 @@ export function CustomerProfile({ contactId, extensionSlot, footer }: CustomerPr
       {tab === "timeline" ? <TimelineSection contactId={contactId} /> : null}
       {tab === "conversation" ? <ConversationHistorySection /> : null}
       {tab === "campaign-history" ? <CampaignHistorySection contactId={contactId} /> : null}
-      {tab === "documents" ? <DocumentsSection /> : null}
+      {tab === "documents" ? <DocumentsSection contactId={contactId} /> : null}
       {tab === "kyc" ? <ReactivationSection contact={person} focus="kyc" /> : null}
       {tab === "sim" ? <ReactivationSection contact={person} focus="sim" /> : null}
       {tab === "payments" ? <Section title="Payments" description="Revenue remains an explicit Phase 3 reporting placeholder."><EmptyState compact title="No payment contract" description="The platform processes no payment records and does not infer revenue from campaigns, tasks, or reactivation attributes." /></Section> : null}

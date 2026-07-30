@@ -36,8 +36,18 @@ EVENT_TASK_RESCHEDULED = "task_rescheduled"
 EVENT_TASK_COMPLETED = "task_completed"
 EVENT_TASK_CANCELLED = "task_cancelled"
 
+# Governed customer-document lifecycle (Design Book 19). These reuse the append-only timeline
+# contract exactly as tasks do; no contact_events DDL change is required.
+EVENT_DOCUMENT_CREATED = "document_created"
+EVENT_DOCUMENT_VERSION_ADDED = "document_version_added"
+EVENT_DOCUMENT_VERIFIED = "document_verified"
+EVENT_DOCUMENT_REJECTED = "document_rejected"
+EVENT_DOCUMENT_EXPIRED = "document_expired"
+EVENT_DOCUMENT_ARCHIVED = "document_archived"
+
 #: The ``ref_type`` used for all task timeline projections.
 REF_TYPE_TASK = "task"
+REF_TYPE_CONTACT_DOCUMENT = "contact_document"
 
 
 class ContactEvent(Base):

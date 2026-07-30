@@ -153,6 +153,7 @@ def test_backend_image_smoke_imports_the_worker_task_modules() -> None:
     command = image_contract.smoke_command("docker", "app:test", "backend")
     code = command[-1]
     assert "loader.import_default_modules()" in code
+    assert "len(app.openapi()['paths']) == 141" in code
     assert "startswith('app.')" in code
 
 

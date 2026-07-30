@@ -19,6 +19,19 @@ tests pass. Modules build strictly on top of the ones before them.
 | 10 | Admin & Ops | Audit logs, operations monitoring, settings, API keys, exports | **Complete for RC1 scope** |
 | 11 | Hardening & Deployment | E2E tests, load tests, observability, security review, production deployment guide | **In progress** |
 
+## Product experience milestones
+
+| Milestone | Delivers | Status |
+|---|---|---|
+| Phase 1 | Enterprise shell, dashboard, customer context, saved-workflow foundations | **Release ready** |
+| Phase 2 | Customer engagement workspace, governed broadcasts, factual analytics | **Release ready** |
+| Phase 3 | Reactivation workspace and non-executing automation/scan foundations | **Release ready** |
+| Phase 4A | Governed customer documents, immutable versions, human review, expiry and history | **Release ready** |
+
+The remaining Phase 4 domains are separately contract-gated in Design Documents 18 and 19. Module
+11 remains open only for target-environment commissioning and the isolated Performance Lab; no
+additional Phase 4 feature is implied by that operational status.
+
 ## Working agreement
 
 1. Build one module at a time; finish before starting the next.

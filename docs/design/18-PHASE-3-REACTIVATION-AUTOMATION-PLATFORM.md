@@ -81,4 +81,5 @@ with additive, reviewed contracts for the specific domain it intends to make ope
 6. Payment records and reactivation-specific analytics dimensions only if separately approved.
 7. AI provider, policy, interaction-record, approval, and audit contracts; never autonomous send.
 
-No item above is represented as implemented in the current repository.
+Phase 4A realized item 1 on 2026-07-30 through the additive contract in Design Document 19 and
+ADR-0008. Items 2–7 remain unimplemented and contract-gated; Phase 3 itself remains unchanged.
