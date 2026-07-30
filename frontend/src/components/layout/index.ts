@@ -4,6 +4,6 @@ export { TopNav } from "./TopNav";
 export { Breadcrumbs } from "./Breadcrumbs";
 export { PageContainer } from "./PageContainer";
 export { PageHeader } from "./PageHeader";
-export { navItems, visibleNavItems } from "./navigation";
+export { navItems, primaryNavItems, secondaryNavGroups, visibleNavItems } from "./navigation";
 export type { Crumb } from "./Breadcrumbs";
 export type { NavItem } from "./navigation";

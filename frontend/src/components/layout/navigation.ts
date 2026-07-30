@@ -55,6 +55,37 @@ export function visibleNavItems(hasPermission: (code: string) => boolean): NavIt
   return navItems.filter((item) => isVisible(item, hasPermission));
 }
 
+/**
+ * Keep the everyday customer-engagement loop visible. Every other entitled destination remains
+ * available through the sidebar's More section and workspace search.
+ */
+export const PRIMARY_NAV_PATHS = [
+  "/",
+  "/inbox",
+  "/contacts",
+  "/campaigns",
+  "/templates",
+  "/automation",
+  "/analytics",
+] as const;
+
+export function primaryNavItems(hasPermission: (code: string) => boolean): NavItem[] {
+  const visible = new Map(visibleNavItems(hasPermission).map((item) => [item.path, item]));
+  return PRIMARY_NAV_PATHS.flatMap((path) => {
+    const item = visible.get(path);
+    return item ? [item] : [];
+  });
+}
+
+export function secondaryNavGroups(
+  hasPermission: (code: string) => boolean,
+): { group: string; items: NavItem[] }[] {
+  const primary = new Set<string>(PRIMARY_NAV_PATHS);
+  return groupedNavItems(hasPermission)
+    .map(({ group, items }) => ({ group, items: items.filter((item) => !primary.has(item.path)) }))
+    .filter(({ items }) => items.length > 0);
+}
+
 /** Nav groups in display order, each with the visible items that belong to it. */
 export function groupedNavItems(
   hasPermission: (code: string) => boolean,

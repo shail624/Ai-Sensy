@@ -47,11 +47,21 @@ function renderAt(ui: React.ReactElement, path = "/") {
 }
 
 describe("Sidebar", () => {
-  it("renders every primary destination", () => {
+  it("keeps everyday destinations visible and places advanced areas under More", () => {
     renderAt(<Sidebar collapsed={false} />);
-    for (const label of ["Dashboard", "Contacts", "Inbox", "Campaigns", "Templates", "Media", "Analytics", "Settings"]) {
+    for (const label of ["Dashboard", "Inbox", "Contacts", "Campaigns", "Templates", "Automation", "Analytics"]) {
       expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+  });
+
+  it("automatically reveals More when an advanced destination is active", () => {
+    renderAt(<Sidebar collapsed={false} />, "/media");
+    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /media/i })).toHaveAttribute("aria-current", "page");
   });
 
   it("highlights the active route", () => {
@@ -85,10 +95,10 @@ describe("TopNav", () => {
 
   it("shows the application title and placeholders", () => {
     renderTopNav();
-    expect(screen.getByText("Business workspace")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /search workspace/i })).toBeEnabled();
+    expect(screen.getByText("WhatsApp Business")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /search contacts, chats or campaigns/i })).toBeEnabled();
     expect(screen.getByLabelText(/attention center/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/toggle color theme/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/toggle color theme/i)).not.toBeInTheDocument();
   });
 
   it("opens the account menu", () => {
@@ -100,6 +110,7 @@ describe("TopNav", () => {
     const menu = screen.getByRole("menu");
     // The name also shows in the top-bar trigger, so scope the assertion to the open menu.
     expect(within(menu).getByText("Priya Sharma")).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /switch to dark mode/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(logout).toHaveBeenCalled();
   });
@@ -133,15 +144,15 @@ describe("PageHeader", () => {
 });
 
 describe("DashboardPage", () => {
-  it("links every module card to its destination", () => {
+  it("shows a focused set of everyday quick links", () => {
     renderAt(<DashboardPage />);
-    // The dashboard also surfaces quick shortcuts and hero CTAs that point at the same modules, so
-    // the canonical module cards are asserted within the "Explore" (Modules) region specifically.
-    const modules = within(screen.getByRole("region", { name: "Modules" }));
-    expect(modules.getByRole("link", { name: /contacts/i })).toHaveAttribute("href", "/contacts");
-    expect(modules.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
-    expect(modules.getByRole("link", { name: /templates/i })).toHaveAttribute("href", "/templates");
-    expect(modules.getByRole("link", { name: /media/i })).toHaveAttribute("href", "/media");
+    const quickLinks = within(screen.getByRole("navigation", { name: "Quick links" }));
+    expect(quickLinks.getByRole("link", { name: /inbox/i })).toHaveAttribute("href", "/inbox");
+    expect(quickLinks.getByRole("link", { name: /contacts/i })).toHaveAttribute("href", "/contacts");
+    expect(quickLinks.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
+    expect(quickLinks.getByRole("link", { name: /analytics/i })).toHaveAttribute("href", "/analytics");
+    expect(quickLinks.queryByRole("link", { name: /automation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Modules" })).not.toBeInTheDocument();
   });
 
   // The cards exclude Settings, and every other destination is now built, so nothing on the

@@ -15,7 +15,7 @@ quality gates._
 - **OpenAPI:** 3.1.0 · 141 paths · `frontend/openapi.json` verified against the live app
 - **Backend:** 912 tests passed · Ruff clean · raw strict mypy clean across
   232 source files (down from 251 findings; exact checker mypy 2.3.0)
-- **Frontend:** 600 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 602 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 141-path/23-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
@@ -82,7 +82,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 679 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 677 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

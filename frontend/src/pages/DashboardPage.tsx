@@ -1,7 +1,6 @@
 import {
   Activity,
   ArrowUpRight,
-  BrainCircuit,
   CheckCircle2,
   Clock3,
   Eye,
@@ -9,15 +8,14 @@ import {
   MessageSquareText,
   Send,
   ServerCog,
-  Sparkles,
   TriangleAlert,
   UserPlus,
 } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { Breadcrumbs, PageContainer, PageHeader, visibleNavItems } from "@/components/layout";
-import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, SkeletonStat, StatCard } from "@/components/ui";
+import { PageContainer, PageHeader, primaryNavItems } from "@/components/layout";
+import { Badge, Button, Card, CardHeader, Skeleton, SkeletonStat, StatCard } from "@/components/ui";
 import {
   useAnalyticsFreshness,
   useAnalyticsSeries,
@@ -163,7 +161,7 @@ function SystemHealthCard(): JSX.Element {
         action={
           <Link to="/operations">
             <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>
-              Operations
+              View
             </Button>
           </Link>
         }
@@ -191,17 +189,21 @@ export function DashboardPage(): JSX.Element {
   const canContacts = useHasPermission("contacts:read");
   const firstName = user?.full_name.trim().split(/\s+/)[0] ?? "there";
 
-  const exploreCards = visibleNavItems(hasPermission).filter(
-    (item) => item.path !== "/" && item.path !== "/settings",
+  const quickLinks = primaryNavItems(hasPermission).filter(
+    (item) => item.path !== "/" && item.path !== "/automation",
   );
+  const setupActions = [
+    hasPermission("waba:read") ? { label: "Connect a WhatsApp number", path: "/settings/whatsapp" } : null,
+    hasPermission("segments:read") ? { label: "Organize contacts into segments", path: "/segments" } : null,
+    hasPermission("system:read") ? { label: "Review delivery attention", path: "/operations/queues" } : null,
+  ].filter((item): item is { label: string; path: string } => item !== null);
 
   return (
     <PageContainer>
-      <Breadcrumbs items={[{ label: "Dashboard" }]} />
       <PageHeader
-        eyebrow="Executive workspace"
+        eyebrow="Overview"
         title={`${greeting()}, ${firstName}`}
-        description="A live view of customer engagement, team workload, and delivery health."
+        description="Your customer conversations, campaigns, and follow-ups at a glance."
         meta={canAnalytics ? <FreshnessBadge /> : undefined}
         actions={
           <>
@@ -258,8 +260,8 @@ export function DashboardPage(): JSX.Element {
               description="Your most-used areas"
               icon={<MessageSquareText aria-hidden className="h-[18px] w-[18px]" />}
             />
-            <div className="mt-3 grid grid-cols-1 gap-1">
-              {exploreCards.slice(0, 6).map((item) => {
+            <nav aria-label="Quick links" className="mt-3 grid grid-cols-1 gap-1">
+              {quickLinks.slice(0, 5).map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -278,13 +280,12 @@ export function DashboardPage(): JSX.Element {
                   </Link>
                 );
               })}
-            </div>
+            </nav>
           </Card>
         </div>
       </div>
 
-      {/* Explore — everything the user can reach, never an empty page */}
-      <section aria-label="Workspace guidance" className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <section aria-label="Continue working" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader
             title="Recently viewed"
@@ -311,38 +312,14 @@ export function DashboardPage(): JSX.Element {
           </div>
         </Card>
 
-        <Card>
+        {setupActions.length > 0 ? <Card>
           <CardHeader
-            title="AI insights"
-            description="Decision support with human control"
-            icon={<BrainCircuit aria-hidden className="h-[18px] w-[18px]" />}
-          />
-          <div className="mt-3 rounded-xl border border-border bg-surface-subtle p-4">
-            <div className="flex items-center gap-2">
-              <Badge tone="neutral">Not enabled</Badge>
-              <span className="text-xs text-text-secondary">No generated claims</span>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-              Insights will only appear after an approved AI provider and review policy are configured.
-            </p>
-            <Link to="/automation" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
-              View automation foundation <ArrowUpRight aria-hidden className="h-4 w-4" />
-            </Link>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Workspace setup"
-            description="Three useful places to start"
-            icon={<Sparkles aria-hidden className="h-[18px] w-[18px]" />}
+            title="Getting started"
+            description="Complete the essentials"
+            icon={<CheckCircle2 aria-hidden className="h-[18px] w-[18px]" />}
           />
           <div className="mt-3 space-y-2">
-            {[
-              { label: "Connect a WhatsApp number", path: "/settings/whatsapp" },
-              { label: "Organize contacts into segments", path: "/segments" },
-              { label: "Review delivery attention", path: "/operations/queues" },
-            ].map((item, index) => (
+            {setupActions.map((item, index) => (
               <Link key={item.path} to={item.path} className="flex items-center gap-3 rounded-lg p-2 hover:bg-hover">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
                   {index + 1}
@@ -351,46 +328,7 @@ export function DashboardPage(): JSX.Element {
               </Link>
             ))}
           </div>
-        </Card>
-      </section>
-
-      <section aria-label="Modules">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">Explore</h2>
-        {exploreCards.length === 0 ? (
-          <Card>
-            <EmptyState
-              title="Nothing to show yet"
-              description="Your account doesn't have access to any modules. Ask an administrator to grant a role."
-            />
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {exploreCards.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link key={item.path} to={item.path} aria-label={item.label} className="group">
-                  <Card interactive className="flex h-full items-start gap-4">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-accent-fg">
-                      <Icon aria-hidden className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-semibold text-text-primary">{item.label}</span>
-                        <ArrowUpRight
-                          aria-hidden
-                          className="h-4 w-4 text-text-disabled opacity-0 transition-opacity group-hover:opacity-100"
-                        />
-                      </span>
-                      <span className="mt-1 block text-sm leading-relaxed text-text-secondary">
-                        {item.description}
-                      </span>
-                    </span>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        </Card> : null}
       </section>
     </PageContainer>
   );

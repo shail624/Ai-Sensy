@@ -1,7 +1,6 @@
 import {
   Bell,
   ChevronDown,
-  CircleHelp,
   Contact,
   Menu,
   MessageSquareText,
@@ -106,8 +105,8 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
         </button>
 
         <div className="hidden min-w-0 sm:block">
-          <p className="truncate text-sm font-semibold text-text-primary">Business workspace</p>
-          <p className="truncate text-[11px] text-text-disabled">WhatsApp operations · release workspace</p>
+          <p className="truncate text-sm font-semibold text-text-primary">WhatsApp Business</p>
+          <p className="truncate text-[11px] text-text-disabled">Customer engagement</p>
         </div>
 
         <button
@@ -116,7 +115,7 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
           className="mx-auto flex h-10 min-w-0 max-w-md flex-1 items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 text-left text-sm text-text-secondary transition-colors hover:border-border-strong hover:bg-hover md:mx-6"
         >
           <Search aria-hidden className="h-4 w-4 shrink-0 text-text-disabled" />
-          <span className="truncate">Search workspace</span>
+          <span className="truncate">Search contacts, chats or campaigns</span>
           <kbd className="ml-auto hidden rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-text-disabled sm:inline">⌘K</kbd>
         </button>
 
@@ -159,17 +158,11 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
             </div>
           ) : null}
 
-          <button type="button" aria-label="Help and keyboard shortcuts" onClick={() => setHelpOpen(true)} className={`hidden sm:flex ${iconBtn}`}>
-            <CircleHelp aria-hidden className="h-[18px] w-[18px]" />
-          </button>
           <button type="button" aria-label={`Attention center${attentionCount ? `, ${attentionCount} alerts` : ""}`} onClick={() => setAttentionOpen(true)} className={`relative ${iconBtn}`}>
             <Bell aria-hidden className="h-[18px] w-[18px]" />
             {attentionCount > 0 ? (
               <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white ring-2 ring-surface">{attentionCount}</span>
             ) : null}
-          </button>
-          <button type="button" aria-label="Toggle color theme" onClick={toggle} className={iconBtn}>
-            {resolvedTheme === "dark" ? <Sun aria-hidden className="h-[18px] w-[18px]" /> : <Moon aria-hidden className="h-[18px] w-[18px]" />}
           </button>
           <div className="relative">
             <button
@@ -193,6 +186,11 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
                   </div>
                 ) : null}
                 <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); navigate("/settings/preferences"); }} className="block w-full rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">Preferences</button>
+                <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); toggle(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">
+                  {resolvedTheme === "dark" ? <Sun aria-hidden className="h-4 w-4" /> : <Moon aria-hidden className="h-4 w-4" />}
+                  Switch to {resolvedTheme === "dark" ? "light" : "dark"} mode
+                </button>
+                <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); setHelpOpen(true); }} className="block w-full rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">Keyboard shortcuts</button>
                 <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); void logout(); }} className="block w-full rounded-lg px-3 py-2 text-left text-danger hover:bg-danger-soft">Sign out</button>
               </div>
             ) : null}

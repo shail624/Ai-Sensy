@@ -6,7 +6,7 @@ import { useWorkspacePreferences } from "@/lib/workspace";
 
 import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
-import { navItems } from "./navigation";
+import { navItems, primaryNavItems } from "./navigation";
 
 const COLLAPSE_KEY = "wa.sidebar.collapsed";
 
@@ -62,9 +62,9 @@ export function AppLayout(): JSX.Element {
     // `recordRecent` is stable per signed-in user; pathname/search are the intended triggers.
   }, [location.pathname, location.search, recordRecent]);
 
-  const mobileItems = navItems.filter((item) =>
+  const mobileItems = primaryNavItems(hasPermission).filter((item) =>
     ["/", "/inbox", "/campaigns", "/contacts"].includes(item.path),
-  ).filter((item) => item.anyPermission ? item.anyPermission.some(hasPermission) : !item.permission || hasPermission(item.permission));
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas text-text-primary">

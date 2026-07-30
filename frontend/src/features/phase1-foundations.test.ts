@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { navItems, visibleNavItems } from "@/components/layout/navigation";
+import { navItems, primaryNavItems, secondaryNavGroups, visibleNavItems } from "@/components/layout/navigation";
 import { OPERATIONS_SECTIONS } from "@/features/operations/sections";
 import { REACTIVATION_SECTIONS } from "@/features/reactivation/sections";
 
@@ -14,6 +14,15 @@ describe("Phase 1 information architecture", () => {
   it("keeps technical controls out of the business workspace", () => {
     expect(navItems.find((item) => item.label === "Operations")?.group).toBe("Platform");
     expect(navItems.find((item) => item.label === "Admin")?.group).toBe("Platform");
+  });
+
+  it("keeps the default sidebar focused without removing entitled destinations", () => {
+    expect(primaryNavItems(() => true).map((item) => item.label)).toEqual([
+      "Dashboard", "Inbox", "Contacts", "Campaigns", "Templates", "Automation", "Analytics",
+    ]);
+    const secondary = secondaryNavGroups(() => true).flatMap((group) => group.items);
+    expect(secondary.map((item) => item.label)).toContain("Media");
+    expect(secondary.map((item) => item.label)).toContain("Settings");
   });
 
   it("does not expose permission-gated modules without an entitlement", () => {

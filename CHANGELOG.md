@@ -11,6 +11,22 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Simplified customer workspace
+
+**Changed**
+- Reduced the default sidebar from the full module catalog to seven everyday destinations; all
+  entitled advanced, operational, and administrative areas remain available through one expanded
+  `More` section and workspace search.
+- Removed duplicate favorite links from the sidebar, moved theme and shortcut help into the account
+  menu, simplified workspace language, and aligned desktop/mobile navigation order.
+- Replaced the dashboard's repeated all-module catalog and disabled AI placeholder with focused
+  quick links, recent work, permission-aware setup guidance, and the existing live business signals.
+
+**Validated**
+- Passed 602 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production
+  frontend image and completed an authenticated visual audit at 1280 × 800 and 390 × 844 with no
+  horizontal overflow; advanced routes remained reachable through `More`.
+
 ### 2026-07-30 — Phase 4A governed customer documents
 
 **Added**

@@ -61,3 +61,12 @@ Administration, and Settings.
   startup verified; real browser journey passed; p95 6.1 ms across 30 reads.
 - Mobile sign-in audit: no horizontal overflow, one heading, labelled inputs, visible focus, and 44 px
   form controls.
+
+## 2026-07-30 simplicity refinement
+
+The responsive shell now keeps Dashboard, Inbox, Contacts, Campaigns, Templates, Automation, and
+Analytics visible by default. Every other permission-authorized route remains under one `More`
+control and in workspace search. Theme and shortcut help moved into the account menu; favorites
+remain available through search without duplicating sidebar destinations. The dashboard now favors
+live signals, common actions, recent work, and permission-aware onboarding instead of repeating the
+full module catalog. No route, permission, API, schema, queue, tenant, or business behavior changed.
