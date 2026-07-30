@@ -43,8 +43,8 @@ export function CampaignReviewStep({ form, delivery, schedule, campaignId }: Pro
   const shape = templateShape(template);
 
   return (
-    <div className="space-y-4">
-      <dl className="rounded-lg border border-border bg-surface px-4 py-2">
+    <div className="grid gap-4 lg:grid-cols-2">
+      <dl className="rounded-xl border border-border bg-surface-subtle px-4 py-2">
         <DefinitionRow label="Name">{values.name || "—"}</DefinitionRow>
         <DefinitionRow label="Send from">
           {number ? `${number.display_number}${number.verified_name ? ` — ${number.verified_name}` : ""}` : "—"}
@@ -77,29 +77,37 @@ export function CampaignReviewStep({ form, delivery, schedule, campaignId }: Pro
       </dl>
 
       {template ? (
-        <div className="rounded-lg border border-border bg-surface-2 p-3">
-          <p className="text-xs font-medium text-text-secondary">Message</p>
-          {shape.headerText ? (
-            <p className="mt-2 text-sm font-semibold text-text-primary">{shape.headerText}</p>
-          ) : null}
-          <p className="mt-1 whitespace-pre-wrap text-sm text-text-primary">{shape.bodyText}</p>
-          {shape.footerText ? (
-            <p className="mt-1 text-xs text-text-disabled">{shape.footerText}</p>
-          ) : null}
+        <div className="rounded-xl border border-border bg-surface-subtle p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            Customer message
+          </p>
+          <div className="mt-3 rounded-xl border border-border bg-surface p-4 shadow-sm">
+            {shape.headerText ? (
+              <p className="text-sm font-semibold text-text-primary">{shape.headerText}</p>
+            ) : null}
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
+              {shape.bodyText}
+            </p>
+            {shape.footerText ? (
+              <p className="mt-2 text-xs text-text-disabled">{shape.footerText}</p>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {campaignId ? (
-        <CampaignPreviewPanel campaignId={campaignId} />
+        <div className="lg:col-span-2">
+          <CampaignPreviewPanel campaignId={campaignId} />
+        </div>
       ) : (
-        <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary">
+        <p className="rounded-lg border border-border bg-surface-subtle px-3 py-2.5 text-xs leading-relaxed text-text-secondary lg:col-span-2">
           The exact audience size, opt-out exclusions and cost estimate are computed from the
           roster once the draft is created — they are shown on the campaign page, before you send.
         </p>
       )}
 
       {delivery === "now" ? (
-        <p className="rounded-md border border-warning px-3 py-2 text-sm text-warning">
+        <p className="rounded-lg border border-warning bg-warning-soft px-3 py-2.5 text-sm text-warning-on-soft lg:col-span-2">
           This sends real WhatsApp messages as soon as the campaign is created. Messages already
           handed to Meta cannot be unsent.
         </p>

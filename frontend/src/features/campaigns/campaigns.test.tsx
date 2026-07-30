@@ -8,6 +8,7 @@ import { CampaignProgressBar, CampaignStatusChip } from "@/features/campaigns/Ca
 import { CampaignFilters } from "@/features/campaigns/CampaignFilters";
 import { CampaignTable } from "@/features/campaigns/CampaignTable";
 import { CampaignTimeline } from "@/features/campaigns/CampaignTimeline";
+import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgress";
 import {
   campaignToForm,
   duplicateToForm,
@@ -314,6 +315,46 @@ describe("campaignForm", () => {
   it("carries row_version on an update so a concurrent edit conflicts instead of overwriting", () => {
     const campaign = campaignFixture({ row_version: 7 });
     expect(toUpdateRequest(campaignToForm(campaign), campaign.row_version).row_version).toBe(7);
+  });
+});
+
+describe("CampaignWizardProgress", () => {
+  const steps = [
+    { key: "audience", label: "Audience" },
+    { key: "template", label: "Template" },
+    { key: "preview", label: "Preview" },
+    { key: "schedule", label: "Schedule" },
+    { key: "approval", label: "Approval" },
+    { key: "confirmation", label: "Confirmation" },
+  ];
+
+  it("shows the complete governed journey without a separate scrolling tab strip", () => {
+    render(
+      <CampaignWizardProgress
+        steps={steps}
+        currentIndex={0}
+        includeAnalytics
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const navigation = screen.getByRole("navigation", { name: "Wizard steps" });
+    expect(within(navigation).getByText("Audience")).toBeInTheDocument();
+    expect(within(navigation).getByText("Confirmation")).toBeInTheDocument();
+    expect(within(navigation).getByText("Analytics")).toBeInTheDocument();
+    expect(navigation).not.toHaveClass("overflow-x-auto");
+  });
+
+  it("marks the current step and only lets operators revisit completed steps", () => {
+    const onSelect = vi.fn();
+    render(<CampaignWizardProgress steps={steps} currentIndex={2} onSelect={onSelect} />);
+
+    const current = screen.getByRole("button", { name: /preview/i });
+    expect(current).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: /schedule/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /audience/i }));
+    expect(onSelect).toHaveBeenCalledWith(0);
   });
 });
 

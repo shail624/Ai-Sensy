@@ -1,4 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  ArrowRight,
+  CalendarClock,
+  ChevronLeft,
+  CircleCheckBig,
+  Eye,
+  LayoutTemplate,
+  Save,
+  Send,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +27,7 @@ import {
 import { CampaignAudienceStep } from "@/features/campaigns/CampaignAudienceStep";
 import { CampaignBasicsStep } from "@/features/campaigns/CampaignBasicsStep";
 import { CampaignScheduleFields } from "@/features/campaigns/CampaignScheduleFields";
+import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgress";
 import type { Delivery } from "@/features/campaigns/CampaignReviewStep";
 import { CampaignReviewStep } from "@/features/campaigns/CampaignReviewStep";
 import type { CampaignFormValues } from "@/features/campaigns/campaignForm";
@@ -41,6 +54,42 @@ const STEP_LABELS: Record<StepKey, string> = {
   review: "Confirmation",
 };
 
+const STEP_META: Record<
+  StepKey,
+  { title: string; description: string; icon: typeof UsersRound }
+> = {
+  audience: {
+    title: "Choose your audience",
+    description: "Select one saved audience source. Opted-out and invalid contacts stay protected by the server.",
+    icon: UsersRound,
+  },
+  basics: {
+    title: "Select the message",
+    description: "Name the campaign, choose a WhatsApp number, and use an approved template.",
+    icon: LayoutTemplate,
+  },
+  preview: {
+    title: "Preview the experience",
+    description: "Check the audience, sender, message, and personalization before choosing delivery.",
+    icon: Eye,
+  },
+  delivery: {
+    title: "Choose delivery",
+    description: "Keep a draft, send immediately, or schedule delivery for the right time.",
+    icon: CalendarClock,
+  },
+  approval: {
+    title: "Confirm readiness",
+    description: "Complete the human checkpoint required before a delivery action can continue.",
+    icon: ShieldCheck,
+  },
+  review: {
+    title: "Review and confirm",
+    description: "One final summary before the existing campaign service creates the draft or starts delivery.",
+    icon: CircleCheckBig,
+  },
+};
+
 /** Which fields each step owns, so "Next" validates only what is on screen. */
 const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
   audience: ["audience_type", "segment_id", "tag_ids", "contact_ids"],
@@ -51,8 +100,10 @@ const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
   review: [],
 };
 
-const BUTTON_CLASS = "rounded-md border border-border px-3 py-1.5 text-sm hover:bg-hover disabled:opacity-50";
-const PRIMARY_CLASS = "rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg disabled:opacity-50";
+const BUTTON_CLASS =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50";
+const PRIMARY_CLASS =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent-strong disabled:opacity-50";
 
 interface Props {
   /** Absent → create a new campaign; present → edit that campaign's definition. */
@@ -126,6 +177,8 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
   }, [template, getValues, setValue]);
 
   const step = steps[stepIndex] ?? "basics";
+  const stepMeta = STEP_META[step];
+  const StepIcon = stepMeta.icon;
   const isLast = stepIndex === steps.length - 1;
 
   const pending =
@@ -178,65 +231,51 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
   if (templates.isLoading) return <Spinner label="Loading…" />;
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className="mb-5 overflow-x-auto pb-1">
-      <nav aria-label="Wizard steps" className="flex min-w-max items-center gap-1 rounded-xl border border-border bg-surface-subtle p-1.5">
-        {steps.map((key, index) => (
-          <button
-            key={key}
-            type="button"
-            // Only completed steps are reachable by clicking; going forward runs validation.
-            disabled={index > stepIndex}
-            onClick={() => setStepIndex(index)}
-            aria-current={index === stepIndex ? "step" : undefined}
-            className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-              index === stepIndex
-                ? "bg-surface text-accent shadow-sm ring-1 ring-border"
-                : index < stepIndex
-                  ? "text-text-secondary hover:bg-hover"
-                  : "text-text-disabled"
-            }`}
-          >
-            {index + 1}. {STEP_LABELS[key]}
-          </button>
-        ))}
-        {!editing ? (
-          <span className="rounded-lg px-3 py-2 text-sm font-semibold text-text-disabled" aria-label="Analytics becomes available after launch">
-            {steps.length + 1}. Analytics
-          </span>
-        ) : null}
-      </nav>
-      </div>
+    <form onSubmit={onSubmit} className="mx-auto max-w-5xl">
+      <CampaignWizardProgress
+        steps={steps.map((key) => ({ key, label: STEP_LABELS[key] }))}
+        currentIndex={stepIndex}
+        includeAnalytics={!editing}
+        onSelect={setStepIndex}
+      />
 
-      <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+      <section className="mt-4 overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+        <header className="flex items-start gap-3 border-b border-border bg-surface-subtle px-4 py-4 sm:px-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <StepIcon aria-hidden className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+              Step {stepIndex + 1} of {steps.length}
+            </p>
+            <h2 className="mt-0.5 text-lg font-bold text-text-primary">{stepMeta.title}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-text-secondary">{stepMeta.description}</p>
+          </div>
+        </header>
+
+        <div className="p-4 sm:p-5">
         {step === "basics" ? <CampaignBasicsStep form={form} /> : null}
         {step === "audience" ? <CampaignAudienceStep form={form} /> : null}
         {step === "preview" ? (
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-lg font-bold text-text-primary">Preview the customer experience</h2>
-              <p className="mt-1 text-sm text-text-secondary">Confirm the audience, template, sender, and variable mapping before choosing delivery.</p>
-            </div>
-            <CampaignReviewStep form={form} delivery="draft" schedule={schedule} campaignId={campaign?.id} />
-          </div>
+          <CampaignReviewStep form={form} delivery="draft" schedule={schedule} campaignId={campaign?.id} />
         ) : null}
         {step === "delivery" ? (
           <div className="space-y-4">
             <fieldset>
-              <legend className="text-xs font-medium text-text-secondary">When to send</legend>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <legend className="sr-only">When to send</legend>
+              <div className="grid gap-3 sm:grid-cols-3">
                 {(
                   [
-                    ["draft", "Save as draft"],
-                    ["now", "Send immediately"],
-                    ["schedule", "Schedule"],
+                    ["draft", "Save as draft", "Finish setup later", Save],
+                    ["now", "Send now", "Start after confirmation", Send],
+                    ["schedule", "Schedule", "Choose date or sequence", CalendarClock],
                   ] as const
-                ).map(([value, label]) => (
+                ).map(([value, label, description, Icon]) => (
                   <label
                     key={value}
-                    className={`cursor-pointer rounded-md border px-3 py-1 text-sm ${
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
                       delivery === value
-                        ? "border-accent text-accent"
+                        ? "border-accent bg-accent-soft text-accent ring-1 ring-accent"
                         : "border-border text-text-secondary hover:bg-hover"
                     }`}
                   >
@@ -251,14 +290,22 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
                       }}
                       className="sr-only"
                     />
-                    {label}
+                    <Icon aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-semibold text-text-primary">{label}</span>
+                      <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
+                        {description}
+                      </span>
+                    </span>
                   </label>
                 ))}
               </div>
             </fieldset>
 
             {delivery === "schedule" ? (
-              <CampaignScheduleFields draft={schedule} onChange={setSchedule} />
+              <div className="rounded-xl border border-border bg-surface-subtle p-4">
+                <CampaignScheduleFields draft={schedule} onChange={setSchedule} />
+              </div>
             ) : null}
 
             {scheduleError ? <ErrorState message={scheduleError} /> : null}
@@ -266,12 +313,12 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
         ) : null}
         {step === "approval" ? (
           <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-bold text-text-primary">Approval readiness</h2>
-              <p className="mt-1 text-sm text-text-secondary">Review accountability before the final send decision.</p>
-            </div>
-            <div className="rounded-xl border border-info bg-info-soft p-4 text-sm text-info-on-soft">
-              No server-side approval workflow is configured. Existing campaign permissions remain the source of authority; this checkpoint does not change the API or dispatch rules.
+            <div className="flex items-start gap-3 rounded-xl border border-info bg-info-soft p-4 text-sm text-info-on-soft">
+              <ShieldCheck aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>
+                No server-side approval workflow is configured. Existing campaign permissions remain
+                the source of authority; this checkpoint does not change dispatch rules.
+              </p>
             </div>
             {delivery === "draft" ? (
               <div className="rounded-xl border border-border bg-surface-subtle p-4 text-sm text-text-secondary">Drafts do not send messages and need no delivery acknowledgement.</div>
@@ -294,7 +341,8 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
             campaignId={campaign?.id}
           />
         ) : null}
-      </div>
+        </div>
+      </section>
 
       {submitError ? (
         <div className="mt-3">
@@ -302,7 +350,7 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
         </div>
       ) : null}
 
-      <div className="sticky bottom-0 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/95 p-3 shadow-lg backdrop-blur">
+      <div className="sticky bottom-3 z-30 mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface/95 p-3 shadow-lg backdrop-blur">
         <button
           type="button"
           className={BUTTON_CLASS}
@@ -312,8 +360,14 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
               : setStepIndex((index) => index - 1)
           }
         >
+          {stepIndex > 0 ? <ChevronLeft aria-hidden className="h-4 w-4" /> : null}
           {stepIndex === 0 ? "Cancel" : "Back"}
         </button>
+
+        <div className="hidden min-w-0 flex-1 text-center sm:block">
+          <p className="truncate text-xs font-semibold text-text-primary">{STEP_LABELS[step]}</p>
+          <p className="mt-0.5 text-[11px] text-text-disabled">Nothing sends before confirmation</p>
+        </div>
 
         {isLast ? (
           <button type="submit" disabled={pending} className={PRIMARY_CLASS}>
@@ -326,10 +380,12 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
                   : delivery === "schedule"
                     ? "Create and schedule"
                     : "Create draft"}
+            {!pending ? <CircleCheckBig aria-hidden className="h-4 w-4" /> : null}
           </button>
         ) : (
           <button type="button" disabled={step === "approval" && delivery !== "draft" && !approvalAcknowledged} onClick={() => void next()} className={PRIMARY_CLASS}>
             Continue
+            <ArrowRight aria-hidden className="h-4 w-4" />
           </button>
         )}
       </div>

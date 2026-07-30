@@ -11,6 +11,23 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Guided campaign journey
+
+**Changed**
+- Replaced the horizontally scrolling campaign step tabs with a compact progress rail that fits the
+  full Audience → Template → Preview → Schedule → Approval → Confirmation journey and preserves
+  completed-step navigation.
+- Added consistent step context, larger accessible controls, audience and delivery choice cards,
+  customer-facing message previews, a compact final review, and clearer sticky actions across create,
+  duplicate, and edit flows.
+- Kept the existing AI planning foundation available as an optional collapsed section so the default
+  campaign journey stays focused. Campaign APIs, permissions, schedules, approval checkpoint,
+  validation, dispatch authority, and business behavior are unchanged.
+
+**Validated**
+- Passed 610 frontend tests, ESLint, TypeScript, the production build, the frontend image contract,
+  container health, and a direct production-route smoke check for `/campaigns/new`.
+
 ### 2026-07-30 — Simplified customer workspace
 
 **Added**

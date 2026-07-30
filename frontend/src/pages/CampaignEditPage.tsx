@@ -55,7 +55,7 @@ export function CampaignEditPage(): JSX.Element {
           { label: "Edit" },
         ]}
       />
-      <PageHeader title={`Edit "${data.name}"`} />
+      <PageHeader eyebrow="Campaign builder" title={`Edit "${data.name}"`} />
 
       {isEditable(data) ? (
         <CampaignWizard campaign={data} initialValues={campaignToForm(data)} />

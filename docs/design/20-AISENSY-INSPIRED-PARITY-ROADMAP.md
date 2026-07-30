@@ -72,7 +72,11 @@ These must not be represented by mock cards or fake data.
 
 ### UX-3 — Campaign and retargeting shortcuts
 
-- Add marketer-friendly audience presets over existing segment and message-event facts.
+- **UI-3A delivered:** the existing six-step builder now uses a compact, scroll-free progress rail,
+  guided step headers, audience and delivery choice cards, customer-facing message previews, and a
+  concise final review. Optional AI foundations remain available but collapsed by default.
+- **UI-3B remaining:** marketer-friendly audience presets over existing segment and message-event
+  facts.
 - Keep the existing governed Audience → Template → Preview → Schedule → Approval → Confirmation →
   Analytics path as the only dispatch authority.
 

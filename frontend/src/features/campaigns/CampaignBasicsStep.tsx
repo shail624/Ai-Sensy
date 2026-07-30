@@ -1,3 +1,4 @@
+import { MessageCircle } from "lucide-react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
@@ -6,8 +7,8 @@ import type { CampaignFormValues } from "@/features/campaigns/campaignForm";
 import { MAPPABLE_FIELDS, templateShape } from "@/features/campaigns/templateShape";
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary";
-const LABEL_CLASS = "text-xs font-medium text-text-secondary";
+  "min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent-soft";
+const LABEL_CLASS = "mb-1.5 block text-sm font-semibold text-text-primary";
 
 interface Props {
   form: UseFormReturn<CampaignFormValues>;
@@ -51,17 +52,23 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label htmlFor="campaign-name" className={LABEL_CLASS}>
-          Campaign name
-        </label>
-        <input id="campaign-name" {...register("name")} className={FIELD_CLASS} />
-        {errors.name ? <p className="text-xs text-danger">{errors.name.message}</p> : null}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-surface-subtle p-4">
         <div>
+          <label htmlFor="campaign-name" className={LABEL_CLASS}>
+            Campaign name
+          </label>
+          <input
+            id="campaign-name"
+            {...register("name")}
+            placeholder="e.g. July reactivation offer"
+            className={FIELD_CLASS}
+          />
+          {errors.name ? <p className="mt-1 text-xs text-danger">{errors.name.message}</p> : null}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
           <label htmlFor="campaign-number" className={LABEL_CLASS}>
             Send from
           </label>
@@ -76,18 +83,18 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
             ))}
           </select>
           {errors.phone_number_id ? (
-            <p className="text-xs text-danger">{errors.phone_number_id.message}</p>
+            <p className="mt-1 text-xs text-danger">{errors.phone_number_id.message}</p>
           ) : null}
           {(numbers.data ?? []).length === 0 ? (
             <p className="mt-1 text-xs text-text-disabled">
               No WhatsApp numbers are connected yet.
             </p>
           ) : null}
-        </div>
+          </div>
 
-        <div>
+          <div>
           <label htmlFor="campaign-template" className={LABEL_CLASS}>
-            Template
+            Approved template
           </label>
           <select id="campaign-template" {...register("template_id")} className={FIELD_CLASS}>
             <option value="">Choose a template…</option>
@@ -98,35 +105,43 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
             ))}
           </select>
           {errors.template_id ? (
-            <p className="text-xs text-danger">{errors.template_id.message}</p>
+            <p className="mt-1 text-xs text-danger">{errors.template_id.message}</p>
           ) : null}
           {sendable.length === 0 ? (
             <p className="mt-1 text-xs text-text-disabled">
               No approved templates are available to broadcast.
             </p>
           ) : null}
+          </div>
         </div>
       </div>
 
       {template ? (
-        <div className="rounded-lg border border-border bg-surface-2 p-3">
-          <p className="text-xs font-medium text-text-secondary">Template preview</p>
-          {shape.mediaHeaderFormat ? (
-            <p className="mt-2 text-xs text-text-disabled">
-              {shape.mediaHeaderFormat} header
+        <div className="rounded-xl border border-border bg-surface-subtle p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+            <MessageCircle aria-hidden className="h-4 w-4 text-accent" />
+            Customer preview
+          </div>
+          <div className="max-w-xl rounded-xl border border-border bg-surface p-4 shadow-sm">
+            {shape.mediaHeaderFormat ? (
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-disabled">
+                {shape.mediaHeaderFormat} header
+              </p>
+            ) : shape.headerText ? (
+              <p className="text-sm font-semibold text-text-primary">{shape.headerText}</p>
+            ) : null}
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
+              {shape.bodyText}
             </p>
-          ) : shape.headerText ? (
-            <p className="mt-2 text-sm font-semibold text-text-primary">{shape.headerText}</p>
-          ) : null}
-          <p className="mt-1 whitespace-pre-wrap text-sm text-text-primary">{shape.bodyText}</p>
-          {shape.footerText ? (
-            <p className="mt-1 text-xs text-text-disabled">{shape.footerText}</p>
-          ) : null}
+            {shape.footerText ? (
+              <p className="mt-2 text-xs text-text-disabled">{shape.footerText}</p>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {template && shape.headerCount + shape.bodyCount > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-xl border border-border p-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Variable mapping</h3>
             <p className="mt-1 text-xs text-text-secondary">
@@ -187,7 +202,7 @@ function MappingRow({ form, component, index, attributeKeys }: MappingRowProps):
   const fieldError = form.formState.errors[component]?.[index];
 
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="rounded-xl border border-border bg-surface-subtle p-3">
       <p className="mb-2 text-xs font-medium text-text-secondary">
         {component === "header" ? "Header" : "Body"} variable {`{{${index + 1}}}`}
       </p>

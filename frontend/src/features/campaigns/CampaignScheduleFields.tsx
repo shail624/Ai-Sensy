@@ -4,8 +4,8 @@ import type { ScheduleType } from "@/features/campaigns/types";
 import { SCHEDULE_TYPE_LABELS } from "@/features/campaigns/types";
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary";
-const LABEL_CLASS = "text-xs font-medium text-text-secondary";
+  "min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent-soft";
+const LABEL_CLASS = "mb-1.5 block text-sm font-semibold text-text-primary";
 
 const SCHEDULE_TYPES: ScheduleType[] = ["one_time", "recurring", "drip"];
 
@@ -31,7 +31,7 @@ export function CampaignScheduleFields({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`${idPrefix}-type`} className={LABEL_CLASS}>

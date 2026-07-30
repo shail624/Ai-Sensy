@@ -1,3 +1,4 @@
+import { Check, Tag, UserRoundCheck, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
@@ -10,8 +11,23 @@ import { AUDIENCE_TYPE_LABELS } from "@/features/campaigns/types";
 import { buildRules, emptyFilters, useContactSearch } from "@/features/contacts";
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary";
-const LABEL_CLASS = "text-xs font-medium text-text-secondary";
+  "min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-accent-soft";
+const LABEL_CLASS = "mb-1.5 block text-sm font-semibold text-text-primary";
+
+const AUDIENCE_META = {
+  segment: {
+    description: "Use a saved, dynamic audience",
+    icon: UsersRound,
+  },
+  tag: {
+    description: "Reach contacts carrying selected tags",
+    icon: Tag,
+  },
+  list: {
+    description: "Choose specific contacts directly",
+    icon: UserRoundCheck,
+  },
+} as const;
 
 interface Props {
   form: UseFormReturn<CampaignFormValues>;
@@ -36,35 +52,64 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
   return (
     <div className="space-y-4">
       <fieldset>
-        <legend className={LABEL_CLASS}>Audience</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {SELECTABLE_AUDIENCE_TYPES.map((type) => (
-            <label
-              key={type}
-              className={`cursor-pointer rounded-md border px-3 py-1 text-sm ${
-                audienceType === type
-                  ? "border-accent text-accent"
-                  : "border-border text-text-secondary hover:bg-hover"
-              }`}
-            >
-              <input
-                type="radio"
-                value={type}
-                {...register("audience_type")}
-                className="sr-only"
-              />
-              {AUDIENCE_TYPE_LABELS[type]}
-            </label>
-          ))}
+        <legend className="sr-only">Audience source</legend>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {SELECTABLE_AUDIENCE_TYPES.map((type) => {
+            const meta = AUDIENCE_META[type as keyof typeof AUDIENCE_META];
+            const Icon = meta.icon;
+            const selected = audienceType === type;
+
+            return (
+              <label
+                key={type}
+                className={`relative flex min-h-24 cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
+                  selected
+                    ? "border-accent bg-accent-soft ring-1 ring-accent"
+                    : "border-border bg-surface hover:bg-hover"
+                }`}
+              >
+                <input
+                  type="radio"
+                  value={type}
+                  {...register("audience_type")}
+                  className="sr-only"
+                />
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    selected ? "bg-surface text-accent" : "bg-surface-subtle text-text-secondary"
+                  }`}
+                >
+                  <Icon aria-hidden className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-text-primary">
+                    {AUDIENCE_TYPE_LABELS[type]}
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
+                    {meta.description}
+                  </span>
+                </span>
+                {selected ? (
+                  <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-fg">
+                    <Check aria-hidden className="h-3 w-3" />
+                  </span>
+                ) : null}
+              </label>
+            );
+          })}
         </div>
-        <p className="mt-2 text-xs text-text-disabled">
-          To send to a list from a spreadsheet, import it into Contacts first, then target it by tag
-          or segment.
-        </p>
       </fieldset>
 
+      <div className="flex items-start gap-2 rounded-lg bg-success-soft px-3 py-2.5 text-xs leading-relaxed text-success-on-soft">
+        <UserRoundCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Opt-in protection stays on. Spreadsheet lists are imported into Contacts first, then
+          targeted safely by segment or tag.
+        </p>
+      </div>
+
       {audienceType === "segment" ? (
-        <div>
+        <div className="rounded-xl border border-border bg-surface-subtle p-4">
           <label htmlFor="campaign-segment" className={LABEL_CLASS}>
             Segment
           </label>
@@ -100,7 +145,7 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
       ) : null}
 
       {audienceType === "tag" ? (
-        <div>
+        <div className="rounded-xl border border-border bg-surface-subtle p-4">
           <p className={LABEL_CLASS}>Tags</p>
           {tags.isLoading ? (
             <Spinner label="Loading tags…" />
@@ -124,7 +169,7 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
                         { shouldValidate: true },
                       )
                     }
-                    className={`rounded-full border px-3 py-1 text-xs ${
+                    className={`min-h-9 rounded-full border px-3 py-1 text-xs font-medium ${
                       selected
                         ? "border-accent text-accent"
                         : "border-border text-text-secondary hover:bg-hover"
@@ -175,7 +220,7 @@ function ContactPicker({ selected, onChange, error }: PickerProps): JSX.Element 
   const rows = contacts.data?.data ?? [];
 
   return (
-    <div>
+    <div className="rounded-xl border border-border bg-surface-subtle p-4">
       <label htmlFor="campaign-contact-search" className={LABEL_CLASS}>
         Contacts
       </label>
@@ -201,7 +246,7 @@ function ContactPicker({ selected, onChange, error }: PickerProps): JSX.Element 
         </div>
       ) : null}
 
-      <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border">
+      <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-border bg-surface">
         {contacts.isLoading ? (
           <div className="p-3">
             <Spinner label="Searching…" />
@@ -221,7 +266,7 @@ function ContactPicker({ selected, onChange, error }: PickerProps): JSX.Element 
               const isSelected = selected.includes(contact.id);
               return (
                 <li key={contact.id} className="border-b border-border last:border-0">
-                  <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-hover">
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-hover">
                     <input
                       type="checkbox"
                       checked={isSelected}
