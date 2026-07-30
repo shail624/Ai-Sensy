@@ -17,13 +17,13 @@
   --color-text-disabled: #99a1b3;
   --color-border-default: #e7e9f0;
   --color-border-strong: #d3d7e2;
-  --color-accent: #5b53e8;
-  --color-accent-strong: #4a41d6;
-  --color-accent-soft: #eeecfd;
+  --color-accent: #0f766e;
+  --color-accent-strong: #0b5f59;
+  --color-accent-soft: #e6f5f2;
   --color-accent-fg: #ffffff;
   /* Text on the matching `-soft` fill. The base tone is tuned for solid marks (dots, bars) and does
      not reach 4.5:1 as 12px text on its own tint, which DS-10 requires in both themes. */
-  --color-accent-on-soft: #4038c9;
+  --color-accent-on-soft: #0b625c;
   --color-success-on-soft: #0a6c33;
   --color-warning-on-soft: #935700;
   --color-danger-on-soft: #b21c33;
@@ -36,12 +36,12 @@
   --color-danger-soft: #fce9ec;
   --color-info: #1f7fd6;
   --color-info-soft: #e7f1fc;
-  --color-focus-ring: #7c74f0;
+  --color-focus-ring: #14a89c;
   --shadow-sm: 0 1px 2px rgba(16, 20, 38, 0.04), 0 1px 3px rgba(16, 20, 38, 0.06);
   --shadow-md: 0 2px 4px rgba(16, 20, 38, 0.04), 0 8px 20px rgba(16, 20, 38, 0.08);
   --shadow-lg: 0 12px 32px rgba(16, 20, 38, 0.12);
   --brand-from: #25d366;
-  --brand-to: #0f9d58;
+  --brand-to: #0f766e;
   color-scheme: light;
 }
 
@@ -55,11 +55,11 @@
   --color-text-disabled: #5a6486;
   --color-border-default: #232c44;
   --color-border-strong: #33405f;
-  --color-accent: #7c74f0;
-  --color-accent-strong: #928bf5;
-  --color-accent-soft: #1e2145;
+  --color-accent: #2dd4bf;
+  --color-accent-strong: #5eead4;
+  --color-accent-soft: #123a38;
   --color-accent-fg: #ffffff;
-  --color-accent-on-soft: #a9a3f7;
+  --color-accent-on-soft: #5eead4;
   --color-success-on-soft: #4fd98a;
   --color-warning-on-soft: #f5b769;
   --color-danger-on-soft: #f8899a;
@@ -72,7 +72,7 @@
   --color-danger-soft: #2a1620;
   --color-info: #45a6f5;
   --color-info-soft: #10233a;
-  --color-focus-ring: #928bf5;
+  --color-focus-ring: #2dd4bf;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
@@ -92,11 +92,11 @@
     --color-text-disabled: #5a6486;
     --color-border-default: #232c44;
     --color-border-strong: #33405f;
-    --color-accent: #7c74f0;
-    --color-accent-strong: #928bf5;
-    --color-accent-soft: #1e2145;
+    --color-accent: #2dd4bf;
+    --color-accent-strong: #5eead4;
+    --color-accent-soft: #123a38;
     --color-accent-fg: #ffffff;
-    --color-accent-on-soft: #a9a3f7;
+    --color-accent-on-soft: #5eead4;
     --color-success-on-soft: #4fd98a;
     --color-warning-on-soft: #f5b769;
     --color-danger-on-soft: #f8899a;
@@ -109,7 +109,7 @@
     --color-danger-soft: #2a1620;
     --color-info: #45a6f5;
     --color-info-soft: #10233a;
-    --color-focus-ring: #928bf5;
+    --color-focus-ring: #2dd4bf;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);

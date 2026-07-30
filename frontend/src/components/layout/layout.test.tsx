@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
+import { resolveCollapsedPreference } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
@@ -81,6 +82,27 @@ describe("Sidebar", () => {
     renderAt(<Sidebar collapsed />);
     expect(screen.queryByText("Contacts")).not.toBeInTheDocument();
     expect(screen.getByTitle("Contacts")).toBeInTheDocument();
+  });
+
+  it("keeps advanced destinations behind one More panel on the compact rail", () => {
+    renderAt(<Sidebar collapsed />);
+    expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    const panel = screen.getByRole("region", { name: "More tools" });
+    expect(within(panel).getByRole("link", { name: /media/i })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: /settings/i })).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Close more tools" }));
+    expect(screen.queryByRole("region", { name: "More tools" })).not.toBeInTheDocument();
+  });
+});
+
+describe("sidebar preference", () => {
+  it("defaults new workspaces to the compact rail and preserves explicit choices", () => {
+    expect(resolveCollapsedPreference(null)).toBe(true);
+    expect(resolveCollapsedPreference("1")).toBe(true);
+    expect(resolveCollapsedPreference("0")).toBe(false);
   });
 });
 

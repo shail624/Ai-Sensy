@@ -13,7 +13,16 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ### 2026-07-30 — Simplified customer workspace
 
+**Added**
+- Added the active AiSensy-inspired parity roadmap, separating verified product coverage from
+  genuine automation, forms, ads, payments, AI-agent, commerce, and integration contract work.
+
 **Changed**
+- Made the six-destination desktop task rail compact by default, with one permission-aware `More`
+  flyout for every entitled advanced route. Users can still expand the rail and the preference is
+  retained without changing routes or permissions.
+- Replaced the generic purple accent with an original teal engagement palette. No competitor
+  branding, assets, code, or unsupported capability claims were introduced.
 - Reduced the default sidebar from the full module catalog to six task-first destinations; all
   entitled advanced, operational, and administrative areas remain available through one expanded
   `More` section and workspace search.
@@ -34,11 +43,12 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
   are unchanged.
 
 **Validated**
-- Passed 606 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production
+- Passed 608 frontend tests, ESLint, TypeScript, and the production build. Rebuilt the production
   frontend image and passed its nginx runtime contract. The isolated ten-service gate verified an
   authenticated browser journey, API/workers/queues/dependency health, cleanup, and a 22.7 ms p95
-  across 30 reads (<300 ms). The dashboard audit at 1280 × 800 and 390 × 844 found no horizontal
-  overflow, browser errors, or dead WhatsApp setup routes; advanced routes remain under `More`.
+  across 30 reads (<300 ms). The live shell audit at 1440 × 900 and 390 × 844 found no horizontal
+  overflow; the compact rail, expandable preference, mobile navigation, and advanced `More` panel
+  remain usable against the production container.
 
 ### 2026-07-30 — Phase 4A governed customer documents
 

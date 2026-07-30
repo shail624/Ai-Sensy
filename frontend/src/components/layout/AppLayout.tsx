@@ -8,10 +8,16 @@ import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { navItems, primaryNavItems } from "./navigation";
 
-const COLLAPSE_KEY = "wa.sidebar.collapsed";
+const COLLAPSE_KEY = "wa.sidebar.compact.v2";
+
+/** New workspaces open on the task rail; an explicit user choice always wins afterwards. */
+export function resolveCollapsedPreference(stored: string | null): boolean {
+  return stored === null ? true : stored === "1";
+}
 
 function readCollapsed(): boolean {
-  return typeof localStorage !== "undefined" && localStorage.getItem(COLLAPSE_KEY) === "1";
+  if (typeof localStorage === "undefined") return true;
+  return resolveCollapsedPreference(localStorage.getItem(COLLAPSE_KEY));
 }
 
 /**
