@@ -7,6 +7,9 @@
 **Product boundary:** Comparable workflow simplicity and capability coverage; original branding,
 visual language, source code, information architecture, and assets.
 
+**Execution plan:** [Design Document 21](21-AISENSY-PARITY-5-PHASE-EXECUTION-PLAN.md) — five
+governed delivery phases from UX convergence through integrations.
+
 ## Objective
 
 Make the platform feel as simple and commercially complete as a leading WhatsApp engagement suite

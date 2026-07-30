@@ -11,6 +11,15 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Five-phase parity execution plan
+
+**Added**
+- Added Design Document 21, a five-phase path from the verified repository baseline to an
+  AiSensy-comparable but original product: simplicity/retargeting, automation/forms, ads,
+  payments/commerce, and governed AI/integrations.
+- Defined the required data, API, permission, audit, failure-recovery and quality gates for every
+  phase so genuine gaps cannot be presented as implemented UI.
+
 ### 2026-07-30 — Live Chat simplicity
 
 **Changed**

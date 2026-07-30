@@ -69,7 +69,8 @@ quality gates._
 ## Remaining deliverables
 
 No repository implementation remains in Phase 4A. The active AiSensy-inspired parity roadmap is
-recorded in Design Document 20; UX-3B and all additive product domains remain separately
+recorded in Design Document 20, with the five-phase execution sequence in Design Document 21;
+UX-3B and all additive product domains remain separately
 governed milestones rather than simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
