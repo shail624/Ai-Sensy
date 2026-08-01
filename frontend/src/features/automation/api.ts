@@ -5,6 +5,7 @@ import type {
   AutomationFlow,
   AutomationRun,
   AutomationStatus,
+  AutomationTriggerReceipt,
   AutomationUpdateRequest,
   AutomationValidation,
   AutomationVersion,
@@ -21,6 +22,7 @@ export const automationKeys = {
   versions: (id: string) => ["automations", "versions", id] as const,
   runs: (id: string) => ["automations", "runs", id] as const,
   run: (id: string) => ["automations", "run", id] as const,
+  receipts: (id: string) => ["automations", "receipts", id] as const,
 };
 
 export function useAutomations(q: string, status: AutomationStatus | "all") {
@@ -90,6 +92,19 @@ export function useAutomationRun(id: string | null) {
     enabled: Boolean(id),
     refetchInterval: (query) =>
       query.state.data && ACTIVE_RUN_STATUSES.has(query.state.data.status) ? 750 : false,
+  });
+}
+
+export function useAutomationTriggerReceipts(id: string | null) {
+  return useQuery({
+    queryKey: automationKeys.receipts(id ?? ""),
+    queryFn: async (): Promise<AutomationTriggerReceipt[]> =>
+      unwrap(
+        await api.GET("/api/v1/automations/{automation_id}/trigger-receipts", {
+          params: { path: { automation_id: id! }, query: { limit: 20 } },
+        }),
+      ).data,
+    enabled: Boolean(id),
   });
 }
 

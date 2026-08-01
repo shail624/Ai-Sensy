@@ -21,7 +21,9 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.capabilities import ChannelType
+from app.db.mixins import utcnow
 from app.models.audit import ACTOR_SYSTEM
+from app.models.business_event import BUSINESS_EVENT_ACTOR_SYSTEM
 from app.models.contact import Contact
 from app.models.contact_event import EVENT_CONTACT_CREATED
 from app.models.conversation import PREVIEW_LENGTH, WINDOW, Conversation
@@ -29,6 +31,7 @@ from app.models.waba import PhoneNumber
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
 
 #: Doc 03 ``contacts.source`` — how this contact record came to exist.
@@ -41,6 +44,7 @@ class ConversationService:
         self._conversations = ConversationRepository(session)
         self._contacts = ContactRepository(session)
         self._events = ContactEventService(session)
+        self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
 
     async def _get_or_create_contact(
@@ -90,6 +94,13 @@ class ConversationService:
                 event_type=EVENT_CONTACT_CREATED,
                 payload={"source": SOURCE_WEBHOOK},
             )
+            await self._business_events.record_contact_created(
+                contact=contact,
+                actor_type=BUSINESS_EVENT_ACTOR_SYSTEM,
+                actor_id=None,
+                occurred_at=occurred_at,
+                source="conversations",
+            )
             # A new person's PII entering the system is security-relevant, so it is audited on the
             # webhook path exactly as it is on the API path — with no actor, because there is none.
             await self._audit.record(
@@ -119,6 +130,13 @@ class ConversationService:
                 contact_id=contact.id,
                 event_type=EVENT_CONTACT_CREATED,
                 payload={"source": source},
+            )
+            await self._business_events.record_contact_created(
+                contact=contact,
+                actor_type=BUSINESS_EVENT_ACTOR_SYSTEM,
+                actor_id=None,
+                occurred_at=utcnow(),
+                source="conversations",
             )
             await self._audit.record(
                 AuditAction.CONTACT_CREATED,

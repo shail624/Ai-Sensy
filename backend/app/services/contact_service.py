@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, VersionConflictError
 from app.db.mixins import utcnow
+from app.models.business_event import BUSINESS_EVENT_ACTOR_USER
 from app.models.contact import (
     OPT_IN_OPTED_IN,
     OPT_IN_OPTED_OUT,
@@ -26,6 +27,7 @@ from app.models.contact_event import EVENT_CONTACT_CREATED, EVENT_OPTIN_CHANGED
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
 
 
@@ -47,6 +49,7 @@ class ContactService:
         self._session = session
         self._contacts = ContactRepository(session)
         self._events = ContactEventService(session)
+        self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
 
     @staticmethod
@@ -132,6 +135,13 @@ class ContactService:
             event_type=EVENT_CONTACT_CREATED,
             payload={"source": source},
         )
+        await self._business_events.record_contact_created(
+            contact=contact,
+            actor_type=BUSINESS_EVENT_ACTOR_USER,
+            actor_id=actor.id,
+            occurred_at=now,
+            source="contacts",
+        )
         await self._audit.record(
             AuditAction.CONTACT_CREATED,
             actor_user_id=actor.id,
@@ -158,7 +168,9 @@ class ContactService:
     ) -> Contact:
         contact = await self.get_contact(organization_id, public_id)
         if expected_version is not None and expected_version != contact.row_version:
-            raise VersionConflictError("The contact was modified by someone else; reload and retry.")
+            raise VersionConflictError(
+                "The contact was modified by someone else; reload and retry."
+            )
         for key, value in fields.items():
             setattr(contact, key, value)
         if opt_in_status is not None and opt_in_status != contact.opt_in_status:

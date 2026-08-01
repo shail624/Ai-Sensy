@@ -26,8 +26,13 @@ from app.schemas.automation_runtime import (
     AutomationRunsResponse,
     AutomationTestRunRequest,
 )
+from app.schemas.automation_trigger import (
+    AutomationTriggerReceiptResponse,
+    AutomationTriggerReceiptsResponse,
+)
 from app.services.automation_runtime_service import AutomationRuntimeService
 from app.services.automation_service import AutomationService
+from app.services.automation_trigger_service import AutomationTriggerService
 
 router = APIRouter()
 
@@ -37,9 +42,7 @@ AutomationPublisher = Annotated[User, Depends(require_permissions("automations:p
 AutomationStatus = Literal["draft", "published", "disabled"]
 
 
-@router.get(
-    "/automations", response_model=AutomationListResponse, summary="List automations"
-)
+@router.get("/automations", response_model=AutomationListResponse, summary="List automations")
 async def list_automations(
     session: SessionDep,
     actor: AutomationReader,
@@ -102,9 +105,7 @@ async def update_automation(
     session: SessionDep,
     actor: AutomationWriter,
 ) -> AutomationFlowResponse:
-    changes = payload.model_dump(
-        mode="json", exclude_unset=True, exclude={"expected_row_version"}
-    )
+    changes = payload.model_dump(mode="json", exclude_unset=True, exclude={"expected_row_version"})
     view = await AutomationService(session).update(
         organization_id=actor.organization_id,
         actor=actor,
@@ -160,9 +161,7 @@ async def list_automation_versions(
     views = await AutomationService(session).versions(
         organization_id=actor.organization_id, public_id=automation_id
     )
-    return AutomationVersionsResponse(
-        data=[AutomationVersionResponse.of(view) for view in views]
-    )
+    return AutomationVersionsResponse(data=[AutomationVersionResponse.of(view) for view in views])
 
 
 @router.post(
@@ -253,15 +252,34 @@ async def create_automation_test_run(
         response.status_code = status.HTTP_200_OK
         return AutomationRunResponse.of(view)
     try:
-        execute_automation_test_run.apply_async(
-            args=[run_pk], task_id=view.correlation_id
-        )
+        execute_automation_test_run.apply_async(args=[run_pk], task_id=view.correlation_id)
     except Exception as exc:
         await service.mark_dispatch_failed(run_pk, exc)
         raise ServiceUnavailableError(
             "The automation run was recorded but could not be queued."
         ) from exc
     return AutomationRunResponse.of(view)
+
+
+@router.get(
+    "/automations/{automation_id}/trigger-receipts",
+    response_model=AutomationTriggerReceiptsResponse,
+    summary="List durable automation trigger receipts",
+)
+async def list_automation_trigger_receipts(
+    automation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: AutomationReader,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> AutomationTriggerReceiptsResponse:
+    views = await AutomationTriggerService(session).list_receipts(
+        organization_id=actor.organization_id,
+        automation_id=automation_id,
+        limit=limit,
+    )
+    return AutomationTriggerReceiptsResponse(
+        data=[AutomationTriggerReceiptResponse.of(view) for view in views]
+    )
 
 
 @router.get(

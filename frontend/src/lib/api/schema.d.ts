@@ -2804,6 +2804,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automations/{automation_id}/trigger-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List durable automation trigger receipts */
+        get: operations["list_automation_trigger_receipts_api_v1_automations__automation_id__trigger_receipts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/automations/{automation_id}/runs": {
         parameters: {
             query?: never;
@@ -3449,6 +3466,41 @@ export interface components {
             input?: {
                 [key: string]: unknown;
             };
+        };
+        /** AutomationTriggerReceiptResponse */
+        AutomationTriggerReceiptResponse: {
+            /** Id */
+            id: string;
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Event Version */
+            event_version: number;
+            /** Version No */
+            version_no: number;
+            /**
+             * Status
+             * @constant
+             */
+            status: "received";
+            /** Source */
+            source: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+        };
+        /** AutomationTriggerReceiptsResponse */
+        AutomationTriggerReceiptsResponse: {
+            /** Data */
+            data: components["schemas"]["AutomationTriggerReceiptResponse"][];
         };
         /** AutomationUpdateRequest */
         AutomationUpdateRequest: {
@@ -12554,6 +12606,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutomationRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_automation_trigger_receipts_api_v1_automations__automation_id__trigger_receipts_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationTriggerReceiptsResponse"];
                 };
             };
             /** @description Validation Error */

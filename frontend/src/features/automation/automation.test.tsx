@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutomationWorkspace } from "@/features/automation/AutomationWorkspace";
-import type { AutomationFlow, AutomationRun, AutomationVersion } from "@/features/automation/types";
+import type { AutomationFlow, AutomationRun, AutomationTriggerReceipt, AutomationVersion } from "@/features/automation/types";
 
 const { permissions, get, post, patch } = vi.hoisted(() => ({
   permissions: { value: ["automations:read", "automations:write", "automations:publish"] },
@@ -20,6 +20,7 @@ vi.mock("@/lib/api/client", () => ({
 let current: AutomationFlow;
 let versions: AutomationVersion[];
 let runs: AutomationRun[];
+let receipts: AutomationTriggerReceipt[];
 
 function fixture(overrides: Partial<AutomationFlow> = {}): AutomationFlow {
   return {
@@ -37,11 +38,12 @@ function renderWorkspace(path = "/automation?flow=a1") {
 
 beforeEach(() => {
   permissions.value = ["automations:read", "automations:write", "automations:publish"];
-  current = fixture(); versions = []; runs = [];
+  current = fixture(); versions = []; runs = []; receipts = [];
   get.mockReset(); post.mockReset(); patch.mockReset();
   get.mockImplementation(async (path: string) => {
     if (path.endsWith("/versions")) return { data: { data: versions } };
     if (path.endsWith("/runs")) return { data: { data: runs } };
+    if (path.endsWith("/trigger-receipts")) return { data: { data: receipts } };
     if (path.startsWith("/api/v1/automation-runs/")) return { data: runs[0] };
     if (path === "/api/v1/automations") return { data: { data: [current], total: 1 } };
     if (path.includes("/automations/")) return { data: current };
@@ -115,6 +117,19 @@ describe("versioned automation authoring", () => {
     await waitFor(() => expect(post.mock.calls.map((call) => call[0])).toContain("/api/v1/automations/{automation_id}/test-runs"));
     expect(await screen.findByText("Test run queued safely. Every action will be simulated.")).toBeVisible();
     expect(await screen.findByText("0/2 steps", { exact: false })).toBeVisible();
+  });
+
+  it("shows real trigger evidence without claiming an action ran", async () => {
+    current = fixture({ status: "published", active_version_no: 1, has_unpublished_changes: false });
+    receipts = [{
+      id: "receipt-1", event_id: "event-1", event_type: "contact.created", event_version: 1,
+      version_no: 1, status: "received", source: "contacts",
+      occurred_at: "2026-07-30T12:30:00Z", received_at: "2026-07-30T12:30:00Z",
+    }];
+    renderWorkspace();
+    expect(await screen.findByText("Trigger receipts")).toBeVisible();
+    expect(await screen.findByText("contact.created")).toBeVisible();
+    expect(screen.getByText("Evidence only. No action executed.")).toBeVisible();
   });
 
   it("shows fail-closed publication issues without calling publish", async () => {

@@ -21,9 +21,7 @@ class AutomationRepository(BaseRepository[AutomationFlow]):
         )
         return (await self.session.scalars(stmt)).first()
 
-    async def get_for_update(
-        self, organization_id: int, public_id: bytes
-    ) -> AutomationFlow | None:
+    async def get_for_update(self, organization_id: int, public_id: bytes) -> AutomationFlow | None:
         stmt = (
             select(AutomationFlow)
             .where(
@@ -61,9 +59,9 @@ class AutomationRepository(BaseRepository[AutomationFlow]):
 
     async def count_for_org(self, organization_id: int) -> int:
         value = await self.session.scalar(
-            select(func.count()).select_from(AutomationFlow).where(
-                AutomationFlow.organization_id == organization_id
-            )
+            select(func.count())
+            .select_from(AutomationFlow)
+            .where(AutomationFlow.organization_id == organization_id)
         )
         return int(value or 0)
 
@@ -98,3 +96,23 @@ class AutomationRepository(BaseRepository[AutomationFlow]):
             return {}
         rows = list((await self.session.scalars(select(User).where(User.id.in_(user_ids)))).all())
         return {row.id: row.public_id for row in rows}
+
+    async def event_candidates(
+        self, organization_id: int
+    ) -> list[tuple[AutomationFlow, AutomationFlowVersion]]:
+        """Return enabled, clean publications eligible for real event matching."""
+        stmt = (
+            select(AutomationFlow, AutomationFlowVersion)
+            .join(
+                AutomationFlowVersion,
+                (AutomationFlowVersion.flow_id == AutomationFlow.id)
+                & (AutomationFlowVersion.version_no == AutomationFlow.active_version_no),
+            )
+            .where(
+                AutomationFlow.organization_id == organization_id,
+                AutomationFlow.status == "published",
+                AutomationFlow.active_version_no.is_not(None),
+                AutomationFlow.active_content_hash == AutomationFlow.draft_content_hash,
+            )
+        )
+        return list((await self.session.execute(stmt)).tuples().all())

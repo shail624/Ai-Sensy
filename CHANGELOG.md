@@ -11,6 +11,29 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-07-30 — Durable automation trigger receipts (MD5 Phase 2C)
+
+**Added**
+- Added the governed `contact.created` event type, append-only business-event ledger, and migration
+  `0031` with MySQL time partitioning and a reversible SQLite test path.
+- Added atomic event publication from the existing API/import and system conversation contact paths.
+  Only enabled, clean published flows with the matching immutable trigger receive a tenant-scoped,
+  replay-safe receipt.
+- Added the permission-scoped receipt history route, generated TypeScript contract, and a compact
+  builder panel that labels real matches as evidence and explicitly states no action executed.
+
+**Preserved**
+- No receipt starts a run or applies a task, tag, assignment, notification, webhook, campaign,
+  provider, approval, handoff, send, AI, Forms or commerce effect. Existing contact validation,
+  permissions, audit, import queueing and transaction ownership remain unchanged.
+
+**Validated**
+- Passed 932 backend tests, Ruff, strict mypy across 247 files, OpenAPI drift validation, 628
+  frontend tests, TypeScript, ESLint and production builds. Rebuilt production images expose 153
+  paths and register the unchanged 24 Celery tasks. The complete deployed profile passed SAST,
+  dependency/source/image scans, SBOM generation, MySQL migration, API/worker/queue health, real
+  queued-import trigger receipt evidence, readiness/observability checks and a 19.002 ms p95 canary.
+
 ### 2026-07-30 — Deterministic automation test runtime (MD5 Phase 2B)
 
 **Added**

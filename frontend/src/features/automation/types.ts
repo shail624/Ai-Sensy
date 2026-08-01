@@ -10,6 +10,7 @@ export type AutomationValidation = components["schemas"]["AutomationValidationRe
 export type AutomationVersion = components["schemas"]["AutomationVersionResponse"];
 export type AutomationRun = components["schemas"]["AutomationRunResponse"];
 export type AutomationAttempt = components["schemas"]["AutomationAttemptResponse"];
+export type AutomationTriggerReceipt = components["schemas"]["AutomationTriggerReceiptResponse"];
 export type AutomationStatus = AutomationFlow["status"];
 
 export function graphNodes(graph: AutomationGraph): AutomationNode[] {

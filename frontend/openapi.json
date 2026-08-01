@@ -10473,6 +10473,66 @@
         }
       }
     },
+    "/api/v1/automations/{automation_id}/trigger-receipts": {
+      "get": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "List durable automation trigger receipts",
+        "operationId": "list_automation_trigger_receipts_api_v1_automations__automation_id__trigger_receipts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Automation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationTriggerReceiptsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/{automation_id}/runs": {
       "get": {
         "tags": [
@@ -12436,6 +12496,85 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AutomationTestRunRequest"
+      },
+      "AutomationTriggerReceiptResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "event_version": {
+            "type": "integer",
+            "title": "Event Version"
+          },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "status": {
+            "type": "string",
+            "const": "received",
+            "title": "Status"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "event_id",
+          "event_type",
+          "event_version",
+          "version_no",
+          "status",
+          "source",
+          "occurred_at",
+          "received_at"
+        ],
+        "title": "AutomationTriggerReceiptResponse"
+      },
+      "AutomationTriggerReceiptsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationTriggerReceiptResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AutomationTriggerReceiptsResponse"
       },
       "AutomationUpdateRequest": {
         "properties": {

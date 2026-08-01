@@ -25,7 +25,9 @@ from app.models.automation import (
     AutomationFlowVersion,
     AutomationRun,
     AutomationStepAttempt,
+    AutomationTriggerReceipt,
 )
+from app.models.business_event import BusinessEvent, BusinessEventType
 from app.models.campaign import (
     Campaign,
     CampaignBatch,
@@ -70,6 +72,9 @@ __all__ = [
     "AutomationFlowVersion",
     "AutomationRun",
     "AutomationStepAttempt",
+    "AutomationTriggerReceipt",
+    "BusinessEvent",
+    "BusinessEventType",
     "BulkJob",
     "Campaign",
     "CampaignBatch",

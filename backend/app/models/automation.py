@@ -55,6 +55,9 @@ AUTOMATION_ATTEMPT_STATUSES: tuple[str, ...] = (
     AUTOMATION_ATTEMPT_INTERRUPTED,
 )
 
+AUTOMATION_TRIGGER_RECEIPT_RECEIVED = "received"
+AUTOMATION_TRIGGER_RECEIPT_STATUSES = (AUTOMATION_TRIGGER_RECEIPT_RECEIVED,)
+
 
 def _status_clause() -> str:
     return f"status IN ({', '.join(repr(value) for value in AUTOMATION_STATUSES)})"
@@ -66,6 +69,10 @@ def _run_status_clause() -> str:
 
 def _attempt_status_clause() -> str:
     return f"status IN ({', '.join(repr(value) for value in AUTOMATION_ATTEMPT_STATUSES)})"
+
+
+def _trigger_receipt_status_clause() -> str:
+    return f"status IN ({', '.join(repr(value) for value in AUTOMATION_TRIGGER_RECEIPT_STATUSES)})"
 
 
 class AutomationFlow(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionMixin, Base):
@@ -86,9 +93,7 @@ class AutomationFlow(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionM
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(12), nullable=False, default=AUTOMATION_STATUS_DRAFT
-    )
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default=AUTOMATION_STATUS_DRAFT)
     draft_graph_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     draft_content_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     active_version_no: Mapped[int | None] = mapped_column(int_id(), nullable=True)
@@ -108,7 +113,9 @@ class AutomationFlowVersion(IntPKMixin, UUIDMixin, Base):
     organization_id: Mapped[int] = mapped_column(big_id(), nullable=False)
     flow_id: Mapped[int] = mapped_column(
         big_id(),
-        ForeignKey("automation_flows.id", name="fk_automation_flow_versions_flow", ondelete="CASCADE"),
+        ForeignKey(
+            "automation_flows.id", name="fk_automation_flow_versions_flow", ondelete="CASCADE"
+        ),
         nullable=False,
     )
     version_no: Mapped[int] = mapped_column(int_id(), nullable=False)
@@ -125,7 +132,9 @@ class AutomationRun(IntPKMixin, UUIDMixin, Base):
 
     __tablename__ = "automation_runs"
     __table_args__ = (
-        UniqueConstraint("organization_id", "idempotency_key", name="uq_automation_run_idempotency"),
+        UniqueConstraint(
+            "organization_id", "idempotency_key", name="uq_automation_run_idempotency"
+        ),
         Index("ix_automation_runs_flow_created", "flow_id", "created_at"),
         Index("ix_automation_runs_org_status_created", "organization_id", "status", "created_at"),
         CheckConstraint(_run_status_clause(), name="ck_automation_runs_status"),
@@ -178,7 +187,9 @@ class AutomationStepAttempt(IntPKMixin, UUIDMixin, Base):
     organization_id: Mapped[int] = mapped_column(big_id(), nullable=False)
     run_id: Mapped[int] = mapped_column(
         big_id(),
-        ForeignKey("automation_runs.id", name="fk_automation_step_attempts_run", ondelete="CASCADE"),
+        ForeignKey(
+            "automation_runs.id", name="fk_automation_step_attempts_run", ondelete="CASCADE"
+        ),
         nullable=False,
     )
     node_id: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -193,3 +204,52 @@ class AutomationStepAttempt(IntPKMixin, UUIDMixin, Base):
     error_detail: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     started_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+
+
+class AutomationTriggerReceipt(IntPKMixin, UUIDMixin, Base):
+    """One real event matched to one active immutable automation version."""
+
+    __tablename__ = "automation_trigger_receipts"
+    __table_args__ = (
+        UniqueConstraint(
+            "flow_id", "version_id", "event_uuid", name="uq_automation_trigger_receipt"
+        ),
+        Index("ix_automation_trigger_receipts_flow_received", "flow_id", "received_at"),
+        Index(
+            "ix_automation_trigger_receipts_org_status_received",
+            "organization_id",
+            "status",
+            "received_at",
+        ),
+        CheckConstraint(
+            _trigger_receipt_status_clause(), name="ck_automation_trigger_receipts_status"
+        ),
+        MYSQL_TABLE_ARGS,
+    )
+
+    organization_id: Mapped[int] = mapped_column(big_id(), nullable=False)
+    flow_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey(
+            "automation_flows.id", name="fk_automation_trigger_receipts_flow", ondelete="RESTRICT"
+        ),
+        nullable=False,
+    )
+    version_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey(
+            "automation_flow_versions.id",
+            name="fk_automation_trigger_receipts_version",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+    )
+    event_uuid: Mapped[bytes] = mapped_column(uuid_binary(), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    event_version: Mapped[int] = mapped_column(int_id(), nullable=False, default=1)
+    event_occurred_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=AUTOMATION_TRIGGER_RECEIPT_RECEIVED
+    )
+    received_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)

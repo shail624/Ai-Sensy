@@ -89,6 +89,28 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
     timeout: 30_000,
   });
 
+  const automationUrl = page.url();
+  await page.goto("/contacts");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByLabel("Choose a CSV or Excel file").setInputFiles({
+    name: "release-gate-trigger.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "phone_e164,full_name\n+14155550124,Automation Receipt Contact\n",
+      "utf8",
+    ),
+  });
+  await expect(page.getByText("2 columns", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Imported", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.goto(automationUrl);
+  await expect(page.getByRole("heading", { name: "Trigger receipts" })).toBeVisible();
+  await expect(page.getByText("contact.created", { exact: true })).toBeVisible();
+  await expect(page.getByText("Evidence only. No action executed.")).toBeVisible();
+
   await page.goto("/scan");
   await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();
   await expect(page.getByText("Architecture boundary enforced", { exact: true })).toBeVisible();
