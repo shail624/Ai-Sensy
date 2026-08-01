@@ -25,7 +25,7 @@ import { SETTINGS_PERMISSIONS } from "@/features/settings/sections";
 export interface NavItem {
   label: string;
   path: string;
-  /** When false, the module is not built yet and routes to a "Coming soon" placeholder. */
+  /** Legacy catalogue flag retained while all registered destinations are real, routed surfaces. */
   available: boolean;
   /** Short glyph for accessibility fallbacks and the collapsed rail. */
   glyph: string;
@@ -43,6 +43,41 @@ export interface NavItem {
    * code would hide the whole section from someone entitled to part of it.
    */
   anyPermission?: string[];
+  /** Honest maturity marker for approved routes whose dedicated domain capability is not complete. */
+  maturity?: "foundation" | "future";
+}
+
+export interface CreateAction {
+  label: string;
+  description: string;
+  path: string;
+  icon: LucideIcon;
+  permission: string;
+  keywords: string[];
+}
+
+export const EXCLUDED_NAVIGATION_TERMS = [
+  "ads manager",
+  "meta ads",
+  "payments",
+  "billing",
+  "subscriptions",
+  "marketplace",
+  "multi-project",
+  "public signup",
+  "reseller",
+  "catalog",
+  "cart",
+  "checkout",
+  "orders",
+  "refunds",
+  "commerce",
+] as const;
+
+/** Permanent CORE-01 scope guard used by navigation tests and runtime filtering. */
+export function isPermittedNavItem(item: Pick<NavItem, "label" | "path" | "description">): boolean {
+  const searchable = `${item.label} ${item.path} ${item.description}`.toLocaleLowerCase();
+  return !EXCLUDED_NAVIGATION_TERMS.some((term) => searchable.includes(term));
 }
 
 function isVisible(item: NavItem, hasPermission: (code: string) => boolean): boolean {
@@ -52,7 +87,38 @@ function isVisible(item: NavItem, hasPermission: (code: string) => boolean): boo
 
 /** The destinations a user may actually reach, given their `MeResponse.permissions`. */
 export function visibleNavItems(hasPermission: (code: string) => boolean): NavItem[] {
-  return navItems.filter((item) => isVisible(item, hasPermission));
+  return navItems.filter((item) => isPermittedNavItem(item) && isVisible(item, hasPermission));
+}
+
+export const createActions: CreateAction[] = [
+  {
+    label: "Campaign",
+    description: "Build a governed WhatsApp broadcast",
+    path: "/campaigns/new",
+    icon: Megaphone,
+    permission: "campaigns:write",
+    keywords: ["broadcast", "send", "message"],
+  },
+  {
+    label: "Template",
+    description: "Create a WhatsApp message template",
+    path: "/templates/new",
+    icon: MessageSquareText,
+    permission: "templates:write",
+    keywords: ["message", "meta", "author"],
+  },
+  {
+    label: "Import contacts",
+    description: "Upload a CSV or Excel contact file",
+    path: "/contacts?import=1",
+    icon: Contact,
+    permission: "contacts:import",
+    keywords: ["upload", "csv", "excel"],
+  },
+];
+
+export function visibleCreateActions(hasPermission: (code: string) => boolean): CreateAction[] {
+  return createActions.filter((action) => hasPermission(action.permission));
 }
 
 /**
@@ -142,6 +208,7 @@ export const navItems: NavItem[] = [
     label: "Automation", path: "/automation", available: true, glyph: "Au", icon: Bot,
     group: "Workspace", permission: "automations:read",
     description: "Build and publish governed, versioned workflow definitions.",
+    maturity: "foundation",
   },
   {
     label: "Analytics", path: "/analytics", available: true, glyph: "A", icon: BarChart3,
@@ -152,6 +219,7 @@ export const navItems: NavItem[] = [
     label: "Reactivation", path: "/reactivation", available: true, glyph: "R", icon: Sparkles,
     group: "Workspace", permission: "contacts:read",
     description: "The Vi reactivation workspace and customer journey.",
+    maturity: "foundation",
   },
   {
     label: "Tasks", path: "/tasks", available: true, glyph: "Tk", icon: ListChecks,
@@ -171,7 +239,8 @@ export const navItems: NavItem[] = [
   {
     label: "Scan Studio", path: "/scan", available: true, glyph: "Sc", icon: ScanSearch,
     group: "Tools", permission: "contacts:read",
-    description: "Independent number-scan batches and CRM hand-off.",
+    description: "Future compliant number-scan workspace and CRM hand-off.",
+    maturity: "future",
   },
   {
     label: "WhatsApp", path: "/channels", available: true, glyph: "Wa", icon: MessageSquareText,

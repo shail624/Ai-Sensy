@@ -11,9 +11,18 @@ interface SidebarProps {
   className?: string;
   /** Called after a nav item is chosen — used to close the mobile drawer. */
   onNavigate?: () => void;
+  /** Present only in the mobile drawer, where an explicit close control is required. */
+  onClose?: () => void;
 }
 
 type SecondaryGroup = ReturnType<typeof secondaryNavGroups>[number];
+type NavTone = "rail" | "panel";
+
+const GROUP_LABELS: Record<string, string> = {
+  Workspace: "Engagement",
+  Tools: "Workflow tools",
+  Platform: "Platform controls",
+};
 
 function isCurrentPath(pathname: string, path: string): boolean {
   return path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(`${path}/`);
@@ -23,12 +32,15 @@ function NavEntry({
   item,
   collapsed,
   onNavigate,
+  tone = "rail",
 }: {
   item: NavItem;
   collapsed: boolean;
   onNavigate?: () => void;
+  tone?: NavTone;
 }): JSX.Element {
   const Icon = item.icon;
+  const isRail = tone === "rail";
   return (
     <li>
       <NavLink
@@ -41,23 +53,44 @@ function NavEntry({
             collapsed ? "justify-center" : ""
           } ${
             isActive
-              ? "bg-accent-soft text-accent"
-              : "text-text-secondary hover:bg-hover hover:text-text-primary"
+              ? isRail
+                ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)] shadow-sm"
+                : "bg-accent-soft text-accent"
+              : isRail
+                ? "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
+                : "text-text-secondary hover:bg-hover hover:text-text-primary"
           }`
         }
       >
         {({ isActive }) => (
           <>
             {isActive ? (
-              <span aria-hidden className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-accent" />
+              <span aria-hidden className={`absolute inset-y-1.5 left-0 w-1 rounded-r-full ${isRail ? "bg-[var(--color-nav-indicator)]" : "bg-accent"}`} />
             ) : null}
             <Icon
               aria-hidden
               className={`h-[18px] w-[18px] shrink-0 ${
-                isActive ? "text-accent" : "text-text-disabled group-hover:text-text-primary"
+                isActive
+                  ? isRail ? "text-[var(--color-nav-indicator)]" : "text-accent"
+                  : isRail ? "text-[var(--color-nav-muted)] group-hover:text-[var(--color-nav-text)]" : "text-text-disabled group-hover:text-text-primary"
               }`}
             />
-            {!collapsed ? <span className="flex-1 truncate">{item.label}</span> : null}
+            {!collapsed ? (
+              <>
+                <span className="flex-1 truncate">{item.label}</span>
+                {item.maturity ? (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
+                      isRail
+                        ? "bg-white/10 text-[var(--color-nav-text)]"
+                        : "bg-surface-2 text-text-secondary"
+                    }`}
+                  >
+                    {item.maturity}
+                  </span>
+                ) : null}
+              </>
+            ) : null}
           </>
         )}
       </NavLink>
@@ -68,20 +101,22 @@ function NavEntry({
 function SecondaryGroupList({
   groups,
   onNavigate,
+  tone = "rail",
 }: {
   groups: SecondaryGroup[];
   onNavigate?: () => void;
+  tone?: NavTone;
 }): JSX.Element {
   return (
     <>
       {groups.map((group) => (
         <div key={group.group} className="mt-3 first:mt-0">
-          <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-text-disabled">
-            {group.group === "Workspace" ? "More tools" : group.group}
+          <p className={`px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] ${tone === "rail" ? "text-[var(--color-nav-muted)]" : "text-text-disabled"}`}>
+            {GROUP_LABELS[group.group] ?? group.group}
           </p>
           <ul className="space-y-0.5">
             {group.items.map((item) => (
-              <NavEntry key={item.path} item={item} collapsed={false} onNavigate={onNavigate} />
+              <NavEntry key={item.path} item={item} collapsed={false} onNavigate={onNavigate} tone={tone} />
             ))}
           </ul>
         </div>
@@ -90,7 +125,7 @@ function SecondaryGroupList({
   );
 }
 
-export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX.Element {
+export function Sidebar({ collapsed, className, onNavigate, onClose }: SidebarProps): JSX.Element {
   const { hasPermission } = useAuth();
   const location = useLocation();
   const primary = primaryNavItems(hasPermission);
@@ -115,17 +150,27 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
   return (
     <nav
       aria-label="Primary"
-      className={`relative z-40 flex-col border-r border-border bg-surface transition-[width] duration-200 ${collapsed ? "w-[4.5rem]" : "w-60"} ${className ?? ""}`}
+      className={`relative z-40 flex-col border-r border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] transition-[width] duration-200 ${collapsed ? "w-[4.5rem]" : "w-64"} ${className ?? ""}`}
     >
-      <div className="flex h-14 items-center gap-2.5 border-b border-border/70 px-3">
+      <div className="flex h-14 items-center gap-2.5 border-b border-[var(--color-nav-border)] px-3">
         <span
           aria-hidden
-          className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
+          className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold tracking-tight text-white shadow-sm"
         >
-          V
+          VR
         </span>
         {!collapsed ? (
-          <span className="truncate text-sm font-bold tracking-tight text-text-primary">Vi Reactivation</span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold tracking-tight text-[var(--color-nav-text)]">Vi Reactivation</span><span className="block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-nav-muted)]">Operations</span></span>
+        ) : null}
+        {onClose && !collapsed ? (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          >
+            <X aria-hidden className="h-4 w-4" />
+          </button>
         ) : null}
       </div>
 
@@ -138,7 +183,7 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
 
         {secondary.length > 0 ? (
           collapsed ? (
-            <div className="mt-2 border-t border-border/70 pt-2">
+            <div className="mt-2 border-t border-[var(--color-nav-border)] pt-2">
               <button
                 type="button"
                 aria-expanded={moreOpen}
@@ -147,26 +192,28 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
                 onClick={() => setMoreOpen((open) => !open)}
                 className={`relative flex min-h-10 w-full items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                   secondaryActive
-                    ? "bg-accent-soft text-accent"
-                    : "text-text-secondary hover:bg-hover hover:text-text-primary"
+                    ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]"
+                    : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
                 }`}
               >
                 <LayoutGrid aria-hidden className="h-[18px] w-[18px]" />
                 <span className="sr-only">More</span>
                 {secondaryActive ? (
-                  <span aria-hidden className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-accent" />
+                  <span aria-hidden className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-[var(--color-nav-indicator)]" />
                 ) : null}
               </button>
             </div>
           ) : (
-            <div className="mt-2 border-t border-border/70 pt-2">
+            <div className="mt-2 border-t border-[var(--color-nav-border)] pt-2">
               <button
                 type="button"
                 aria-expanded={moreOpen}
                 aria-controls="secondary-navigation"
                 onClick={() => setMoreOpen((open) => !open)}
                 className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                  secondaryActive ? "text-accent" : "text-text-secondary hover:bg-hover hover:text-text-primary"
+                  secondaryActive
+                    ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]"
+                    : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
                 }`}
               >
                 <LayoutGrid aria-hidden className="h-[18px] w-[18px] shrink-0" />
@@ -178,7 +225,7 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
               </button>
 
               {moreOpen ? (
-                <div id="secondary-navigation" className="mt-1 rounded-xl bg-surface-subtle p-1.5">
+                <div id="secondary-navigation" className="mt-1 rounded-xl bg-[var(--color-nav-subtle)] p-1.5">
                   <SecondaryGroupList groups={secondaryGroups} onNavigate={handleSecondaryNavigate} />
                 </div>
               ) : null}
@@ -207,7 +254,7 @@ export function Sidebar({ collapsed, className, onNavigate }: SidebarProps): JSX
               <X aria-hidden className="h-4 w-4" />
             </button>
           </div>
-          <SecondaryGroupList groups={secondaryGroups} onNavigate={handleSecondaryNavigate} />
+          <SecondaryGroupList groups={secondaryGroups} onNavigate={handleSecondaryNavigate} tone="panel" />
         </section>
       ) : null}
     </nav>

@@ -15,7 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { navItems, visibleNavItems } from "@/components/layout/navigation";
+import { navItems, visibleCreateActions, visibleNavItems } from "@/components/layout/navigation";
 import { toListQuery } from "@/features/inbox/api";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -37,6 +37,8 @@ interface Props {
 }
 
 const MAX_RESULTS = 36;
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 async function settle<T>(promise: Promise<T>, fallback: T): Promise<T> {
   try {
@@ -225,6 +227,8 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
   const [term, setTerm] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const invokerRef = useRef<HTMLElement | null>(null);
   const recordResults = useWorkspaceSearch(term, open);
 
   const navigationResults = useMemo<SearchResult[]>(() => {
@@ -235,9 +239,27 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
         id: `nav-${item.path}`,
         kind: "Navigate",
         label: item.label,
-        description: item.description,
+        description: item.maturity
+          ? `${item.description} · ${item.maturity === "future" ? "Future module" : "Foundation"}`
+          : item.description,
         path: item.path,
         icon: item.icon,
+      }));
+  }, [hasPermission, term]);
+
+  const createResults = useMemo<SearchResult[]>(() => {
+    const lower = term.trim().toLocaleLowerCase();
+    return visibleCreateActions(hasPermission)
+      .filter((action) =>
+        !lower || `${action.label} ${action.description} ${action.keywords.join(" ")}`.toLocaleLowerCase().includes(lower),
+      )
+      .map((action) => ({
+        id: `create-${action.path}`,
+        kind: "Create",
+        label: action.label,
+        description: action.description,
+        path: action.path,
+        icon: action.icon,
       }));
   }, [hasPermission, term]);
 
@@ -253,15 +275,17 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
     }));
   }, [term, workspace.recents]);
 
-  const results = [...recentResults, ...navigationResults, ...recordResults].filter(
+  const results = [...recentResults, ...createResults, ...navigationResults, ...recordResults].filter(
     (result, index, all) => all.findIndex((candidate) => candidate.path === result.path) === index,
   );
 
   useEffect(() => {
     if (!open) return;
+    invokerRef.current = document.activeElement as HTMLElement | null;
     setTerm("");
     setActiveIndex(0);
     requestAnimationFrame(() => inputRef.current?.focus());
+    return () => invokerRef.current?.focus();
   }, [open]);
 
   useEffect(() => setActiveIndex(0), [term]);
@@ -280,6 +304,7 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
     <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 px-3 pt-[10vh] backdrop-blur-sm">
       <button type="button" aria-label="Close command palette" onClick={onClose} className="absolute inset-0" />
       <section
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Search and commands"
@@ -297,6 +322,21 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
           if (event.key === "Enter" && results[active]) {
             event.preventDefault();
             choose(results[active]);
+          }
+          if (event.key === "Tab") {
+            const panel = panelRef.current;
+            if (!panel) return;
+            const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (!first || !last) return;
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
           }
         }}
       >
@@ -316,7 +356,12 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2" role="listbox" aria-label="Search results">
+        <p className="sr-only" aria-live="polite">
+          {results.length === 0
+            ? "No results"
+            : `${results.length} results. ${results[active]?.label ?? ""} selected.`}
+        </p>
+        <div className="min-h-0 flex-1 overflow-y-auto p-2" role="list" aria-label="Search results">
           {results.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <Search aria-hidden className="mx-auto h-8 w-8 text-text-disabled" />
@@ -334,11 +379,14 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
               return (
                 <div
                   key={result.id}
-                  role="option"
-                  aria-selected={index === active}
+                  role="listitem"
                   className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 ${index === active ? "bg-accent-soft" : "hover:bg-hover"}`}
                 >
-                  <button type="button" onClick={() => choose(result)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <button
+                    type="button"
+                    onClick={() => choose(result)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-text-secondary">
                       <Icon aria-hidden className="h-4 w-4" />
                     </span>

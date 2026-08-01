@@ -27,7 +27,7 @@ export type AuditPage = components["schemas"]["AuditLogPage"];
  * description.
  */
 export const SYSTEM_ROLE_SUMMARIES: Record<string, string> = {
-  owner: "Full control of the platform, including billing and destructive operations.",
+  owner: "Full control of the platform, including security and destructive operations.",
   admin: "Runs the platform day to day. Everything except owner-only actions.",
   manager: "Contacts, segments, templates, campaigns and analytics.",
   agent: "Front-line support: the inbox, messaging and their own follow-up tasks.",

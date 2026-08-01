@@ -11,6 +11,39 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Governed premium product shell (CORE-01)
+
+**Added**
+- Accepted ADR-0013 and Design Document 26 for the canonical permission-aware navigation catalogue,
+  reference comparison, originality boundary, responsive behavior, and accessibility evidence.
+- Added a permanent runtime/test guard against excluded Ads, Payments, Billing, marketplace,
+  SaaS/multi-project, public-signup/reseller, and commerce navigation concepts.
+- Added honest `Foundation` and `Future` maturity labels and one shared permission-scoped quick-create
+  catalogue for the top bar and command palette.
+
+**Changed**
+- Finalized the original Vi Reactivation dark-green desktop rail, grouped More surface, mobile task
+  bar/drawer, active states, shared command palette, and dismissible create/account menus.
+- Added dialog focus trapping/restoration, Escape behavior, live search-result announcements,
+  explicit ARIA state, 44px mobile targets, and mobile More state for overflow destinations.
+- Removed two incidental Billing references from user-facing administrative copy without changing
+  API-key or role behavior.
+
+**Preserved**
+- The existing six-item primary order, all completed routes/modules, backend architecture, product
+  scope, module percentages, permissions, OpenAPI 3.1.0 at 153 paths, and migration head `0031`.
+- `.reference/aisensy/` remains ignored and untracked; no proprietary code, asset, branding, exact
+  icon, exact color, wording, typography, screenshot, or pixel value was copied or shipped.
+
+**Validated**
+- Passed canonical static checks, Ruff, strict mypy, OpenAPI drift, frontend/Playwright TypeScript,
+  ESLint, Python compile, migration head, generated-contract drift, 932 pytest tests, 636 Vitest
+  tests, production build, Bandit, and dependency audits.
+- Passed 30 focused navigation/foundation tests and authenticated 1280×720 browser comparison for
+  the compact rail, More, command palette, factual error states, and horizontal-overflow boundary.
+- Docker-backed Trivy/release/deployed reruns remain `PENDING – Host Machine Validation` because the
+  Docker Desktop daemon was unavailable; prior successful deployed evidence remains preserved.
+
 ### 2026-08-02 — Premium AiSensy-parity product goal lock (GOV-02)
 
 **Added**

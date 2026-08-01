@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "@/lib/auth";
@@ -6,9 +6,11 @@ import { useWorkspacePreferences } from "@/lib/workspace";
 
 import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
-import { navItems, primaryNavItems } from "./navigation";
+import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
 
 const COLLAPSE_KEY = "wa.sidebar.compact.v2";
+const FOCUSABLE =
+  'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** New workspaces open on the task rail; an explicit user choice always wins afterwards. */
 export function resolveCollapsedPreference(stored: string | null): boolean {
@@ -31,15 +33,15 @@ export function AppLayout(): JSX.Element {
   const { recordRecent } = workspace;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileDialogRef = useRef<HTMLDivElement>(null);
+  const mobileInvokerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
   }, [collapsed]);
 
-  // Escape closes the mobile drawer (focus returns to the page behind it).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") setMobileOpen(false);
       if (
         event.key === "[" &&
         !(event.target instanceof HTMLInputElement) &&
@@ -51,6 +53,40 @@ export function AppLayout(): JSX.Element {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const dialog = mobileDialogRef.current;
+    requestAnimationFrame(() =>
+      dialog?.querySelector<HTMLElement>('nav [aria-label="Close navigation"]')?.focus(),
+    );
+
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (focusable.length === 0) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      mobileInvokerRef.current?.focus();
+    };
+  }, [mobileOpen]);
 
   useEffect(() => {
     const path = location.pathname;
@@ -71,6 +107,22 @@ export function AppLayout(): JSX.Element {
   const mobileItems = primaryNavItems(hasPermission).filter((item) =>
     ["/", "/inbox", "/campaigns", "/contacts"].includes(item.path),
   );
+  const mobileItemPaths = new Set(mobileItems.map((item) => item.path));
+  const primaryOverflowItems = primaryNavItems(hasPermission).filter(
+    (item) => !mobileItemPaths.has(item.path),
+  );
+  const secondaryItems = secondaryNavGroups(hasPermission).flatMap((group) => group.items);
+  const moreItems = [...primaryOverflowItems, ...secondaryItems];
+  const secondaryActive = moreItems.some((item) =>
+    item.path === "/"
+      ? location.pathname === "/"
+      : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+  );
+
+  const openMobileNavigation = (): void => {
+    mobileInvokerRef.current = document.activeElement as HTMLElement | null;
+    setMobileOpen(true);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas text-text-primary">
@@ -83,16 +135,25 @@ export function AppLayout(): JSX.Element {
       <Sidebar collapsed={collapsed} className="hidden lg:flex" />
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div
+          ref={mobileDialogRef}
+          id="mobile-navigation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation"
+          className="fixed inset-0 z-40 lg:hidden"
+        >
           <button
             type="button"
-            aria-label="Close navigation"
+            aria-label="Dismiss navigation"
+            tabIndex={-1}
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
           <Sidebar
             collapsed={false}
             onNavigate={() => setMobileOpen(false)}
+            onClose={() => setMobileOpen(false)}
             className="absolute inset-y-0 left-0 flex shadow-lg"
           />
         </div>
@@ -101,7 +162,8 @@ export function AppLayout(): JSX.Element {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNav
           collapsed={collapsed}
-          onOpenMobileNav={() => setMobileOpen(true)}
+          mobileNavOpen={mobileOpen}
+          onOpenMobileNav={openMobileNavigation}
           onToggleCollapse={() => setCollapsed((value) => !value)}
         />
         <main id="main-content" className="relative flex-1 overflow-auto pb-16 lg:pb-0">
@@ -116,17 +178,26 @@ export function AppLayout(): JSX.Element {
                 key={item.path}
                 to={item.path}
                 end={item.path === "/"}
-                className={({ isActive }) => `flex min-w-14 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium ${isActive ? "bg-accent-soft text-accent" : "text-text-secondary"}`}
+                className={({ isActive }) => `flex min-h-11 min-w-14 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${isActive ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-hover hover:text-text-primary"}`}
               >
                 <Icon aria-hidden className="h-[18px] w-[18px]" />
                 <span>{item.label}</span>
               </NavLink>
             );
           })}
-          <button type="button" onClick={() => setMobileOpen(true)} className="flex min-w-14 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-medium text-text-secondary">
-            <span aria-hidden className="text-lg leading-[18px]">•••</span>
-            <span>More</span>
-          </button>
+          {moreItems.length > 0 ? (
+            <button
+              type="button"
+              aria-controls="mobile-navigation"
+              aria-expanded={mobileOpen}
+              aria-current={secondaryActive ? "page" : undefined}
+              onClick={openMobileNavigation}
+              className={`flex min-h-11 min-w-14 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${secondaryActive ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-hover hover:text-text-primary"}`}
+            >
+              <span aria-hidden className="text-lg leading-[18px]">•••</span>
+              <span>More</span>
+            </button>
+          ) : null}
         </nav>
       </div>
     </div>

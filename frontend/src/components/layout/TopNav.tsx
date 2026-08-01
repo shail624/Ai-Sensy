@@ -1,9 +1,7 @@
 import {
   Bell,
   ChevronDown,
-  Contact,
   Menu,
-  MessageSquareText,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -13,9 +11,10 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { visibleCreateActions } from "@/components/layout/navigation";
 import { CommandPalette } from "@/features/global-search";
 import { useQueues } from "@/features/operations/api";
 import { useAuth } from "@/lib/auth";
@@ -31,6 +30,7 @@ function initials(name: string): string {
 
 interface TopNavProps {
   collapsed: boolean;
+  mobileNavOpen: boolean;
   onOpenMobileNav: () => void;
   onToggleCollapse: () => void;
 }
@@ -42,7 +42,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
 }
 
-export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavProps): JSX.Element {
+export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleCollapse }: TopNavProps): JSX.Element {
   const { resolvedTheme, toggle } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +53,10 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [attentionOpen, setAttentionOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
 
   const queueDepth = (queues.data?.queues ?? []).reduce((sum, queue) => sum + queue.depth, 0);
   const parked = queues.data?.dead_letter_parked ?? 0;
@@ -77,22 +81,43 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const createActions = [
-    hasPermission("campaigns:write")
-      ? { label: "Campaign", description: "Build a broadcast", path: "/campaigns/new", icon: MessageSquareText }
-      : null,
-    hasPermission("templates:write")
-      ? { label: "Template", description: "Create a Meta template", path: "/templates/new", icon: Plus }
-      : null,
-    hasPermission("contacts:import")
-      ? { label: "Import contacts", description: "Upload CSV or Excel", path: "/contacts?import=1", icon: Contact }
-      : null,
-  ].filter((action): action is NonNullable<typeof action> => action !== null);
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent): void {
+      const target = event.target as Node;
+      if (createOpen && !createMenuRef.current?.contains(target)) setCreateOpen(false);
+      if (accountOpen && !accountMenuRef.current?.contains(target)) setAccountOpen(false);
+    }
+    function onDismiss(event: KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      if (createOpen) {
+        setCreateOpen(false);
+        createButtonRef.current?.focus();
+      } else if (accountOpen) {
+        setAccountOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onDismiss);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onDismiss);
+    };
+  }, [accountOpen, createOpen]);
+
+  const createActions = visibleCreateActions(hasPermission);
 
   return (
     <>
       <header className="relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_92%,transparent)] px-3 backdrop-blur-xl sm:px-4">
-        <button type="button" aria-label="Open navigation" onClick={onOpenMobileNav} className={`${iconBtn} lg:hidden`}>
+        <button
+          type="button"
+          aria-label="Open navigation"
+          aria-controls="mobile-navigation"
+          aria-expanded={mobileNavOpen}
+          onClick={onOpenMobileNav}
+          className={`${iconBtn} lg:hidden`}
+        >
           <Menu aria-hidden className="h-[18px] w-[18px]" />
         </button>
         <button
@@ -116,12 +141,17 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
 
         <div className="flex items-center gap-1">
           {createActions.length > 0 ? (
-            <div className="relative hidden md:block">
+            <div ref={createMenuRef} className="relative hidden md:block">
               <button
+                ref={createButtonRef}
                 type="button"
                 aria-haspopup="menu"
                 aria-expanded={createOpen}
-                onClick={() => setCreateOpen((open) => !open)}
+                aria-controls="create-menu"
+                onClick={() => {
+                  setAccountOpen(false);
+                  setCreateOpen((open) => !open);
+                }}
                 className="flex h-10 items-center gap-2 rounded-xl bg-accent px-3.5 text-sm font-medium text-accent-fg shadow-sm transition-colors hover:bg-accent-strong"
               >
                 <Plus aria-hidden className="h-4 w-4" />
@@ -129,7 +159,7 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
                 <ChevronDown aria-hidden className="h-3.5 w-3.5" />
               </button>
               {createOpen ? (
-                <div role="menu" className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-border bg-surface p-2 shadow-lg">
+                <div id="create-menu" role="menu" aria-label="Create" className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-border bg-surface p-2 shadow-lg">
                   {createActions.map((action) => {
                     const Icon = action.icon;
                     return (
@@ -159,13 +189,18 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
               <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white ring-2 ring-surface">{attentionCount}</span>
             ) : null}
           </button>
-          <div className="relative">
+          <div ref={accountMenuRef} className="relative">
             <button
+              ref={accountButtonRef}
               type="button"
               aria-haspopup="menu"
               aria-expanded={accountOpen}
               aria-label="Account menu"
-              onClick={() => setAccountOpen((open) => !open)}
+              aria-controls="account-menu"
+              onClick={() => {
+                setCreateOpen(false);
+                setAccountOpen((open) => !open);
+              }}
               className="flex h-10 items-center gap-2 rounded-xl pl-1 pr-2 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-xs font-semibold text-accent-fg">{user ? initials(user.full_name) : "U"}</span>
@@ -173,14 +208,14 @@ export function TopNav({ collapsed, onOpenMobileNav, onToggleCollapse }: TopNavP
               <ChevronDown aria-hidden className="hidden h-3.5 w-3.5 text-text-disabled xl:block" />
             </button>
             {accountOpen ? (
-              <div role="menu" className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-border bg-surface p-2 text-sm shadow-lg">
+              <div id="account-menu" role="menu" aria-label="Account" className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-border bg-surface p-2 text-sm shadow-lg">
                 {user ? (
                   <div className="mb-1 rounded-xl bg-surface-2 px-3 py-3">
                     <p className="truncate font-semibold text-text-primary">{user.full_name}</p>
                     <p className="truncate text-xs text-text-secondary">{user.email}</p>
                   </div>
                 ) : null}
-                <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); navigate("/settings/preferences"); }} className="block w-full rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">Preferences</button>
+                {hasPermission("auth:self") ? <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); navigate("/settings/preferences"); }} className="block w-full rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">Preferences</button> : null}
                 <button type="button" role="menuitem" onClick={() => { setAccountOpen(false); toggle(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-text-primary hover:bg-hover">
                   {resolvedTheme === "dark" ? <Sun aria-hidden className="h-4 w-4" /> : <Moon aria-hidden className="h-4 w-4" />}
                   Switch to {resolvedTheme === "dark" ? "light" : "dark"} mode

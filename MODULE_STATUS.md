@@ -10,7 +10,11 @@ must also pass ADR-0012 and the twenty-point premium screen Definition of Done i
 25. Visual polish alone never increases completion, and a backend-complete workflow with a generic,
 inaccessible, placeholder-driven, or inconsistent experience is not final completion.
 
-Last synchronized: `2026-08-02T03:40:02+05:30`.
+CORE-01 completed the shared navigation shell, permitted-scope guard, RBAC visibility, maturity
+labels, responsive active states, command palette, and accessible overlay behavior. It does not
+change module completion percentages because no domain capability was added or recreated.
+
+Last synchronized: `2026-08-02T04:23:52+05:30`.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|

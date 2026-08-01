@@ -292,7 +292,7 @@ function ApiKeyDialog({ rotating, onClose, onIssued }: DialogProps): JSX.Element
             id="key-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="billing-sync"
+            placeholder="crm-export"
             className={FIELD_CLASS}
           />
           {showErrors && problem ? <p className="text-xs text-danger">{problem}</p> : null}

@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
-import { resolveCollapsedPreference } from "@/components/layout/AppLayout";
+import { AppLayout, resolveCollapsedPreference } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
@@ -57,6 +57,8 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+    expect(screen.getAllByText("foundation")).toHaveLength(2);
+    expect(screen.getByText("future")).toBeInTheDocument();
   });
 
   it("automatically reveals More when an advanced destination is active", () => {
@@ -116,7 +118,7 @@ describe("TopNav", () => {
   function renderTopNav() {
     return renderAt(
       <ThemeProvider>
-        <TopNav collapsed={false} onOpenMobileNav={vi.fn()} onToggleCollapse={vi.fn()} />
+        <TopNav collapsed={false} mobileNavOpen={false} onOpenMobileNav={vi.fn()} onToggleCollapse={vi.fn()} />
       </ThemeProvider>,
     );
   }
@@ -143,15 +145,102 @@ describe("TopNav", () => {
     expect(logout).toHaveBeenCalled();
   });
 
+  it("opens the permission-aware command palette with governed create actions", () => {
+    renderTopNav();
+    const searchButton = screen.getByRole("button", { name: /search/i });
+    searchButton.focus();
+    fireEvent.click(searchButton);
+    const palette = screen.getByRole("dialog", { name: "Search and commands" });
+    expect(within(palette).getByRole("button", { name: /Campaign Create Build a governed WhatsApp broadcast/i })).toBeInTheDocument();
+    expect(within(palette).getByText(/Future module/)).toBeInTheDocument();
+    expect(within(palette).queryByText(/billing|payments|marketplace/i)).not.toBeInTheDocument();
+    fireEvent.keyDown(palette, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Search and commands" })).not.toBeInTheDocument();
+    expect(searchButton).toHaveFocus();
+  });
+
   it("toggles the sidebar", () => {
     const onToggleCollapse = vi.fn();
     renderAt(
       <ThemeProvider>
-        <TopNav collapsed={false} onOpenMobileNav={vi.fn()} onToggleCollapse={onToggleCollapse} />
+        <TopNav collapsed={false} mobileNavOpen={false} onOpenMobileNav={vi.fn()} onToggleCollapse={onToggleCollapse} />
       </ThemeProvider>,
     );
     fireEvent.click(screen.getByLabelText("Collapse sidebar"));
     expect(onToggleCollapse).toHaveBeenCalledOnce();
+  });
+
+  it("exposes the mobile navigation state to assistive technology", () => {
+    renderAt(
+      <ThemeProvider>
+        <TopNav collapsed={false} mobileNavOpen onOpenMobileNav={vi.fn()} onToggleCollapse={vi.fn()} />
+      </ThemeProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open navigation" });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAttribute("aria-controls", "mobile-navigation");
+  });
+});
+
+describe("AppLayout mobile navigation", () => {
+  it("marks More active and closes the labelled navigation drawer explicitly", () => {
+    renderAt(
+      <ThemeProvider>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="media" element={<h1>Media library</h1>} />
+          </Route>
+        </Routes>
+      </ThemeProvider>,
+      "/media",
+    );
+
+    const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
+    const more = within(mobileNav).getByRole("button", { name: "More" });
+    expect(more).toHaveAttribute("aria-current", "page");
+    fireEvent.click(more);
+
+    const drawer = screen.getByRole("dialog", { name: "Navigation" });
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(within(drawer).getByRole("button", { name: "Close navigation" }));
+    expect(screen.queryByRole("dialog", { name: "Navigation" })).not.toBeInTheDocument();
+  });
+
+  it("marks More active for primary destinations that overflow the mobile task bar", () => {
+    renderAt(
+      <ThemeProvider>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="templates" element={<h1>Templates</h1>} />
+          </Route>
+        </Routes>
+      </ThemeProvider>,
+      "/templates",
+    );
+
+    const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
+    expect(within(mobileNav).getByRole("button", { name: "More" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("toggles the desktop rail between compact and expanded states", () => {
+    localStorage.setItem("wa.sidebar.compact.v2", "1");
+    renderAt(
+      <ThemeProvider>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<h1>Dashboard</h1>} />
+          </Route>
+        </Routes>
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+
+    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBeInTheDocument();
+    expect(screen.getByText("Vi Reactivation")).toBeInTheDocument();
   });
 });
 

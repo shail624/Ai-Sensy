@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { navItems, primaryNavItems, secondaryNavGroups, visibleNavItems } from "@/components/layout/navigation";
+import {
+  EXCLUDED_NAVIGATION_TERMS,
+  isPermittedNavItem,
+  navItems,
+  primaryNavItems,
+  secondaryNavGroups,
+  visibleCreateActions,
+  visibleNavItems,
+} from "@/components/layout/navigation";
 import { OPERATIONS_SECTIONS } from "@/features/operations/sections";
 import { REACTIVATION_SECTIONS } from "@/features/reactivation/sections";
 
@@ -28,6 +36,29 @@ describe("Phase 1 information architecture", () => {
 
   it("does not expose permission-gated modules without an entitlement", () => {
     expect(visibleNavItems(() => false).map((item) => item.label)).toEqual(["Dashboard"]);
+  });
+
+  it("permanently rejects excluded product concepts from navigation", () => {
+    expect(navItems.every(isPermittedNavItem)).toBe(true);
+    const catalog = navItems
+      .map((item) => `${item.label} ${item.path} ${item.description}`)
+      .join(" ")
+      .toLocaleLowerCase();
+    for (const term of EXCLUDED_NAVIGATION_TERMS) expect(catalog).not.toContain(term);
+  });
+
+  it("labels approved incomplete routes honestly instead of inventing capability", () => {
+    expect(navItems.find((item) => item.path === "/reactivation")?.maturity).toBe("foundation");
+    expect(navItems.find((item) => item.path === "/automation")?.maturity).toBe("foundation");
+    expect(navItems.find((item) => item.path === "/scan")?.maturity).toBe("future");
+  });
+
+  it("shares permission-scoped create actions with the header and command palette", () => {
+    const campaignWriter = (code: string) => code === "campaigns:write";
+    expect(visibleCreateActions(campaignWriter).map((action) => action.path)).toEqual([
+      "/campaigns/new",
+    ]);
+    expect(visibleCreateActions(() => false)).toEqual([]);
   });
 });
 
