@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-02T03:03:58+05:30`.
+Last synchronized: `2026-08-02T03:11:48+05:30`.
 
 ## Authority and baseline
 

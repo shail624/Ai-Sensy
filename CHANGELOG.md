@@ -14,8 +14,8 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 ### 2026-08-02 — Governance repository state synchronization
 
 **Changed**
-- Synchronized the governance baseline to GitHub commit `298a3b7`, marked GOV-01 complete, and
-  retained CORE-01 as the next milestone requiring a separate owner instruction.
+- Recorded owner approval of the completed GOV-01 governance baseline and retained CORE-01 as the
+  next milestone requiring a separate owner instruction.
 - Recorded migration head `0031`, OpenAPI 3.1.0 with 153 paths, 932 backend tests, 628 frontend
   tests, and the successfully completed repository validation pipeline.
 - Removed local ZIP/archive exceptions from the active governance rules and roadmap. GitHub at the
@@ -49,7 +49,8 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
   ESLint, frontend TypeScript, and Playwright TypeScript; the governance updater also compiles and
   passes focused Ruff validation.
 - The last completed engineering milestone remains PAR-AUTO-03 with its recorded full release and
-  deployed validation evidence. GOV-01 is documentation/governance only and awaits owner approval.
+  deployed validation evidence. GOV-01 is documentation/governance only and was subsequently
+  approved on 2026-08-02.
 
 ### 2026-07-30 — Durable automation trigger receipts (MD5 Phase 2C)
 

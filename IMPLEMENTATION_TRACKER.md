@@ -32,7 +32,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** GOV-01 permanent governance baseline — **COMPLETE; PIPELINE PASSED**
+- **Current milestone:** GOV-01 permanent governance baseline — **APPROVED; COMPLETE; PIPELINE PASSED**
 
 ## Completed deliverables
 
