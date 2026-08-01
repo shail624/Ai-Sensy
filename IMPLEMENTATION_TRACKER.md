@@ -21,7 +21,7 @@ quality gates._
   the backend image boots with the 153-path/24-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
-- **Current phase:** Phase 0 permanent governance baseline — **AWAITING OWNER APPROVAL**
+- **Current phase:** Phase 0 permanent governance baseline — **COMPLETE**
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
@@ -32,7 +32,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** GOV-01 permanent governance baseline — **IMPLEMENTED; AWAITING OWNER APPROVAL**
+- **Current milestone:** GOV-01 permanent governance baseline — **COMPLETE; PIPELINE PASSED**
 
 ## Completed deliverables
 
@@ -87,7 +87,7 @@ in Design Documents 18 and 19 and requires separately approved milestones.
 The canonical final-product sequence is now `ROADMAP.md`; the older `docs/ROADMAP.md` is retained as
 historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
 continues to define the remaining-work baseline. CORE-01 is the next proposed milestone and must not
-start until the owner approves GOV-01.
+start without a separate owner instruction.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,

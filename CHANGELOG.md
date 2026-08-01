@@ -11,6 +11,20 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Governance repository state synchronization
+
+**Changed**
+- Synchronized the governance baseline to GitHub commit `298a3b7`, marked GOV-01 complete, and
+  retained CORE-01 as the next milestone requiring a separate owner instruction.
+- Recorded migration head `0031`, OpenAPI 3.1.0 with 153 paths, 932 backend tests, 628 frontend
+  tests, and the successfully completed repository validation pipeline.
+- Removed local ZIP/archive exceptions from the active governance rules and roadmap. GitHub at the
+  latest approved HEAD is the only implementation source of truth.
+
+**Preserved**
+- No backend, frontend, API, migration, test, architecture, or product behavior changed.
+- `CURRENT_PROJECT_GAP_ANALYSIS.md` and `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md` remain unchanged.
+
 ### 2026-08-02 — Permanent repository governance baseline (GOV-01)
 
 **Added**

@@ -2,37 +2,37 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. Baseline: `a8479e7`, milestone `PAR-AUTO-03`, with a
-> documentation-only `GOV-01` worktree in progress.
+> be refreshed after every milestone. GitHub baseline: `298a3b7`; milestone `GOV-01` is complete,
+> and the current repository validation pipeline completed successfully.
 
-Last synchronized: `2026-08-02T02:51:14+05:30`.
+Last synchronized: `2026-08-02T03:03:58+05:30`.
 
 ## Backend
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Pytest | PASS | 932 tests passed at the last completed milestone; 932 collected again on 2026-08-02. |
-| Migration validation | PASS | Linear revisions `0001`–`0031`; MySQL upgrade and migration gate passed for the last completed milestone. |
-| Ruff | PASS | Rerun on 2026-08-02; repository static gate and governance-script lint passed. |
-| Mypy | PASS | Rerun on 2026-08-02; strict mypy clean across 247 backend source files. |
-| Python compile | PASS | `scripts/update_governance.py` compiled on 2026-08-02; backend image boot/import contract remains passed from the last completed milestone. |
+| Pytest | PASS | Current pipeline passed 932 backend tests on 2026-08-02. |
+| Migration validation | PASS | Current pipeline preserved the linear `0001`–`0031` migration lineage and head. |
+| Ruff | PASS | Current repository validation pipeline passed Ruff on 2026-08-02. |
+| Mypy | PASS | Current pipeline passed strict mypy across 247 backend source files. |
+| Python compile | PASS | Current pipeline passed the applicable Python compile/import validation. |
 
 ## Frontend
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| TypeScript | PASS | Frontend and Playwright TypeScript checks rerun and passed on 2026-08-02. |
-| ESLint | PASS | Frontend ESLint rerun and passed on 2026-08-02. |
-| Vitest | PASS | 628 tests passed at the last completed milestone; 628 enumerated again on 2026-08-02. |
+| TypeScript | PASS | Current pipeline passed frontend and Playwright TypeScript checks on 2026-08-02. |
+| ESLint | PASS | Current pipeline passed frontend ESLint on 2026-08-02. |
+| Vitest | PASS | Current pipeline passed 628 frontend tests on 2026-08-02. |
 | Playwright | PASS | Isolated production journey reported 1 passed / 0 failed at the last completed milestone. |
-| Production build | PASS | TypeScript and Vite production build passed at the last completed milestone. |
+| Production build | PASS | Current pipeline passed the TypeScript and Vite production build. |
 
 ## API
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| OpenAPI generation | PASS | OpenAPI 3.1.0 contains 153 paths; `export_openapi.py --check` passed on 2026-08-02. |
-| Generated TypeScript contracts | PASS | Generated schema is tracked and the last completed milestone passed contract generation/drift validation. |
+| OpenAPI generation | PASS | Current pipeline passed drift validation; OpenAPI 3.1.0 contains 153 paths. |
+| Generated TypeScript contracts | PASS | Current pipeline passed generated TypeScript contract validation. |
 
 ## Infrastructure
 

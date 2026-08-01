@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-02T02:51:14+05:30`.
+Last synchronized: `2026-08-02T03:03:58+05:30`.
 
 ## Authority and baseline
 
@@ -14,9 +14,9 @@ Last synchronized: `2026-08-02T02:51:14+05:30`.
   with 153 paths, 932 backend tests, and 628 frontend tests.
 - Existing functionality is reused. A milestone may close a verified gap but may not rebuild a
   completed module.
-- The supplied AiSensy capture archive is a permitted interaction/layout reference only. Excluded
-  ads, payments, billing, marketplace, signup, reseller, and promotional surfaces are never in
-  scope.
+- Only interaction/layout requirements already recorded in the GitHub repository may be used.
+  Cached repositories, ZIP archives, and previous snapshots must not be consulted. Excluded ads,
+  payments, billing, marketplace, signup, reseller, and promotional surfaces are never in scope.
 - Estimated path and migration changes are planning figures. The milestone design review must
   verify exact additive contracts before implementation.
 - Exactly one milestone is implemented per commit. Stop after each milestone for owner approval.

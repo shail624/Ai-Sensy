@@ -24,8 +24,8 @@ explicit owner instruction. Product intent is controlled by
 - Never duplicate completed modules or introduce parallel models, APIs, services, pages, or state.
 - Never modify completed milestones or rewrite their historical evidence.
 - Never inspect cached repositories.
-- Never inspect previous ZIP archives. A newly supplied archive may be examined only when the owner
-  explicitly designates it for the current milestone; it is reference material, never source truth.
+- Never inspect or rely on cached repositories, ZIP archives, or previous snapshots. Only material
+  committed to the latest approved GitHub HEAD may govern implementation.
 - Never import excluded AiSensy surfaces or behavior. Ads Manager, WhatsApp Payments, SaaS billing,
   public signup, reseller/multi-project features, upgrade/trial promotions, and an integration
   marketplace remain prohibited.
@@ -66,13 +66,11 @@ Exactly one milestone is allowed per commit. Do not combine unrelated milestones
 do not spread one milestone across multiple commits without owner approval. Stop after each
 milestone and wait for user approval before the next milestone.
 
-## Current UI reference boundary
+## UI reference boundary
 
-`C:\Users\Admin\Downloads\Aisensy Html.zip` was explicitly supplied for the current governance
-baseline. It contains 74 HTML captures/73 named UI states. The allowed reference subset covers live
-chat, contacts, campaigns, templates, opt-in, attributes, canned messages, team, tags,
-notifications, API keys, webhooks, and documentation. Captures for ads, payments, billing, partner
-integrations, marketplace discovery, and other excluded functionality must not be implemented.
+Only UI requirements and permitted interaction patterns recorded in the GitHub repository may be
+used. Ads, payments, billing, partner marketplaces, SaaS controls, public signup, reseller tooling,
+and other excluded functionality must not be implemented regardless of any external reference.
 
 ## Definition of synchronized
 
