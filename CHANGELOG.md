@@ -11,6 +11,32 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Permanent repository governance baseline (GOV-01)
+
+**Added**
+- Added root `PROJECT_STATE.md`, `VALIDATION_RESULTS.md`, `MODULE_STATUS.md`,
+  `REPOSITORY_RULES.md`, and the canonical final-scope `ROADMAP.md` without overwriting the existing
+  historical roadmap.
+- Added a synchronized milestone closeout model covering Git state, migration/OpenAPI/test evidence,
+  module completion, validation truth, one-milestone-per-commit discipline, and owner approval.
+- Registered the explicitly supplied 73-state AiSensy capture set as permitted UI/workflow reference
+  material while keeping ads, payments, billing, marketplaces, SaaS, and other scope exclusions out
+  of the product roadmap.
+
+**Preserved**
+- `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md` and `CURRENT_PROJECT_GAP_ANALYSIS.md` remain unchanged and
+  retain product-intent and remaining-work authority.
+- No backend, frontend, migration, API, queue, provider, permission, or runtime behavior changed.
+
+**Validated**
+- Verified branch `feature/module6-queue-engine` at `a8479e7`, migration head `0031`, OpenAPI 3.1.0
+  with 153 paths and no export drift, 932 collected backend tests, and 628 enumerated frontend tests.
+- Passed the repository static quality profile: Ruff, strict mypy across 247 files, OpenAPI drift,
+  ESLint, frontend TypeScript, and Playwright TypeScript; the governance updater also compiles and
+  passes focused Ruff validation.
+- The last completed engineering milestone remains PAR-AUTO-03 with its recorded full release and
+  deployed validation evidence. GOV-01 is documentation/governance only and awaits owner approval.
+
 ### 2026-07-30 — Durable automation trigger receipts (MD5 Phase 2C)
 
 **Added**

@@ -1,9 +1,10 @@
 # Implementation Tracker (canonical)
 
-> Single source of truth for project state. Every new session must read this first.
+> Canonical implementation tracker. GitHub at the latest approved HEAD remains the repository source
+> of truth. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-07-30 · verified from Git, frozen designs, generated contracts, and executable
+_Last updated: 2026-08-02 · verified from Git, frozen designs, generated contracts, and executable
 quality gates._
 
 ## Current state
@@ -20,7 +21,7 @@ quality gates._
   the backend image boots with the 153-path/24-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
-- **Current phase:** MD5 Phase 2 automation and Forms — **IN PROGRESS**
+- **Current phase:** Phase 0 permanent governance baseline — **AWAITING OWNER APPROVAL**
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
@@ -31,7 +32,7 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** PAR-AUTO-03 durable business-event trigger receipts — **RELEASE READY**
+- **Current milestone:** GOV-01 permanent governance baseline — **IMPLEMENTED; AWAITING OWNER APPROVAL**
 
 ## Completed deliverables
 
@@ -58,6 +59,7 @@ quality gates._
 | Versioned automation definitions | Tenant-scoped durable drafts; typed bounded graph; fail-closed publication validation; immutable content-addressed versions; restore/enable/disable; least-privilege RBAC; audit; optimistic concurrency; generated API client; real searchable authoring workspace; migration `0029` |
 | Deterministic automation test runtime | Immutable-version test runs; tenant-scoped run/attempt ledger; UUID idempotency; stable DAG execution; checkpoint/resume; existing retry/DLQ and job visibility; safe simulated actions; run history UI; migration `0030` |
 | Durable automation trigger receipts | Additive `contact.created` taxonomy; immutable partitioned business-event ledger; atomic API/import/system publishers; enabled clean immutable-version matching; idempotent tenant-scoped receipts; read-only builder evidence; no live effects; migration `0031` |
+| Permanent repository governance | Root state, validation, module-status, repository-rule, and final-scope roadmap ledgers; immutable source-document hashes; permitted AiSensy reference boundary; milestone synchronization gate |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -82,6 +84,10 @@ receipt consumption with idempotent internal effects and approval/handoff. Whats
 follows only after its own data/API/security contract. These remain real milestones rather than
 simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
+The canonical final-product sequence is now `ROADMAP.md`; the older `docs/ROADMAP.md` is retained as
+historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
+continues to define the remaining-work baseline. CORE-01 is the next proposed milestone and must not
+start until the owner approves GOV-01.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
