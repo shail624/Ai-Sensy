@@ -5,7 +5,12 @@ Completion percentages are evidence-based estimates against
 foundations are preserved; percentages increase only when real backend contracts, permissions,
 audit behavior, UI integration, and tests are complete.
 
-Last synchronized: `2026-08-02T03:11:48+05:30`.
+GOV-02 adds a completion gate without changing any percentage: new or materially changed screens
+must also pass ADR-0012 and the twenty-point premium screen Definition of Done in Design Document
+25. Visual polish alone never increases completion, and a backend-complete workflow with a generic,
+inaccessible, placeholder-driven, or inconsistent experience is not final completion.
+
+Last synchronized: `2026-08-02T03:40:02+05:30`.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|

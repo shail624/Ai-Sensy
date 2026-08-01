@@ -4,19 +4,26 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-02T03:11:48+05:30`.
+Last synchronized: `2026-08-02T03:40:02+05:30`.
 
 ## Authority and baseline
 
 - Final product intent: `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md`.
 - Remaining-work baseline: `CURRENT_PROJECT_GAP_ANALYSIS.md`.
-- Starting implementation: Git `a8479e7`, repository `1.0.0-rc1`, migration `0031`, OpenAPI 3.1.0
+- GOV-02 starting baseline: Git `0ea14d6`, repository `1.0.0-rc1`, migration `0031`, OpenAPI 3.1.0
   with 153 paths, 932 backend tests, and 628 frontend tests.
 - Existing functionality is reused. A milestone may close a verified gap but may not rebuild a
   completed module.
-- Only interaction/layout requirements already recorded in the GitHub repository may be used.
-  Cached repositories, ZIP archives, and previous snapshots must not be consulted. Excluded ads,
-  payments, billing, marketplace, signup, reseller, and promotional surfaces are never in scope.
+- GitHub remains the only implementation source of truth. The owner-approved AiSensy capture archive
+  may be inspected only from Git-ignored `.reference/aisensy/` as a private workflow and visual-
+  quality benchmark under ADR-0012 and Design Document 25. It is never staged, committed, bundled,
+  copied, or treated as implementation truth. Cached repositories and previous implementation
+  snapshots must not be consulted. Excluded ads, payments, billing, subscriptions, marketplace,
+  signup, reseller, multi-project, promotional, and commerce surfaces are never in scope.
+- Every implementation milestone includes the premium screen Definition of Done for each new or
+  materially changed route. Functionality, original presentation, real state, shared-component
+  reuse, responsive behavior, accessibility, reliability, and test evidence are co-equal acceptance
+  requirements; this gate does not change the approved feature sequence below.
 - Estimated path and migration changes are planning figures. The milestone design review must
   verify exact additive contracts before implementation.
 - Exactly one milestone is implemented per commit. Stop after each milestone for owner approval.
@@ -26,6 +33,7 @@ Last synchronized: `2026-08-02T03:11:48+05:30`.
 | Milestone | Objective | Features | Files expected | Tests expected | Completion criteria | Est. OpenAPI increase | Est. migration |
 |---|---|---|---|---|---|---:|---|
 | GOV-01 — Permanent governance baseline | Establish synchronized, durable repository control without changing product intent. | State, validation, module status, rules, final roadmap, closeout protocol, permitted UI-reference boundary. | Root governance Markdown; `CHANGELOG.md`; `IMPLEMENTATION_TRACKER.md`; optional governance helper under `scripts/`. | Markdown/link/required-field validation; Git/OpenAPI/migration/test-count evidence checks. | All governance records agree with current Git/worktree and source documents remain unchanged; owner approves before CORE-01. | +0 | None |
+| GOV-02 — Premium AiSensy-Parity Product Goal Lock | Make premium functionality and presentation a permanent, original, evidence-based product acceptance standard without changing feature scope. | Product goal and priority order; reference-versus-copying boundary; no-placeholder rule; shared-component policy; 14-step review; 20-point premium screen Definition of Done; continuous-quality boundary. | Ten synchronized root governance documents; ADR-0012; Design Document 25; local-only ignored reference evidence. | Markdown structure and links; required-content/exclusion consistency; changed-file boundary; reference-ignore; migration/OpenAPI invariance. | All governance records agree; reference use is approved and bounded; exclusions remain permanent; no product code, migration, API, permission, architecture, or behavior changes. | +0 | None |
 
 ## Phase 1 — Core operations and real domain ownership
 

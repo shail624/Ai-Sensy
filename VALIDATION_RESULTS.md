@@ -2,10 +2,26 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. GitHub baseline: `298a3b7`; milestone `GOV-01` is complete,
-> and the current repository validation pipeline completed successfully.
+> be refreshed after every milestone. GOV-02 starting GitHub baseline: `0ea14d6`; milestone
+> `GOV-02` is documentation/governance only. Its checks passed, while the successful application-
+> pipeline evidence below is preserved and was not rerun for this milestone.
 
-Last synchronized: `2026-08-02T03:11:48+05:30`.
+Last synchronized: `2026-08-02T03:40:02+05:30`.
+
+## GOV-02 documentation and governance
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Required governance files | PASS | All ten required root documents, ADR-0012, and Design Document 25 are present and non-empty. |
+| Markdown structure and relative links | PASS | Heading/table structure and repository-relative Markdown links passed the GOV-02 static check. |
+| Product-goal and priority consistency | PASS | Scope, rules, roadmap, tracker, ADR, and experience standard agree on the permanent target and ordered priorities. |
+| Reference boundary and originality | PASS | Approved/conditional/prohibited categories, local-only ignore policy, fourteen-step review, and no-copy boundary are recorded consistently. |
+| Exclusions | PASS | Ads, payments, billing/subscriptions, marketplace, reseller/multi-project, public signup, and commerce remain excluded. |
+| No-placeholder and premium screen gate | PASS | Real-state rule, shared-component standard, continuous-quality boundary, and twenty-point Definition of Done are locked. |
+| Changed-file boundary | PASS | GOV-02 changes only Markdown governance, ADR, and design files; no source, test, API, migration, configuration, or runtime file changed. |
+| Reference library isolation | PASS | `.reference/` is locally ignored and no capture/archive file is tracked or staged. |
+| Migration invariance | PASS | Migration head remains `0031_automation_trigger_receipts` with 31 linear revisions. |
+| OpenAPI invariance | PASS | `frontend/openapi.json` remains OpenAPI 3.1.0 with 153 paths and is unchanged from the starting Git baseline. |
 
 ## Backend
 

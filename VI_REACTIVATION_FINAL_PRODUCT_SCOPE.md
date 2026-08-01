@@ -1,6 +1,6 @@
 # Private Vi Reactivation Operations Platform
 
-**Status:** Final approved product scope  
+**Status:** Final approved product scope with GOV-02 premium product-goal lock
 **Product type:** Private internal software  
 **Users:** Owner/Admin, Manager, 5–10 internal agents  
 **Not a SaaS product:** No public signup, subscriptions, reseller system, or multi-project tenancy
@@ -11,12 +11,67 @@ A private WhatsApp CRM and Vi Reactivation Operations Platform designed for cust
 
 Core positioning:
 
-- AiSensy-like ease of use
+- Original enterprise product with AiSensy-comparable or better workflow depth, usability,
+  reliability, and visual quality
 - Respond.io-style team inbox
 - HubSpot-style Customer 360
 - Vi Reactivation domain workflows
 - Enterprise operations and auditability
 - Future compliant WhatsApp Scan module
+
+## Permanent product goal
+
+Build an original, private, enterprise-grade WhatsApp Business Platform for the Vi Reactivation
+Team. The completed product must provide approved workflows with depth, usability, reliability, and
+visual quality comparable to or better than AiSensy, with premium presentation appropriate to an
+approximately ₹50,000-per-month enterprise product. Familiar navigation, workflow order, and useful
+information density are permitted; all code, branding, components, assets, copy, colors, typography,
+spacing, and layouts must be original to this repository.
+
+> The supplied AiSensy capture library is the primary reference for approved workflow familiarity,
+> screen organization, information density, interaction quality, and premium visual maturity. The
+> platform should provide the closest practical equivalent approved user experience while using
+> completely original source code, architecture, components, graphics, icons, branding, wording,
+> design tokens, and visual implementation. The goal is not a generic AiSensy-inspired dashboard;
+> it is an original ₹50,000-per-month-quality enterprise product with AiSensy-equivalent approved
+> workflow completeness and familiarity, adapted specifically for the Vi Reactivation Team.
+
+Functionality and presentation are equally mandatory. A working but generic or inconsistent screen
+is not complete, and a polished screen backed by placeholders or invented data is not complete.
+
+Permanent priority order:
+
+1. Correct end-to-end Vi Reactivation and WhatsApp operations workflows.
+2. Complete coverage of every approved feature in this scope.
+3. Premium enterprise presentation.
+4. Clear information architecture and low-friction usability.
+5. Real backend-owned state with honest loading, empty, error, and unavailable states.
+6. Security, RBAC, auditability, and unified timeline evidence.
+7. Responsive desktop, tablet, and mobile operation.
+8. Accessibility.
+9. Performance and reliability.
+10. An original product identity distinct from AiSensy and every other reference.
+
+## Permanent reference and originality policy
+
+AiSensy is an owner-approved private benchmark for in-scope workflow familiarity, hierarchy,
+density, and interaction review. It is not an implementation source. The local capture library must
+remain Git-ignored, must never be committed or bundled, and must never supply copied code, captured
+text, assets, branding, design tokens, or layouts. Every implementation must follow ADR-0012 and
+`docs/design/25-PREMIUM-PRODUCT-EXPERIENCE-STANDARD.md`.
+
+Approved reference categories are Live Chat, Contacts, Campaigns, Template Message, Opt-in, Live
+Chat Settings, Attributes, Canned Messages, Team, Tags, Notifications, and Developer/API/Webhooks.
+AI references may be used only in a separately approved AI milestone; Automation references may be
+used only in a separately approved Automation milestone. Ads, payments, billing, subscriptions,
+trials, upgrades, marketplace, reseller, multi-project, catalog, cart, checkout, orders, refunds,
+and commerce references are prohibited targets.
+
+Production must contain no fabricated records, metrics, success states, integrations, or executable-
+looking placeholders. Unavailable capability is hidden, clearly disabled with a reason, or labelled
+as future scope. Sample data is limited to tests, Storybook, and explicitly labelled development or
+demo environments. Every new or materially changed screen must satisfy the twenty-point premium
+screen Definition of Done in Design Document 25.
 
 ---
 

@@ -4,8 +4,8 @@
 > of truth. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-08-02 · verified from Git, frozen designs, generated contracts, and executable
-quality gates._
+_Last updated: 2026-08-02 · GOV-02 verified from Git, governance/source documents, generated
+contracts, ignored reference evidence, and documentation quality gates._
 
 ## Current state
 
@@ -21,7 +21,7 @@ quality gates._
   the backend image boots with the 153-path/24-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
-- **Current phase:** Phase 0 permanent governance baseline — **COMPLETE**
+- **Current phase:** Phase 0 governance, scope, and premium product-goal lock — **COMPLETE**
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
@@ -32,7 +32,8 @@ quality gates._
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** GOV-01 permanent governance baseline — **APPROVED; COMPLETE; PIPELINE PASSED**
+- **Current milestone:** GOV-02 premium AiSensy-parity product goal lock — **APPROVED; COMPLETE;
+  DOCUMENTATION/GOVERNANCE VALIDATION PASSED**
 
 ## Completed deliverables
 
@@ -60,6 +61,7 @@ quality gates._
 | Deterministic automation test runtime | Immutable-version test runs; tenant-scoped run/attempt ledger; UUID idempotency; stable DAG execution; checkpoint/resume; existing retry/DLQ and job visibility; safe simulated actions; run history UI; migration `0030` |
 | Durable automation trigger receipts | Additive `contact.created` taxonomy; immutable partitioned business-event ledger; atomic API/import/system publishers; enabled clean immutable-version matching; idempotent tenant-scoped receipts; read-only builder evidence; no live effects; migration `0031` |
 | Permanent repository governance | Root state, validation, module-status, repository-rule, and final-scope roadmap ledgers; immutable source-document hashes; permitted AiSensy reference boundary; milestone synchronization gate |
+| Premium product-goal lock | Permanent original enterprise quality target; ordered product priorities; bounded local reference policy; no-placeholder rule; shared-component standard; fourteen-step reference review; twenty-point premium screen Definition of Done; ADR-0012 and Design Document 25 |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -84,10 +86,12 @@ receipt consumption with idempotent internal effects and approval/handoff. Whats
 follows only after its own data/API/security contract. These remain real milestones rather than
 simulated UI. The remaining Phase 4 contract backlog is recorded
 in Design Documents 18 and 19 and requires separately approved milestones.
-The canonical final-product sequence is now `ROADMAP.md`; the older `docs/ROADMAP.md` is retained as
+The canonical final-product sequence is `ROADMAP.md`; the older `docs/ROADMAP.md` is retained as
 historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
-continues to define the remaining-work baseline. CORE-01 is the next proposed milestone and must not
-start without a separate owner instruction.
+continues to define the remaining-work baseline. ADR-0012 and Design Document 25 now govern premium
+original experience acceptance for every future screen without changing the feature roadmap or
+module percentages. CORE-01 is the next proposed milestone and must not start without a separate
+owner instruction.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,

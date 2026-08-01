@@ -11,6 +11,39 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Premium AiSensy-parity product goal lock (GOV-02)
+
+**Added**
+- Accepted ADR-0012, permanently setting an original private enterprise-grade WhatsApp Business
+  Platform for the Vi Reactivation Team as the product target, with functionality and premium
+  presentation as equal acceptance requirements.
+- Added Design Document 25 with experience principles, the fourteen-step approved-reference review,
+  shared enterprise component catalogue, truthful state rules, responsive/accessibility acceptance,
+  and the twenty-point premium screen Definition of Done.
+- Recorded the permanent priority order, no-placeholder rule, original-implementation boundary, and
+  bounded continuous-quality policy across the scope and governance ledgers.
+
+**Changed**
+- Synchronized the scope, rules, README, project state, implementation tracker, gap analysis, module
+  status, roadmap, validation ledger, and changelog for the owner-approved GOV-02 documentation
+  milestone.
+- Clarified that GitHub remains the only implementation source of truth while the owner-approved
+  AiSensy archive is a Git-ignored, local-only workflow and visual-quality benchmark that must never
+  be staged, committed, bundled, imported, or copied.
+
+**Preserved**
+- Product feature scope, roadmap sequence and estimates, module completion percentages, architecture,
+  requirements, migrations, OpenAPI, permissions, tests, and runtime behavior are unchanged.
+- Ads Manager, Meta Ads, WhatsApp Payments, payment processing, billing/subscriptions/trials/upgrades,
+  public signup, reseller/multi-project, marketplace, catalog, cart, checkout, orders, refunds, and
+  commerce remain excluded. AI and Automation references remain milestone-gated.
+
+**Validated**
+- Passed GOV-02 Markdown structure/link, required-file/content, governance-consistency, changed-file,
+  reference-ignore, exclusion, migration-invariance, and OpenAPI-invariance checks.
+- Application tests were not rerun for this documentation-only milestone; their last successful
+  evidence remains preserved in `VALIDATION_RESULTS.md` and `IMPLEMENTATION_TRACKER.md`.
+
 ### 2026-08-02 — Governance repository state synchronization
 
 **Changed**

@@ -24,8 +24,11 @@ explicit owner instruction. Product intent is controlled by
 - Never duplicate completed modules or introduce parallel models, APIs, services, pages, or state.
 - Never modify completed milestones or rewrite their historical evidence.
 - Never inspect cached repositories.
-- Never inspect or rely on cached repositories, ZIP archives, or previous snapshots. Only material
-  committed to the latest approved GitHub HEAD may govern implementation.
+- Never inspect or rely on cached repositories or previous implementation snapshots. GitHub at the
+  latest approved HEAD is the only implementation source of truth.
+- The owner-approved AiSensy capture archive is the sole exception for private visual/workflow
+  benchmarking. Extract it only under Git-ignored `.reference/aisensy/`; never stage, commit,
+  bundle, import, or treat any captured file as implementation truth.
 - Never import excluded AiSensy surfaces or behavior. Ads Manager, WhatsApp Payments, SaaS billing,
   public signup, reseller/multi-project features, upgrade/trial promotions, and an integration
   marketplace remain prohibited.
@@ -44,6 +47,16 @@ explicit owner instruction. Product intent is controlled by
 - Generate TypeScript API contracts from backend OpenAPI. Never hand-write competing contract types.
 - Keep incomplete functionality honest: no fake success states, invented metrics, or executable-looking
   placeholders.
+- Never copy reference code, HTML, text, assets, branding, colors, typography, spacing, design
+  tokens, or layouts. All implementation must be original.
+- Search for and reuse or extend governed shared components before creating a new primitive.
+- A working screen and a premium, accessible, responsive presentation are both required for
+  completion. Apply ADR-0012 and the twenty-point premium screen Definition of Done in Design
+  Document 25 to every new or materially changed screen.
+- Sample data is allowed only in tests, Storybook, or explicitly labelled development/demo fixtures.
+  Production empty, loading, error, disabled, permission, and success states must be truthful.
+- Small quality corrections may accompany an approved milestone only when they are directly related,
+  reusable, tested, and architecture- and scope-neutral. Wider redesigns require owner approval.
 
 ## Required milestone closeout
 
@@ -68,9 +81,13 @@ milestone and wait for user approval before the next milestone.
 
 ## UI reference boundary
 
-Only UI requirements and permitted interaction patterns recorded in the GitHub repository may be
-used. Ads, payments, billing, partner marketplaces, SaaS controls, public signup, reseller tooling,
-and other excluded functionality must not be implemented regardless of any external reference.
+The owner-approved ignored capture library may be reviewed only through the process in Design
+Document 25. Approved categories are Live Chat, Contacts, Campaigns, Template Message, Opt-in, Live
+Chat Settings, Attributes, Canned Messages, Team, Tags, Notifications, and Developer/API/Webhooks.
+AI and Automation captures are conditional on their own approved milestones. Ads, payments,
+billing, subscriptions, trials, upgrades, partner marketplaces, SaaS controls, public signup,
+multi-project, reseller, catalog, cart, checkout, orders, refunds, commerce, and other excluded
+functionality must not be implemented regardless of any reference.
 
 ## Definition of synchronized
 

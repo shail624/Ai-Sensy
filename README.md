@@ -4,9 +4,21 @@ Internal enterprise platform for the **Vi Reactivation Team** — built on the O
 Meta WhatsApp Cloud API (Channel 1) and a vendor-neutral Support Connector (Channel 2).
 Single-tenant, self-hosted, not SaaS.
 
+The permanent product target is an original, premium enterprise experience for the Vi Reactivation
+Team, with approved workflow depth, usability, reliability, and visual quality comparable to or
+better than AiSensy. AiSensy is a private benchmark—not an implementation source—and this
+repository must use original code, identity, components, and assets with real backend-owned state.
+
 > **Architecture is frozen.** The authoritative specification is in [`docs/design/`](docs/design)
 > (Docs 01–12). Start with [`12-ENTERPRISE-GOVERNANCE.md`](docs/design/12-ENTERPRISE-GOVERNANCE.md).
 > Implementation follows those documents exactly, module by module.
+
+Current product and quality authority: [`VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md`](VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md),
+[`REPOSITORY_RULES.md`](REPOSITORY_RULES.md),
+[`ADR-0012`](docs/adr/0012-premium-aisensy-parity-product-goal.md), and the
+[`Premium Product Experience Standard`](docs/design/25-PREMIUM-PRODUCT-EXPERIENCE-STANDARD.md).
+These are additive governance decisions; they do not replace frozen architecture or historical
+delivery evidence.
 
 ## Repository layout
 

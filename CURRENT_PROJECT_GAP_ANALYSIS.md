@@ -2,6 +2,21 @@
 
 This audit compares the uploaded old source project with the approved Private Vi Reactivation Operations Platform scope.
 
+## GOV-02 quality and experience lens
+
+This remaining-work baseline is unchanged. GOV-02 adds the permanent acceptance lens in ADR-0012
+and Design Document 25: a route, shell, generic page, projected metric, browser-local substitute, or
+visual placeholder does not close a product gap. Completion requires real authorized backend state,
+the approved workflow, shared enterprise components, responsive and accessible behavior, complete
+loading/empty/error/permission states, relevant tests, and premium original presentation.
+
+The owner-approved local AiSensy capture library may be used only as a Git-ignored workflow and
+visual-quality benchmark for the approved categories and active milestone. It is not implementation
+truth and may not supply copied code, text, assets, branding, design tokens, or layouts. Conditional
+AI and Automation references remain gated to their own approved milestones; prohibited ads,
+payments, billing, marketplace, SaaS, reseller, multi-project, and commerce references cannot close
+or create a gap.
+
 ## Already present and usable foundations
 
 - Authentication and private-user shell
