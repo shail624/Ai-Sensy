@@ -5,6 +5,7 @@ import type {
   ReactivationCard,
   ReactivationFilters,
   ReactivationNote,
+  ReactivationLabel,
   ReactivationPipeline,
   ReactivationStage,
   ReactivationStageEvent,
@@ -41,7 +42,11 @@ function useReactivationMutation<TVariables, TData>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: reactivationKeys.all }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: reactivationKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["customer-profile"] });
+    },
   });
 }
 
@@ -77,11 +82,17 @@ export function useUpdateReactivation() {
       ownerUserId,
       previousViNumber,
       activeDelhiNumber,
+      labels,
+      followUpAt,
+      releaseAt,
     }: {
       card: ReactivationCard;
       ownerUserId: string | null;
       previousViNumber: string | null;
       activeDelhiNumber: string | null;
+      labels: ReactivationLabel[];
+      followUpAt: string | null;
+      releaseAt: string | null;
     }) =>
       unwrap(
         await api.PATCH("/api/v1/reactivation-cases/{case_id}", {
@@ -91,6 +102,9 @@ export function useUpdateReactivation() {
             owner_user_id: ownerUserId,
             previous_vi_number: previousViNumber,
             active_delhi_number: activeDelhiNumber,
+            labels,
+            follow_up_at: followUpAt,
+            release_at: releaseAt,
           },
         }),
       ),

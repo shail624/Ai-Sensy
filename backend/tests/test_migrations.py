@@ -87,6 +87,7 @@ _EXPECTED_TABLES = {
     "business_events",
     "automation_trigger_receipts",
     "reactivation_cases",
+    "reactivation_case_labels",
     "reactivation_stage_events",
     "eligibility_checks",
     "kyc_cases",
@@ -136,13 +137,39 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0033_kyc_operations"
+        assert version == "0034_reactivation_crm"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
         }
-        assert {"reference_type", "reference_id", "idempotency_key", "request_hash"} <= task_columns
+        assert {
+            "reference_type",
+            "reference_id",
+            "idempotency_key",
+            "request_hash",
+            "due_notified_at",
+        } <= task_columns
         assert "reason_code" in decision_columns
+        con.execute("PRAGMA foreign_keys=OFF")
+        case_key = bytes.fromhex("10" * 16)
+        event_key = bytes.fromhex("20" * 16)
+        con.execute(
+            "INSERT INTO reactivation_cases "
+            "(uuid, organization_id, contact_id, stage, idempotency_key, request_hash) "
+            "VALUES (?, 9001, 9002, 'lead_confirmed', ?, ?)",
+            (case_key, case_key, "a" * 64),
+        )
+        case_id = con.execute(
+            "SELECT id FROM reactivation_cases WHERE uuid = ?", (case_key,)
+        ).fetchone()[0]
+        con.execute(
+            "INSERT INTO reactivation_stage_events "
+            "(uuid, organization_id, case_id, contact_id, from_stage, to_stage, "
+            "idempotency_key, request_hash) VALUES (?, 9001, ?, 9002, 'new_lead', "
+            "'lead_confirmed', ?, ?)",
+            (event_key, case_id, event_key, "b" * 64),
+        )
+        con.commit()
     finally:
         con.close()
 

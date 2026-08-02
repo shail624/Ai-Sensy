@@ -35,7 +35,9 @@ from app.models.contact_event import (
     EVENT_TASK_CANCELLED,
     EVENT_TASK_COMPLETED,
     EVENT_TASK_CREATED,
+    EVENT_TASK_DUE_NOTIFIED,
     EVENT_TASK_RESCHEDULED,
+    EVENT_TASK_SNOOZED,
     REF_TYPE_TASK,
 )
 from app.models.conversation import Conversation
@@ -54,17 +56,19 @@ from app.models.task_event import (
     TASK_EVENT_CANCELLED,
     TASK_EVENT_COMPLETED,
     TASK_EVENT_CREATED,
+    TASK_EVENT_DUE_NOTIFIED,
     TASK_EVENT_NOTE_ADDED,
     TASK_EVENT_PRIORITY_CHANGED,
     TASK_EVENT_REASSIGNED,
     TASK_EVENT_REOPENED,
     TASK_EVENT_RESCHEDULED,
     TASK_EVENT_SKIPPED,
+    TASK_EVENT_SNOOZED,
     TASK_EVENT_STATUS_CHANGED,
     TaskEvent,
 )
 from app.models.user import User
-from app.models.vi_domain import KycCase
+from app.models.vi_domain import KycCase, ReactivationCase
 from app.repositories.task import (
     SORT_COMPLETED_AT,
     SORT_CREATED_AT,
@@ -72,6 +76,7 @@ from app.repositories.task import (
     SORT_PRIORITY,
     TaskRepository,
 )
+from app.services.audit_service import AuditAction, AuditService
 from app.services.contact_event_service import ContactEventService
 
 _UTC = ZoneInfo("UTC")
@@ -125,6 +130,7 @@ class TaskView:
     created_at: datetime
     updated_at: datetime
     row_version: int
+    due_notified_at: datetime | None = None
 
 
 @dataclass(slots=True)
@@ -205,6 +211,7 @@ class TaskService:
         self._repo = TaskRepository(session)
         #: The frozen timeline writer — task lifecycle projects through it, never around it.
         self._timeline = ContactEventService(session)
+        self._audit = AuditService(session)
 
     # --- Reads --------------------------------------------------------------------------------
     async def get(self, *, organization_id: int, public_id: uuidlib.UUID) -> TaskView:
@@ -275,12 +282,15 @@ class TaskService:
         return TaskListResult(tasks=views, has_more=has_more, next_cursor=next_cursor)
 
     async def history(
-        self, *, organization_id: int, public_id: uuidlib.UUID
-    # `builtins.list`, because this class defines a method named `list` (above) which shadows the
-    # builtin for every annotation that follows it in the class body. `from __future__ import
-    # annotations` keeps that harmless at run time — annotations are never evaluated — but the
-    # name still resolves to the method, so this signature reads as "returns TaskService.list"
-    # to any type checker, and `typing.get_type_hints()` on it would raise.
+        self,
+        *,
+        organization_id: int,
+        public_id: uuidlib.UUID,
+        # `builtins.list`, because this class defines a method named `list` (above) which shadows the
+        # builtin for every annotation that follows it in the class body. `from __future__ import
+        # annotations` keeps that harmless at run time — annotations are never evaluated — but the
+        # name still resolves to the method, so this signature reads as "returns TaskService.list"
+        # to any type checker, and `typing.get_type_hints()` on it would raise.
     ) -> builtins.list[TaskEventView]:
         task = await self._require_task(organization_id, public_id)
         events = await self._repo.list_events(task.id)
@@ -300,7 +310,9 @@ class TaskService:
             for e in events
         ]
 
-    async def stats(self, *, organization_id: int, actor: User, assignee_id: uuidlib.UUID | None) -> TaskStats:
+    async def stats(
+        self, *, organization_id: int, actor: User, assignee_id: uuidlib.UUID | None
+    ) -> TaskStats:
         target = actor.id
         if assignee_id is not None:
             resolved = await self._resolve_user_id(organization_id, assignee_id)
@@ -367,6 +379,9 @@ class TaskService:
         await self._repo.add(task)
         self._add_event(task, TASK_EVENT_CREATED, actor.id, to_json=self._snapshot(task))
         await self._project(task, EVENT_TASK_CREATED)
+        await self._audit_task(
+            task, AuditAction.TASK_CREATED, actor_id=actor.id, after=self._snapshot(task)
+        )
         if assignee.id != actor.id:
             self._add_event(
                 task, TASK_EVENT_ASSIGNED, actor.id, to_json={"assigned_agent": assignee.public_id}
@@ -394,11 +409,11 @@ class TaskService:
         due_at: datetime | None,
         has_time: bool | None,
         reminder_at: datetime | None,
+        commit: bool = True,
     ) -> TaskView:
-        self._validate_enums(
-            [task_type] if task_type else None, [priority] if priority else None
-        )
+        self._validate_enums([task_type] if task_type else None, [priority] if priority else None)
         task = await self._require_task(organization_id, public_id)
+        before = self._snapshot(task)
         self._check_version(task, expected_row_version)
         if title is not None:
             task.title = title
@@ -408,15 +423,21 @@ class TaskService:
             task.task_type = task_type
         if priority is not None and priority != task.priority:
             self._add_event(
-                task, TASK_EVENT_PRIORITY_CHANGED, actor.id,
-                from_json={"priority": task.priority}, to_json={"priority": priority},
+                task,
+                TASK_EVENT_PRIORITY_CHANGED,
+                actor.id,
+                from_json={"priority": task.priority},
+                to_json={"priority": priority},
             )
             task.priority = priority
         rescheduled = False
         if due_at is not None and due_at != task.due_at:
             self._add_event(
-                task, TASK_EVENT_RESCHEDULED, actor.id,
-                from_json={"due_at": task.due_at.isoformat()}, to_json={"due_at": due_at.isoformat()},
+                task,
+                TASK_EVENT_RESCHEDULED,
+                actor.id,
+                from_json={"due_at": task.due_at.isoformat()},
+                to_json={"due_at": due_at.isoformat()},
             )
             task.due_at = due_at
             rescheduled = True
@@ -425,9 +446,18 @@ class TaskService:
         if reminder_at is not None:
             task.reminder_at = reminder_at
         if rescheduled:
+            task.due_notified_at = None
             await self._project(task, EVENT_TASK_RESCHEDULED)
         self._bump(task, actor.id)
-        await self._session.commit()
+        await self._audit_task(
+            task,
+            AuditAction.TASK_UPDATED,
+            actor_id=actor.id,
+            before=before,
+            after=self._snapshot(task),
+        )
+        if commit:
+            await self._session.commit()
         return (await self._build_views([task]))[0]
 
     async def complete(
@@ -439,6 +469,7 @@ class TaskService:
         expected_row_version: int | None,
         completion_notes: str | None,
         create_timeline_note: bool,
+        commit: bool = True,
     ) -> TaskView:
         task = await self._require_task(organization_id, public_id)
         self._check_version(task, expected_row_version)
@@ -449,8 +480,11 @@ class TaskService:
         task.completed_by = actor.id
         task.completion_notes = completion_notes
         self._add_event(
-            task, TASK_EVENT_COMPLETED, actor.id,
-            from_json={"status": previous}, to_json={"status": TASK_STATUS_COMPLETED},
+            task,
+            TASK_EVENT_COMPLETED,
+            actor.id,
+            from_json={"status": previous},
+            to_json={"status": TASK_STATUS_COMPLETED},
             note=completion_notes,
         )
         # TA-INV 6: the projection is unconditional. ``create_timeline_note`` decides only whether
@@ -460,30 +494,64 @@ class TaskService:
         if surfaced:
             self._add_event(task, TASK_EVENT_NOTE_ADDED, actor.id, note=surfaced)
         self._bump(task, actor.id)
-        await self._session.commit()
+        await self._audit_task(
+            task,
+            AuditAction.TASK_COMPLETED,
+            actor_id=actor.id,
+            before={"status": previous},
+            after={"status": task.status},
+        )
+        if commit:
+            await self._session.commit()
         return (await self._build_views([task]))[0]
 
     async def skip(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID,
-        expected_row_version: int | None, reason: str | None,
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        reason: str | None,
     ) -> TaskView:
         return await self._terminal(
-            organization_id, actor, public_id, expected_row_version,
-            status=TASK_STATUS_SKIPPED, event=TASK_EVENT_SKIPPED, reason=reason,
+            organization_id,
+            actor,
+            public_id,
+            expected_row_version,
+            status=TASK_STATUS_SKIPPED,
+            event=TASK_EVENT_SKIPPED,
+            reason=reason,
         )
 
     async def cancel(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID,
-        expected_row_version: int | None, reason: str | None,
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        reason: str | None,
+        commit: bool = True,
     ) -> TaskView:
         return await self._terminal(
-            organization_id, actor, public_id, expected_row_version,
-            status=TASK_STATUS_CANCELLED, event=TASK_EVENT_CANCELLED, reason=reason,
+            organization_id,
+            actor,
+            public_id,
+            expected_row_version,
+            status=TASK_STATUS_CANCELLED,
+            event=TASK_EVENT_CANCELLED,
+            reason=reason,
             project=EVENT_TASK_CANCELLED,
+            commit=commit,
         )
 
     async def reopen(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID,
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
         expected_row_version: int | None,
     ) -> TaskView:
         """Return a terminal task to ``open``, clearing every completion field (TA-INV 4)."""
@@ -502,56 +570,160 @@ class TaskService:
         task.completed_by = None
         task.completion_notes = None
         self._add_event(
-            task, TASK_EVENT_REOPENED, actor.id,
-            from_json=cleared, to_json={"status": TASK_STATUS_OPEN},
+            task,
+            TASK_EVENT_REOPENED,
+            actor.id,
+            from_json=cleared,
+            to_json={"status": TASK_STATUS_OPEN},
         )
         self._bump(task, actor.id)
         await self._session.commit()
         return (await self._build_views([task]))[0]
 
     async def reschedule(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID,
-        expected_row_version: int | None, due_at: datetime, has_time: bool | None,
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        due_at: datetime,
+        has_time: bool | None,
         reminder_at: datetime | None,
+        commit: bool = True,
     ) -> TaskView:
         task = await self._require_task(organization_id, public_id)
         self._check_version(task, expected_row_version)
+        previous_due = task.due_at
         self._add_event(
-            task, TASK_EVENT_RESCHEDULED, actor.id,
-            from_json={"due_at": task.due_at.isoformat()}, to_json={"due_at": due_at.isoformat()},
+            task,
+            TASK_EVENT_RESCHEDULED,
+            actor.id,
+            from_json={"due_at": task.due_at.isoformat()},
+            to_json={"due_at": due_at.isoformat()},
         )
         task.due_at = due_at
+        task.due_notified_at = None
         if has_time is not None:
             task.has_time = has_time
         if reminder_at is not None:
             task.reminder_at = reminder_at
         await self._project(task, EVENT_TASK_RESCHEDULED)
         self._bump(task, actor.id)
+        await self._audit_task(
+            task,
+            AuditAction.TASK_RESCHEDULED,
+            actor_id=actor.id,
+            before={"due_at": previous_due.isoformat()},
+            after={"due_at": due_at.isoformat()},
+        )
+        if commit:
+            await self._session.commit()
+        return (await self._build_views([task]))[0]
+
+    async def snooze(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        minutes: int,
+    ) -> TaskView:
+        """Move an open reminder forward from now while retaining a distinct immutable action."""
+        task = await self._require_task(organization_id, public_id)
+        self._check_version(task, expected_row_version)
+        self._require_open(task, "snoozed")
+        previous_due = task.due_at
+        task.due_at = utcnow() + timedelta(minutes=minutes)
+        task.reminder_at = None
+        task.due_notified_at = None
+        self._add_event(
+            task,
+            TASK_EVENT_SNOOZED,
+            actor.id,
+            from_json={"due_at": previous_due.isoformat()},
+            to_json={"due_at": task.due_at.isoformat(), "minutes": minutes},
+        )
+        await self._project(task, EVENT_TASK_SNOOZED)
+        self._bump(task, actor.id)
+        await self._audit_task(
+            task,
+            AuditAction.TASK_SNOOZED,
+            actor_id=actor.id,
+            before={"due_at": previous_due.isoformat()},
+            after={"due_at": task.due_at.isoformat(), "minutes": minutes},
+        )
         await self._session.commit()
         return (await self._build_views([task]))[0]
 
+    async def dispatch_due_notifications(
+        self, *, now: datetime | None = None, limit: int = 500
+    ) -> dict[str, int]:
+        """Publish one durable assigned-user due notice per due-date revision."""
+        effective_now = now or utcnow()
+        tasks = await self._repo.due_for_notification(now=effective_now, limit=limit)
+        for task in tasks:
+            task.due_notified_at = effective_now
+            self._add_event(
+                task,
+                TASK_EVENT_DUE_NOTIFIED,
+                None,
+                to_json={
+                    "assigned_agent_id": task.assigned_agent_id,
+                    "due_at": task.due_at.isoformat(),
+                },
+            )
+            await self._project(task, EVENT_TASK_DUE_NOTIFIED)
+            await self._audit_task(
+                task,
+                AuditAction.TASK_DUE_NOTIFIED,
+                actor_id=None,
+                after={
+                    "assigned_agent_id": task.assigned_agent_id,
+                    "due_at": task.due_at.isoformat(),
+                },
+            )
+        await self._session.commit()
+        return {"notified": len(tasks)}
+
     async def reassign(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID,
-        expected_row_version: int | None, assigned_agent_id: uuidlib.UUID,
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        assigned_agent_id: uuidlib.UUID,
+        commit: bool = True,
     ) -> TaskView:
         task = await self._require_task(organization_id, public_id)
         self._check_version(task, expected_row_version)
         assignee = await self._require_user(organization_id, assigned_agent_id)
         previous = await self._public_user_id(task.assigned_agent_id)
         self._add_event(
-            task, TASK_EVENT_REASSIGNED, actor.id,
+            task,
+            TASK_EVENT_REASSIGNED,
+            actor.id,
             from_json={"assigned_agent": previous},
             to_json={"assigned_agent": assignee.public_id},
         )
         task.assigned_agent_id = assignee.id
+        task.due_notified_at = None
         await self._project(task, EVENT_TASK_ASSIGNED)
         self._bump(task, actor.id)
-        await self._session.commit()
+        await self._audit_task(
+            task,
+            AuditAction.TASK_REASSIGNED,
+            actor_id=actor.id,
+            before={"assigned_agent": previous},
+            after={"assigned_agent": assignee.public_id},
+        )
+        if commit:
+            await self._session.commit()
         return (await self._build_views([task]))[0]
 
-    async def delete(
-        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID
-    ) -> None:
+    async def delete(self, *, organization_id: int, actor: User, public_id: uuidlib.UUID) -> None:
         """Soft-delete — data cleanup, distinct from ``cancel`` (Doc 14 TA-INV 5)."""
         task = await self._require_task(organization_id, public_id)
         task.deleted_at = utcnow()
@@ -571,7 +743,10 @@ class TaskService:
     ) -> BulkOutcome:
         self._validate_enums(None, [priority] if priority else None)
         if status is not None and status not in {
-            TASK_STATUS_OPEN, TASK_STATUS_COMPLETED, TASK_STATUS_SKIPPED, TASK_STATUS_CANCELLED
+            TASK_STATUS_OPEN,
+            TASK_STATUS_COMPLETED,
+            TASK_STATUS_SKIPPED,
+            TASK_STATUS_CANCELLED,
         }:
             raise BadRequestError("Invalid status.")
         assignee = (
@@ -595,13 +770,21 @@ class TaskService:
         await self._session.commit()
         missing = len(public_ids) - len({pid.bytes for pid in public_ids} & found)
         return BulkOutcome(
-            total=len(public_ids), processed=len(public_ids),
-            succeeded=succeeded, failed=failed, skipped=missing,
+            total=len(public_ids),
+            processed=len(public_ids),
+            succeeded=succeeded,
+            failed=failed,
+            skipped=missing,
         )
 
     async def _apply_bulk_change(
-        self, task: Task, actor: User, status: str | None, priority: str | None,
-        due_at: datetime | None, assignee: User | None,
+        self,
+        task: Task,
+        actor: User,
+        status: str | None,
+        priority: str | None,
+        due_at: datetime | None,
+        assignee: User | None,
     ) -> None:
         """One task's share of a bulk update — the same typed history the single-task paths write.
 
@@ -612,13 +795,18 @@ class TaskService:
             self._check_transition(task, status)
         if priority is not None and priority != task.priority:
             self._add_event(
-                task, TASK_EVENT_PRIORITY_CHANGED, actor.id,
-                from_json={"priority": task.priority}, to_json={"priority": priority},
+                task,
+                TASK_EVENT_PRIORITY_CHANGED,
+                actor.id,
+                from_json={"priority": task.priority},
+                to_json={"priority": priority},
             )
             task.priority = priority
         if due_at is not None and due_at != task.due_at:
             self._add_event(
-                task, TASK_EVENT_RESCHEDULED, actor.id,
+                task,
+                TASK_EVENT_RESCHEDULED,
+                actor.id,
                 from_json={"due_at": task.due_at.isoformat()},
                 to_json={"due_at": due_at.isoformat()},
             )
@@ -627,7 +815,9 @@ class TaskService:
         if assignee is not None and assignee.id != task.assigned_agent_id:
             previous = await self._public_user_id(task.assigned_agent_id)
             self._add_event(
-                task, TASK_EVENT_REASSIGNED, actor.id,
+                task,
+                TASK_EVENT_REASSIGNED,
+                actor.id,
                 from_json={"assigned_agent": previous},
                 to_json={"assigned_agent": assignee.public_id},
             )
@@ -637,8 +827,11 @@ class TaskService:
             previous_status = task.status
             self._apply_status(task, status, actor.id)  # raises on an illegal transition
             self._add_event(
-                task, TASK_EVENT_STATUS_CHANGED, actor.id,
-                from_json={"status": previous_status}, to_json={"status": status},
+                task,
+                TASK_EVENT_STATUS_CHANGED,
+                actor.id,
+                from_json={"status": previous_status},
+                to_json={"status": status},
             )
             projection = _STATUS_PROJECTION.get(status)
             if projection is not None:
@@ -656,15 +849,26 @@ class TaskService:
         await self._session.commit()
         missing = len(public_ids) - len({pid.bytes for pid in public_ids} & found)
         return BulkOutcome(
-            total=len(public_ids), processed=len(public_ids),
-            succeeded=len(tasks), failed=0, skipped=missing,
+            total=len(public_ids),
+            processed=len(public_ids),
+            succeeded=len(tasks),
+            failed=0,
+            skipped=missing,
         )
 
     # --- Internals ----------------------------------------------------------------------------
     async def _terminal(
-        self, organization_id: int, actor: User, public_id: uuidlib.UUID,
-        expected_row_version: int | None, *, status: str, event: str, reason: str | None,
+        self,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        expected_row_version: int | None,
+        *,
+        status: str,
+        event: str,
+        reason: str | None,
         project: str | None = None,
+        commit: bool = True,
     ) -> TaskView:
         task = await self._require_task(organization_id, public_id)
         self._check_version(task, expected_row_version)
@@ -672,13 +876,30 @@ class TaskService:
         previous = task.status
         task.status = status
         self._add_event(
-            task, event, actor.id,
-            from_json={"status": previous}, to_json={"status": status}, note=reason,
+            task,
+            event,
+            actor.id,
+            from_json={"status": previous},
+            to_json={"status": status},
+            note=reason,
         )
         if project is not None:
             await self._project(task, project, note=reason)
         self._bump(task, actor.id)
-        await self._session.commit()
+        action = (
+            AuditAction.TASK_CANCELLED
+            if status == TASK_STATUS_CANCELLED
+            else AuditAction.TASK_UPDATED
+        )
+        await self._audit_task(
+            task,
+            action,
+            actor_id=actor.id,
+            before={"status": previous},
+            after={"status": status, "reason": reason},
+        )
+        if commit:
+            await self._session.commit()
         return (await self._build_views([task]))[0]
 
     @staticmethod
@@ -711,7 +932,11 @@ class TaskService:
         task.status = status
 
     def _add_event(
-        self, task: Task, event_type: str, actor_id: int | None, *,
+        self,
+        task: Task,
+        event_type: str,
+        actor_id: int | None,
+        *,
         from_json: dict[str, Any] | None = None,
         to_json: dict[str, Any] | None = None,
         note: str | None = None,
@@ -754,6 +979,25 @@ class TaskService:
             payload=payload,
         )
 
+    async def _audit_task(
+        self,
+        task: Task,
+        action: str,
+        *,
+        actor_id: int | None,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
+    ) -> None:
+        await self._audit.record(
+            action,
+            actor_user_id=actor_id,
+            organization_id=task.organization_id,
+            entity_type="task",
+            entity_id=task.id,
+            before=before,
+            after=after,
+        )
+
     def _bump(self, task: Task, actor_id: int) -> None:
         task.updated_by = actor_id
         task.row_version = (task.row_version or 0) + 1
@@ -771,12 +1015,13 @@ class TaskService:
             "task_type": task.task_type,
             "priority": task.priority,
             "due_at": task.due_at.isoformat() if task.due_at else None,
+            "due_notified_at": (task.due_notified_at.isoformat() if task.due_notified_at else None),
         }
 
     @staticmethod
     def _validate_enums(
-            types: builtins.list[str] | None, priorities: builtins.list[str] | None
-        ) -> None:
+        types: builtins.list[str] | None, priorities: builtins.list[str] | None
+    ) -> None:
         for t in types or []:
             if t not in TASK_TYPES:
                 raise BadRequestError(f"Invalid task_type {t!r}.")
@@ -793,7 +1038,9 @@ class TaskService:
             # ``sort`` (including ``-completed_at``, Doc 14 §10) is always honoured.
             return SORT_COMPLETED_AT, True
         if key not in _VALID_SORTS:
-            raise BadRequestError(f"sort must be one of {sorted(_VALID_SORTS)} (optionally '-'-prefixed)")
+            raise BadRequestError(
+                f"sort must be one of {sorted(_VALID_SORTS)} (optionally '-'-prefixed)"
+            )
         return key, descending
 
     def _bucket_window(
@@ -828,8 +1075,8 @@ class TaskService:
 
     @staticmethod
     def _decode_cursor(
-            cursor: str | None, sort_key: str
-        ) -> tuple[builtins.list[object], int] | None:
+        cursor: str | None, sort_key: str
+    ) -> tuple[builtins.list[object], int] | None:
         if cursor is None:
             return None
         if sort_key == SORT_PRIORITY:
@@ -926,6 +1173,11 @@ class TaskService:
             for t in tasks
             if t.reference_type == "kyc_case" and t.reference_id is not None
         }
+        reactivation_reference_ids = {
+            t.reference_id
+            for t in tasks
+            if t.reference_type == "reactivation_case" and t.reference_id is not None
+        }
         for t in tasks:
             user_ids.add(t.assigned_agent_id)
             if t.created_by is not None:
@@ -933,7 +1185,9 @@ class TaskService:
 
         contacts = {
             c.id: c
-            for c in (await self._session.scalars(select(Contact).where(Contact.id.in_(contact_ids)))).all()
+            for c in (
+                await self._session.scalars(select(Contact).where(Contact.id.in_(contact_ids)))
+            ).all()
         }
         conversations = (
             {
@@ -960,6 +1214,20 @@ class TaskService:
             if kyc_reference_ids
             else {}
         )
+        reactivation_references = (
+            {
+                row.id: row.public_id
+                for row in (
+                    await self._session.scalars(
+                        select(ReactivationCase).where(
+                            ReactivationCase.id.in_(reactivation_reference_ids)
+                        )
+                    )
+                ).all()
+            }
+            if reactivation_reference_ids
+            else {}
+        )
 
         views: list[TaskView] = []
         for t in tasks:
@@ -984,7 +1252,11 @@ class TaskService:
                     conversation_id=conversation_public,
                     reference_type=t.reference_type,
                     reference_id=(
-                        kyc_references.get(t.reference_id)
+                        (
+                            kyc_references.get(t.reference_id)
+                            if t.reference_type == "kyc_case"
+                            else reactivation_references.get(t.reference_id)
+                        )
                         if t.reference_id is not None
                         else None
                     ),
@@ -995,6 +1267,7 @@ class TaskService:
                     due_at=t.due_at,
                     has_time=t.has_time,
                     reminder_at=t.reminder_at,
+                    due_notified_at=t.due_notified_at,
                     description=t.description,
                     assigned_agent_id=agent_public,
                     assigned_agent_name=agent_name,

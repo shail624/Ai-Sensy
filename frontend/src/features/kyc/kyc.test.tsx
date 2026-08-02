@@ -36,7 +36,7 @@ const card = {
   contact_phone: "+919811111111",
   contact_email: "asha@example.test",
   owner_name: "Priya Shah",
-  reactivation_stage: "kyc_pending" as const,
+  reactivation_stage: "kyc_verification" as const,
   checklist: [{ id: "ref-1", kyc_case_id: "kyc-1", purpose: "aadhaar" as const, document_id: "doc-1", document_title: "Aadhaar protected proof", document_type: "identity", document_status: "verified", row_version: 0, created_at: "2026-08-02T08:00:00Z", updated_at: "2026-08-02T08:00:00Z" }],
   checklist_complete: false,
   progress_percent: 60,

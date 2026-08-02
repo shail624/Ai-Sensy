@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any, cast
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 
 from app.db.mixins import utcnow
 from app.models.contact import Contact
@@ -17,6 +18,7 @@ from app.models.vi_domain import (
     KycDecision,
     KycDocumentReference,
     ReactivationCase,
+    ReactivationCaseLabel,
     ReactivationStageEvent,
     SimOrderEvent,
     SlaEvent,
@@ -36,9 +38,12 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
         *,
         q: str | None,
         stages: list[str] | None,
+        labels: list[str] | None,
         owner_user_id: int | None,
+        reminder_view: str | None,
+        reminder_date: date | None,
         limit: int,
-    ) -> tuple[list[tuple[ReactivationCase, Contact, User]], int]:
+    ) -> tuple[list[tuple[ReactivationCase, Contact, User | None]], int]:
         """Bounded joined cards for the governed Reactivation workspace."""
         clauses: list[Any] = [
             ReactivationCase.organization_id == organization_id,
@@ -61,8 +66,38 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             )
         if stages:
             clauses.append(ReactivationCase.stage.in_(stages))
+        if labels:
+            clauses.append(
+                select(ReactivationCaseLabel.id)
+                .where(
+                    ReactivationCaseLabel.organization_id == organization_id,
+                    ReactivationCaseLabel.case_id == ReactivationCase.id,
+                    ReactivationCaseLabel.label.in_(labels),
+                )
+                .exists()
+            )
         if owner_user_id is not None:
             clauses.append(ReactivationCase.owner_user_id == owner_user_id)
+        if reminder_view is not None or reminder_date is not None:
+            reminder = [
+                Task.organization_id == organization_id,
+                Task.reference_type == "reactivation_case",
+                Task.reference_id == ReactivationCase.id,
+                Task.status == TASK_STATUS_OPEN,
+                Task.deleted_at.is_(None),
+            ]
+            now = utcnow()
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = today_start + timedelta(days=1)
+            if reminder_view == "overdue":
+                reminder.append(Task.due_at < today_start)
+            elif reminder_view == "due_today":
+                reminder.extend((Task.due_at >= today_start, Task.due_at < today_end))
+            elif reminder_view == "upcoming":
+                reminder.append(Task.due_at >= today_end)
+            if reminder_date is not None:
+                reminder.append(func.date(Task.due_at) == reminder_date.isoformat())
+            clauses.append(select(Task.id).where(*reminder).exists())
 
         base = (
             select(ReactivationCase, Contact, User)
@@ -92,7 +127,7 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             )
             or 0
         )
-        return rows, total
+        return cast(list[tuple[ReactivationCase, Contact, User | None]], rows), total
 
     async def pipeline_stage_counts(self, organization_id: int) -> dict[str, int]:
         rows = (
@@ -106,6 +141,31 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             )
         ).all()
         return {str(stage): int(count) for stage, count in rows}
+
+    async def pipeline_reminder_counts(self, organization_id: int) -> dict[str, int]:
+        now = utcnow()
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+        base = (
+            Task.organization_id == organization_id,
+            Task.reference_type == "reactivation_case",
+            Task.status == TASK_STATUS_OPEN,
+            Task.deleted_at.is_(None),
+        )
+        row = (
+            await self.session.execute(
+                select(
+                    func.sum(case((Task.due_at < start, 1), else_=0)),
+                    func.sum(case((and_(Task.due_at >= start, Task.due_at < end), 1), else_=0)),
+                    func.sum(case((Task.due_at >= end, 1), else_=0)),
+                ).where(*base)
+            )
+        ).one()
+        return {
+            "overdue": int(row[0] or 0),
+            "due_today": int(row[1] or 0),
+            "upcoming": int(row[2] or 0),
+        }
 
     async def kyc_operations(
         self,
@@ -177,22 +237,24 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
         if not kyc_ids:
             return result
         document_rows = (
-            await self.session.execute(
-                select(KycDocumentReference, ContactDocument)
-                .join(ContactDocument, ContactDocument.id == KycDocumentReference.document_id)
-                .where(
-                    KycDocumentReference.organization_id == organization_id,
-                    KycDocumentReference.kyc_case_id.in_(kyc_ids),
-                    ContactDocument.organization_id == organization_id,
-                    ContactDocument.deleted_at.is_(None),
+            (
+                await self.session.execute(
+                    select(KycDocumentReference, ContactDocument)
+                    .join(ContactDocument, ContactDocument.id == KycDocumentReference.document_id)
+                    .where(
+                        KycDocumentReference.organization_id == organization_id,
+                        KycDocumentReference.kyc_case_id.in_(kyc_ids),
+                        ContactDocument.organization_id == organization_id,
+                        ContactDocument.deleted_at.is_(None),
+                    )
+                    .order_by(KycDocumentReference.kyc_case_id, KycDocumentReference.purpose)
                 )
-                .order_by(KycDocumentReference.kyc_case_id, KycDocumentReference.purpose)
             )
-        ).tuples().all()
+            .tuples()
+            .all()
+        )
         for reference, document in document_rows:
-            result["documents"].setdefault(reference.kyc_case_id, []).append(
-                (reference, document)
-            )
+            result["documents"].setdefault(reference.kyc_case_id, []).append((reference, document))
         decisions = list(
             (
                 await self.session.scalars(
@@ -252,6 +314,8 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             "sla": {},
             "tasks": {},
             "documents": {},
+            "labels": {},
+            "reminders": {},
         }
         if not case_ids:
             return result
@@ -310,6 +374,40 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
         for sla_event in sla_rows:
             result["sla"].setdefault(sla_event.entity_id, sla_event)
 
+        label_rows = list(
+            (
+                await self.session.scalars(
+                    select(ReactivationCaseLabel)
+                    .where(
+                        ReactivationCaseLabel.organization_id == organization_id,
+                        ReactivationCaseLabel.case_id.in_(case_ids),
+                    )
+                    .order_by(ReactivationCaseLabel.case_id, ReactivationCaseLabel.id)
+                )
+            ).all()
+        )
+        for label in label_rows:
+            result["labels"].setdefault(label.case_id, []).append(label.label)
+
+        reminder_rows = list(
+            (
+                await self.session.scalars(
+                    select(Task)
+                    .where(
+                        Task.organization_id == organization_id,
+                        Task.reference_type == "reactivation_case",
+                        Task.reference_id.in_(case_ids),
+                        Task.status == TASK_STATUS_OPEN,
+                        Task.deleted_at.is_(None),
+                    )
+                    .order_by(Task.reference_id, Task.due_at, Task.id)
+                )
+            ).all()
+        )
+        for reminder in reminder_rows:
+            if reminder.reference_id is not None:
+                result["reminders"].setdefault(reminder.reference_id, []).append(reminder)
+
         task_rows = (
             await self.session.execute(
                 select(
@@ -358,6 +456,37 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             for contact_id, total, verified in document_rows
         }
         return result
+
+    async def case_labels(self, organization_id: int, case_id: int) -> list[ReactivationCaseLabel]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(ReactivationCaseLabel)
+                    .where(
+                        ReactivationCaseLabel.organization_id == organization_id,
+                        ReactivationCaseLabel.case_id == case_id,
+                    )
+                    .order_by(ReactivationCaseLabel.id)
+                )
+            ).all()
+        )
+
+    async def case_reminders(self, organization_id: int, case_id: int) -> list[Task]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Task)
+                    .where(
+                        Task.organization_id == organization_id,
+                        Task.reference_type == "reactivation_case",
+                        Task.reference_id == case_id,
+                        Task.status == TASK_STATUS_OPEN,
+                        Task.deleted_at.is_(None),
+                    )
+                    .order_by(Task.due_at, Task.id)
+                )
+            ).all()
+        )
 
     async def by_uuid(self, model: Any, organization_id: int, public_id: bytes) -> Any | None:
         clauses: list[Any] = [model.organization_id == organization_id, model.uuid == public_id]
@@ -500,7 +629,9 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
                     )
                     .order_by(KycDocumentReference.purpose)
                 )
-            ).tuples().all()
+            )
+            .tuples()
+            .all()
         )
 
     async def kyc_document_reference(

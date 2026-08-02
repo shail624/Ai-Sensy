@@ -11,6 +11,53 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Lightweight Reactivation CRM correction (CORE-05)
+
+**Added**
+- Replaced the planned heavyweight SIM fulfilment direction with the owner-approved single-case CRM:
+  exactly one of nine primary statuses, six multi-select labels, Follow-up/Release date controls,
+  assignment, notes, premium chips, due counters, and status/label/assignee/date filters.
+- Added Task-backed Follow-up and Name Change reminders with Upcoming, Due Today and Overdue
+  projection, shared Complete/Reschedule/Snooze actions, assigned-user due evidence, optimistic
+  concurrency, RBAC, tenant isolation, Audit and Customer Timeline.
+- Added additive migration `0034_reactivation_crm`, the Task Snooze path, OpenAPI 3.1.0 at 189
+  paths, generated TypeScript contracts, ADR-0017, Design Document 30, and focused regression tests.
+
+**Reused and preserved**
+- Extended the existing Reactivation model/repository/service/API/workspace, Task lifecycle and work
+  queue, Contact/User authorities, Celery, Audit, Customer Timeline, RBAC, and shared UI primitives.
+  CORE-02/04 KYC, SIM, Activation, document, SLA and approval foundations remain intact.
+- Added no parallel reminder/notification store, fake count/card, local-only workflow, copied
+  reference content, standalone SIM/Activation workspace, or duplicate completed module.
+
+**Fixed**
+- Fixed stale Follow-up/Release dates being submitted after their labels were removed; root cause
+  was unconditional drawer serialization. Dates now serialize only with their governing label and
+  focused UI/contract tests protect the rule.
+- Fixed shared Complete and Reschedule UI actions omitting `row_version`; root cause was an optional
+  client parameter left unused. All reminder mutation actions now send the current version.
+- Fixed Not Required being closable without a server-enforced disposition reason; the service now
+  fails closed, matching the accessible confirmation UI.
+- Fixed timezone-aware workflow dates reaching persistence without normalization; the request
+  boundary now converts them to naive UTC before transactional Task composition.
+- Fixed owner-only case updates leaving open reminders assigned to the previous staff member; the
+  root cause was reminder synchronization being conditional on a labels payload. Owner/date/label
+  changes now all reconcile through TaskService, with a focused assignment regression test.
+- Fixed `0034` downgrade failing when real post-upgrade stage events used the corrected status
+  vocabulary; the rollback now translates both current cases and event rows before restoring legacy
+  constraints, and the migration roundtrip test inserts representative new-vocabulary evidence.
+
+**Validated**
+- Focused backend Reactivation/API/KYC regression tests pass 11/11; focused Reactivation/Tasks/KYC
+  frontend tests pass 25/25. The canonical 22-step deployed profile passes 943/943 pytest and
+  646/646 Vitest, Ruff, strict mypy across 253 files, OpenAPI drift, TypeScript/ESLint, production
+  build, Python compile, Bandit, dependency/source/image scans, SBOMs, Compose/image contracts,
+  MySQL migration `0034`, healthy Redis/Celery, and Playwright 1/1 in 11.338 seconds.
+- Four paired approved reference workflows were reviewed for filter density, label chips, staff
+  selection, form/modal hierarchy, and responsive collapse. Original components, tokens, icons,
+  wording and breakpoints are retained; `.reference/aisensy/` remains ignored and uncommitted. The
+  deployed 30-read canary records p50 10.168 ms and p95 17.761 ms (<300 ms).
+
 ### 2026-08-02 — Governed KYC operations (CORE-04)
 
 **Added**

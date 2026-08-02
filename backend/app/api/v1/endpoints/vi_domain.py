@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid as uuidlib
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -37,6 +38,7 @@ from app.schemas.vi_domain import (
     ReactivationCaseListResponse,
     ReactivationCaseResponse,
     ReactivationCreateRequest,
+    ReactivationLabel,
     ReactivationNoteCreateRequest,
     ReactivationNoteListResponse,
     ReactivationNoteResponse,
@@ -45,6 +47,7 @@ from app.schemas.vi_domain import (
     ReactivationStageEventResponse,
     ReactivationTransitionRequest,
     ReactivationUpdateRequest,
+    ReminderView,
     SimOrderCreateRequest,
     SimOrderEventListResponse,
     SimOrderEventResponse,
@@ -83,6 +86,7 @@ SlaManager = Annotated[User, Depends(require_permissions("sla:manage"))]
 Limit = Annotated[int, Query(ge=1, le=200)]
 PipelineQuery = Annotated[str | None, Query(max_length=160)]
 PipelineStages = Annotated[list[ReactivationStage] | None, Query()]
+PipelineLabels = Annotated[list[ReactivationLabel] | None, Query()]
 KycStatuses = Annotated[list[KycStatus] | None, Query()]
 
 
@@ -92,7 +96,10 @@ async def get_reactivation_pipeline(
     actor: ReactivationReader,
     q: PipelineQuery = None,
     stage: PipelineStages = None,
+    label: PipelineLabels = None,
     owner_user_id: uuidlib.UUID | None = None,
+    reminder_view: ReminderView | None = None,
+    reminder_date: date | None = None,
     limit: Limit = 200,
 ) -> ReactivationPipelineResponse:
     return ReactivationPipelineResponse(
@@ -100,7 +107,10 @@ async def get_reactivation_pipeline(
             actor.organization_id,
             q=q,
             stages=list(stage) if stage else None,
+            labels=list(label) if label else None,
             owner_user_id=owner_user_id,
+            reminder_view=reminder_view,
+            reminder_date=reminder_date,
             limit=limit,
         )
     )
@@ -176,7 +186,7 @@ async def update_reactivation_case(
             organization_id=actor.organization_id,
             actor=actor,
             public_id=case_id,
-            payload=payload.model_dump(),
+            payload=payload.model_dump(exclude_unset=True),
         )
     )
 

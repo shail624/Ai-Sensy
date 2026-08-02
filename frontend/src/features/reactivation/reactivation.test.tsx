@@ -20,7 +20,7 @@ const card: ReactivationCard = {
   id: "case-1",
   contact_id: "contact-1",
   stage: "new_lead",
-  available_transitions: ["follow_up", "not_interested"],
+  available_transitions: ["lead_confirmed", "not_required"],
   owner_user_id: "user-1",
   previous_vi_number: "9811111111",
   active_delhi_number: "9822222222",
@@ -48,12 +48,16 @@ const card: ReactivationCard = {
   family_plan_required: true,
   family_numbers: ["+919822222221"],
   conversion_indicator: "open" as const,
+  labels: ["follow_up", "priority"],
+  reminders: [],
+  follow_up_at: "2026-08-03T10:00:00Z",
+  release_at: null,
+  reminder_view: "upcoming" as const,
 };
 
 const stageCounts = [
-  "new_lead", "follow_up", "interested", "eligibility_check", "eligible", "documents_pending",
-  "documents_received", "kyc_pending", "verification", "confirmed", "sim_order",
-  "activation_pending", "completed", "not_eligible", "not_interested",
+  "new_lead", "lead_confirmed", "documents_pending", "documents_received", "kyc_verification",
+  "sim_required", "activation_pending", "completed", "not_required",
 ].map((stage) => ({ stage, count: stage === "new_lead" ? 1 : 0 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -93,7 +97,7 @@ vi.mock("@/features/reactivation/api", () => ({
 
 function readyState(data = [card]) {
   return {
-    data: { data, total: data.length, visible: data.length, stage_counts: stageCounts },
+    data: { data, total: data.length, visible: data.length, stage_counts: stageCounts, reminder_counts: { upcoming: data.length, due_today: 0, overdue: 0 } },
     isLoading: false,
     isError: false,
     isFetching: false,
@@ -121,28 +125,28 @@ describe("governed Reactivation pipeline", () => {
   it("renders all approved stages and factual persisted cards without the former mock shell", () => {
     renderBoard();
     expect(screen.getByText("Asha Mehra")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "New lead" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Not interested" })).toBeInTheDocument();
-    expect(screen.getAllByRole("region")).toHaveLength(16);
+    expect(screen.getByRole("region", { name: "New Lead" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Not Required" })).toBeInTheDocument();
+    expect(screen.getAllByRole("region")).toHaveLength(10);
     expect(screen.queryByText(/No verified cards/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Reference only/i)).not.toBeInTheDocument();
   });
 
   it("supports keyboard and drag movement through the same governed confirmation", () => {
     renderBoard();
-    const caseCard = screen.getByLabelText("Asha Mehra, New lead");
+    const caseCard = screen.getByLabelText("Asha Mehra, New Lead");
     fireEvent.keyDown(caseCard, { key: "ArrowRight", altKey: true });
-    expect(screen.getByRole("dialog", { name: "Move to Follow-up" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Move to Lead Confirmed" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm move" }));
     expect(mocks.transition).toHaveBeenCalledWith(
-      expect.objectContaining({ card: expect.objectContaining({ id: "case-1", row_version: 2 }), toStage: "follow_up" }),
+      expect.objectContaining({ card: expect.objectContaining({ id: "case-1", row_version: 2 }), toStage: "lead_confirmed" }),
       expect.any(Object),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.dragStart(caseCard);
-    fireEvent.drop(screen.getByRole("region", { name: "Follow-up" }));
-    expect(screen.getByRole("dialog", { name: "Move to Follow-up" })).toBeInTheDocument();
+    fireEvent.drop(screen.getByRole("region", { name: "Lead Confirmed" }));
+    expect(screen.getByRole("dialog", { name: "Move to Lead Confirmed" })).toBeInTheDocument();
   });
 
   it("keeps server data visible across refresh and provides the responsive list transformation", () => {
@@ -158,13 +162,17 @@ describe("governed Reactivation pipeline", () => {
   it("opens accessible case details with assignment, evidence, notes, tasks and documents", async () => {
     renderBoard();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
-    expect(screen.getByRole("dialog", { name: /Asha Mehra · New lead/ })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /Asha Mehra · New Lead/ })).toBeInTheDocument();
     expect(screen.getByText("Awaiting confirmation")).toBeInTheDocument();
+    expect(screen.getAllByText("Follow-up").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Priority").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Manual document review")).toHaveLength(2);
     expect(screen.getByText("+919822222221")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Assigned owner"), { target: { value: "user-2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Follow-up" }));
+    expect(screen.queryByLabelText("Next follow-up date")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save case" }));
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: "user-2", card: expect.objectContaining({ row_version: 2 }) }));
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: "user-2", labels: ["priority"], followUpAt: null, card: expect.objectContaining({ row_version: 2 }) }));
 
     fireEvent.click(screen.getByRole("tab", { name: /History/ }));
     expect(screen.getByText("Immutable stage history")).toBeInTheDocument();
@@ -194,7 +202,7 @@ describe("governed Reactivation pipeline", () => {
     mocks.pipelineState.value = readyState();
     mocks.permissions.value = ["reactivation:read"];
     const restricted = renderBoard();
-    expect(screen.getByLabelText("Asha Mehra, New lead")).toHaveAttribute("draggable", "false");
+    expect(screen.getByLabelText("Asha Mehra, New Lead")).toHaveAttribute("draggable", "false");
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
     expect(screen.getByText("Your role can review this case but cannot move it.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save case" })).not.toBeInTheDocument();
@@ -203,7 +211,7 @@ describe("governed Reactivation pipeline", () => {
 
   it("opens KYC from a document-ready persisted Reactivation case", () => {
     mocks.permissions.value.push("kyc:read", "kyc:write");
-    mocks.pipelineState.value = readyState([{ ...card, stage: "documents_received" as const, available_transitions: ["kyc_pending" as const] }]);
+    mocks.pipelineState.value = readyState([{ ...card, stage: "documents_received" as const, available_transitions: ["kyc_verification" as const] }]);
     renderBoard();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
     fireEvent.click(screen.getByRole("tab", { name: /KYC/ }));

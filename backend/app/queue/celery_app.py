@@ -54,6 +54,11 @@ def _beat_schedule() -> dict[str, dict[str, object]]:
             "schedule": crontab(minute="*"),
             "options": {"queue": SCHEDULER_TICK, "expires": 55},
         },
+        "reactivation-reminder-notifications": {
+            "task": "app.crm.reactivation_tasks.dispatch_due_reminders",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
         # Recompute the trailing 6 closed hours, absorbing late delivery receipts (Doc 15 §8.2).
         "analytics-rollup-incremental": {
             "task": "app.analytics.tasks.rollup_incremental",
@@ -94,6 +99,7 @@ TASK_MODULES: tuple[str, ...] = (
     "app.automation.tasks",
     "app.channels.tasks",
     "app.crm.campaign_tasks",
+    "app.crm.reactivation_tasks",
     "app.crm.tasks",
 )
 

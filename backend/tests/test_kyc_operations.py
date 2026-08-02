@@ -95,7 +95,7 @@ async def test_governed_kyc_workflow_reuses_documents_tasks_and_stage_authority(
         },
     )
     await db_session.refresh(case)
-    assert case.stage == "kyc_pending"
+    assert case.stage == "documents_received"
     kyc = await service.update_kyc(
         organization_id=organization.id,
         actor=requester,
@@ -273,7 +273,7 @@ async def test_governed_kyc_workflow_reuses_documents_tasks_and_stage_authority(
     assert review["decision_type"] == "review"
     assert approved["decision_type"] == "manager_approval"
     await db_session.refresh(case)
-    assert case.stage == "verification"
+    assert case.stage == "kyc_verification"
     assert await db_session.scalar(select(func.count()).select_from(KycDecision)) == 2
 
     operations = await service.kyc_operations(

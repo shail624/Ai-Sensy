@@ -122,10 +122,17 @@ class Task(
             "status",
             "due_at",
         ),
+        Index(
+            "ix_tasks_due_notification",
+            "status",
+            "due_at",
+            "due_notified_at",
+            "reference_type",
+        ),
         UniqueConstraint("organization_id", "idempotency_key", name="uq_tasks_idempotency"),
         CheckConstraint(
             "(reference_type IS NULL AND reference_id IS NULL) OR "
-            "(reference_type = 'kyc_case' AND reference_id IS NOT NULL)",
+            "(reference_type IN ('kyc_case', 'reactivation_case') AND reference_id IS NOT NULL)",
             name="ck_tasks_reference_pair",
         ),
         # "Assigned by me" (Doc 14 §10).
@@ -183,6 +190,7 @@ class Task(
     #: ``false`` = date-only ("Due Date" with no "Due Time" → all-day in the UI).
     has_time: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     reminder_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    due_notified_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     #: User who completed the task; no FK (mirrors ``quick_replies.created_by`` — outlives the row).

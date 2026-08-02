@@ -29,6 +29,7 @@ function taskFixture(overrides: Partial<Task> = {}): Task {
     due_at: new Date(Date.now() + DAY).toISOString(),
     has_time: true,
     reminder_at: null,
+    due_notified_at: null,
     description: null,
     assigned_agent_id: "u1",
     assigned_agent_name: "Priya S.",

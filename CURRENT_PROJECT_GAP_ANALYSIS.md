@@ -2,6 +2,16 @@
 
 This audit compares the uploaded old source project with the approved Private Vi Reactivation Operations Platform scope.
 
+## Owner-approved lightweight CRM correction
+
+As of CORE-05, the canonical operating model is one Reactivation case with exactly one primary
+status, multiple flexible labels, dated Task-backed reminders, assignment, notes, Audit, and
+Customer Timeline. The completed CORE-02/04 KYC, SIM, and Activation backend foundations are
+preserved, but separate new heavyweight SIM fulfilment and Activation Queue products are not a
+remaining gap unless the owner explicitly reauthorizes them. SIM Required and Activation Pending
+are current case statuses; Follow-up and Name Change are labels with governed dates. A concept is
+never stored as both a current status and a label.
+
 ## GOV-02 quality and experience lens
 
 This remaining-work baseline is unchanged. GOV-02 adds the permanent acceptance lens in ADR-0012
@@ -45,47 +55,33 @@ or create a gap.
 
 ### Reactivation
 
-The navigation and UI shell exist, but dedicated production records and APIs are still missing for:
-
-- Eligibility cases
-- Reactivation cases
-- Real Kanban lead cards and drag/drop transitions
-- Stage-event history
-- Number reservation
-- Family-plan requirements
-- Conversion records
-- Reactivation-specific SLA calculations
+The real tenant-scoped case, nine-status Kanban/list, assignment, immutable stage history, notes,
+eligibility, reservation/family/conversion/SLA facts, six labels, Follow-up/Release dates, shared
+Task reminders, due counters, filters, concurrency, Audit, Timeline, responsive drawer and factual
+states are complete. Remaining gaps are server-shared saved views/pagination at scale, Notification
+Center fan-out/unread/SSE, final analytics, and representative-data visual/WCAG/performance evidence.
 
 ### KYC
 
-Current UI is a foundation/projection. Missing:
-
-- Dedicated KYC model and API
-- Checklist and appointment records
-- Original-holder and Delhi-presence verification
-- Reviewer decision workflow
-- Manager approval
-- KYC-specific audit events
+The dedicated KYC authority, protected document checklist references, Task appointments,
+original-holder/Delhi/active-number checks, separated reviewer/manager decisions, structured
+rejections, immutable evidence, and Customer 360 projection are complete and preserved. Remaining
+work is shared saved views/pagination and target-host protected-media, accessibility, and scale
+commissioning—not another KYC authority.
 
 ### SIM Orders
 
-Current UI is a foundation shell. Missing:
-
-- SIM order model and API
-- Dispatch/delivery lifecycle
-- Delivery agent assignment
-- SIM serial and activation linkage
-- Delivery SLA and failure reasons
+The CORE-02 SIM order/event, delivery, ownership, serial, failure, confirmation, SLA, audit and API
+foundation exists and remains preserved. The owner-approved daily CRM represents operational need
+with the `SIM Required` primary case status and optional `Prepaid Required` label. A separate heavy
+fulfilment workspace is intentionally not planned without a later explicit owner instruction.
 
 ### Activation
 
-Current UI is a foundation shell. Missing:
-
-- Activation record
-- Activation queue
-- Verification hand-off
-- Completion decision
-- Activation audit events
+The CORE-02 Activation record, transition, approval/completion/rejection, RBAC, audit and API
+foundation exists and remains preserved. The lightweight CRM uses `Activation Pending`, `Completed`
+and `Not Required` case dispositions instead of a new standalone Activation Queue. Rich standalone
+operations are owner-deferred rather than an active gap.
 
 ### Executive reporting
 
@@ -94,8 +90,7 @@ Existing analytics are mainly messaging-based. Missing domain dimensions for:
 - Revenue
 - Reactivation conversion
 - KYC turnaround
-- SIM fulfilment
-- Activation success
+- SIM Required and Activation Pending status outcomes
 - SLA violations
 
 ### Notifications
@@ -147,9 +142,11 @@ The following must not be added:
    - SimOrder and SimOrderEvent
    - ActivationRecord
    - SlaPolicy and SlaEvent
-3. Add migrations, repositories, services, schemas, RBAC, and APIs.
-4. Connect Reactivation Kanban to real cases and transitions.
-5. Connect KYC, Documents, SIM, Activation, and Customer 360.
-6. Build server-backed Notification Center.
-7. Add dedicated Chat History.
-8. Add tests for transitions, approvals, permissions, audit, and tenant isolation.
+3. Add migrations, repositories, services, schemas, RBAC, and APIs. **Complete through `0034`.**
+4. Connect Reactivation Kanban to real cases and transitions. **Complete.**
+5. Deliver protected KYC operations and Customer 360 projection. **Complete and preserved.**
+6. Apply the owner-approved lightweight status/label/Task-reminder CRM correction. **Complete.**
+7. Converge remaining factual CRM projections in Customer 360 without adding heavy standalone
+   SIM/Activation products.
+8. Build the shared server-backed Notification Center over existing due evidence.
+9. Add dedicated Chat History and remaining roadmap capabilities.

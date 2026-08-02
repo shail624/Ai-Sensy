@@ -40,9 +40,8 @@ describe("Phase 3 reactivation and automation foundations", () => {
     ]);
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "kyc", "documents", "reports"]);
     expect(REACTIVATION_STAGE_BLUEPRINT).toEqual([
-      "New lead", "Follow-up", "Interested", "Eligibility check", "Eligible",
-      "Documents pending", "Documents received", "KYC pending", "Verification", "Confirmed",
-      "SIM order", "Activation pending", "Completed", "Not eligible", "Not interested",
+      "New Lead", "Lead Confirmed", "Documents Pending", "Documents Received",
+      "KYC / Verification", "SIM Required", "Activation Pending", "Completed", "Not Required",
     ]);
     expect(navItems.find((item) => item.path === "/reactivation")?.permission).toBe("reactivation:read");
   });

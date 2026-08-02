@@ -51,8 +51,8 @@ def smoke_command(docker: str, image: str, kind: str) -> tuple[str, ...]:
             "from app.main import app; "
             "from app.queue.celery_app import celery_app; "
             "celery_app.loader.import_default_modules(); "
-            "assert len(app.openapi()['paths']) == 188; "
-            "assert len([name for name in celery_app.tasks if name.startswith('app.')]) == 24; "
+            "assert len(app.openapi()['paths']) == 189; "
+            "assert len([name for name in celery_app.tasks if name.startswith('app.')]) == 25; "
             "print('backend image contract passed')"
         )
         return (*prefix, "--entrypoint", "python", image, "-c", code)

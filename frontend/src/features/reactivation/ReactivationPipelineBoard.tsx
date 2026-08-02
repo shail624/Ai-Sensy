@@ -8,6 +8,7 @@ import {
   List,
   RefreshCw,
   Search,
+  Tag,
   Users,
 } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -23,6 +24,8 @@ import { ReactivationCaseDrawer } from "@/features/reactivation/ReactivationCase
 import {
   REACTIVATION_STAGE_LABELS,
   REACTIVATION_STAGES,
+  REACTIVATION_LABEL_NAMES,
+  REACTIVATION_LABELS,
   stageIndex,
   type ReactivationCard,
   type ReactivationStage,
@@ -43,6 +46,10 @@ interface PendingMove {
 export function ReactivationPipelineBoard(): JSX.Element {
   const [query, setQuery] = useState("");
   const [ownerId, setOwnerId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [labelFilter, setLabelFilter] = useState("");
+  const [reminderView, setReminderView] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
   const [view, setView] = useState<ViewMode>("board");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -55,7 +62,11 @@ export function ReactivationPipelineBoard(): JSX.Element {
   const users = useUsers(canReadUsers);
   const pipeline = useReactivationPipeline({
     q: deferredQuery || undefined,
+    stage: statusFilter ? [statusFilter as ReactivationStage] : undefined,
+    label: labelFilter ? [labelFilter as (typeof REACTIVATION_LABELS)[number]] : undefined,
     owner_user_id: ownerId || undefined,
+    reminder_view: reminderView ? reminderView as "upcoming" | "due_today" | "overdue" : undefined,
+    reminder_date: reminderDate || undefined,
     limit: 200,
   });
   const transition = useTransitionReactivation();
@@ -74,12 +85,12 @@ export function ReactivationPipelineBoard(): JSX.Element {
   }, [cards]);
 
   const activeTotal = REACTIVATION_STAGES.filter(
-    (stage) => !["completed", "not_eligible", "not_interested"].includes(stage),
+    (stage) => !["completed", "not_required"].includes(stage),
   ).reduce((sum, stage) => sum + (counts.get(stage) ?? 0), 0);
   const completed = counts.get("completed") ?? 0;
-  const closed = completed + (counts.get("not_eligible") ?? 0) + (counts.get("not_interested") ?? 0);
+  const closed = completed + (counts.get("not_required") ?? 0);
   const conversionRate = closed > 0 ? Math.round((completed / closed) * 100) : 0;
-  const breached = cards.filter((card) => card.sla_status === "breached").length;
+  const reminderCounts = pipeline.data?.reminder_counts ?? { upcoming: 0, due_today: 0, overdue: 0 };
 
   function requestMove(card: ReactivationCard, target: ReactivationStage): void {
     if (!canTransition || !card.available_transitions.includes(target)) return;
@@ -89,7 +100,7 @@ export function ReactivationPipelineBoard(): JSX.Element {
 
   function confirmMove(): void {
     if (!pendingMove) return;
-    const reasonRequired = ["not_eligible", "not_interested"].includes(pendingMove.target);
+    const reasonRequired = pendingMove.target === "not_required";
     if (reasonRequired && !reason.trim()) return;
     transition.mutate(
       { card: pendingMove.card, toStage: pendingMove.target, reason },
@@ -118,28 +129,52 @@ export function ReactivationPipelineBoard(): JSX.Element {
     <div className="space-y-4">
       <section aria-label="Pipeline summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={Users} label="Active pipeline" value={activeTotal} detail={`${pipeline.data?.total ?? 0} total cases`} />
+        <Metric icon={FileCheck2} label="Due today" value={reminderCounts.due_today} detail="Assigned reminders requiring action" />
+        <Metric icon={AlertTriangle} label="Overdue" value={reminderCounts.overdue} detail="Active until completed or rescheduled" tone={reminderCounts.overdue > 0 ? "danger" : "neutral"} />
         <Metric icon={CheckCircle2} label="Completed" value={completed} detail={`${conversionRate}% closed-case conversion`} tone="success" />
-        <Metric icon={AlertTriangle} label="SLA breaches" value={breached} detail="Across visible governed cases" tone={breached > 0 ? "danger" : "neutral"} />
-        <Metric icon={FileCheck2} label="Visible evidence" value={pipeline.data?.visible ?? 0} detail="Maximum 200 current cards" />
       </section>
 
       <Card className="p-3" padding={false}>
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <label className="min-w-0 flex-1 text-xs font-semibold text-text-secondary">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12 xl:items-end">
+          <label className="min-w-0 text-xs font-semibold text-text-secondary sm:col-span-2 xl:col-span-3">
             Search cases
             <span className="mt-1 flex h-10 items-center gap-2 rounded-lg border border-border bg-surface px-3 focus-within:border-accent focus-within:ring-2 focus-within:ring-focus/20">
               <Search aria-hidden className="h-4 w-4 text-text-disabled" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, mobile or Vi number" className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-disabled" />
             </span>
           </label>
-          <label className="text-xs font-semibold text-text-secondary xl:w-56">
+          <label className="text-xs font-semibold text-text-secondary xl:col-span-2">
             Owner
             <select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} disabled={!canReadUsers} className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary disabled:opacity-60">
               <option value="">All owners</option>
               {(users.data?.data ?? []).filter((user) => user.is_active).map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
             </select>
           </label>
-          <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-text-secondary xl:col-span-2">
+            Status
+            <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary">
+              <option value="">All statuses</option>
+              {REACTIVATION_STAGES.map((stage) => <option key={stage} value={stage}>{REACTIVATION_STAGE_LABELS[stage]}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-text-secondary xl:col-span-2">
+            Label
+            <select aria-label="Filter by label" value={labelFilter} onChange={(event) => setLabelFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary">
+              <option value="">All labels</option>
+              {REACTIVATION_LABELS.map((label) => <option key={label} value={label}>{REACTIVATION_LABEL_NAMES[label]}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-text-secondary xl:col-span-1">
+            Reminder
+            <select aria-label="Filter by reminder view" value={reminderView} onChange={(event) => setReminderView(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text-primary">
+              <option value="">Any</option><option value="due_today">Today</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option>
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-text-secondary xl:col-span-2">
+            Reminder date
+            <input aria-label="Filter by reminder date" type="date" value={reminderDate} onChange={(event) => setReminderDate(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-2 text-sm text-text-primary" />
+          </label>
+          <div className="flex items-center gap-2 sm:col-span-2 xl:col-span-12 xl:justify-end">
             <div className="grid grid-cols-2 rounded-lg border border-border bg-surface-2 p-1" aria-label="Pipeline view">
               <button type="button" aria-label="Kanban view" aria-pressed={view === "board"} onClick={() => setView("board")} className={`flex min-h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold ${view === "board" ? "bg-surface text-accent shadow-sm" : "text-text-secondary"}`}><Columns3 aria-hidden className="h-4 w-4" />Board</button>
               <button type="button" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")} className={`flex min-h-9 items-center gap-2 rounded-md px-3 text-xs font-semibold ${view === "list" ? "bg-surface text-accent shadow-sm" : "text-text-secondary"}`}><List aria-hidden className="h-4 w-4" />List</button>
@@ -148,13 +183,13 @@ export function ReactivationPipelineBoard(): JSX.Element {
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-text-secondary">
-          <span className="flex items-center gap-1.5"><Filter aria-hidden className="h-3.5 w-3.5" />{cards.length} visible of {pipeline.data?.total ?? cards.length}</span>
+          <span className="flex items-center gap-1.5"><Filter aria-hidden className="h-3.5 w-3.5" />{cards.length} visible of {pipeline.data?.total ?? cards.length} Â· {reminderCounts.upcoming} upcoming</span>
           <span className="hidden sm:inline">Drag a card or use Alt + arrow keys. The server validates every move.</span>
         </div>
       </Card>
 
       {cards.length === 0 ? (
-        <Card><EmptyState icon={<Columns3 className="h-7 w-7" />} title={query || ownerId ? "No cases match these filters" : "No reactivation cases yet"} description={query || ownerId ? "Clear a filter or search another customer." : "Create a governed reactivation case from an existing contact to begin the pipeline."} /></Card>
+        <Card><EmptyState icon={<Columns3 className="h-7 w-7" />} title={query || ownerId || statusFilter || labelFilter || reminderView || reminderDate ? "No cases match these filters" : "No reactivation cases yet"} description={query || ownerId || statusFilter || labelFilter || reminderView || reminderDate ? "Clear a filter or search another customer." : "Create a governed reactivation case from an existing contact to begin the pipeline."} /></Card>
       ) : view === "board" ? (
         <div className="flex snap-x gap-3 overflow-x-auto pb-4" aria-label="Reactivation pipeline stages">
           {REACTIVATION_STAGES.map((stage) => (
@@ -185,9 +220,9 @@ export function ReactivationPipelineBoard(): JSX.Element {
         <Modal title={`Move to ${REACTIVATION_STAGE_LABELS[pendingMove.target]}`} onClose={() => setPendingMove(null)}>
           <div className="space-y-3">
             <p className="text-sm text-text-secondary">Move <strong className="text-text-primary">{pendingMove.card.contact_name}</strong> from {REACTIVATION_STAGE_LABELS[pendingMove.card.stage]}? This writes immutable stage, audit and Customer Timeline evidence.</p>
-            <label className="block text-xs font-semibold text-text-secondary">Reason{["not_eligible", "not_interested"].includes(pendingMove.target) ? " (required)" : " (optional)"}<textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={2000} className="mt-1 w-full rounded-lg border border-border bg-surface p-3 text-sm text-text-primary outline-none focus:border-accent" /></label>
+            <label className="block text-xs font-semibold text-text-secondary">Reason{pendingMove.target === "not_required" ? " (required)" : " (optional)"}<textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={2000} className="mt-1 w-full rounded-lg border border-border bg-surface p-3 text-sm text-text-primary outline-none focus:border-accent" /></label>
             {transition.error ? <ErrorState message={apiErrorMessage(transition.error)} /> : null}
-            <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setPendingMove(null)}>Cancel</Button><Button disabled={transition.isPending || (["not_eligible", "not_interested"].includes(pendingMove.target) && !reason.trim())} onClick={confirmMove}>{transition.isPending ? "Moving…" : "Confirm move"}</Button></div>
+            <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setPendingMove(null)}>Cancel</Button><Button disabled={transition.isPending || (pendingMove.target === "not_required" && !reason.trim())} onClick={confirmMove}>{transition.isPending ? "Moving…" : "Confirm move"}</Button></div>
           </div>
         </Modal>
       ) : null}
@@ -204,7 +239,7 @@ function PipelineColumn({ stage, cards, total, draggingId, activeDrop, canTransi
       onDragOver={(event) => { event.preventDefault(); onDragOver(); }}
       onDrop={(event) => { event.preventDefault(); onDrop(); }}
     >
-      <header className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-text-primary">{REACTIVATION_STAGE_LABELS[stage]}</h2><p className="mt-0.5 text-[11px] text-text-disabled">{cards.length} loaded</p></div><Badge tone={["completed"].includes(stage) ? "success" : ["not_eligible", "not_interested"].includes(stage) ? "danger" : "neutral"}>{total}</Badge></header>
+      <header className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-text-primary">{REACTIVATION_STAGE_LABELS[stage]}</h2><p className="mt-0.5 text-[11px] text-text-disabled">{cards.length} loaded</p></div><Badge tone={stage === "completed" ? "success" : stage === "not_required" ? "danger" : "neutral"}>{total}</Badge></header>
       <div className="space-y-2">
         {cards.map((card) => <PipelineCard key={card.id} card={card} canTransition={canTransition} dragging={draggingId === card.id} onDragStart={() => onDragStart(card.id)} onDragEnd={onDragEnd} onOpen={() => onOpen(card)} onMove={(target) => onMove(card, target)} />)}
         {cards.length === 0 ? <EmptyState compact title="No cases" description="Drop a permitted case here or move it with the keyboard." /> : null}
@@ -235,7 +270,10 @@ function PipelineCard({ card, canTransition, dragging, onDragStart, onDragEnd, o
       aria-label={`${card.contact_name}, ${REACTIVATION_STAGE_LABELS[card.stage]}`}
     >
       <div className="flex items-start gap-2"><GripVertical aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-text-disabled" /><button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold text-text-primary group-hover:text-accent">{card.contact_name}</span><span className="mt-0.5 block text-xs text-text-secondary">{card.contact_phone}</span></button>{card.sla_status === "breached" ? <AlertTriangle aria-label="SLA breached" className="h-4 w-4 shrink-0 text-danger" /> : null}</div>
-      <div className="mt-3 flex flex-wrap gap-1"><Badge tone={card.latest_eligibility_status === "eligible" ? "success" : card.latest_eligibility_status === "not_eligible" ? "danger" : "neutral"}>{card.latest_eligibility_status?.replaceAll("_", " ") ?? "Unchecked"}</Badge>{card.overdue_task_count > 0 ? <Badge tone="danger">{card.overdue_task_count} overdue</Badge> : card.open_task_count > 0 ? <Badge tone="info">{card.open_task_count} tasks</Badge> : null}</div>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {card.labels.map((label) => <Badge key={label} tone={label === "priority" ? "danger" : label === "follow_up" ? "info" : "neutral"}><Tag aria-hidden className="mr-1 h-3 w-3" />{REACTIVATION_LABEL_NAMES[label]}</Badge>)}
+        {card.reminder_view === "overdue" ? <Badge tone="danger">Overdue</Badge> : card.reminder_view === "due_today" ? <Badge tone="warning">Due today</Badge> : card.reminder_view === "upcoming" ? <Badge tone="info">Upcoming</Badge> : null}
+      </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-2 text-[11px]"><div><dt className="text-text-disabled">Owner</dt><dd className="truncate font-medium text-text-secondary">{card.owner_name ?? "Unassigned"}</dd></div><div><dt className="text-text-disabled">Documents</dt><dd className="font-medium text-text-secondary">{card.verified_document_count}/{card.document_count}</dd></div></dl>
     </article>
   );
@@ -244,8 +282,8 @@ function PipelineCard({ card, canTransition, dragging, onDragStart, onDragEnd, o
 function PipelineList({ cards, onOpen, onMove, canTransition }: { cards: ReactivationCard[]; onOpen: (card: ReactivationCard) => void; onMove: (card: ReactivationCard, stage: ReactivationStage) => void; canTransition: boolean }): JSX.Element {
   return (
     <Card className="overflow-hidden" padding={false}>
-      <div className="hidden overflow-x-auto md:block"><table className="w-full border-collapse text-left text-sm"><thead className="bg-surface-2 text-xs uppercase tracking-wide text-text-secondary"><tr><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Eligibility</th><th className="px-4 py-3">Tasks / SLA</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y divide-border">{cards.map((card) => <tr key={card.id} className="hover:bg-hover"><td className="px-4 py-3"><button type="button" onClick={() => onOpen(card)} className="font-semibold text-text-primary hover:text-accent">{card.contact_name}</button><p className="mt-0.5 text-xs text-text-secondary">{card.contact_phone}</p></td><td className="px-4 py-3"><Badge>{REACTIVATION_STAGE_LABELS[card.stage]}</Badge></td><td className="px-4 py-3 text-text-secondary">{card.owner_name ?? "Unassigned"}</td><td className="px-4 py-3 capitalize text-text-secondary">{card.latest_eligibility_status?.replaceAll("_", " ") ?? "Not checked"}</td><td className="px-4 py-3"><span className={card.sla_status === "breached" ? "text-danger" : "text-text-secondary"}>{card.open_task_count} open · {card.sla_status.replaceAll("_", " ")}</span></td><td className="px-4 py-3"><select aria-label={`Move ${card.contact_name}`} disabled={!canTransition || card.available_transitions.length === 0} defaultValue="" onChange={(event) => { if (event.target.value) onMove(card, event.target.value as ReactivationStage); event.target.value = ""; }} className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-text-primary disabled:opacity-50"><option value="">Move…</option>{card.available_transitions.map((target) => <option key={target} value={target}>{REACTIVATION_STAGE_LABELS[target]}</option>)}</select></td></tr>)}</tbody></table></div>
-      <div className="divide-y divide-border md:hidden">{cards.map((card) => <button key={card.id} type="button" onClick={() => onOpen(card)} className="flex min-h-16 w-full items-center justify-between gap-3 p-4 text-left hover:bg-hover"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-text-primary">{card.contact_name}</span><span className="mt-1 block text-xs text-text-secondary">{REACTIVATION_STAGE_LABELS[card.stage]} · {card.owner_name ?? "Unassigned"}</span></span><Badge tone={card.sla_status === "breached" ? "danger" : "neutral"}>{card.open_task_count} tasks</Badge></button>)}</div>
+      <div className="hidden overflow-x-auto md:block"><table className="w-full border-collapse text-left text-sm"><thead className="bg-surface-2 text-xs uppercase tracking-wide text-text-secondary"><tr><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Labels</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Reminder</th><th className="px-4 py-3">Action</th></tr></thead><tbody className="divide-y divide-border">{cards.map((card) => <tr key={card.id} className="hover:bg-hover"><td className="px-4 py-3"><button type="button" onClick={() => onOpen(card)} className="font-semibold text-text-primary hover:text-accent">{card.contact_name}</button><p className="mt-0.5 text-xs text-text-secondary">{card.contact_phone}</p></td><td className="px-4 py-3"><Badge>{REACTIVATION_STAGE_LABELS[card.stage]}</Badge></td><td className="px-4 py-3"><div className="flex max-w-64 flex-wrap gap-1">{card.labels.length > 0 ? card.labels.map((label) => <Badge key={label} tone={label === "priority" ? "danger" : "neutral"}>{REACTIVATION_LABEL_NAMES[label]}</Badge>) : <span className="text-xs text-text-disabled">None</span>}</div></td><td className="px-4 py-3 text-text-secondary">{card.owner_name ?? "Unassigned"}</td><td className="px-4 py-3 capitalize text-text-secondary">{card.reminder_view?.replaceAll("_", " ") ?? "No reminder"}</td><td className="px-4 py-3"><select aria-label={`Move ${card.contact_name}`} disabled={!canTransition || card.available_transitions.length === 0} defaultValue="" onChange={(event) => { if (event.target.value) onMove(card, event.target.value as ReactivationStage); event.target.value = ""; }} className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-text-primary disabled:opacity-50"><option value="">Move…</option>{card.available_transitions.map((target) => <option key={target} value={target}>{REACTIVATION_STAGE_LABELS[target]}</option>)}</select></td></tr>)}</tbody></table></div>
+      <div className="divide-y divide-border md:hidden">{cards.map((card) => <button key={card.id} type="button" onClick={() => onOpen(card)} className="flex min-h-16 w-full items-center justify-between gap-3 p-4 text-left hover:bg-hover"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-text-primary">{card.contact_name}</span><span className="mt-1 block text-xs text-text-secondary">{REACTIVATION_STAGE_LABELS[card.stage]} · {card.owner_name ?? "Unassigned"}</span><span className="mt-1 block truncate text-[11px] text-text-disabled">{card.labels.map((label) => REACTIVATION_LABEL_NAMES[label]).join(" · ") || "No labels"}</span></span><Badge tone={card.reminder_view === "overdue" ? "danger" : "neutral"}>{card.reminder_view?.replaceAll("_", " ") ?? "No reminder"}</Badge></button>)}</div>
     </Card>
   );
 }

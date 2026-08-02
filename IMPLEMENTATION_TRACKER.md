@@ -4,7 +4,7 @@
 > of truth. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-08-02 · CORE-04 verified from Git, generated contracts, application/security
+_Last updated: 2026-08-02 · owner-corrected CORE-05 verified from Git, generated contracts, application/security
 suites, production images, deployed MySQL/Redis/Celery, Playwright, and performance evidence._
 
 ## Current state
@@ -12,13 +12,13 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
 - **Branch:** `feature/module6-queue-engine`
 - **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
   `baseline/fr-con-04-release-ready` at `b565d0f`
-- **Migration head:** `0033_kyc_operations` (33 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 188 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 940 tests passed · Ruff clean · raw strict mypy clean across
-  252 source files (exact checker mypy 2.3.0)
+- **Migration head:** `0034_reactivation_crm` (34 linear revisions, base `0001`)
+- **OpenAPI:** 3.1.0 · 189 paths · `frontend/openapi.json` verified against the live app
+- **Backend:** 943 tests passed · Ruff clean · raw strict mypy clean across
+  253 source files (exact checker mypy 2.3.0)
 - **Frontend:** 646 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
-  the backend image boots with the 188-path/24-task contract; frontend nginx validates. The isolated
+  the backend image boots with the 189-path/25-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
 - **Current phase:** Phase 1 core operations and real domain ownership — **IN PROGRESS**
@@ -27,12 +27,12 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
   profiles are provider-neutral
 - **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
   → durable automation draft/publish/test-run → second queued import → real `contact.created` receipt
-  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; CORE-04 applied migration `0033` and the
-  current standard-read evidence is p95 12.551 ms / 30 samples (<300 ms target)
+  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; CORE-05 applied migration `0034` and the
+  current standard-read evidence is p95 17.761 ms / 30 samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** CORE-04 KYC operations — **COMPLETE; APPLICATION, SECURITY,
+- **Current milestone:** owner-corrected CORE-05 lightweight Reactivation CRM — **COMPLETE; APPLICATION, SECURITY,
   RELEASE-IMAGE, MIGRATION, DEPLOYED, BROWSER, AND GOVERNANCE VALIDATION PASSED**
 
 ## Completed deliverables
@@ -66,6 +66,7 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
 | Vi domain foundation | Tenant-scoped Reactivation, stage-event, eligibility, KYC/decisions, SIM/events, Activation, and SLA records; fixed transitions and prerequisites; optimistic concurrency; UUID idempotency; approval boundaries; RBAC; audit/Customer Timeline/durable facts; 29 typed API paths; migration `0032`; ADR-0014 and Design Document 27 |
 | Governed Reactivation pipeline | Persisted fifteen-stage dashboard/Kanban/list; pointer and keyboard moves through the CORE-02 transition authority; assignments; eligibility/rejection; immutable stage history/notes; Tasks/Documents/Customer 360 reuse; reservation/family/conversion/SLA evidence; responsive accessible drawer; 184-path contract; ADR-0015 and Design Document 28 |
 | Governed KYC operations | Persisted tenant queue/detail; holder/Delhi/active-number checks; protected Aadhaar/PAN references without identity numbers; Task-backed appointments; structured reviewer/manager decisions and separation; optimistic concurrency/idempotency; immutable audit/Timeline and Reactivation handoff; 188-path contract; migration `0033`; ADR-0016 and Design Document 29 |
+| Lightweight Reactivation CRM | Owner-approved nine-status single case; six labels; Task-backed Follow-up/Release dates; Upcoming/Due Today/Overdue views; Complete/Snooze/Reschedule; assignment, notes, RBAC, tenant isolation, concurrency, Audit/Timeline; 189-path/25-task contract; migration `0034`; ADR-0017 and Design Document 30. Completed KYC/SIM/Activation foundations remain preserved without new heavy workspaces. |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -94,8 +95,9 @@ The canonical final-product sequence is `ROADMAP.md`; the older `docs/ROADMAP.md
 historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
 continues to define the remaining-work baseline. ADR-0012 and Design Document 25 govern premium
 original experience acceptance for every future screen without changing the feature roadmap or
-module percentages. CORE-04 is complete; CORE-05 SIM fulfilment is next and must not start without
-a separate owner instruction.
+module percentages. The owner-corrected CORE-05 is complete; the former standalone SIM fulfilment
+and Activation Queue milestones are no longer canonical. CORE-07 Customer 360 convergence is the
+next implementation boundary and requires a separate owner instruction.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
@@ -113,7 +115,7 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 713 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 720.34 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.

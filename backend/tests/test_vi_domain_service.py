@@ -72,7 +72,7 @@ async def test_reactivation_is_idempotent_versioned_and_projected(
     command = {
         "idempotency_key": transition_key,
         "expected_row_version": 0,
-        "to_stage": "follow_up",
+        "to_stage": "lead_confirmed",
         "reason": "Initial callback scheduled",
     }
     transitioned = await service.transition_reactivation(
@@ -95,7 +95,7 @@ async def test_reactivation_is_idempotent_versioned_and_projected(
             organization_id=organization.id,
             actor=actor,
             public_id=uuid.UUID(first["id"]),
-            payload={**command, "to_stage": "not_interested"},
+            payload={**command, "to_stage": "not_required"},
         )
     with pytest.raises(VersionConflictError):
         await service.transition_reactivation(
@@ -105,7 +105,7 @@ async def test_reactivation_is_idempotent_versioned_and_projected(
             payload={
                 "idempotency_key": uuid.uuid4(),
                 "expected_row_version": 0,
-                "to_stage": "interested",
+                "to_stage": "documents_pending",
                 "reason": None,
             },
         )
@@ -119,21 +119,10 @@ async def test_reactivation_is_idempotent_versioned_and_projected(
 
 def test_reactivation_transition_matrix_is_closed_and_complete() -> None:
     expected = {
-        "new_lead": {"follow_up", "not_interested"},
-        "follow_up": {"interested", "not_interested"},
-        "interested": {"eligibility_check", "not_interested"},
-        "eligibility_check": {"eligible", "not_eligible"},
-        "eligible": {"documents_pending"},
-        "documents_pending": {"documents_received"},
-        "documents_received": {"kyc_pending"},
-        "kyc_pending": {"verification"},
-        "verification": {"confirmed", "documents_pending", "not_eligible"},
-        "confirmed": {"sim_order"},
-        "sim_order": {"activation_pending"},
-        "activation_pending": {"completed"},
-        "completed": set(),
-        "not_eligible": set(),
-        "not_interested": set(),
+        stage: (
+            set() if stage in {"completed", "not_required"} else set(REACTIVATION_STAGES) - {stage}
+        )
+        for stage in REACTIVATION_STAGES
     }
     assert tuple(expected) == REACTIVATION_STAGES
     assert {stage: set(targets) for stage, targets in REACTIVATION_TRANSITIONS.items()} == expected
@@ -187,12 +176,12 @@ async def test_pipeline_projection_assignment_and_immutable_notes(
     card = projection["data"][0]
     assert card["contact_name"] == "Vi Customer 3"
     assert card["owner_name"] == assignee.full_name
-    assert card["available_transitions"] == ["follow_up", "not_interested"]
+    assert set(card["available_transitions"]) == set(REACTIVATION_STAGES) - {"new_lead"}
     assert card["open_task_count"] == 0
     assert card["document_count"] == 0
     assert card["sla_status"] == "not_configured"
     assert card["conversion_indicator"] == "open"
-    assert len(projection["stage_counts"]) == 15
+    assert len(projection["stage_counts"]) == 9
 
     note = await service.add_reactivation_note(
         organization_id=organization.id,
@@ -271,22 +260,22 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
         },
     )
     aadhaar = ContactDocument(
-            organization_id=organization.id,
-            contact_id=contact.id,
-            document_type="identity",
-            title="Governed Aadhaar proof",
-            status="verified",
-            created_by=actor.id,
-            updated_by=actor.id,
-        )
+        organization_id=organization.id,
+        contact_id=contact.id,
+        document_type="identity",
+        title="Governed Aadhaar proof",
+        status="verified",
+        created_by=actor.id,
+        updated_by=actor.id,
+    )
     pan = ContactDocument(
-            organization_id=organization.id,
-            contact_id=contact.id,
-            document_type="identity",
-            title="Governed PAN proof",
-            status="verified",
-            created_by=actor.id,
-            updated_by=actor.id,
+        organization_id=organization.id,
+        contact_id=contact.id,
+        document_type="identity",
+        title="Governed PAN proof",
+        status="verified",
+        created_by=actor.id,
+        updated_by=actor.id,
     )
     db_session.add_all([aadhaar, pan])
     await db_session.commit()
@@ -294,13 +283,21 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
         organization_id=organization.id,
         actor=actor,
         public_id=uuid.UUID(kyc["id"]),
-        payload={"expected_row_version": 1, "purpose": "aadhaar", "document_id": uuid.UUID(aadhaar.public_id)},
+        payload={
+            "expected_row_version": 1,
+            "purpose": "aadhaar",
+            "document_id": uuid.UUID(aadhaar.public_id),
+        },
     )
     await service.set_kyc_document_reference(
         organization_id=organization.id,
         actor=actor,
         public_id=uuid.UUID(kyc["id"]),
-        payload={"expected_row_version": 2, "purpose": "pan", "document_id": uuid.UUID(pan.public_id)},
+        payload={
+            "expected_row_version": 2,
+            "purpose": "pan",
+            "document_id": uuid.UUID(pan.public_id),
+        },
     )
     review = await service.decide_kyc(
         organization_id=organization.id,
@@ -334,10 +331,10 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
         await db_session.scalars(select(KycCase).where(KycCase.uuid == uuid.UUID(kyc["id"]).bytes))
     ).one()
     assert stored_kyc.status == "approved"
-    assert case.stage == "verification"
+    assert case.stage == "kyc_verification"
     assert await db_session.scalar(select(func.count()).select_from(KycDecision)) == 2
 
-    case.stage = "confirmed"
+    case.stage = "sim_required"
     await db_session.commit()
     order = await service.create_sim_order(
         organization_id=organization.id,
@@ -390,7 +387,7 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
     )
     assert order["status"] == "delivered" and order["customer_confirmed"] is True
 
-    case.stage = "sim_order"
+    case.stage = "sim_required"
     await db_session.commit()
     activation = await service.create_activation(
         organization_id=organization.id,

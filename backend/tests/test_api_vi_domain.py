@@ -59,10 +59,16 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
     assert pipeline.status_code == 200
     assert pipeline.json()["total"] == 1
     assert pipeline.json()["data"][0]["contact_name"] == "API Vi Customer"
-    assert pipeline.json()["data"][0]["available_transitions"] == [
-        "follow_up",
-        "not_interested",
-    ]
+    assert set(pipeline.json()["data"][0]["available_transitions"]) == {
+        "lead_confirmed",
+        "documents_pending",
+        "documents_received",
+        "kyc_verification",
+        "sim_required",
+        "activation_pending",
+        "completed",
+        "not_required",
+    }
 
     note = await client.post(
         f"/api/v1/reactivation-cases/{case_id}/notes",
@@ -82,7 +88,7 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
         json={
             "idempotency_key": str(uuid.uuid4()),
             "expected_row_version": 0,
-            "to_stage": "follow_up",
+            "to_stage": "lead_confirmed",
         },
     )
     assert transitioned.status_code == 200
@@ -182,7 +188,7 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/sla/events",
     }
     assert expected <= set(schema["paths"])
-    assert len(schema["paths"]) == 188
+    assert len(schema["paths"]) == 189
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

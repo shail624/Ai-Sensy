@@ -2,11 +2,30 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. CORE-04 starting GitHub baseline: `320b0bd`; the milestone
-> delivers governed KYC operations by extending existing Vi, Document, Task, Reactivation, Customer
-> 360, Audit, Timeline, RBAC, and SLA authorities. The canonical deployed-stack gate passed.
+> be refreshed after every milestone. Corrected CORE-05 starting GitHub baseline: `3457938`; the
+> milestone delivers the owner-approved lightweight Reactivation CRM by extending existing Vi,
+> Task, Contact/User, Celery, Audit, Timeline, RBAC, and SLA authorities. The canonical 22-step
+> deployed-stack gate passed.
 
-Last synchronized: `2026-08-02T14:44:11+05:30`.
+Last synchronized: `2026-08-02T16:18:34+05:30`.
+
+## CORE-05 lightweight Reactivation CRM correction
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Primary status and labels | PASS | Exactly one of nine constrained current statuses and unique multi-label membership pass model/service/migration tests; current status/label concepts do not overlap and immutable legacy stage events are retained. |
+| Follow-up and Release dates | PASS | Follow-up and Name Change require their governed dates, date-bearing labels require an assigned owner, timezone-aware inputs normalize to UTC, and removing a label cannot submit a stale date. |
+| Reminder lifecycle | PASS | Existing TaskService owns create/update/Complete/Snooze/Reschedule, keeps overdue work open until resolved, enforces row versions, and records immutable Task, Audit and Customer Timeline evidence. |
+| Due delivery and infrastructure | PASS | The existing Celery beat/worker topology registers 25 application tasks; the bounded due adapter uses `scheduler.tick`, marks durable assigned-user due evidence, and the deployed MySQL/Redis/Celery stack is healthy. |
+| RBAC, tenant isolation and concurrency | PASS | Permission-scoped Reactivation/Task endpoints, organization-scoped joins/filters, ownership validation, stale versions and duplicate/idempotent commands fail closed in focused and full suites. |
+| Real persisted UI | PASS | Existing board/list/drawer consume only generated API contracts and real projections; status/label/assignee/reminder-date filters, due counters, chips, pointer/keyboard movement and Complete/Snooze/Reschedule survive server refreshes. |
+| UI states, accessibility and responsive behavior | PASS | Focused tests cover loading, empty, recoverable error, permission/read-only boundaries, labelled controls/dialogs, keyboard movement, desktop dense table/Kanban and mobile list/drawer transformation. |
+| Authenticated representative-data visual review | PENDING – Host Machine Validation | Final target-browser/device and screen-reader review requires a host account with representative labels, due/overdue Tasks, users, and cases; repository component and deployed browser gates pass. |
+| Reference and originality review | PASS | Four paired approved `_full.png`/`_viewport.png` workflows were reviewed for filters, chips, staff selection, forms and responsive hierarchy; no reference code, asset, branding, text, exact styling or file is shipped. |
+| Focused and full tests | PASS | Focused Reactivation/API/KYC backend tests pass 11/11 and Reactivation/Tasks/KYC frontend tests pass 25/25; canonical deployed suites pass 943/943 pytest and 646/646 Vitest. |
+| Migration and API boundary | PASS | One additive head `0034_reactivation_crm` advances 34 linear revisions; OpenAPI advances only from 188 to 189 paths (+1), generated contracts/drift pass, and the backend image registers 25 tasks. |
+| Verified defect regressions | PASS | Tests cover stale date serialization, versioned reminder actions, owner-only reminder reassignment, server-required Not Required reasons, UTC normalization, populated-data migration rollback, updated image contract and five-entry beat schedule; no test or permission was weakened. |
+| Milestone boundary | PASS | No heavy SIM fulfilment/Activation workspace, parallel reminder/notification store, fake data, local-only state, completed-module rebuild, migration downgrade, API removal, reference asset, or `.reference/aisensy/` content was introduced. |
 
 ## CORE-04 KYC operations
 
@@ -86,10 +105,10 @@ Last synchronized: `2026-08-02T14:44:11+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Pytest | PASS | Canonical deployed validation passed 940/940 backend tests in 394.35 seconds. |
-| Migration validation | PASS | Single head `0033_kyc_operations`; 33 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
+| Pytest | PASS | Canonical deployed validation passed 943/943 backend tests in 348.37 seconds. |
+| Migration validation | PASS | Single head `0034_reactivation_crm`; 34 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
 | Ruff | PASS | Canonical deployed profile passed Ruff across application, tests, scripts, and root tools. |
-| Mypy | PASS | Canonical deployed profile passed strict mypy across 252 backend source files. |
+| Mypy | PASS | Canonical deployed profile passed strict mypy across 253 backend source files. |
 | Python compile | PASS | `compileall` passed for backend application/scripts and root scripts. |
 
 ## Frontend
@@ -99,22 +118,22 @@ Last synchronized: `2026-08-02T14:44:11+05:30`.
 | TypeScript | PASS | Frontend and Playwright TypeScript checks passed in the canonical deployed profile with regenerated contracts. |
 | ESLint | PASS | Frontend ESLint passed in the canonical deployed profile. |
 | Vitest | PASS | Full suite passed 646/646 tests across 30 files. |
-| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-04 images in 8.635 seconds. |
-| Production build | PASS | TypeScript and Vite production build passed after final CORE-04 source and generated-contract changes. |
+| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-05 images in 11.338 seconds. |
+| Production build | PASS | TypeScript and Vite production build passed after final CORE-05 source and generated-contract changes; the known main-chunk warning remains non-blocking. |
 
 ## API
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 184 to 188 paths (+4) without removing a path. |
-| Generated TypeScript contracts | PASS | `npm run gen:api` regenerated the typed KYC operations/checklist/appointment contracts; frontend typecheck and drift checks passed. |
+| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 188 to 189 paths (+1) without removing a path. |
+| Generated TypeScript contracts | PASS | Generated Reactivation label/reminder and Task Snooze contracts are current; frontend typecheck and drift checks passed. |
 
 ## Infrastructure
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Docker | PASS | Development/production Compose models, ten-service release contract, production builds, backend/frontend image contracts, Trivy source/image scans, SBOMs, and isolated deployment passed. |
-| Celery | PASS | Realtime, bulk, and jobs workers plus beat reached healthy state; the backend image retained 24 registered tasks and queued journey evidence passed. |
+| Docker | PASS | Development/production Compose models, ten-service release contract, production builds, 189-path/25-task backend and frontend image contracts, Trivy source/image scans, SBOMs, and isolated deployment passed. |
+| Celery | PASS | Realtime, bulk, and jobs workers plus beat reached healthy state; the backend image registered 25 tasks including due-reminder dispatch, and queued journey evidence passed. |
 | Redis | PASS | Isolated Redis reached healthy state and supported the deployed queue/readiness journey. |
 | Target production commissioning | PENDING – Host Machine Validation | TLS/host hardening, UAT, restore/rollback rehearsal, receiver delivery, and production approval require the target host. |
 
@@ -122,14 +141,14 @@ Last synchronized: `2026-08-02T14:44:11+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Existing responsive/keyboard baseline | PASS | CORE-01/03 evidence remains green; CORE-04 focused tests verify labelled tabs/actions, accessible drawer/state boundaries, dense desktop table, mobile cards, responsive transformations, and permission-aware read-only behavior. |
+| Existing responsive/keyboard baseline | PASS | CORE-01/03/04 evidence remains green; CORE-05 tests verify labelled status/label/date/reminder controls, accessible dialog/drawer states, keyboard movement, dense desktop table/Kanban, mobile transformation, and permission-aware read-only behavior. |
 | Full final-scope WCAG regression | PENDING – Host Machine Validation | Must be repeated on every completed final-scope route with real domain data and the target browser/device matrix. |
 
 ## Performance
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Standard-read canary | PASS | p95 12.551 ms across 30 authenticated reads, below the 300 ms budget. |
+| Standard-read canary | PASS | p50 10.168 ms and p95 17.761 ms across 30 authenticated reads, below the 300 ms budget. |
 | Full load/stress/spike/soak and 1M-contact certification | PENDING – Host Machine Validation | Requires the isolated Performance Lab and production-like capacity. |
 
 ## Known limitations
@@ -137,11 +156,11 @@ Last synchronized: `2026-08-02T14:44:11+05:30`.
 | Validation item | Status | Current limitation |
 |---|---|---|
 | Target observability receivers | PENDING – Host Machine Validation | Log shipping, dashboards, alert firing/dead-man delivery, and external synthetic checks need deployed receivers. |
-| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 719.05 kB; further route splitting remains a performance task. |
+| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 720.34 kB; further route splitting remains a performance task. |
 | Docker-backed source scan | PASS | Trivy vulnerability, secret, and IaC scan passed; production backend/frontend image vulnerability scans and CycloneDX SBOM generation also passed. |
 | React Router advisories | PENDING – Host Machine Validation | Two moderate advisories require an explicit React Router 7.18+ upgrade milestone, not a silent dependency change. |
 | Contact-scoped conversation history | PENDING – Host Machine Validation | `ConversationHistorySection.tsx` still exposes the known unavailable/TODO boundary. |
-| Final domain workflows | PENDING – Host Machine Validation | CORE-04 supplies governed KYC operations over the existing authorities; SIM/Activation operational UIs plus Notification Center, generalized approvals, Google Sheets, and Download Center remain later milestones. |
+| Final domain workflows | PENDING – Host Machine Validation | CORE-05 supplies the owner-approved lightweight status/label/reminder CRM while preserving KYC/SIM/Activation foundations; Notification Center, generalized approvals, Google Sheets, Download Center and final Customer 360 convergence remain later milestones. Heavy standalone SIM/Activation workspaces are not planned without explicit owner instruction. |
 
 ## Milestone closeout rule
 

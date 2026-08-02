@@ -28,16 +28,28 @@ import {
 } from "@/features/reactivation/api";
 import {
   REACTIVATION_STAGE_LABELS,
+  REACTIVATION_STAGES,
+  REACTIVATION_LABEL_NAMES,
+  REACTIVATION_LABELS,
   type ReactivationCard,
+  type ReactivationLabel,
   type ReactivationStage,
 } from "@/features/reactivation/types";
 import { TasksSectionForProfile } from "@/features/tasks/TasksSectionForProfile";
+import { TaskActions } from "@/features/tasks/TaskActions";
 import { useAuth, useHasPermission } from "@/lib/auth";
 
 type DrawerTab = "overview" | "activity" | "work" | "documents" | "kyc";
 
 const FIELD =
   "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-focus/20";
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
 
 export interface ReactivationCaseDrawerProps {
   card: ReactivationCard;
@@ -54,6 +66,9 @@ export function ReactivationCaseDrawer({
   const [ownerId, setOwnerId] = useState(card.owner_user_id ?? "");
   const [previousNumber, setPreviousNumber] = useState(card.previous_vi_number ?? "");
   const [activeNumber, setActiveNumber] = useState(card.active_delhi_number ?? "");
+  const [labels, setLabels] = useState<ReactivationLabel[]>([...card.labels]);
+  const [followUpAt, setFollowUpAt] = useState(toLocalInput(card.follow_up_at));
+  const [releaseAt, setReleaseAt] = useState(toLocalInput(card.release_at));
   const canWrite = useHasPermission("reactivation:write");
   const canTransition = useHasPermission("reactivation:transition");
   const canReadUsers = useHasPermission("users:read");
@@ -65,6 +80,9 @@ export function ReactivationCaseDrawer({
     setOwnerId(card.owner_user_id ?? "");
     setPreviousNumber(card.previous_vi_number ?? "");
     setActiveNumber(card.active_delhi_number ?? "");
+    setLabels([...card.labels]);
+    setFollowUpAt(toLocalInput(card.follow_up_at));
+    setReleaseAt(toLocalInput(card.release_at));
   }, [card]);
 
   const assignees = useMemo(() => {
@@ -86,8 +104,17 @@ export function ReactivationCaseDrawer({
       ownerUserId: ownerId || null,
       previousViNumber: previousNumber.trim() || null,
       activeDelhiNumber: activeNumber.trim() || null,
+      labels,
+      followUpAt: labels.includes("follow_up") && followUpAt ? new Date(followUpAt).toISOString() : null,
+      releaseAt: labels.includes("name_change") && releaseAt ? new Date(releaseAt).toISOString() : null,
     });
   };
+
+  const toggleLabel = (label: ReactivationLabel): void => {
+    setLabels((current) => current.includes(label) ? current.filter((item) => item !== label) : [...current, label]);
+  };
+
+  const missingRequiredDate = (labels.includes("follow_up") && !followUpAt) || (labels.includes("name_change") && !releaseAt);
 
   const tabs: Array<{ key: DrawerTab; label: string; icon: typeof UserRound }> = [
     { key: "overview", label: "Case", icon: UserRound },
@@ -110,6 +137,11 @@ export function ReactivationCaseDrawer({
           <Link to={`/contacts/${card.contact_id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-text-primary hover:bg-hover">
             <Link2 aria-hidden className="h-4 w-4" /> Customer 360
           </Link>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5" aria-label="Case labels">
+          <Badge tone={card.stage === "completed" ? "success" : card.stage === "not_required" ? "danger" : "info"}>{REACTIVATION_STAGE_LABELS[card.stage]}</Badge>
+          {card.labels.map((label) => <Badge key={label} tone={label === "priority" ? "danger" : "neutral"}>{REACTIVATION_LABEL_NAMES[label]}</Badge>)}
         </div>
 
         <div role="tablist" aria-label="Reactivation case details" className="grid grid-cols-5 gap-1 rounded-xl border border-border bg-surface-2 p-1">
@@ -135,9 +167,16 @@ export function ReactivationCaseDrawer({
             <section className="rounded-xl border border-border p-4">
               <div className="flex items-center gap-2">
                 <UserRound aria-hidden className="h-4 w-4 text-accent" />
-                <h3 className="text-sm font-semibold text-text-primary">Ownership and numbers</h3>
+                <h3 className="text-sm font-semibold text-text-primary">Status, ownership and reminders</h3>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-medium text-text-secondary sm:col-span-2">
+                  Primary status
+                  <select aria-label="Primary case status" value={card.stage} onChange={(event) => onMove(card, event.target.value as ReactivationStage)} disabled={!canTransition || card.available_transitions.length === 0} className={`${FIELD} mt-1 disabled:opacity-60`}>
+                    <option value={card.stage}>{REACTIVATION_STAGE_LABELS[card.stage]}</option>
+                    {REACTIVATION_STAGES.filter((stage) => card.available_transitions.includes(stage)).map((stage) => <option key={stage} value={stage}>{REACTIVATION_STAGE_LABELS[stage]}</option>)}
+                  </select>
+                </label>
                 <label className="text-xs font-medium text-text-secondary sm:col-span-2">
                   Assigned owner
                   <select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} disabled={!canWrite} className={`${FIELD} mt-1 disabled:opacity-60`}>
@@ -145,6 +184,14 @@ export function ReactivationCaseDrawer({
                     {assignees.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.full_name}</option>)}
                   </select>
                 </label>
+                <fieldset className="sm:col-span-2">
+                  <legend className="text-xs font-medium text-text-secondary">Labels</legend>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {REACTIVATION_LABELS.map((label) => <button key={label} type="button" aria-pressed={labels.includes(label)} disabled={!canWrite} onClick={() => toggleLabel(label)} className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition ${labels.includes(label) ? "border-accent bg-accent-soft text-accent" : "border-border bg-surface text-text-secondary hover:bg-hover"} disabled:opacity-60`}>{REACTIVATION_LABEL_NAMES[label]}</button>)}
+                  </div>
+                </fieldset>
+                {labels.includes("follow_up") ? <label className="text-xs font-medium text-text-secondary">Next follow-up date<span className="text-danger"> *</span><input aria-label="Next follow-up date" type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} disabled={!canWrite} className={`${FIELD} mt-1 disabled:opacity-60`} /></label> : null}
+                {labels.includes("name_change") ? <label className="text-xs font-medium text-text-secondary">Release date<span className="text-danger"> *</span><input aria-label="Release date" type="datetime-local" value={releaseAt} onChange={(event) => setReleaseAt(event.target.value)} disabled={!canWrite} className={`${FIELD} mt-1 disabled:opacity-60`} /></label> : null}
                 <label className="text-xs font-medium text-text-secondary">
                   Previous Vi number
                   <input value={previousNumber} onChange={(event) => setPreviousNumber(event.target.value)} disabled={!canWrite} className={`${FIELD} mt-1 disabled:opacity-60`} />
@@ -155,8 +202,11 @@ export function ReactivationCaseDrawer({
                 </label>
               </div>
               {update.error ? <div className="mt-3"><ErrorState message={apiErrorMessage(update.error)} /></div> : null}
-              {canWrite ? <div className="mt-3 flex justify-end"><Button size="sm" onClick={saveOwnership} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save case"}</Button></div> : null}
+              {labels.some((label) => label === "follow_up" || label === "name_change") && !ownerId ? <p className="mt-3 text-xs text-warning">Assign a staff member before scheduling a reminder.</p> : null}
+              {canWrite ? <div className="mt-3 flex justify-end"><Button size="sm" onClick={saveOwnership} disabled={update.isPending || missingRequiredDate || (labels.some((label) => label === "follow_up" || label === "name_change") && !ownerId)}>{update.isPending ? "Saving…" : "Save case"}</Button></div> : null}
             </section>
+
+            {card.reminders.length > 0 ? <section aria-label="Scheduled reminders" className="rounded-xl border border-border p-4"><div className="flex items-center gap-2"><CalendarClock aria-hidden className="h-4 w-4 text-accent" /><h3 className="text-sm font-semibold text-text-primary">Scheduled reminders</h3></div><div className="mt-3 space-y-2">{card.reminders.map((task) => <div key={task.id} className="flex flex-col gap-3 rounded-lg bg-surface-2 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-text-primary">{task.title}</p><p className={`mt-1 text-xs ${new Date(task.due_at) < new Date() ? "text-danger" : "text-text-secondary"}`}>{new Date(task.due_at).toLocaleString()} · {task.assigned_agent_name ?? "Assigned staff"}</p></div><TaskActions task={task} showLinks={false} /></div>)}</div></section> : null}
 
             <EligibilityPanel card={card} />
 
@@ -190,12 +240,12 @@ function KycEntryPanel({ card }: { card: ReactivationCard }): JSX.Element {
   const query = useContactKycCases(card.contact_id, canRead);
   const create = useCreateKycCase();
   const record = query.data?.[0];
-  const eligibleStage = ["documents_received", "kyc_pending", "verification"].includes(card.stage);
+  const eligibleStage = ["documents_received", "kyc_verification"].includes(card.stage);
   if (!canRead) return <EmptyState title="KYC access is restricted" description="Your role cannot view this case's KYC record." />;
   if (query.isLoading) return <Skeleton className="h-36 w-full" />;
   if (query.isError) return <ErrorState message={kycErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
   if (record) return <section role="tabpanel" className="rounded-xl border border-border p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Governed KYC case</h3><p className="mt-1 text-xs text-text-secondary">Verification state is persisted and shared with Customer 360.</p></div><Badge tone={record.status === "approved" ? "success" : record.status === "rejected" ? "danger" : "warning"}>{KYC_STATUS_LABELS[record.status]}</Badge></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Holder",record.holder_verified],["Delhi",record.delhi_presence_verified],["Active number",record.active_delhi_number_verified]].map(([label,value]) => <div key={label as string} className="rounded-lg bg-surface-2 p-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-text-disabled">{label as string}</p><p className={`mt-1 text-xs font-semibold ${value ? "text-success" : "text-warning"}`}>{value ? "Verified" : "Required"}</p></div>)}</div><Link to="/reactivation/kyc" className="mt-4 inline-flex"><Button>Open KYC Operations</Button></Link></section>;
-  return <section role="tabpanel" className="rounded-xl border border-border p-4"><div className="flex items-center gap-2"><ShieldAlert aria-hidden className="h-4 w-4 text-accent" /><h3 className="text-sm font-semibold text-text-primary">Open KYC case</h3></div><p className="mt-2 text-xs leading-relaxed text-text-secondary">KYC can begin only after governed documents are received. Opening the case records audit and Timeline evidence and moves this Reactivation case into KYC pending.</p>{!eligibleStage ? <div className="mt-3"><EmptyState compact title="KYC prerequisites are not met" description={`Move the case through governed document intake before KYC. Current stage: ${REACTIVATION_STAGE_LABELS[card.stage]}.`} /></div> : null}{create.error ? <div className="mt-3"><ErrorState message={kycErrorMessage(create.error)} /></div> : null}{canWrite && eligibleStage ? <div className="mt-4 flex justify-end"><Button loading={create.isPending} onClick={() => create.mutate({ caseId: card.id, ownerUserId: card.owner_user_id })}>Create KYC case</Button></div> : !canWrite ? <p className="mt-3 text-xs text-warning">Read-only: KYC write permission is required.</p> : null}</section>;
+  return <section role="tabpanel" className="rounded-xl border border-border p-4"><div className="flex items-center gap-2"><ShieldAlert aria-hidden className="h-4 w-4 text-accent" /><h3 className="text-sm font-semibold text-text-primary">Open KYC case</h3></div><p className="mt-2 text-xs leading-relaxed text-text-secondary">KYC can begin only after governed documents are received. Opening the case records audit and Timeline evidence; manager approval governs the KYC / Verification hand-off.</p>{!eligibleStage ? <div className="mt-3"><EmptyState compact title="KYC prerequisites are not met" description={`Move the case through governed document intake before KYC. Current status: ${REACTIVATION_STAGE_LABELS[card.stage]}.`} /></div> : null}{create.error ? <div className="mt-3"><ErrorState message={kycErrorMessage(create.error)} /></div> : null}{canWrite && eligibleStage ? <div className="mt-4 flex justify-end"><Button loading={create.isPending} onClick={() => create.mutate({ caseId: card.id, ownerUserId: card.owner_user_id })}>Create KYC case</Button></div> : !canWrite ? <p className="mt-3 text-xs text-warning">Read-only: KYC write permission is required.</p> : null}</section>;
 }
 
 function CaseFacts({ card }: { card: ReactivationCard }): JSX.Element {
@@ -224,7 +274,7 @@ function EligibilityPanel({ card }: { card: ReactivationCard }): JSX.Element {
   const canTransition = useHasPermission("reactivation:transition");
   const [status, setStatus] = useState<"eligible" | "not_eligible" | "review_required">("eligible");
   const [reason, setReason] = useState("");
-  const canRecord = canTransition && card.stage === "eligibility_check";
+  const canRecord = canTransition && card.stage === "lead_confirmed";
 
   return (
     <section className="rounded-xl border border-border p-4">

@@ -250,5 +250,22 @@ class TaskRepository(BaseRepository[Task]):
             "completed_today": int((await self.session.scalar(completed_today)) or 0),
         }
 
+    async def due_for_notification(self, *, now: datetime, limit: int) -> list[Task]:
+        """Claim candidates are rechecked by the service; ``due_notified_at`` makes scans converge."""
+        stmt = (
+            select(Task)
+            .where(
+                Task.reference_type == "reactivation_case",
+                Task.status == TASK_STATUS_OPEN,
+                Task.due_at <= now,
+                Task.due_notified_at.is_(None),
+                Task.deleted_at.is_(None),
+            )
+            .order_by(Task.due_at, Task.id)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
 
 __all__ = ["TaskRepository", "TASK_PRIORITIES", "SORT_DUE_AT", "SORT_CREATED_AT", "SORT_PRIORITY"]

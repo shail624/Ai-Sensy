@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.mixins import (
@@ -25,39 +25,46 @@ from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6, uuid_binary
 
 REACTIVATION_STAGES: tuple[str, ...] = (
     "new_lead",
+    "lead_confirmed",
+    "documents_pending",
+    "documents_received",
+    "kyc_verification",
+    "sim_required",
+    "activation_pending",
+    "completed",
+    "not_required",
+)
+REACTIVATION_LEGACY_STAGES: tuple[str, ...] = (
     "follow_up",
     "interested",
     "eligibility_check",
     "eligible",
-    "documents_pending",
-    "documents_received",
     "kyc_pending",
     "verification",
     "confirmed",
     "sim_order",
-    "activation_pending",
-    "completed",
     "not_eligible",
     "not_interested",
 )
-REACTIVATION_TERMINAL_STAGES = frozenset({"completed", "not_eligible", "not_interested"})
+REACTIVATION_EVENT_STAGES = tuple(dict.fromkeys((*REACTIVATION_STAGES, *REACTIVATION_LEGACY_STAGES)))
+REACTIVATION_TERMINAL_STAGES = frozenset({"completed", "not_required"})
 REACTIVATION_TRANSITIONS: dict[str, frozenset[str]] = {
-    "new_lead": frozenset({"follow_up", "not_interested"}),
-    "follow_up": frozenset({"interested", "not_interested"}),
-    "interested": frozenset({"eligibility_check", "not_interested"}),
-    "eligibility_check": frozenset({"eligible", "not_eligible"}),
-    "eligible": frozenset({"documents_pending"}),
-    "documents_pending": frozenset({"documents_received"}),
-    "documents_received": frozenset({"kyc_pending"}),
-    "kyc_pending": frozenset({"verification"}),
-    "verification": frozenset({"confirmed", "documents_pending", "not_eligible"}),
-    "confirmed": frozenset({"sim_order"}),
-    "sim_order": frozenset({"activation_pending"}),
-    "activation_pending": frozenset({"completed"}),
-    "completed": frozenset(),
-    "not_eligible": frozenset(),
-    "not_interested": frozenset(),
+    stage: (
+        frozenset()
+        if stage in REACTIVATION_TERMINAL_STAGES
+        else frozenset(candidate for candidate in REACTIVATION_STAGES if candidate != stage)
+    )
+    for stage in REACTIVATION_STAGES
 }
+
+REACTIVATION_LABELS: tuple[str, ...] = (
+    "follow_up",
+    "prepaid_required",
+    "name_change",
+    "priority",
+    "customer_not_reachable",
+    "documents_incomplete",
+)
 
 ELIGIBILITY_STATUSES = ("pending", "eligible", "not_eligible", "review_required")
 ELIGIBILITY_SOURCES = ("rules", "manual", "override")
@@ -144,6 +151,31 @@ class ReactivationCase(
     closed_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[bytes] = mapped_column(uuid_binary(), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    labels: Mapped[list[ReactivationCaseLabel]] = relationship(
+        back_populates="case", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ReactivationCaseLabel(IntPKMixin, Base):
+    """Current case-scoped CRM labels; changes are evidenced in Audit and Customer Timeline."""
+
+    __tablename__ = "reactivation_case_labels"
+    __table_args__ = (
+        UniqueConstraint("case_id", "label", name="uq_reactivation_case_label"),
+        Index("ix_reactivation_label_org_label_case", "organization_id", "label", "case_id"),
+        CheckConstraint(_in_clause("label", REACTIVATION_LABELS), name="ck_reactivation_label"),
+        MYSQL_TABLE_ARGS,
+    )
+    organization_id: Mapped[int] = mapped_column(
+        big_id(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    case_id: Mapped[int] = mapped_column(
+        big_id(), ForeignKey("reactivation_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    label: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_by: Mapped[int | None] = mapped_column(big_id(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+    case: Mapped[ReactivationCase] = relationship(back_populates="labels")
 
 
 class ReactivationStageEvent(IntPKMixin, UUIDMixin, Base):
@@ -152,10 +184,10 @@ class ReactivationStageEvent(IntPKMixin, UUIDMixin, Base):
         UniqueConstraint("organization_id", "idempotency_key", name="uq_reactivation_stage_idem"),
         Index("ix_reactivation_stage_case_created", "case_id", "created_at"),
         CheckConstraint(
-            _in_clause("to_stage", REACTIVATION_STAGES), name="ck_reactivation_event_to"
+            _in_clause("to_stage", REACTIVATION_EVENT_STAGES), name="ck_reactivation_event_to"
         ),
         CheckConstraint(
-            f"from_stage IS NULL OR {_in_clause('from_stage', REACTIVATION_STAGES)}",
+            f"from_stage IS NULL OR {_in_clause('from_stage', REACTIVATION_EVENT_STAGES)}",
             name="ck_reactivation_event_from",
         ),
         MYSQL_TABLE_ARGS,

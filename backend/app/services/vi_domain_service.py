@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid as uuidlib
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -31,6 +32,7 @@ from app.models.contact_event import (
     EVENT_REACTIVATION_CREATED,
     EVENT_REACTIVATION_NOTE_ADDED,
     EVENT_REACTIVATION_TRANSITIONED,
+    EVENT_REACTIVATION_UPDATED,
     EVENT_SIM_ORDER_UPDATED,
     EVENT_SLA_RECORDED,
     REF_TYPE_ACTIVATION_RECORD,
@@ -56,6 +58,7 @@ from app.models.vi_domain import (
     KycDecision,
     KycDocumentReference,
     ReactivationCase,
+    ReactivationCaseLabel,
     ReactivationStageEvent,
     SimOrder,
     SimOrderEvent,
@@ -109,8 +112,11 @@ class ViDomainService:
         *,
         q: str | None,
         stages: list[str] | None,
-        owner_user_id: uuidlib.UUID | None,
-        limit: int,
+        labels: list[str] | None = None,
+        owner_user_id: uuidlib.UUID | None = None,
+        reminder_view: str | None = None,
+        reminder_date: date | None = None,
+        limit: int = 200,
     ) -> dict[str, Any]:
         """One bounded, factual projection for Kanban/list consumers."""
         owner_id = await self._user_id(organization_id, owner_user_id)
@@ -118,13 +124,21 @@ class ViDomainService:
             organization_id,
             q=q,
             stages=stages,
+            labels=labels,
             owner_user_id=owner_id,
+            reminder_view=reminder_view,
+            reminder_date=reminder_date,
             limit=limit,
         )
         cases = [row[0] for row in rows]
         evidence = await self._repo.latest_pipeline_evidence(
             organization_id, [case.id for case in cases], [case.contact_id for case in cases]
         )
+        reminder_models = [task for tasks in evidence["reminders"].values() for task in tasks]
+        reminder_views = {
+            view.public_id: view
+            for view in await TaskService(self._session).domain_views(reminder_models)
+        }
         cards: list[dict[str, Any]] = []
         now = utcnow()
         for case, contact, owner in rows:
@@ -133,6 +147,18 @@ class ViDomainService:
             sla = evidence["sla"].get(case.id)
             tasks = evidence["tasks"].get(case.contact_id, {})
             documents = evidence["documents"].get(case.contact_id, {})
+            case_reminders = evidence["reminders"].get(case.id, [])
+            reminder_payloads = [
+                self._task_view(reminder_views[task.public_id])
+                for task in case_reminders
+                if task.public_id in reminder_views
+            ]
+            follow_up_at = next(
+                (task.due_at for task in case_reminders if task.task_type == "reminder"), None
+            )
+            release_at = next(
+                (task.due_at for task in case_reminders if task.task_type == "custom"), None
+            )
             attributes = attributes_map(contact.attribute_values)
             sla_status = "not_configured"
             if sla is not None:
@@ -152,6 +178,7 @@ class ViDomainService:
                     "active_delhi_number": case.active_delhi_number,
                     "source": case.source,
                     "closed_reason": case.closed_reason,
+                    "labels": evidence["labels"].get(case.id, []),
                     "row_version": case.row_version,
                     "created_at": case.created_at,
                     "updated_at": case.updated_at,
@@ -184,12 +211,17 @@ class ViDomainService:
                         "converted"
                         if case.stage == "completed"
                         else "lost"
-                        if case.stage in {"not_eligible", "not_interested"}
+                        if case.stage == "not_required"
                         else "open"
                     ),
+                    "reminders": reminder_payloads,
+                    "follow_up_at": follow_up_at,
+                    "release_at": release_at,
+                    "reminder_view": self._reminder_view(case_reminders),
                 }
             )
         counts = await self._repo.pipeline_stage_counts(organization_id)
+        reminder_counts = await self._repo.pipeline_reminder_counts(organization_id)
         return {
             "data": cards,
             "total": total,
@@ -197,6 +229,7 @@ class ViDomainService:
             "stage_counts": [
                 {"stage": stage, "count": counts.get(stage, 0)} for stage in REACTIVATION_STAGES
             ],
+            "reminder_counts": reminder_counts,
         }
 
     async def list_reactivation_notes(
@@ -325,14 +358,39 @@ class ViDomainService:
     ) -> dict[str, Any]:
         case = await self._require(ReactivationCase, organization_id, public_id)
         self._check_version(case, payload["expected_row_version"])
+        current_labels = await self._repo.case_labels(organization_id, case.id)
         before = {
             "owner_user_id": case.owner_user_id,
             "previous_vi_number": case.previous_vi_number,
             "active_delhi_number": case.active_delhi_number,
+            "labels": [row.label for row in current_labels],
         }
-        case.owner_user_id = await self._user_id(organization_id, payload.get("owner_user_id"))
-        case.previous_vi_number = self._clean(payload.get("previous_vi_number"))
-        case.active_delhi_number = self._clean(payload.get("active_delhi_number"))
+        if "owner_user_id" in payload:
+            case.owner_user_id = await self._user_id(organization_id, payload.get("owner_user_id"))
+        if "previous_vi_number" in payload:
+            case.previous_vi_number = self._clean(payload.get("previous_vi_number"))
+        if "active_delhi_number" in payload:
+            case.active_delhi_number = self._clean(payload.get("active_delhi_number"))
+        desired_labels = (
+            list(dict.fromkeys(payload["labels"]))
+            if payload.get("labels") is not None
+            else [row.label for row in current_labels]
+        )
+        if payload.get("labels") is not None:
+            await self._replace_case_labels(case, actor, current_labels, desired_labels)
+        if payload.get("follow_up_at") is not None and "follow_up" not in desired_labels:
+            raise BadRequestError("A Follow-up date requires the Follow-up label.")
+        if payload.get("release_at") is not None and "name_change" not in desired_labels:
+            raise BadRequestError("A Release date requires the Name Change label.")
+        reminder_fields = {"labels", "follow_up_at", "release_at", "owner_user_id"}
+        if reminder_fields.intersection(payload):
+            await self._sync_case_reminders(
+                case=case,
+                actor=actor,
+                labels=set(desired_labels),
+                follow_up_at=payload.get("follow_up_at"),
+                release_at=payload.get("release_at"),
+            )
         self._bump(case, actor.id)
         await self._audit.record(
             AuditAction.REACTIVATION_CASE_UPDATED,
@@ -345,6 +403,24 @@ class ViDomainService:
                 "owner_user_id": case.owner_user_id,
                 "previous_vi_number": case.previous_vi_number,
                 "active_delhi_number": case.active_delhi_number,
+                "labels": desired_labels,
+            },
+        )
+        await self._timeline.record(
+            organization_id=organization_id,
+            contact_id=case.contact_id,
+            event_type=EVENT_REACTIVATION_UPDATED,
+            ref_type=REF_TYPE_REACTIVATION_CASE,
+            ref_id=case.id,
+            payload={
+                "owner_user_id": await self._user_public(case.owner_user_id),
+                "labels": desired_labels,
+                "follow_up_at": (
+                    payload["follow_up_at"].isoformat() if payload.get("follow_up_at") else None
+                ),
+                "release_at": (
+                    payload["release_at"].isoformat() if payload.get("release_at") else None
+                ),
             },
         )
         await self._session.commit()
@@ -406,10 +482,8 @@ class ViDomainService:
         if existing is not None:
             return (await self.views([existing]))[0]
         case = await self._require(ReactivationCase, organization_id, case_id)
-        if case.stage != "eligibility_check":
-            raise DomainTransitionError(
-                "Eligibility can only be recorded during eligibility_check."
-            )
+        if case.stage != "lead_confirmed":
+            raise DomainTransitionError("Eligibility can only be recorded for a confirmed lead.")
         check = EligibilityCheck(
             organization_id=organization_id,
             case_id=case.id,
@@ -468,9 +542,7 @@ class ViDomainService:
         evidence = await self._repo.kyc_operations_evidence(
             organization_id, [kyc.id for kyc in cases]
         )
-        all_tasks = [
-            task for tasks in evidence["appointments"].values() for task in tasks
-        ]
+        all_tasks = [task for tasks in evidence["appointments"].values() for task in tasks]
         task_views = await TaskService(self._session).domain_views(all_tasks)
         task_view_map = {view.public_id: view for view in task_views}
         task_model_map = {task.id: task for task in all_tasks}
@@ -484,11 +556,7 @@ class ViDomainService:
                 (row for row in reversed(decisions) if row.decision_type == "review"), None
             )
             manager = next(
-                (
-                    row
-                    for row in reversed(decisions)
-                    if row.decision_type == "manager_approval"
-                ),
+                (row for row in reversed(decisions) if row.decision_type == "manager_approval"),
                 None,
             )
             linked = {reference.purpose for reference, _ in documents}
@@ -511,9 +579,7 @@ class ViDomainService:
             cards.append(
                 {
                     **base,
-                    "contact_name": contact.full_name
-                    or contact.profile_name
-                    or contact.phone_e164,
+                    "contact_name": contact.full_name or contact.profile_name or contact.phone_e164,
                     "contact_phone": contact.phone_e164,
                     "contact_email": contact.email,
                     "owner_name": owner.full_name if owner else None,
@@ -529,9 +595,7 @@ class ViDomainService:
                     if manager
                     else None,
                     "appointments": [
-                        self._appointment_view(
-                            task_view_map[task.public_id]
-                        )
+                        self._appointment_view(task_view_map[task.public_id])
                         for task in appointments
                         if task.id in task_model_map and task.public_id in task_view_map
                     ],
@@ -549,7 +613,9 @@ class ViDomainService:
     ) -> list[dict[str, Any]]:
         kyc = await self._require(KycCase, organization_id, public_id)
         rows = await self._repo.kyc_document_references(organization_id, kyc.id)
-        return [self._document_reference_view(reference, document, kyc) for reference, document in rows]
+        return [
+            self._document_reference_view(reference, document, kyc) for reference, document in rows
+        ]
 
     async def set_kyc_document_reference(
         self,
@@ -759,7 +825,7 @@ class ViDomainService:
         if existing is not None:
             return (await self.views([existing]))[0]
         case = await self._require(ReactivationCase, organization_id, reactivation_id)
-        if case.stage not in {"documents_received", "kyc_pending", "verification"}:
+        if case.stage not in {"documents_received", "kyc_verification"}:
             raise DomainTransitionError("KYC can only begin after documents are received.")
         if await self._repo.child_for_case(KycCase, organization_id, case.id) is not None:
             raise ConflictError("This reactivation case already has a KYC case.")
@@ -776,23 +842,6 @@ class ViDomainService:
         )
         self._session.add(kyc)
         await self._session.flush()
-        if case.stage == "documents_received":
-            await self._append_reactivation_transition(
-                case=case,
-                actor=actor,
-                target="kyc_pending",
-                reason="KYC case opened after governed document intake.",
-                idempotency_key=uuidlib.uuid5(
-                    payload["idempotency_key"], "reactivation-kyc-pending"
-                ),
-                request_hash=self._hash(
-                    {
-                        "kyc_case_id": kyc.public_id,
-                        "from_stage": "documents_received",
-                        "to_stage": "kyc_pending",
-                    }
-                ),
-            )
         await self._audit_and_timeline(
             kyc,
             actor,
@@ -886,11 +935,7 @@ class ViDomainService:
             raise BadRequestError("Unknown KYC decision.")
         prior = await self._repo.kyc_decisions(kyc.id)
         latest_review = next(
-            (
-                row
-                for row in reversed(prior)
-                if row.decision_type == "review"
-            ),
+            (row for row in reversed(prior) if row.decision_type == "review"),
             None,
         )
         latest_manager_decision = next(
@@ -971,31 +1016,18 @@ class ViDomainService:
                 await self._append_reactivation_transition(
                     case=case,
                     actor=actor,
-                    target="kyc_pending",
-                    reason="Approved KYC hand-off prepared.",
-                    idempotency_key=uuidlib.uuid5(
-                        payload["idempotency_key"], "manager-approval-kyc-pending"
-                    ),
-                    request_hash=self._hash(
-                        {"kyc_decision_id": row.public_id, "to_stage": "kyc_pending"}
-                    ),
-                )
-            if case.stage == "kyc_pending":
-                await self._append_reactivation_transition(
-                    case=case,
-                    actor=actor,
-                    target="verification",
+                    target="kyc_verification",
                     reason="Manager-approved KYC hand-off.",
                     idempotency_key=uuidlib.uuid5(
-                        payload["idempotency_key"], "manager-approval-verification"
+                        payload["idempotency_key"], "manager-approval-kyc-verification"
                     ),
                     request_hash=self._hash(
-                        {"kyc_decision_id": row.public_id, "to_stage": "verification"}
+                        {"kyc_decision_id": row.public_id, "to_stage": "kyc_verification"}
                     ),
                 )
-            elif case.stage != "verification":
+            elif case.stage != "kyc_verification":
                 raise DomainTransitionError(
-                    "Approved KYC can only hand off from the KYC-pending stage."
+                    "Approved KYC can only hand off from Documents Received."
                 )
         await self._session.commit()
         return (await self.views([row]))[0]
@@ -1033,8 +1065,8 @@ class ViDomainService:
         if existing is not None:
             return (await self.views([existing]))[0]
         case = await self._require(ReactivationCase, organization_id, reactivation_id)
-        if case.stage not in {"confirmed", "sim_order"}:
-            raise DomainTransitionError("SIM ordering requires a confirmed reactivation case.")
+        if case.stage != "sim_required":
+            raise DomainTransitionError("SIM ordering requires the SIM Required status.")
         if await self._repo.child_for_case(SimOrder, organization_id, case.id) is not None:
             raise ConflictError("This reactivation case already has a SIM order.")
         order = SimOrder(
@@ -1217,8 +1249,8 @@ class ViDomainService:
         if existing is not None:
             return (await self.views([existing]))[0]
         case = await self._require(ReactivationCase, organization_id, reactivation_id)
-        if case.stage not in {"sim_order", "activation_pending"}:
-            raise DomainTransitionError("Activation requires a SIM-order stage case.")
+        if case.stage not in {"sim_required", "activation_pending"}:
+            raise DomainTransitionError("Activation requires SIM Required or Activation Pending.")
         if await self._repo.child_for_case(ActivationRecord, organization_id, case.id) is not None:
             raise ConflictError("This reactivation case already has an activation record.")
         sim = await self._require_optional_sim(
@@ -1503,6 +1535,10 @@ class ViDomainService:
                         "active_delhi_number": row.active_delhi_number,
                         "source": row.source,
                         "closed_reason": row.closed_reason,
+                        "labels": [
+                            label.label
+                            for label in await self._repo.case_labels(row.organization_id, row.id)
+                        ],
                         "row_version": row.row_version,
                         "created_at": row.created_at,
                         "updated_at": row.updated_at,
@@ -1733,12 +1769,11 @@ class ViDomainService:
     ) -> ReactivationStageEvent:
         if target not in REACTIVATION_TRANSITIONS[case.stage]:
             raise DomainTransitionError(f"Reactivation cannot move from {case.stage} to {target}.")
-        await self._validate_reactivation_gate(case, target)
+        if target == "not_required" and not self._clean(reason):
+            raise BadRequestError("A closing reason is required when a case is Not Required.")
         previous = case.stage
         case.stage = target
-        case.closed_reason = (
-            self._clean(reason) if target in {"not_eligible", "not_interested"} else None
-        )
+        case.closed_reason = self._clean(reason) if target == "not_required" else None
         self._bump(case, actor.id)
         event = ReactivationStageEvent(
             organization_id=case.organization_id,
@@ -1974,6 +2009,171 @@ class ViDomainService:
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return []
+
+    async def _replace_case_labels(
+        self,
+        case: ReactivationCase,
+        actor: User,
+        current: list[ReactivationCaseLabel],
+        desired: list[str],
+    ) -> None:
+        desired_set = set(desired)
+        current_set = {row.label for row in current}
+        for row in current:
+            if row.label not in desired_set:
+                await self._session.delete(row)
+        for label in desired:
+            if label not in current_set:
+                self._session.add(
+                    ReactivationCaseLabel(
+                        organization_id=case.organization_id,
+                        case_id=case.id,
+                        label=label,
+                        created_by=actor.id,
+                    )
+                )
+
+    async def _sync_case_reminders(
+        self,
+        *,
+        case: ReactivationCase,
+        actor: User,
+        labels: set[str],
+        follow_up_at: datetime | None,
+        release_at: datetime | None,
+    ) -> None:
+        specifications = {
+            "follow_up": ("reminder", "Customer follow-up", follow_up_at),
+            "name_change": ("custom", "Name-change release date", release_at),
+        }
+        reminders = await self._repo.case_reminders(case.organization_id, case.id)
+        by_type: dict[str, Task] = {}
+        duplicates: list[Task] = []
+        for task in reminders:
+            if task.task_type in {"reminder", "custom"}:
+                if task.task_type in by_type:
+                    duplicates.append(task)
+                else:
+                    by_type[task.task_type] = task
+        service = TaskService(self._session)
+        for duplicate in duplicates:
+            await service.cancel(
+                organization_id=case.organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(duplicate.public_id),
+                expected_row_version=duplicate.row_version,
+                reason="Duplicate case reminder retired by governed synchronization.",
+                commit=False,
+            )
+        needs_reminder = any(label in labels for label in specifications)
+        if needs_reminder and case.owner_user_id is None:
+            raise BadRequestError("Assign a staff member before scheduling a case reminder.")
+        contact_public = uuidlib.UUID(await self._contact_public(case.contact_id))
+        owner_public_raw = await self._user_public(case.owner_user_id)
+        owner_public = uuidlib.UUID(owner_public_raw) if owner_public_raw else None
+        for label, (task_type, title, due_at) in specifications.items():
+            current = by_type.get(task_type)
+            if label not in labels:
+                if current is not None:
+                    await service.cancel(
+                        organization_id=case.organization_id,
+                        actor=actor,
+                        public_id=uuidlib.UUID(current.public_id),
+                        expected_row_version=current.row_version,
+                        reason=f"{label} label removed from Reactivation case.",
+                        commit=False,
+                    )
+                continue
+            effective_due_at = due_at if due_at is not None else current.due_at if current else None
+            if effective_due_at is None:
+                raise BadRequestError(f"A date is required for the {label} label.")
+            if current is None:
+                key = uuidlib.uuid4()
+                await service.create(
+                    organization_id=case.organization_id,
+                    actor=actor,
+                    contact_id=contact_public,
+                    conversation_id=None,
+                    title=title,
+                    task_type=task_type,
+                    priority="high" if "priority" in labels else "medium",
+                    due_at=effective_due_at,
+                    has_time=True,
+                    reminder_at=None,
+                    description="Governed Reactivation case reminder.",
+                    assigned_agent_id=owner_public,
+                    reference_type="reactivation_case",
+                    reference_id=case.id,
+                    idempotency_key=key.bytes,
+                    request_hash=self._hash(
+                        {"case_id": case.public_id, "label": label, "due_at": effective_due_at}
+                    ),
+                    commit=False,
+                )
+                continue
+            if current.due_at != effective_due_at:
+                await service.reschedule(
+                    organization_id=case.organization_id,
+                    actor=actor,
+                    public_id=uuidlib.UUID(current.public_id),
+                    expected_row_version=current.row_version,
+                    due_at=effective_due_at,
+                    has_time=True,
+                    reminder_at=None,
+                    commit=False,
+                )
+            if owner_public is not None and current.assigned_agent_id != case.owner_user_id:
+                await service.reassign(
+                    organization_id=case.organization_id,
+                    actor=actor,
+                    public_id=uuidlib.UUID(current.public_id),
+                    expected_row_version=current.row_version,
+                    assigned_agent_id=owner_public,
+                    commit=False,
+                )
+
+    @staticmethod
+    def _task_view(view: TaskView) -> dict[str, Any]:
+        return {
+            "id": view.public_id,
+            "contact_id": view.contact_id,
+            "contact_name": view.contact_name,
+            "conversation_id": view.conversation_id,
+            "reference_type": view.reference_type,
+            "reference_id": view.reference_id,
+            "title": view.title,
+            "task_type": view.task_type,
+            "status": view.status,
+            "priority": view.priority,
+            "due_at": view.due_at,
+            "has_time": view.has_time,
+            "reminder_at": view.reminder_at,
+            "due_notified_at": view.due_notified_at,
+            "description": view.description,
+            "assigned_agent_id": view.assigned_agent_id,
+            "assigned_agent_name": view.assigned_agent_name,
+            "created_by": view.created_by,
+            "created_by_name": view.created_by_name,
+            "completion_notes": view.completion_notes,
+            "completed_at": view.completed_at,
+            "created_at": view.created_at,
+            "updated_at": view.updated_at,
+            "row_version": view.row_version,
+        }
+
+    @staticmethod
+    def _reminder_view(reminders: list[Task]) -> str | None:
+        if not reminders:
+            return None
+        now = utcnow()
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start.replace(hour=23, minute=59, second=59, microsecond=999999)
+        earliest = min(task.due_at for task in reminders)
+        if earliest < start:
+            return "overdue"
+        if earliest <= end:
+            return "due_today"
+        return "upcoming"
 
     @staticmethod
     def _check_version(row: Any, expected: int) -> None:

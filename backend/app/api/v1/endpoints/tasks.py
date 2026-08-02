@@ -33,6 +33,7 @@ from app.schemas.task import (
     TaskReopenRequest,
     TaskRescheduleRequest,
     TaskResponse,
+    TaskSnoozeRequest,
     TasksPage,
     TaskStatsResponse,
     TaskStatusLiteral,
@@ -141,9 +142,7 @@ async def create_task(
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse, summary="Get a task")
 async def get_task(task_id: uuidlib.UUID, session: SessionDep, actor: TaskReader) -> TaskResponse:
-    view = await TaskService(session).get(
-        organization_id=actor.organization_id, public_id=task_id
-    )
+    view = await TaskService(session).get(organization_id=actor.organization_id, public_id=task_id)
     return TaskResponse.of(view)
 
 
@@ -196,8 +195,11 @@ async def skip_task(
     task_id: uuidlib.UUID, payload: TaskReasonRequest, session: SessionDep, actor: TaskWriter
 ) -> TaskResponse:
     view = await TaskService(session).skip(
-        organization_id=actor.organization_id, actor=actor, public_id=task_id,
-        expected_row_version=payload.expected_row_version, reason=payload.reason,
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
+        expected_row_version=payload.expected_row_version,
+        reason=payload.reason,
     )
     return TaskResponse.of(view)
 
@@ -207,8 +209,11 @@ async def cancel_task(
     task_id: uuidlib.UUID, payload: TaskReasonRequest, session: SessionDep, actor: TaskWriter
 ) -> TaskResponse:
     view = await TaskService(session).cancel(
-        organization_id=actor.organization_id, actor=actor, public_id=task_id,
-        expected_row_version=payload.expected_row_version, reason=payload.reason,
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
+        expected_row_version=payload.expected_row_version,
+        reason=payload.reason,
     )
     return TaskResponse.of(view)
 
@@ -218,20 +223,42 @@ async def reopen_task(
     task_id: uuidlib.UUID, payload: TaskReopenRequest, session: SessionDep, actor: TaskWriter
 ) -> TaskResponse:
     view = await TaskService(session).reopen(
-        organization_id=actor.organization_id, actor=actor, public_id=task_id,
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
         expected_row_version=payload.expected_row_version,
     )
     return TaskResponse.of(view)
 
 
-@router.post("/tasks/{task_id}/reschedule", response_model=TaskResponse, summary="Reschedule a task")
+@router.post(
+    "/tasks/{task_id}/reschedule", response_model=TaskResponse, summary="Reschedule a task"
+)
 async def reschedule_task(
     task_id: uuidlib.UUID, payload: TaskRescheduleRequest, session: SessionDep, actor: TaskWriter
 ) -> TaskResponse:
     view = await TaskService(session).reschedule(
-        organization_id=actor.organization_id, actor=actor, public_id=task_id,
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
         expected_row_version=payload.expected_row_version,
-        due_at=payload.due_at, has_time=payload.has_time, reminder_at=payload.reminder_at,
+        due_at=payload.due_at,
+        has_time=payload.has_time,
+        reminder_at=payload.reminder_at,
+    )
+    return TaskResponse.of(view)
+
+
+@router.post("/tasks/{task_id}/snooze", response_model=TaskResponse, summary="Snooze a task")
+async def snooze_task(
+    task_id: uuidlib.UUID, payload: TaskSnoozeRequest, session: SessionDep, actor: TaskWriter
+) -> TaskResponse:
+    view = await TaskService(session).snooze(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
+        expected_row_version=payload.expected_row_version,
+        minutes=payload.minutes,
     )
     return TaskResponse.of(view)
 
@@ -241,16 +268,16 @@ async def reassign_task(
     task_id: uuidlib.UUID, payload: TaskReassignRequest, session: SessionDep, actor: TaskAssigner
 ) -> TaskResponse:
     view = await TaskService(session).reassign(
-        organization_id=actor.organization_id, actor=actor, public_id=task_id,
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=task_id,
         expected_row_version=payload.expected_row_version,
         assigned_agent_id=payload.assigned_agent_id,
     )
     return TaskResponse.of(view)
 
 
-@router.get(
-    "/tasks/{task_id}/history", response_model=TaskHistoryResponse, summary="Task history"
-)
+@router.get("/tasks/{task_id}/history", response_model=TaskHistoryResponse, summary="Task history")
 async def task_history(
     task_id: uuidlib.UUID, session: SessionDep, actor: TaskReader
 ) -> TaskHistoryResponse:

@@ -2258,6 +2258,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Snooze a task */
+        post: operations["snooze_task_api_v1_tasks__task_id__snooze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/reassign": {
         parameters: {
             query?: never;
@@ -5873,7 +5890,7 @@ export interface components {
              * Reactivation Stage
              * @enum {string}
              */
-            reactivation_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            reactivation_stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required";
             /** Checklist */
             checklist: components["schemas"]["KycDocumentReferenceResponse"][];
             /** Checklist Complete */
@@ -6575,7 +6592,7 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required";
             /** Owner User Id */
             owner_user_id: string | null;
             /** Previous Vi Number */
@@ -6586,6 +6603,8 @@ export interface components {
             source: string;
             /** Closed Reason */
             closed_reason: string | null;
+            /** Labels */
+            labels: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete")[];
             /** Row Version */
             row_version: number;
             /**
@@ -6666,7 +6685,7 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required";
             /** Owner User Id */
             owner_user_id: string | null;
             /** Previous Vi Number */
@@ -6677,6 +6696,8 @@ export interface components {
             source: string;
             /** Closed Reason */
             closed_reason: string | null;
+            /** Labels */
+            labels: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete")[];
             /** Row Version */
             row_version: number;
             /**
@@ -6690,7 +6711,7 @@ export interface components {
              */
             updated_at: string;
             /** Available Transitions */
-            available_transitions: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested")[];
+            available_transitions: ("new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required")[];
             /** Contact Name */
             contact_name: string;
             /** Contact Phone */
@@ -6740,6 +6761,14 @@ export interface components {
              * @enum {string}
              */
             conversion_indicator: "open" | "converted" | "lost";
+            /** Reminders */
+            reminders: components["schemas"]["TaskResponse"][];
+            /** Follow Up At */
+            follow_up_at: string | null;
+            /** Release At */
+            release_at: string | null;
+            /** Reminder View */
+            reminder_view: ("upcoming" | "due_today" | "overdue") | null;
         };
         /** ReactivationPipelineResponse */
         ReactivationPipelineResponse: {
@@ -6751,6 +6780,16 @@ export interface components {
             visible: number;
             /** Stage Counts */
             stage_counts: components["schemas"]["ReactivationStageCountResponse"][];
+            reminder_counts: components["schemas"]["ReactivationReminderCountsResponse"];
+        };
+        /** ReactivationReminderCountsResponse */
+        ReactivationReminderCountsResponse: {
+            /** Upcoming */
+            upcoming: number;
+            /** Due Today */
+            due_today: number;
+            /** Overdue */
+            overdue: number;
         };
         /** ReactivationStageCountResponse */
         ReactivationStageCountResponse: {
@@ -6758,7 +6797,7 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required";
             /** Count */
             count: number;
         };
@@ -6775,12 +6814,12 @@ export interface components {
              */
             case_id: string;
             /** From Stage */
-            from_stage: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested") | null;
+            from_stage: ("new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "not_eligible" | "not_interested") | null;
             /**
              * To Stage
              * @enum {string}
              */
-            to_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            to_stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "not_eligible" | "not_interested";
             /** Actor User Id */
             actor_user_id: string | null;
             /** Reason */
@@ -6804,7 +6843,7 @@ export interface components {
              * To Stage
              * @enum {string}
              */
-            to_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            to_stage: "new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required";
             /** Reason */
             reason?: string | null;
         };
@@ -6818,6 +6857,12 @@ export interface components {
             previous_vi_number?: string | null;
             /** Active Delhi Number */
             active_delhi_number?: string | null;
+            /** Labels */
+            labels?: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete")[] | null;
+            /** Follow Up At */
+            follow_up_at?: string | null;
+            /** Release At */
+            release_at?: string | null;
         };
         /** ReadyResponse */
         ReadyResponse: {
@@ -7709,6 +7754,8 @@ export interface components {
             has_time: boolean;
             /** Reminder At */
             reminder_at: string | null;
+            /** Due Notified At */
+            due_notified_at: string | null;
             /** Description */
             description: string | null;
             /** Assigned Agent Id */
@@ -7735,6 +7782,13 @@ export interface components {
             updated_at: string;
             /** Row Version */
             row_version: number;
+        };
+        /** TaskSnoozeRequest */
+        TaskSnoozeRequest: {
+            /** Minutes */
+            minutes: number;
+            /** Expected Row Version */
+            expected_row_version?: number | null;
         };
         /**
          * TaskStatsResponse
@@ -13296,6 +13350,41 @@ export interface operations {
             };
         };
     };
+    snooze_task_api_v1_tasks__task_id__snooze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskSnoozeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reassign_task_api_v1_tasks__task_id__reassign_post: {
         parameters: {
             query?: never;
@@ -14420,8 +14509,11 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
-                stage?: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested")[] | null;
+                stage?: ("new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required")[] | null;
+                label?: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete")[] | null;
                 owner_user_id?: string | null;
+                reminder_view?: ("upcoming" | "due_today" | "overdue") | null;
+                reminder_date?: string | null;
                 limit?: number;
             };
             header?: never;

@@ -91,6 +91,11 @@ class TaskRescheduleRequest(BaseModel):
     expected_row_version: int | None = Field(default=None, ge=0)
 
 
+class TaskSnoozeRequest(BaseModel):
+    minutes: int = Field(gt=0, le=10_080)
+    expected_row_version: int | None = Field(default=None, ge=0)
+
+
 class TaskReassignRequest(BaseModel):
     assigned_agent_id: uuidlib.UUID
     expected_row_version: int | None = Field(default=None, ge=0)
@@ -125,6 +130,7 @@ class TaskResponse(BaseModel):
     due_at: datetime
     has_time: bool
     reminder_at: datetime | None
+    due_notified_at: datetime | None
     description: str | None
     assigned_agent_id: str
     assigned_agent_name: str | None
@@ -152,6 +158,7 @@ class TaskResponse(BaseModel):
             due_at=view.due_at,
             has_time=view.has_time,
             reminder_at=view.reminder_at,
+            due_notified_at=view.due_notified_at,
             description=view.description,
             assigned_agent_id=view.assigned_agent_id,
             assigned_agent_name=view.assigned_agent_name,

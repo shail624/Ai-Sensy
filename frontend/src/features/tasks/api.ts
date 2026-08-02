@@ -181,6 +181,18 @@ export function useRescheduleTask() {
   );
 }
 
+export function useSnoozeTask() {
+  return useTaskMutation(
+    async ({ taskId, minutes, expectedRowVersion }: { taskId: string; minutes: number; expectedRowVersion?: number }): Promise<Task> =>
+      unwrap(
+        await api.POST("/api/v1/tasks/{task_id}/snooze", {
+          params: { path: { task_id: taskId } },
+          body: { minutes, expected_row_version: expectedRowVersion },
+        }),
+      ),
+  );
+}
+
 export function useReassignTask() {
   return useTaskMutation(
     async ({ taskId, assignedAgentId }: { taskId: string; assignedAgentId: string }): Promise<Task> =>

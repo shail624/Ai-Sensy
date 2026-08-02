@@ -245,13 +245,14 @@ async def test_executive_only_metrics_are_gated(client, make_user, seeded):
 
 
 def test_beat_schedule_is_registered_and_utc() -> None:
-    """The four periodic entries exist, in UTC, with no duplicates (Doc 15 §8.1)."""
+    """The five periodic entries exist, in UTC, with no duplicates (Doc 15 §8.1)."""
     from app.queue.celery_app import celery_app
 
     schedule = celery_app.conf.beat_schedule
     tasks = {entry["task"] for entry in schedule.values()}
     assert tasks == {
         "app.crm.campaign_tasks.scheduler_tick",
+        "app.crm.reactivation_tasks.dispatch_due_reminders",
         "app.analytics.tasks.rollup_incremental",
         "app.analytics.tasks.rollup_nightly",
         "app.analytics.tasks.rollup_prune",
@@ -260,6 +261,9 @@ def test_beat_schedule_is_registered_and_utc() -> None:
     assert len(schedule) == len(tasks)
     assert celery_app.conf.timezone == "UTC"
     assert celery_app.conf.enable_utc is True
+
+    reminder = schedule["reactivation-reminder-notifications"]
+    assert reminder["options"] == {"queue": "scheduler.tick", "expires": 55}
 
     incremental = schedule["analytics-rollup-incremental"]["schedule"]
     assert incremental.minute == {0, 15, 30, 45}

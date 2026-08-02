@@ -7876,6 +7876,64 @@
         }
       }
     },
+    "/api/v1/tasks/{task_id}/snooze": {
+      "post": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Snooze a task",
+        "operationId": "snooze_task_api_v1_tasks__task_id__snooze_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskSnoozeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tasks/{task_id}/reassign": {
       "post": {
         "tags": [
@@ -10682,20 +10740,14 @@
                   "items": {
                     "enum": [
                       "new_lead",
-                      "follow_up",
-                      "interested",
-                      "eligibility_check",
-                      "eligible",
+                      "lead_confirmed",
                       "documents_pending",
                       "documents_received",
-                      "kyc_pending",
-                      "verification",
-                      "confirmed",
-                      "sim_order",
+                      "kyc_verification",
+                      "sim_required",
                       "activation_pending",
                       "completed",
-                      "not_eligible",
-                      "not_interested"
+                      "not_required"
                     ],
                     "type": "string"
                   }
@@ -10705,6 +10757,33 @@
                 }
               ],
               "title": "Stage"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "follow_up",
+                      "prepaid_required",
+                      "name_change",
+                      "priority",
+                      "customer_not_reachable",
+                      "documents_incomplete"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
             }
           },
           {
@@ -10722,6 +10801,44 @@
                 }
               ],
               "title": "Owner User Id"
+            }
+          },
+          {
+            "name": "reminder_view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "upcoming",
+                    "due_today",
+                    "overdue"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reminder View"
+            }
+          },
+          {
+            "name": "reminder_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reminder Date"
             }
           },
           {
@@ -20167,20 +20284,14 @@
             "type": "string",
             "enum": [
               "new_lead",
-              "follow_up",
-              "interested",
-              "eligibility_check",
-              "eligible",
+              "lead_confirmed",
               "documents_pending",
               "documents_received",
-              "kyc_pending",
-              "verification",
-              "confirmed",
-              "sim_order",
+              "kyc_verification",
+              "sim_required",
               "activation_pending",
               "completed",
-              "not_eligible",
-              "not_interested"
+              "not_required"
             ],
             "title": "Reactivation Stage"
           },
@@ -22098,20 +22209,14 @@
             "type": "string",
             "enum": [
               "new_lead",
-              "follow_up",
-              "interested",
-              "eligibility_check",
-              "eligible",
+              "lead_confirmed",
               "documents_pending",
               "documents_received",
-              "kyc_pending",
-              "verification",
-              "confirmed",
-              "sim_order",
+              "kyc_verification",
+              "sim_required",
               "activation_pending",
               "completed",
-              "not_eligible",
-              "not_interested"
+              "not_required"
             ],
             "title": "Stage"
           },
@@ -22164,6 +22269,21 @@
             ],
             "title": "Closed Reason"
           },
+          "labels": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "follow_up",
+                "prepaid_required",
+                "name_change",
+                "priority",
+                "customer_not_reachable",
+                "documents_incomplete"
+              ]
+            },
+            "type": "array",
+            "title": "Labels"
+          },
           "row_version": {
             "type": "integer",
             "title": "Row Version"
@@ -22189,6 +22309,7 @@
           "active_delhi_number",
           "source",
           "closed_reason",
+          "labels",
           "row_version",
           "created_at",
           "updated_at"
@@ -22335,20 +22456,14 @@
             "type": "string",
             "enum": [
               "new_lead",
-              "follow_up",
-              "interested",
-              "eligibility_check",
-              "eligible",
+              "lead_confirmed",
               "documents_pending",
               "documents_received",
-              "kyc_pending",
-              "verification",
-              "confirmed",
-              "sim_order",
+              "kyc_verification",
+              "sim_required",
               "activation_pending",
               "completed",
-              "not_eligible",
-              "not_interested"
+              "not_required"
             ],
             "title": "Stage"
           },
@@ -22401,6 +22516,21 @@
             ],
             "title": "Closed Reason"
           },
+          "labels": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "follow_up",
+                "prepaid_required",
+                "name_change",
+                "priority",
+                "customer_not_reachable",
+                "documents_incomplete"
+              ]
+            },
+            "type": "array",
+            "title": "Labels"
+          },
           "row_version": {
             "type": "integer",
             "title": "Row Version"
@@ -22420,20 +22550,14 @@
               "type": "string",
               "enum": [
                 "new_lead",
-                "follow_up",
-                "interested",
-                "eligibility_check",
-                "eligible",
+                "lead_confirmed",
                 "documents_pending",
                 "documents_received",
-                "kyc_pending",
-                "verification",
-                "confirmed",
-                "sim_order",
+                "kyc_verification",
+                "sim_required",
                 "activation_pending",
                 "completed",
-                "not_eligible",
-                "not_interested"
+                "not_required"
               ]
             },
             "type": "array",
@@ -22598,6 +22722,53 @@
               "lost"
             ],
             "title": "Conversion Indicator"
+          },
+          "reminders": {
+            "items": {
+              "$ref": "#/components/schemas/TaskResponse"
+            },
+            "type": "array",
+            "title": "Reminders"
+          },
+          "follow_up_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up At"
+          },
+          "release_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release At"
+          },
+          "reminder_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "upcoming",
+                  "due_today",
+                  "overdue"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder View"
           }
         },
         "type": "object",
@@ -22610,6 +22781,7 @@
           "active_delhi_number",
           "source",
           "closed_reason",
+          "labels",
           "row_version",
           "created_at",
           "updated_at",
@@ -22632,7 +22804,11 @@
           "reservation_status",
           "family_plan_required",
           "family_numbers",
-          "conversion_indicator"
+          "conversion_indicator",
+          "reminders",
+          "follow_up_at",
+          "release_at",
+          "reminder_view"
         ],
         "title": "ReactivationPipelineCardResponse"
       },
@@ -22661,6 +22837,9 @@
             },
             "type": "array",
             "title": "Stage Counts"
+          },
+          "reminder_counts": {
+            "$ref": "#/components/schemas/ReactivationReminderCountsResponse"
           }
         },
         "type": "object",
@@ -22668,9 +22847,36 @@
           "data",
           "total",
           "visible",
-          "stage_counts"
+          "stage_counts",
+          "reminder_counts"
         ],
         "title": "ReactivationPipelineResponse"
+      },
+      "ReactivationReminderCountsResponse": {
+        "properties": {
+          "upcoming": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Upcoming"
+          },
+          "due_today": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Due Today"
+          },
+          "overdue": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Overdue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upcoming",
+          "due_today",
+          "overdue"
+        ],
+        "title": "ReactivationReminderCountsResponse"
       },
       "ReactivationStageCountResponse": {
         "properties": {
@@ -22678,20 +22884,14 @@
             "type": "string",
             "enum": [
               "new_lead",
-              "follow_up",
-              "interested",
-              "eligibility_check",
-              "eligible",
+              "lead_confirmed",
               "documents_pending",
               "documents_received",
-              "kyc_pending",
-              "verification",
-              "confirmed",
-              "sim_order",
+              "kyc_verification",
+              "sim_required",
               "activation_pending",
               "completed",
-              "not_eligible",
-              "not_interested"
+              "not_required"
             ],
             "title": "Stage"
           },
@@ -22726,18 +22926,22 @@
                 "type": "string",
                 "enum": [
                   "new_lead",
+                  "lead_confirmed",
+                  "documents_pending",
+                  "documents_received",
+                  "kyc_verification",
+                  "sim_required",
+                  "activation_pending",
+                  "completed",
+                  "not_required",
                   "follow_up",
                   "interested",
                   "eligibility_check",
                   "eligible",
-                  "documents_pending",
-                  "documents_received",
                   "kyc_pending",
                   "verification",
                   "confirmed",
                   "sim_order",
-                  "activation_pending",
-                  "completed",
                   "not_eligible",
                   "not_interested"
                 ]
@@ -22752,18 +22956,22 @@
             "type": "string",
             "enum": [
               "new_lead",
+              "lead_confirmed",
+              "documents_pending",
+              "documents_received",
+              "kyc_verification",
+              "sim_required",
+              "activation_pending",
+              "completed",
+              "not_required",
               "follow_up",
               "interested",
               "eligibility_check",
               "eligible",
-              "documents_pending",
-              "documents_received",
               "kyc_pending",
               "verification",
               "confirmed",
               "sim_order",
-              "activation_pending",
-              "completed",
               "not_eligible",
               "not_interested"
             ],
@@ -22826,20 +23034,14 @@
             "type": "string",
             "enum": [
               "new_lead",
-              "follow_up",
-              "interested",
-              "eligibility_check",
-              "eligible",
+              "lead_confirmed",
               "documents_pending",
               "documents_received",
-              "kyc_pending",
-              "verification",
-              "confirmed",
-              "sim_order",
+              "kyc_verification",
+              "sim_required",
               "activation_pending",
               "completed",
-              "not_eligible",
-              "not_interested"
+              "not_required"
             ],
             "title": "To Stage"
           },
@@ -22906,6 +23108,52 @@
               }
             ],
             "title": "Active Delhi Number"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "follow_up",
+                    "prepaid_required",
+                    "name_change",
+                    "priority",
+                    "customer_not_reachable",
+                    "documents_incomplete"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "follow_up_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up At"
+          },
+          "release_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release At"
           }
         },
         "type": "object",
@@ -25373,6 +25621,18 @@
             ],
             "title": "Reminder At"
           },
+          "due_notified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Notified At"
+          },
           "description": {
             "anyOf": [
               {
@@ -25474,6 +25734,7 @@
           "due_at",
           "has_time",
           "reminder_at",
+          "due_notified_at",
           "description",
           "assigned_agent_id",
           "assigned_agent_name",
@@ -25487,6 +25748,33 @@
         ],
         "title": "TaskResponse",
         "description": "A task as returned by the CRUD and action endpoints (Doc 14 §7.4)."
+      },
+      "TaskSnoozeRequest": {
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Minutes"
+          },
+          "expected_row_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minutes"
+        ],
+        "title": "TaskSnoozeRequest"
       },
       "TaskStatsResponse": {
         "properties": {

@@ -7,38 +7,38 @@
 | Field | Current value |
 |---|---|
 | Current branch | `feature/module6-queue-engine` |
-| Current Git HEAD | `HEAD` (CORE-04 starting baseline `320b0bd211cddcd77c56208ba5238e8a14b4e116`; resolve the milestone commit from Git) |
-| Current milestone | `CORE-04 — KYC operations — COMPLETE` |
+| Current Git HEAD | `HEAD` (owner-corrected CORE-05 starting baseline `3457938e8c29768167653040ee93a22caa11eedc`; resolve the milestone commit from Git) |
+| Current milestone | `CORE-05 — Lightweight Reactivation CRM — COMPLETE` |
 | Current phase | `Phase 1 — Core operations and real domain ownership — IN PROGRESS` |
 | Repository version | `1.0.0-rc1` |
-| Current migration head | `0033_kyc_operations` (33 linear revisions) |
-| OpenAPI path count | `188` (OpenAPI `3.1.0`) |
-| Backend test count | `940` pytest tests passed |
+| Current migration head | `0034_reactivation_crm` (34 linear revisions) |
+| OpenAPI path count | `189` (OpenAPI `3.1.0`) |
+| Backend test count | `943` pytest tests passed |
 | Frontend test count | `646` Vitest tests passed |
 | Validation status | `PASS` — static, application, security, release-image, MySQL migration, Redis/Celery, Playwright, and performance gates passed |
-| Last completed milestone | `CORE-04 — KYC operations` |
-| Next milestone | `CORE-05 — SIM fulfilment` (requires owner approval) |
-| Current worktree status | `MILESTONE CHANGES VALIDATED; clean state required after the CORE-04 commit; local quality artifacts and permitted references remain ignored` |
-| Last update timestamp | `2026-08-02T14:44:11+05:30` (Asia/Calcutta) |
+| Last completed milestone | `CORE-05 — Lightweight Reactivation CRM` |
+| Next milestone | `CORE-07 — Customer 360 domain convergence` (requires owner approval; no standalone SIM/Activation workspace is planned) |
+| Current worktree status | `MILESTONE CHANGES VALIDATED; clean state required after the CORE-05 commit; local quality artifacts and permitted references remain ignored` |
+| Last update timestamp | `2026-08-02T16:18:34+05:30` (Asia/Calcutta) |
 
 ## Snapshot evidence
 
-- GitHub baseline at CORE-04 start:
-  `320b0bd211cddcd77c56208ba5238e8a14b4e116`.
-- Contract: `frontend/openapi.json` contains 188 paths and the generated TypeScript contract/drift
+- GitHub baseline at the corrected CORE-05 start:
+  `3457938e8c29768167653040ee93a22caa11eedc`.
+- Contract: `frontend/openapi.json` contains 189 paths and the generated TypeScript contract/drift
   checks pass.
-- Tests: pytest passed 940 tests; Vitest passed 646 tests.
-- Migration lineage: `0001` through `0033` is present without a gap or downgrade; SQLite
+- Tests: pytest passed 943 tests; Vitest passed 646 tests.
+- Migration lineage: `0001` through `0034` is present without a gap or downgrade; SQLite
   upgrade/downgrade/re-upgrade and deployed MySQL upgrade both passed.
-- CORE-04 connects a persisted KYC queue and case workspace to the existing Vi, Reactivation,
-  Document Center, Task, Customer 360, RBAC, Audit, Timeline, and SLA authorities. Verification,
-  protected Aadhaar/PAN references, appointments, separated decisions, structured rejection,
-  immutable evidence, and approved Reactivation handoff are complete without storing identity
-  numbers or rebuilding a completed module.
-- Canonical pre-merge and release profiles passed, including Ruff, strict mypy across 252 files,
+- CORE-05 makes the existing Reactivation case the lightweight CRM authority: nine statuses, six
+  labels, Task-backed Follow-up/Release dates, due views/actions, assignment, notes, immutable
+  history, Audit and Customer Timeline. KYC/SIM/Activation foundations remain preserved; no
+  parallel reminder/notification authority or standalone heavy operational workspace was added.
+- Canonical pre-merge and deployed profiles passed, including Ruff, strict mypy across 253 files,
   OpenAPI drift, TypeScript, ESLint, production build, Bandit, dependency audits, Trivy source/image
-  scans, SBOMs, Compose/image contracts, and the isolated deployed stack. Playwright passed 1/1 and
-  the authenticated read canary recorded p95 12.551 ms across 30 reads.
+  scans, SBOMs, Compose/image contracts, the 189-path/25-task backend image, and the isolated
+  deployed stack. Playwright passed 1/1 in 11.338 seconds and the authenticated read canary recorded
+  p95 17.761 ms across 30 reads.
 
 ## Maintenance rule
 

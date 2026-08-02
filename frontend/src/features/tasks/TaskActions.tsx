@@ -6,6 +6,7 @@ import {
   useCompleteTask,
   useReopenTask,
   useRescheduleTask,
+  useSnoozeTask,
 } from "@/features/tasks/api";
 import type { Task } from "@/features/tasks/types";
 
@@ -36,14 +37,15 @@ export function TaskActions({ task, showLinks = true }: Props): JSX.Element {
   const complete = useCompleteTask();
   const reopen = useReopenTask();
   const reschedule = useRescheduleTask();
+  const snooze = useSnoozeTask();
 
-  const pending = complete.isPending || reopen.isPending || reschedule.isPending;
-  const error = complete.error ?? reopen.error ?? reschedule.error;
+  const pending = complete.isPending || reopen.isPending || reschedule.isPending || snooze.isPending;
+  const error = complete.error ?? reopen.error ?? reschedule.error ?? snooze.error;
   const isOpen = task.status === "open";
 
   function submitReschedule(): void {
     reschedule.mutate(
-      { taskId: task.id, dueAt: new Date(dueAt).toISOString(), hasTime: task.has_time },
+      { taskId: task.id, dueAt: new Date(dueAt).toISOString(), hasTime: task.has_time, expectedRowVersion: task.row_version },
       { onSuccess: () => setRescheduling(false) },
     );
   }
@@ -57,7 +59,7 @@ export function TaskActions({ task, showLinks = true }: Props): JSX.Element {
               type="button"
               className={ACTION_CLASS}
               disabled={pending}
-              onClick={() => complete.mutate({ taskId: task.id })}
+              onClick={() => complete.mutate({ taskId: task.id, expectedRowVersion: task.row_version })}
             >
               Complete
             </button>
@@ -69,6 +71,14 @@ export function TaskActions({ task, showLinks = true }: Props): JSX.Element {
               aria-expanded={rescheduling}
             >
               Reschedule
+            </button>
+            <button
+              type="button"
+              className={ACTION_CLASS}
+              disabled={pending}
+              onClick={() => snooze.mutate({ taskId: task.id, minutes: 60, expectedRowVersion: task.row_version })}
+            >
+              Snooze 1h
             </button>
           </>
         ) : (

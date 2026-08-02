@@ -3,28 +3,54 @@
 from __future__ import annotations
 
 import uuid as uuidlib
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.task import TaskResponse
+
 ReactivationStage = Literal[
     "new_lead",
+    "lead_confirmed",
+    "documents_pending",
+    "documents_received",
+    "kyc_verification",
+    "sim_required",
+    "activation_pending",
+    "completed",
+    "not_required",
+]
+ReactivationHistoryStage = Literal[
+    "new_lead",
+    "lead_confirmed",
+    "documents_pending",
+    "documents_received",
+    "kyc_verification",
+    "sim_required",
+    "activation_pending",
+    "completed",
+    "not_required",
     "follow_up",
     "interested",
     "eligibility_check",
     "eligible",
-    "documents_pending",
-    "documents_received",
     "kyc_pending",
     "verification",
     "confirmed",
     "sim_order",
-    "activation_pending",
-    "completed",
     "not_eligible",
     "not_interested",
 ]
+ReactivationLabel = Literal[
+    "follow_up",
+    "prepaid_required",
+    "name_change",
+    "priority",
+    "customer_not_reachable",
+    "documents_incomplete",
+]
+ReminderView = Literal["upcoming", "due_today", "overdue"]
 EligibilityStatus = Literal["pending", "eligible", "not_eligible", "review_required"]
 EligibilitySource = Literal["rules", "manual", "override"]
 KycStatus = Literal["pending", "documents_pending", "under_review", "approved", "rejected"]
@@ -69,6 +95,29 @@ class ReactivationUpdateRequest(VersionedRequest):
     owner_user_id: uuidlib.UUID | None = None
     previous_vi_number: str | None = Field(default=None, max_length=24)
     active_delhi_number: str | None = Field(default=None, max_length=24)
+    labels: list[ReactivationLabel] | None = None
+    follow_up_at: datetime | None = None
+    release_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_workflow_dates(self) -> ReactivationUpdateRequest:
+        for field_name in ("follow_up_at", "release_at"):
+            value = getattr(self, field_name)
+            if value is not None and value.tzinfo is not None:
+                setattr(self, field_name, value.astimezone(UTC).replace(tzinfo=None))
+        if self.labels is None:
+            return self
+        if len(self.labels) != len(set(self.labels)):
+            raise ValueError("labels must be unique")
+        if "follow_up" in self.labels and self.follow_up_at is None:
+            raise ValueError("follow_up_at is required when applying the Follow-up label")
+        if "name_change" in self.labels and self.release_at is None:
+            raise ValueError("release_at is required when applying the Name Change label")
+        if "follow_up" not in self.labels and self.follow_up_at is not None:
+            raise ValueError("follow_up_at requires the Follow-up label")
+        if "name_change" not in self.labels and self.release_at is not None:
+            raise ValueError("release_at requires the Name Change label")
+        return self
 
 
 class ReactivationTransitionRequest(IdempotentRequest, VersionedRequest):
@@ -226,6 +275,7 @@ class ReactivationCaseResponse(BaseModel):
     active_delhi_number: str | None
     source: str
     closed_reason: str | None
+    labels: list[ReactivationLabel]
     row_version: int
     created_at: datetime
     updated_at: datetime
@@ -252,6 +302,10 @@ class ReactivationPipelineCardResponse(ReactivationCaseResponse):
     family_plan_required: bool | None
     family_numbers: list[str]
     conversion_indicator: Literal["open", "converted", "lost"]
+    reminders: list[TaskResponse]
+    follow_up_at: datetime | None
+    release_at: datetime | None
+    reminder_view: ReminderView | None
 
 
 class ReactivationStageCountResponse(BaseModel):
@@ -264,6 +318,13 @@ class ReactivationPipelineResponse(BaseModel):
     total: int = Field(ge=0)
     visible: int = Field(ge=0)
     stage_counts: list[ReactivationStageCountResponse]
+    reminder_counts: ReactivationReminderCountsResponse
+
+
+class ReactivationReminderCountsResponse(BaseModel):
+    upcoming: int = Field(ge=0)
+    due_today: int = Field(ge=0)
+    overdue: int = Field(ge=0)
 
 
 class ReactivationNoteResponse(BaseModel):
@@ -281,8 +342,8 @@ class ReactivationNoteListResponse(BaseModel):
 class ReactivationStageEventResponse(BaseModel):
     id: uuidlib.UUID
     case_id: uuidlib.UUID
-    from_stage: ReactivationStage | None
-    to_stage: ReactivationStage
+    from_stage: ReactivationHistoryStage | None
+    to_stage: ReactivationHistoryStage
     actor_user_id: uuidlib.UUID | None
     reason: str | None
     created_at: datetime
