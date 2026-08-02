@@ -7,7 +7,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `feature/module6-queue-engine` |
-| Current Git HEAD | `HEAD` (governance-correction starting baseline `ea4b26d0b4d06dd1e3b5f23e9e12e211e26c291b`; resolve the correction commit from Git) |
+| Current Git HEAD | `HEAD` (roadmap-correction starting baseline `32ecfeeb3a5d4cc68d1974024f85666beb122eca`; resolve the correction commit from Git) |
 | Current milestone | `CORE-07 — Customer 360 domain convergence — COMPLETE` |
 | Current phase | `Phase 1 — Core operations and real domain ownership — IN PROGRESS` |
 | Repository version | `1.0.0-rc1` |
@@ -17,9 +17,9 @@
 | Frontend test count | `651` Vitest tests passed |
 | Validation status | `PASS` — static, application, security, release-image, MySQL migration, Redis/Celery, Playwright, responsive browser, and performance gates passed |
 | Last completed milestone | `CORE-07 — Customer 360 domain convergence` |
-| Next milestone | `CORE-09 — Notification Center` (requires owner approval; `CORE-08` is **Skipped — Not required by product owner**) |
+| Next milestone | `CORE-09 — Notification Center` (requires owner approval; **CORE-08 — Skipped: Not required by product owner.**) |
 | Current worktree status | `GOVERNANCE CORRECTION REVIEWED; clean state required after the correction commit; local quality artifacts and permitted references remain ignored` |
-| Last update timestamp | `2026-08-02T17:36:51+05:30` (Asia/Calcutta) |
+| Last update timestamp | `2026-08-02T17:39:04+05:30` (Asia/Calcutta) |
 
 ## Snapshot evidence
 
@@ -34,7 +34,7 @@
   Campaign, Audit and Customer Timeline sources inside one permission-aware Customer 360 workspace.
   Exact Contact filters extend existing APIs; no duplicate model, migration, endpoint family,
   synthetic metric, fake data, or rebuilt module was introduced.
-- Owner decision: `CORE-08 — General approval engine` is **Skipped — Not required by product owner**.
+- Owner decision: **CORE-08 — Skipped: Not required by product owner.**
   No Approval Center, generic framework, queue, escalation system, or new approval authority is
   planned. Existing KYC-specific approvals and authorization safeguards remain unchanged.
 - Canonical static/application/security/release steps and the corrected isolated deployed step pass,

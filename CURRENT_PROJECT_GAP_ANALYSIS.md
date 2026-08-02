@@ -105,7 +105,7 @@ Some browser-local support exists. Server-synchronised saved views and enterpris
 
 ### Approval workflows
 
-`CORE-08 — General approval engine` is **Skipped — Not required by product owner**. A generic
+**CORE-08 — Skipped: Not required by product owner.** A generic
 Approval Center, approval framework, queue, escalation system, or new approval authority is not a
 product gap and must not be built. Existing KYC-specific approval logic, campaign/automation
 authorization concepts, requester/reviewer separation, RBAC, tenant isolation, and completed
@@ -169,6 +169,6 @@ The following must not be added:
 6. Apply the owner-approved lightweight status/label/Task-reminder CRM correction. **Complete.**
 7. Converge remaining factual CRM projections in Customer 360 without adding heavy standalone
    SIM/Activation products. **Complete.**
-8. CORE-08 General approval engine. **Skipped — Not required by product owner.**
+8. **CORE-08 — Skipped: Not required by product owner.**
 9. Build CORE-09, the shared server-backed Notification Center over existing due evidence.
 10. Add dedicated Chat History and remaining roadmap capabilities.

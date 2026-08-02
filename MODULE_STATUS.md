@@ -16,7 +16,7 @@ converges those facts with identity, WhatsApp history, documents, tasks, KYC/SIM
 campaigns and evidence inside the existing Customer 360 route. Completed authorities are reused;
 separate new heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-02T17:36:51+05:30`.
+Last synchronized: `2026-08-02T17:39:04+05:30`.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
@@ -42,7 +42,7 @@ Last synchronized: `2026-08-02T17:36:51+05:30`.
 | Webhooks | 80% | Provider webhooks and operations surface complete | Subscription governance, delivery/retry visibility, outbound final-domain events, security/usage documentation. | Domain event taxonomy, API permissions |
 | Google Sheets | 0% | Not implemented | Approved credential model, contact import/sync/export jobs, mapping, audit, retries, admin UX. | Jobs, API keys/secrets, Contacts |
 | WhatsApp Scan | 15% | Honest non-executing Scan Studio shell | Compliant provider contract, upload/batches/dedup/queue/results/retry/export/segments/analytics; no unofficial Web scanning. | Owner-approved compliant method, Jobs, Segments, Download Center |
-| Approval Workflow | 20% | **CORE-08 skipped — Not required by product owner.** Existing KYC-specific approval logic and completed campaign/automation authorization safeguards are preserved. | No Approval Center, generic approval framework, approval queue, escalation system or new approval authority will be built. | Existing module-specific RBAC and audit only |
+| Approval Workflow | 20% | **CORE-08 — Skipped: Not required by product owner.** Existing KYC-specific approval logic and completed campaign/automation authorization safeguards are preserved. | No Approval Center, generic approval framework, approval queue, escalation system or new approval authority will be built. | Existing module-specific RBAC and audit only |
 | Download Center | 30% | Backend export jobs exist | Unified user route for CSV/PDF/campaign/contact/scan/generated artifacts, status, expiry, permissions, and history. | Export jobs, Documents |
 
 ## Additional scope modules

@@ -5,7 +5,8 @@
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
 _Last updated: 2026-08-02 · CORE-07 Customer 360 domain convergence verified; owner governance
-correction records CORE-08 as skipped and CORE-09 Notification Center as next._
+correction records CORE-08 — Skipped: Not required by product owner, and CORE-09 Notification
+Center as next._
 
 ## Current state
 
@@ -34,8 +35,8 @@ correction records CORE-08 as skipped and CORE-09 Notification Center as next._
   digest-pinned nginx configuration is syntax-checked
 - **Current milestone:** CORE-07 Customer 360 domain convergence — **COMPLETE; VALIDATION EVIDENCE
   RECORDED IN `VALIDATION_RESULTS.md`**
-- **Roadmap correction:** CORE-08 General approval engine — **SKIPPED — NOT REQUIRED BY PRODUCT
-  OWNER**. Preserve existing KYC-specific approval logic and completed authorization safeguards;
+- **Roadmap correction:** **CORE-08 — Skipped: Not required by product owner.** Preserve existing
+  KYC-specific approval logic and completed authorization safeguards;
   do not create a generic approval authority, center, queue, or escalation system.
 - **Next milestone:** CORE-09 Notification Center — requires a separate owner instruction.
 
@@ -102,7 +103,7 @@ continues to define the remaining-work baseline. ADR-0012 and Design Document 25
 original experience acceptance for every future screen without changing the feature roadmap or
 module percentages. The owner-corrected CORE-05 and CORE-07 Customer 360 convergence are complete;
 the former standalone SIM fulfilment and Activation Queue milestones are no longer canonical.
-CORE-08 General approval engine is skipped by owner decision; existing KYC-specific approvals and
+CORE-08 — Skipped: Not required by product owner. Existing KYC-specific approvals and
 authorization safeguards remain intact. CORE-09 Notification Center is the next separately approved
 implementation boundary.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
