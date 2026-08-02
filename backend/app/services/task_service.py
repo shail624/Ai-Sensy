@@ -64,6 +64,7 @@ from app.models.task_event import (
     TaskEvent,
 )
 from app.models.user import User
+from app.models.vi_domain import KycCase
 from app.repositories.task import (
     SORT_COMPLETED_AT,
     SORT_CREATED_AT,
@@ -105,6 +106,8 @@ class TaskView:
     contact_id: str
     contact_name: str | None
     conversation_id: str | None
+    reference_type: str | None
+    reference_id: str | None
     title: str
     task_type: str
     status: str
@@ -326,6 +329,11 @@ class TaskService:
         reminder_at: datetime | None,
         description: str | None,
         assigned_agent_id: uuidlib.UUID | None,
+        reference_type: str | None = None,
+        reference_id: int | None = None,
+        idempotency_key: bytes | None = None,
+        request_hash: str | None = None,
+        commit: bool = True,
     ) -> TaskView:
         self._validate_enums([task_type], [priority])
         contact = await self._require_contact(organization_id, contact_id)
@@ -341,6 +349,10 @@ class TaskService:
             organization_id=organization_id,
             contact_id=contact.id,
             conversation_id=conversation_int,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
             assigned_agent_id=assignee.id,
             title=title,
             description=description,
@@ -360,8 +372,13 @@ class TaskService:
                 task, TASK_EVENT_ASSIGNED, actor.id, to_json={"assigned_agent": assignee.public_id}
             )
             await self._project(task, EVENT_TASK_ASSIGNED)
-        await self._session.commit()
+        if commit:
+            await self._session.commit()
         return (await self._build_views([task]))[0]
+
+    async def domain_views(self, tasks: builtins.list[Task]) -> builtins.list[TaskView]:
+        """Build public task projections for an owning domain service without duplicating joins."""
+        return await self._build_views(tasks)
 
     async def update(
         self,
@@ -904,6 +921,11 @@ class TaskService:
         contact_ids = {t.contact_id for t in tasks}
         conversation_ids = {t.conversation_id for t in tasks if t.conversation_id is not None}
         user_ids: set[int] = set()
+        kyc_reference_ids = {
+            t.reference_id
+            for t in tasks
+            if t.reference_type == "kyc_case" and t.reference_id is not None
+        }
         for t in tasks:
             user_ids.add(t.assigned_agent_id)
             if t.created_by is not None:
@@ -926,6 +948,18 @@ class TaskService:
             else {}
         )
         users = await self._user_map(user_ids)
+        kyc_references = (
+            {
+                row.id: row.public_id
+                for row in (
+                    await self._session.scalars(
+                        select(KycCase).where(KycCase.id.in_(kyc_reference_ids))
+                    )
+                ).all()
+            }
+            if kyc_reference_ids
+            else {}
+        )
 
         views: list[TaskView] = []
         for t in tasks:
@@ -948,6 +982,12 @@ class TaskService:
                     contact_id=contact_public,
                     contact_name=contact_name,
                     conversation_id=conversation_public,
+                    reference_type=t.reference_type,
+                    reference_id=(
+                        kyc_references.get(t.reference_id)
+                        if t.reference_id is not None
+                        else None
+                    ),
                     title=t.title,
                     task_type=t.task_type,
                     status=t.status,

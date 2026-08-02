@@ -116,6 +116,8 @@ class TaskResponse(BaseModel):
     contact_id: str
     contact_name: str | None
     conversation_id: str | None
+    reference_type: str | None
+    reference_id: str | None
     title: str
     task_type: str
     status: str
@@ -141,6 +143,8 @@ class TaskResponse(BaseModel):
             contact_id=view.contact_id,
             contact_name=view.contact_name,
             conversation_id=view.conversation_id,
+            reference_type=view.reference_type,
+            reference_id=view.reference_id,
             title=view.title,
             task_type=view.task_type,
             status=view.status,

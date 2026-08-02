@@ -220,6 +220,8 @@ async def test_pipeline_projection_assignment_and_immutable_notes(
 @pytest.mark.asyncio
 async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, make_user) -> None:
     actor = (await make_user(email="core02-manager@vi.test", is_superuser=True)).user
+    reviewer = (await make_user(email="core04-reviewer@vi.test", is_superuser=True)).user
+    approver = (await make_user(email="core04-approver@vi.test", is_superuser=True)).user
     contact = await _contact(db_session, organization.id, "2")
     service = ViDomainService(db_session)
     case_view = await service.create_reactivation(
@@ -268,38 +270,60 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
             "appointment_at": None,
         },
     )
-    db_session.add(
-        ContactDocument(
+    aadhaar = ContactDocument(
             organization_id=organization.id,
             contact_id=contact.id,
             document_type="identity",
-            title="Governed identity proof",
+            title="Governed Aadhaar proof",
             status="verified",
             created_by=actor.id,
             updated_by=actor.id,
         )
+    pan = ContactDocument(
+            organization_id=organization.id,
+            contact_id=contact.id,
+            document_type="identity",
+            title="Governed PAN proof",
+            status="verified",
+            created_by=actor.id,
+            updated_by=actor.id,
     )
+    db_session.add_all([aadhaar, pan])
     await db_session.commit()
-    review = await service.decide_kyc(
+    await service.set_kyc_document_reference(
         organization_id=organization.id,
         actor=actor,
         public_id=uuid.UUID(kyc["id"]),
+        payload={"expected_row_version": 1, "purpose": "aadhaar", "document_id": uuid.UUID(aadhaar.public_id)},
+    )
+    await service.set_kyc_document_reference(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuid.UUID(kyc["id"]),
+        payload={"expected_row_version": 2, "purpose": "pan", "document_id": uuid.UUID(pan.public_id)},
+    )
+    review = await service.decide_kyc(
+        organization_id=organization.id,
+        actor=reviewer,
+        public_id=uuid.UUID(kyc["id"]),
         payload={
             "idempotency_key": uuid.uuid4(),
-            "expected_row_version": 1,
+            "expected_row_version": 3,
             "decision": "approved",
+            "reason_code": None,
             "reason": None,
         },
         manager_approval=False,
     )
     approval = await service.decide_kyc(
         organization_id=organization.id,
-        actor=actor,
+        actor=approver,
         public_id=uuid.UUID(kyc["id"]),
         payload={
             "idempotency_key": uuid.uuid4(),
-            "expected_row_version": 2,
+            "expected_row_version": 4,
             "decision": "approved",
+            "reason_code": None,
             "reason": None,
         },
         manager_approval=True,
@@ -310,6 +334,7 @@ async def test_kyc_sim_activation_and_sla_boundaries(db_session, organization, m
         await db_session.scalars(select(KycCase).where(KycCase.uuid == uuid.UUID(kyc["id"]).bytes))
     ).one()
     assert stored_kyc.status == "approved"
+    assert case.stage == "verification"
     assert await db_session.scalar(select(func.count()).select_from(KycDecision)) == 2
 
     case.stage = "confirmed"

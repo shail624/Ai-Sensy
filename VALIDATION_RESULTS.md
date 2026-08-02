@@ -2,11 +2,29 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. CORE-03 starting GitHub baseline: `c1cb133`; the milestone
-> connects the existing Reactivation workspace to the server-owned Vi domain. Canonical release and isolated
-> deployed-stack gates all passed.
+> be refreshed after every milestone. CORE-04 starting GitHub baseline: `320b0bd`; the milestone
+> delivers governed KYC operations by extending existing Vi, Document, Task, Reactivation, Customer
+> 360, Audit, Timeline, RBAC, and SLA authorities. The canonical deployed-stack gate passed.
 
-Last synchronized: `2026-08-02T13:20:26+05:30`.
+Last synchronized: `2026-08-02T14:44:11+05:30`.
+
+## CORE-04 KYC operations
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Creation prerequisites and governed checks | PASS | Eligible document-ready Reactivation cases create one tenant-scoped KYC case idempotently; holder, Delhi-presence and active-number checks plus invalid/stale commands pass service/API tests. |
+| Protected document checklist | PASS | Aadhaar/PAN checklist entries reference verified same-tenant/same-contact Document Center records; protected-access denial passes and no schema/API/UI/audit field stores identity numbers. |
+| Appointment lifecycle | PASS | Creation reuses idempotent TaskService; reschedule, completion and cancellation reuse existing Task commands, immutable events, audit and Customer Timeline evidence. |
+| Reviewer/manager authority separation | PASS | Requester cannot review; manager must differ from requester and approved reviewer; structured rejection/information reasons, approval prerequisites and immutable decision history pass. |
+| Reactivation handoff | PASS | Only valid manager approval advances the existing case through `kyc_pending` to `verification` using the CORE-02 transition authority, optimistic concurrency and immutable stage/audit/Timeline evidence. |
+| RBAC and tenant isolation | PASS | KYC/document/task read-write-decide-approve permissions and cross-tenant denial pass focused service/API tests; UI exposes permission-aware read-only/denied states. |
+| Customer 360 and shared reuse | PASS | Existing Reactivation drawer, protected DocumentWorkspace, Task lifecycle, Customer 360 section, Contacts/User directory, Audit, Timeline, RBAC, SLA and design-system states are extended; no parallel authority exists. |
+| UI states, accessibility and responsive behavior | PASS | Focused tests cover factual queue/detail, checklist/actions, loading, empty, error, read-only, accessible labels/tabs/drawer, desktop table and mobile-card transformation, and no mock fallback. |
+| Authenticated representative-data browser review | PENDING – Host Machine Validation | The local protected route and anonymous redirect were verified; a target-host account with representative KYC/protected-document data and final desktop/tablet/mobile browser matrix is required for authenticated visual/WCAG sign-off. |
+| Reference and originality review | PASS | Four paired approved `_full.png`/`_viewport.png` workflows were inventoried for density, filters, forms, action placement and layered workspaces; no proprietary code, asset, branding, exact styling, wording or reference file is shipped. |
+| Focused and full tests | PASS | 24 focused backend and 33 focused cross-feature frontend tests pass; canonical suites pass 940/940 pytest and 646/646 Vitest. |
+| Migration and API boundary | PASS | One additive head `0033_kyc_operations` fills verified reference/Task/reason constraints; OpenAPI advances only from 184 to 188 paths (+4) and generated TypeScript drift is clean. |
+| Milestone boundary | PASS | No SIM fulfilment, Activation Queue, fake operational data, plaintext identity number, duplicate document/task/approval/timeline system, or completed-module rebuild was introduced. |
 
 ## CORE-03 Reactivation pipeline
 
@@ -68,28 +86,28 @@ Last synchronized: `2026-08-02T13:20:26+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Pytest | PASS | Canonical release and deployed validation passed 938 backend tests; the final deployed run completed them in 334.83 seconds. |
-| Migration validation | PASS | Single head `0032_vi_domain_foundation`; 32 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
-| Ruff | PASS | Canonical pre-merge and release profiles passed Ruff across application, tests, scripts, and root tools. |
-| Mypy | PASS | Canonical pre-merge and release profiles passed strict mypy across 252 backend source files. |
+| Pytest | PASS | Canonical deployed validation passed 940/940 backend tests in 394.35 seconds. |
+| Migration validation | PASS | Single head `0033_kyc_operations`; 33 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
+| Ruff | PASS | Canonical deployed profile passed Ruff across application, tests, scripts, and root tools. |
+| Mypy | PASS | Canonical deployed profile passed strict mypy across 252 backend source files. |
 | Python compile | PASS | `compileall` passed for backend application/scripts and root scripts. |
 
 ## Frontend
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| TypeScript | PASS | Frontend and Playwright TypeScript checks passed in canonical pre-merge and release profiles with regenerated contracts. |
-| ESLint | PASS | Frontend ESLint passed in canonical pre-merge and release profiles. |
-| Vitest | PASS | Full suite passed 641/641 tests across 29 files. |
-| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-03 images in 9.65 seconds. |
-| Production build | PASS | TypeScript and Vite production build passed after final CORE-03 source and generated-contract changes. |
+| TypeScript | PASS | Frontend and Playwright TypeScript checks passed in the canonical deployed profile with regenerated contracts. |
+| ESLint | PASS | Frontend ESLint passed in the canonical deployed profile. |
+| Vitest | PASS | Full suite passed 646/646 tests across 30 files. |
+| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-04 images in 8.635 seconds. |
+| Production build | PASS | TypeScript and Vite production build passed after final CORE-04 source and generated-contract changes. |
 
 ## API
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 182 to 184 paths (+2) without a migration. |
-| Generated TypeScript contracts | PASS | `npm run gen:api` regenerated the typed pipeline/note contracts; frontend typecheck and drift checks passed. |
+| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 184 to 188 paths (+4) without removing a path. |
+| Generated TypeScript contracts | PASS | `npm run gen:api` regenerated the typed KYC operations/checklist/appointment contracts; frontend typecheck and drift checks passed. |
 
 ## Infrastructure
 
@@ -104,14 +122,14 @@ Last synchronized: `2026-08-02T13:20:26+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Existing responsive/keyboard baseline | PASS | CORE-01 shell evidence remains green; CORE-03 focused tests and authenticated desktop/tablet/mobile review verify labelled controls, pressed state, drag/keyboard movement, focus-managed overlays, responsive transformations, and no page-level overflow. |
+| Existing responsive/keyboard baseline | PASS | CORE-01/03 evidence remains green; CORE-04 focused tests verify labelled tabs/actions, accessible drawer/state boundaries, dense desktop table, mobile cards, responsive transformations, and permission-aware read-only behavior. |
 | Full final-scope WCAG regression | PENDING – Host Machine Validation | Must be repeated on every completed final-scope route with real domain data and the target browser/device matrix. |
 
 ## Performance
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Standard-read canary | PASS | p95 8.547 ms across 30 authenticated reads, below the 300 ms budget. |
+| Standard-read canary | PASS | p95 12.551 ms across 30 authenticated reads, below the 300 ms budget. |
 | Full load/stress/spike/soak and 1M-contact certification | PENDING – Host Machine Validation | Requires the isolated Performance Lab and production-like capacity. |
 
 ## Known limitations
@@ -119,11 +137,11 @@ Last synchronized: `2026-08-02T13:20:26+05:30`.
 | Validation item | Status | Current limitation |
 |---|---|---|
 | Target observability receivers | PENDING – Host Machine Validation | Log shipping, dashboards, alert firing/dead-man delivery, and external synthetic checks need deployed receivers. |
-| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 713.18 kB; further route splitting remains a performance task. |
+| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 719.05 kB; further route splitting remains a performance task. |
 | Docker-backed source scan | PASS | Trivy vulnerability, secret, and IaC scan passed; production backend/frontend image vulnerability scans and CycloneDX SBOM generation also passed. |
 | React Router advisories | PENDING – Host Machine Validation | Two moderate advisories require an explicit React Router 7.18+ upgrade milestone, not a silent dependency change. |
 | Contact-scoped conversation history | PENDING – Host Machine Validation | `ConversationHistorySection.tsx` still exposes the known unavailable/TODO boundary. |
-| Final domain workflows | PENDING – Host Machine Validation | CORE-03 supplies the real Reactivation pipeline over the CORE-02 authorities; KYC/SIM/Activation operational UIs plus Notification Center, generalized approvals, Google Sheets, and Download Center remain later milestones. |
+| Final domain workflows | PENDING – Host Machine Validation | CORE-04 supplies governed KYC operations over the existing authorities; SIM/Activation operational UIs plus Notification Center, generalized approvals, Google Sheets, and Download Center remain later milestones. |
 
 ## Milestone closeout rule
 

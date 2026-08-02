@@ -39,11 +39,14 @@ from app.models.contact_event import (
     REF_TYPE_SIM_ORDER,
     REF_TYPE_SLA_EVENT,
 )
+from app.models.task import Task
 from app.models.user import User
 from app.models.vi_domain import (
     ACTIVATION_TRANSITIONS,
     KYC_DECISIONS,
+    KYC_DOCUMENT_PURPOSES,
     KYC_PREPARATION_TRANSITIONS,
+    KYC_REJECTION_REASON_CODES,
     REACTIVATION_STAGES,
     REACTIVATION_TRANSITIONS,
     SIM_ORDER_TRANSITIONS,
@@ -51,6 +54,7 @@ from app.models.vi_domain import (
     EligibilityCheck,
     KycCase,
     KycDecision,
+    KycDocumentReference,
     ReactivationCase,
     ReactivationStageEvent,
     SimOrder,
@@ -64,6 +68,7 @@ from app.schemas.attribute import attributes_map
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
+from app.services.task_service import TaskService, TaskView
 
 
 class DomainTransitionError(ConflictError):
@@ -359,38 +364,13 @@ class ViDomainService:
             return (await self.views([case]))[0]
         self._check_version(case, payload["expected_row_version"])
         target = payload["to_stage"]
-        if target not in REACTIVATION_TRANSITIONS[case.stage]:
-            raise DomainTransitionError(f"Reactivation cannot move from {case.stage} to {target}.")
-        await self._validate_reactivation_gate(case, target)
-        previous = case.stage
-        case.stage = target
-        case.closed_reason = (
-            self._clean(payload.get("reason"))
-            if target in {"not_eligible", "not_interested"}
-            else None
-        )
-        self._bump(case, actor.id)
-        event = ReactivationStageEvent(
-            organization_id=organization_id,
-            case_id=case.id,
-            contact_id=case.contact_id,
-            from_stage=previous,
-            to_stage=target,
-            actor_user_id=actor.id,
-            reason=self._clean(payload.get("reason")),
-            idempotency_key=payload["idempotency_key"].bytes,
+        await self._append_reactivation_transition(
+            case=case,
+            actor=actor,
+            target=target,
+            reason=payload.get("reason"),
+            idempotency_key=payload["idempotency_key"],
             request_hash=request_hash,
-        )
-        self._session.add(event)
-        await self._session.flush()
-        await self._record(
-            case,
-            actor,
-            AuditAction.REACTIVATION_STAGE_TRANSITIONED,
-            EVENT_REACTIVATION_TRANSITIONED,
-            BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
-            {"from_stage": previous, "to_stage": target, "reason": event.reason},
-            event_id=uuidlib.UUID(bytes=event.uuid),
         )
         await self._session.commit()
         return (await self.views([case]))[0]
@@ -473,8 +453,296 @@ class ViDomainService:
         )
         return await self.views(rows), total
 
+    async def kyc_operations(
+        self,
+        organization_id: int,
+        *,
+        q: str | None,
+        statuses: list[str] | None,
+        limit: int,
+    ) -> dict[str, Any]:
+        rows, total = await self._repo.kyc_operations(
+            organization_id, q=q, statuses=statuses, limit=limit
+        )
+        cases = [row[0] for row in rows]
+        evidence = await self._repo.kyc_operations_evidence(
+            organization_id, [kyc.id for kyc in cases]
+        )
+        all_tasks = [
+            task for tasks in evidence["appointments"].values() for task in tasks
+        ]
+        task_views = await TaskService(self._session).domain_views(all_tasks)
+        task_view_map = {view.public_id: view for view in task_views}
+        task_model_map = {task.id: task for task in all_tasks}
+        now = utcnow()
+        cards: list[dict[str, Any]] = []
+        for kyc, reactivation, contact, owner in rows:
+            documents = evidence["documents"].get(kyc.id, [])
+            decisions = evidence["decisions"].get(kyc.id, [])
+            appointments = evidence["appointments"].get(kyc.id, [])
+            review = next(
+                (row for row in reversed(decisions) if row.decision_type == "review"), None
+            )
+            manager = next(
+                (
+                    row
+                    for row in reversed(decisions)
+                    if row.decision_type == "manager_approval"
+                ),
+                None,
+            )
+            linked = {reference.purpose for reference, _ in documents}
+            checks = (
+                kyc.holder_verified,
+                kyc.delhi_presence_verified,
+                kyc.active_delhi_number_verified,
+            )
+            completed_steps = sum(1 for value in checks if value) + len(linked)
+            sla = evidence["sla"].get(kyc.id)
+            sla_status = "not_configured"
+            if sla is not None:
+                if sla.event_type == "resolved":
+                    sla_status = "resolved"
+                elif sla.event_type == "breached" or sla.due_at < now:
+                    sla_status = "breached"
+                else:
+                    sla_status = "on_track"
+            base = (await self.views([kyc]))[0]
+            cards.append(
+                {
+                    **base,
+                    "contact_name": contact.full_name
+                    or contact.profile_name
+                    or contact.phone_e164,
+                    "contact_phone": contact.phone_e164,
+                    "contact_email": contact.email,
+                    "owner_name": owner.full_name if owner else None,
+                    "reactivation_stage": reactivation.stage,
+                    "checklist": [
+                        self._document_reference_view(reference, document, kyc)
+                        for reference, document in documents
+                    ],
+                    "checklist_complete": set(KYC_DOCUMENT_PURPOSES) <= linked,
+                    "progress_percent": int(round((completed_steps / 5) * 100)),
+                    "latest_review": (await self.views([review]))[0] if review else None,
+                    "latest_manager_decision": (await self.views([manager]))[0]
+                    if manager
+                    else None,
+                    "appointments": [
+                        self._appointment_view(
+                            task_view_map[task.public_id]
+                        )
+                        for task in appointments
+                        if task.id in task_model_map and task.public_id in task_view_map
+                    ],
+                    "sla_status": sla_status,
+                    "sla_due_at": sla.due_at if sla else None,
+                }
+            )
+        return {"data": cards, "total": total}
+
     async def get_kyc(self, organization_id: int, public_id: uuidlib.UUID) -> dict[str, Any]:
         return (await self.views([await self._require(KycCase, organization_id, public_id)]))[0]
+
+    async def list_kyc_document_references(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> list[dict[str, Any]]:
+        kyc = await self._require(KycCase, organization_id, public_id)
+        rows = await self._repo.kyc_document_references(organization_id, kyc.id)
+        return [self._document_reference_view(reference, document, kyc) for reference, document in rows]
+
+    async def set_kyc_document_reference(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        kyc = await self._require(KycCase, organization_id, public_id)
+        self._check_version(kyc, payload["expected_row_version"])
+        if kyc.status in {"approved", "rejected"}:
+            raise DomainTransitionError("A decided KYC checklist is read-only.")
+        purpose = payload["purpose"]
+        if purpose not in KYC_DOCUMENT_PURPOSES:
+            raise BadRequestError("Unknown KYC document purpose.")
+        document = (
+            await self._session.scalars(
+                select(ContactDocument).where(
+                    ContactDocument.organization_id == organization_id,
+                    ContactDocument.uuid == payload["document_id"].bytes,
+                    ContactDocument.contact_id == kyc.contact_id,
+                    ContactDocument.deleted_at.is_(None),
+                )
+            )
+        ).first()
+        if document is None:
+            raise NotFoundError("Governed customer document not found.")
+        if document.document_type not in {"identity", "address"}:
+            raise BadRequestError("KYC checklist references must use identity or address proof.")
+        reference = await self._repo.kyc_document_reference(organization_id, kyc.id, purpose)
+        before_document_id = reference.document_id if reference else None
+        if reference is None:
+            reference = KycDocumentReference(
+                organization_id=organization_id,
+                kyc_case_id=kyc.id,
+                document_id=document.id,
+                purpose=purpose,
+                created_by=actor.id,
+                updated_by=actor.id,
+            )
+            self._session.add(reference)
+        else:
+            reference.document_id = document.id
+            self._bump(reference, actor.id)
+        self._bump(kyc, actor.id)
+        await self._session.flush()
+        await self._audit.record(
+            AuditAction.KYC_CASE_UPDATED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="kyc_case",
+            entity_id=kyc.id,
+            before={"checklist_purpose": purpose, "document_id": before_document_id},
+            after={"checklist_purpose": purpose, "document_id": document.id},
+        )
+        await self._timeline.record(
+            organization_id=organization_id,
+            contact_id=kyc.contact_id,
+            event_type=EVENT_KYC_UPDATED,
+            ref_type=REF_TYPE_KYC_CASE,
+            ref_id=kyc.id,
+            payload={"checklist_purpose": purpose, "document_status": document.status},
+        )
+        await self._session.commit()
+        return self._document_reference_view(reference, document, kyc)
+
+    async def remove_kyc_document_reference(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        purpose: str,
+        expected_row_version: int,
+    ) -> None:
+        kyc = await self._require(KycCase, organization_id, public_id)
+        self._check_version(kyc, expected_row_version)
+        if kyc.status in {"approved", "rejected"}:
+            raise DomainTransitionError("A decided KYC checklist is read-only.")
+        reference = await self._repo.kyc_document_reference(organization_id, kyc.id, purpose)
+        if reference is None:
+            raise NotFoundError("KYC checklist reference not found.")
+        document_id = reference.document_id
+        await self._session.delete(reference)
+        self._bump(kyc, actor.id)
+        await self._audit.record(
+            AuditAction.KYC_CASE_UPDATED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="kyc_case",
+            entity_id=kyc.id,
+            before={"checklist_purpose": purpose, "document_id": document_id},
+            after={"checklist_purpose": purpose, "document_id": None},
+        )
+        await self._timeline.record(
+            organization_id=organization_id,
+            contact_id=kyc.contact_id,
+            event_type=EVENT_KYC_UPDATED,
+            ref_type=REF_TYPE_KYC_CASE,
+            ref_id=kyc.id,
+            payload={"checklist_purpose": purpose, "status": "removed"},
+        )
+        await self._session.commit()
+
+    async def list_kyc_appointments(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> list[dict[str, Any]]:
+        kyc = await self._require(KycCase, organization_id, public_id)
+        tasks = list(
+            (
+                await self._session.scalars(
+                    select(Task)
+                    .where(
+                        Task.organization_id == organization_id,
+                        Task.reference_type == "kyc_case",
+                        Task.reference_id == kyc.id,
+                        Task.deleted_at.is_(None),
+                    )
+                    .order_by(Task.due_at.desc(), Task.id.desc())
+                )
+            ).all()
+        )
+        views = await TaskService(self._session).domain_views(tasks)
+        return [self._appointment_view(view) for view in views]
+
+    async def create_kyc_appointment(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        request_hash = self._hash(payload)
+        prior = (
+            await self._session.scalars(
+                select(Task).where(
+                    Task.organization_id == organization_id,
+                    Task.idempotency_key == payload["idempotency_key"].bytes,
+                )
+            )
+        ).first()
+        kyc = await self._require(KycCase, organization_id, public_id)
+        if prior is not None:
+            if prior.request_hash != request_hash or prior.reference_id != kyc.id:
+                raise IdempotencyConflictError(
+                    "Appointment idempotency key was already used for another command."
+                )
+            view = await TaskService(self._session).get(
+                organization_id=organization_id, public_id=uuidlib.UUID(prior.public_id)
+            )
+            return self._appointment_view(view)
+        self._check_version(kyc, payload["expected_row_version"])
+        if kyc.status in {"approved", "rejected"}:
+            raise DomainTransitionError("A decided KYC case cannot schedule appointments.")
+        owner_public = await self._user_public(kyc.owner_user_id)
+        view = await TaskService(self._session).create(
+            organization_id=organization_id,
+            actor=actor,
+            contact_id=uuidlib.UUID(await self._contact_public(kyc.contact_id)),
+            conversation_id=None,
+            title="KYC verification appointment",
+            task_type="meeting",
+            priority="high",
+            due_at=payload["due_at"],
+            has_time=True,
+            reminder_at=payload.get("reminder_at"),
+            description=self._clean(payload.get("description")),
+            assigned_agent_id=payload.get("assigned_agent_id")
+            or (uuidlib.UUID(owner_public) if owner_public else None),
+            reference_type="kyc_case",
+            reference_id=kyc.id,
+            idempotency_key=payload["idempotency_key"].bytes,
+            request_hash=request_hash,
+            commit=False,
+        )
+        kyc.appointment_at = payload["due_at"]
+        self._bump(kyc, actor.id)
+        await self._audit.record(
+            AuditAction.KYC_CASE_UPDATED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="kyc_case",
+            entity_id=kyc.id,
+            before={"appointment_at": None},
+            after={
+                "appointment_at": payload["due_at"].isoformat(),
+                "task_id": view.public_id,
+            },
+        )
+        await self._session.commit()
+        return self._appointment_view(view)
 
     async def create_kyc(
         self,
@@ -508,6 +776,23 @@ class ViDomainService:
         )
         self._session.add(kyc)
         await self._session.flush()
+        if case.stage == "documents_received":
+            await self._append_reactivation_transition(
+                case=case,
+                actor=actor,
+                target="kyc_pending",
+                reason="KYC case opened after governed document intake.",
+                idempotency_key=uuidlib.uuid5(
+                    payload["idempotency_key"], "reactivation-kyc-pending"
+                ),
+                request_hash=self._hash(
+                    {
+                        "kyc_case_id": kyc.public_id,
+                        "from_stage": "documents_received",
+                        "to_stage": "kyc_pending",
+                    }
+                ),
+            )
         await self._audit_and_timeline(
             kyc,
             actor,
@@ -594,19 +879,49 @@ class ViDomainService:
             return (await self.views([existing]))[0]
         kyc = await self._require(KycCase, organization_id, public_id)
         self._check_version(kyc, payload["expected_row_version"])
+        if kyc.status in {"approved", "rejected"}:
+            raise DomainTransitionError("A decided KYC case is immutable.")
         decision = payload["decision"]
         if decision not in KYC_DECISIONS:
             raise BadRequestError("Unknown KYC decision.")
         prior = await self._repo.kyc_decisions(kyc.id)
+        latest_review = next(
+            (
+                row
+                for row in reversed(prior)
+                if row.decision_type == "review"
+            ),
+            None,
+        )
+        latest_manager_decision = next(
+            (row for row in reversed(prior) if row.decision_type == "manager_approval"),
+            None,
+        )
         if manager_approval:
-            if not any(
-                row.decision_type == "review" and row.decision == "approved" for row in prior
+            if (
+                latest_review is None
+                or latest_review.decision != "approved"
+                or (
+                    latest_manager_decision is not None
+                    and latest_manager_decision.id > latest_review.id
+                )
             ):
                 raise DomainTransitionError(
-                    "Manager approval requires an approved review decision."
+                    "Manager approval requires the latest review decision to be approved."
+                )
+            if actor.id in {kyc.created_by, latest_review.decided_by}:
+                raise DomainTransitionError(
+                    "The requester, reviewer, and manager approver must be different users."
                 )
         elif kyc.status not in {"under_review", "documents_pending"}:
             raise DomainTransitionError("KYC review requires an active review state.")
+        elif actor.id == kyc.created_by:
+            raise DomainTransitionError("The KYC requester cannot review the same case.")
+        if decision != "approved":
+            if payload.get("reason_code") not in KYC_REJECTION_REASON_CODES:
+                raise BadRequestError("A structured KYC reason code is required.")
+            if not self._clean(payload.get("reason")):
+                raise BadRequestError("A KYC decision explanation is required.")
         if decision == "approved":
             await self._validate_kyc_approval(kyc)
         row = KycDecision(
@@ -615,6 +930,7 @@ class ViDomainService:
             contact_id=kyc.contact_id,
             decision_type="manager_approval" if manager_approval else "review",
             decision=decision,
+            reason_code=payload.get("reason_code"),
             reason=self._clean(payload.get("reason")),
             decided_by=actor.id,
             idempotency_key=payload["idempotency_key"].bytes,
@@ -640,12 +956,47 @@ class ViDomainService:
             {
                 "decision_type": row.decision_type,
                 "decision": row.decision,
+                "reason_code": row.reason_code,
                 "kyc_status": kyc.status,
             },
             contact_id=kyc.contact_id,
             ref_type=REF_TYPE_KYC_CASE,
             ref_id=kyc.id,
         )
+        if manager_approval and decision == "approved":
+            case = await self._session.get(ReactivationCase, kyc.reactivation_case_id)
+            if case is None or case.organization_id != organization_id:
+                raise NotFoundError("Reactivation case not found.")
+            if case.stage == "documents_received":
+                await self._append_reactivation_transition(
+                    case=case,
+                    actor=actor,
+                    target="kyc_pending",
+                    reason="Approved KYC hand-off prepared.",
+                    idempotency_key=uuidlib.uuid5(
+                        payload["idempotency_key"], "manager-approval-kyc-pending"
+                    ),
+                    request_hash=self._hash(
+                        {"kyc_decision_id": row.public_id, "to_stage": "kyc_pending"}
+                    ),
+                )
+            if case.stage == "kyc_pending":
+                await self._append_reactivation_transition(
+                    case=case,
+                    actor=actor,
+                    target="verification",
+                    reason="Manager-approved KYC hand-off.",
+                    idempotency_key=uuidlib.uuid5(
+                        payload["idempotency_key"], "manager-approval-verification"
+                    ),
+                    request_hash=self._hash(
+                        {"kyc_decision_id": row.public_id, "to_stage": "verification"}
+                    ),
+                )
+            elif case.stage != "verification":
+                raise DomainTransitionError(
+                    "Approved KYC can only hand off from the KYC-pending stage."
+                )
         await self._session.commit()
         return (await self.views([row]))[0]
 
@@ -1190,6 +1541,7 @@ class ViDomainService:
                         "contact_id": await self._contact_public(row.contact_id),
                         "status": row.status,
                         "owner_user_id": users["owner_user_id"],
+                        "requester_user_id": await self._user_public(row.created_by),
                         "holder_verified": row.holder_verified,
                         "delhi_presence_verified": row.delhi_presence_verified,
                         "active_delhi_number_verified": row.active_delhi_number_verified,
@@ -1206,6 +1558,7 @@ class ViDomainService:
                         "kyc_case_id": await self._aggregate_public(KycCase, row.kyc_case_id),
                         "decision_type": row.decision_type,
                         "decision": row.decision,
+                        "reason_code": row.reason_code,
                         "reason": row.reason,
                         "decided_by": users["decided_by"],
                         "decided_at": row.decided_at,
@@ -1368,6 +1721,49 @@ class ViDomainService:
             payload={**payload, "id": row.public_id},
         )
 
+    async def _append_reactivation_transition(
+        self,
+        *,
+        case: ReactivationCase,
+        actor: User,
+        target: str,
+        reason: str | None,
+        idempotency_key: uuidlib.UUID,
+        request_hash: str,
+    ) -> ReactivationStageEvent:
+        if target not in REACTIVATION_TRANSITIONS[case.stage]:
+            raise DomainTransitionError(f"Reactivation cannot move from {case.stage} to {target}.")
+        await self._validate_reactivation_gate(case, target)
+        previous = case.stage
+        case.stage = target
+        case.closed_reason = (
+            self._clean(reason) if target in {"not_eligible", "not_interested"} else None
+        )
+        self._bump(case, actor.id)
+        event = ReactivationStageEvent(
+            organization_id=case.organization_id,
+            case_id=case.id,
+            contact_id=case.contact_id,
+            from_stage=previous,
+            to_stage=target,
+            actor_user_id=actor.id,
+            reason=self._clean(reason),
+            idempotency_key=idempotency_key.bytes,
+            request_hash=request_hash,
+        )
+        self._session.add(event)
+        await self._session.flush()
+        await self._record(
+            case,
+            actor,
+            AuditAction.REACTIVATION_STAGE_TRANSITIONED,
+            EVENT_REACTIVATION_TRANSITIONED,
+            BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
+            {"from_stage": previous, "to_stage": target, "reason": event.reason},
+            event_id=uuidlib.UUID(bytes=event.uuid),
+        )
+        return event
+
     async def _validate_reactivation_gate(self, case: ReactivationCase, target: str) -> None:
         if target in {"eligible", "not_eligible"}:
             checks = await self._repo.eligibility_checks(case.id)
@@ -1427,19 +1823,21 @@ class ViDomainService:
             raise DomainTransitionError(
                 "KYC approval requires all Vi identity and Delhi verification checks."
             )
-        count = await self._session.scalar(
-            select(func.count())
-            .select_from(ContactDocument)
-            .where(
-                ContactDocument.organization_id == kyc.organization_id,
-                ContactDocument.contact_id == kyc.contact_id,
-                ContactDocument.status == DOCUMENT_STATUS_VERIFIED,
-                ContactDocument.deleted_at.is_(None),
-            )
-        )
-        if not count:
+        references = await self._repo.kyc_document_references(kyc.organization_id, kyc.id)
+        by_purpose = {reference.purpose: document for reference, document in references}
+        missing = [purpose for purpose in KYC_DOCUMENT_PURPOSES if purpose not in by_purpose]
+        if missing:
             raise DomainTransitionError(
-                "KYC approval requires at least one verified governed document."
+                f"KYC approval requires governed {', '.join(missing)} document references."
+            )
+        unverified = [
+            purpose
+            for purpose, document in by_purpose.items()
+            if document.status != DOCUMENT_STATUS_VERIFIED
+        ]
+        if unverified:
+            raise DomainTransitionError(
+                f"KYC approval requires verified {', '.join(sorted(unverified))} documents."
             )
 
     async def _require_contact(self, organization_id: int, public_id: uuidlib.UUID) -> Contact:
@@ -1608,7 +2006,37 @@ class ViDomainService:
             "holder_verified": row.holder_verified,
             "delhi_presence_verified": row.delhi_presence_verified,
             "active_delhi_number_verified": row.active_delhi_number_verified,
-            "appointment_at": row.appointment_at,
+            "appointment_at": row.appointment_at.isoformat() if row.appointment_at else None,
+        }
+
+    @staticmethod
+    def _document_reference_view(
+        reference: KycDocumentReference, document: ContactDocument, kyc: KycCase
+    ) -> dict[str, Any]:
+        return {
+            "id": reference.public_id,
+            "kyc_case_id": kyc.public_id,
+            "purpose": reference.purpose,
+            "document_id": document.public_id,
+            "document_title": document.title,
+            "document_type": document.document_type,
+            "document_status": document.status,
+            "row_version": reference.row_version,
+            "created_at": reference.created_at,
+            "updated_at": reference.updated_at,
+        }
+
+    @staticmethod
+    def _appointment_view(view: TaskView) -> dict[str, Any]:
+        return {
+            "id": view.public_id,
+            "title": view.title,
+            "status": view.status,
+            "due_at": view.due_at,
+            "reminder_at": view.reminder_at,
+            "assigned_agent_id": view.assigned_agent_id,
+            "assigned_agent_name": view.assigned_agent_name,
+            "row_version": view.row_version,
         }
 
     @staticmethod

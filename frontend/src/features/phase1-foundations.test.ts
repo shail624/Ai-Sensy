@@ -74,7 +74,7 @@ describe("Phase 1 foundation boundaries", () => {
   it("labels reactivation foundations honestly while connecting reusable modules", () => {
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Foundation").length).toBeGreaterThan(0);
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual([
-      "pipeline", "documents", "reports",
+      "pipeline", "kyc", "documents", "reports",
     ]);
   });
 });

@@ -11,6 +11,40 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Governed KYC operations (CORE-04)
+
+**Added**
+- Added the real tenant-scoped KYC operations projection and responsive queue/detail workspace over
+  the existing CORE-02 KYC authority, with holder, Delhi-presence and active-number verification,
+  factual progress/SLA, and truthful loading, empty, error, permission and read-only states.
+- Added verified Aadhaar/PAN checklist references to existing protected Document Center records;
+  the KYC schema, API, UI, audit evidence and migration store no identity numbers.
+- Added idempotent Task-backed appointment creation and reused existing Task commands for
+  reschedule, completion and cancellation with immutable Task/Customer Timeline evidence.
+- Added structured rejection reasons, enforced requester/reviewer/manager separation, immutable
+  decisions, optimistic concurrency, manager-approved Reactivation handoff, Customer 360
+  projection, ADR-0016, Design Document 29, and focused backend/frontend tests.
+- Added migration `0033_kyc_operations`; regenerated OpenAPI 3.1.0 at 188 paths and generated
+  TypeScript contracts.
+
+**Reused and preserved**
+- Extended existing KYC, Reactivation, Contact, User, Document Center, Task, Customer 360, Audit,
+  Customer Timeline, RBAC, SLA, shared form/table/drawer/status/state, and generated-client
+  implementations in place. No completed module or parallel authority was rebuilt.
+- Added no mock operational data, plaintext Aadhaar/PAN number, independent document store,
+  appointment table, approval engine, timeline, SIM fulfilment, copied reference material, or
+  tracked `.reference/aisensy/` content.
+
+**Validated**
+- The canonical 22-step deployed profile passed: 940 pytest tests, 646 Vitest tests, Ruff, strict
+  mypy across 252 files, OpenAPI drift, TypeScript/ESLint, production build, Python compile,
+  Bandit, dependency/source/image scans, SBOMs, Compose/image contracts, MySQL migration `0033`,
+  healthy Redis/Celery services, and Playwright 1/1 in 8.635 seconds.
+- Four paired approved full/viewport references were reviewed for queue density, filters,
+  form/action hierarchy and responsive drawer behavior. Component tests pass accessibility and
+  responsive transformations; authenticated representative-data live review remains target-host
+  validation. The deployed 30-read performance canary recorded p95 12.551 ms (<300 ms).
+
 ### 2026-08-02 — Governed Reactivation pipeline (CORE-03)
 
 **Added**

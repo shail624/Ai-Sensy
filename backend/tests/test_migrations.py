@@ -91,6 +91,7 @@ _EXPECTED_TABLES = {
     "eligibility_checks",
     "kyc_cases",
     "kyc_decisions",
+    "kyc_document_references",
     "sim_orders",
     "sim_order_events",
     "activation_records",
@@ -135,7 +136,13 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0032_vi_domain_foundation"
+        assert version == "0033_kyc_operations"
+        task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
+        decision_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
+        }
+        assert {"reference_type", "reference_id", "idempotency_key", "request_hash"} <= task_columns
+        assert "reason_code" in decision_columns
     finally:
         con.close()
 

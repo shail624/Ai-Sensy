@@ -29,6 +29,18 @@ EligibilityStatus = Literal["pending", "eligible", "not_eligible", "review_requi
 EligibilitySource = Literal["rules", "manual", "override"]
 KycStatus = Literal["pending", "documents_pending", "under_review", "approved", "rejected"]
 KycDecisionValue = Literal["approved", "rejected", "needs_information"]
+KycDocumentPurpose = Literal["aadhaar", "pan"]
+KycReasonCode = Literal[
+    "holder_mismatch",
+    "delhi_presence_unverified",
+    "active_number_unverified",
+    "aadhaar_missing",
+    "pan_missing",
+    "document_unreadable",
+    "document_mismatch",
+    "customer_unavailable",
+    "other",
+]
 SimOrderStatus = Literal[
     "requested", "approved", "assigned", "dispatched", "delivered", "failed", "cancelled"
 ]
@@ -99,13 +111,30 @@ class KycUpdateRequest(VersionedRequest):
 
 class KycDecisionRequest(IdempotentRequest, VersionedRequest):
     decision: KycDecisionValue
+    reason_code: KycReasonCode | None = None
     reason: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
     def validate_reason(self) -> KycDecisionRequest:
         if self.decision != "approved" and not (self.reason or "").strip():
             raise ValueError("reason is required unless approving")
+        if self.decision != "approved" and self.reason_code is None:
+            raise ValueError("reason_code is required unless approving")
+        if self.decision == "approved" and self.reason_code is not None:
+            raise ValueError("reason_code is only valid for a non-approval decision")
         return self
+
+
+class KycDocumentReferenceRequest(VersionedRequest):
+    purpose: KycDocumentPurpose
+    document_id: uuidlib.UUID
+
+
+class KycAppointmentCreateRequest(IdempotentRequest, VersionedRequest):
+    due_at: datetime
+    reminder_at: datetime | None = None
+    assigned_agent_id: uuidlib.UUID | None = None
+    description: str | None = Field(default=None, max_length=4096)
 
 
 class SimOrderCreateRequest(IdempotentRequest):
@@ -276,6 +305,7 @@ class KycCaseResponse(BaseModel):
     contact_id: uuidlib.UUID
     status: KycStatus
     owner_user_id: uuidlib.UUID | None
+    requester_user_id: uuidlib.UUID | None
     holder_verified: bool
     delhi_presence_verified: bool
     active_delhi_number_verified: bool
@@ -290,9 +320,50 @@ class KycDecisionResponse(BaseModel):
     kyc_case_id: uuidlib.UUID
     decision_type: Literal["review", "manager_approval"]
     decision: KycDecisionValue
+    reason_code: KycReasonCode | None
     reason: str | None
     decided_by: uuidlib.UUID | None
     decided_at: datetime
+
+
+class KycDocumentReferenceResponse(BaseModel):
+    id: uuidlib.UUID
+    kyc_case_id: uuidlib.UUID
+    purpose: KycDocumentPurpose
+    document_id: uuidlib.UUID
+    document_title: str
+    document_type: str
+    document_status: str
+    row_version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class KycAppointmentResponse(BaseModel):
+    id: str
+    title: str
+    status: str
+    due_at: datetime
+    reminder_at: datetime | None
+    assigned_agent_id: str
+    assigned_agent_name: str | None
+    row_version: int
+
+
+class KycOperationsCardResponse(KycCaseResponse):
+    contact_name: str
+    contact_phone: str
+    contact_email: str | None
+    owner_name: str | None
+    reactivation_stage: ReactivationStage
+    checklist: list[KycDocumentReferenceResponse]
+    checklist_complete: bool
+    progress_percent: int = Field(ge=0, le=100)
+    latest_review: KycDecisionResponse | None
+    latest_manager_decision: KycDecisionResponse | None
+    appointments: list[KycAppointmentResponse]
+    sla_status: Literal["not_configured", "on_track", "breached", "resolved"]
+    sla_due_at: datetime | None
 
 
 class SimOrderResponse(BaseModel):
@@ -386,6 +457,19 @@ class KycCaseListResponse(BaseModel):
 
 class KycDecisionListResponse(BaseModel):
     data: list[KycDecisionResponse]
+
+
+class KycDocumentReferenceListResponse(BaseModel):
+    data: list[KycDocumentReferenceResponse]
+
+
+class KycAppointmentListResponse(BaseModel):
+    data: list[KycAppointmentResponse]
+
+
+class KycOperationsResponse(BaseModel):
+    data: list[KycOperationsCardResponse]
+    total: int
 
 
 class SimOrderListResponse(BaseModel):

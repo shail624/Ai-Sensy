@@ -69,6 +69,18 @@ KYC_PREPARATION_TRANSITIONS: dict[str, frozenset[str]] = {
 }
 KYC_DECISIONS = ("approved", "rejected", "needs_information")
 KYC_DECISION_TYPES = ("review", "manager_approval")
+KYC_DOCUMENT_PURPOSES = ("aadhaar", "pan")
+KYC_REJECTION_REASON_CODES = (
+    "holder_mismatch",
+    "delhi_presence_unverified",
+    "active_number_unverified",
+    "aadhaar_missing",
+    "pan_missing",
+    "document_unreadable",
+    "document_mismatch",
+    "customer_unavailable",
+    "other",
+)
 SIM_ORDER_STATUSES = (
     "requested",
     "approved",
@@ -241,12 +253,39 @@ class KycDecision(IntPKMixin, UUIDMixin, Base):
     contact_id: Mapped[int] = mapped_column(big_id(), nullable=False)
     decision_type: Mapped[str] = mapped_column(String(24), nullable=False)
     decision: Mapped[str] = mapped_column(String(24), nullable=False)
+    reason_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_by: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     decided_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
     idempotency_key: Mapped[bytes] = mapped_column(uuid_binary(), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+
+
+class KycDocumentReference(
+    IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionMixin, Base
+):
+    """KYC checklist pointer to the existing protected Document Center authority."""
+
+    __tablename__ = "kyc_document_references"
+    __table_args__ = (
+        UniqueConstraint("kyc_case_id", "purpose", name="uq_kyc_document_ref_purpose"),
+        Index("ix_kyc_document_ref_org_case", "organization_id", "kyc_case_id"),
+        CheckConstraint(
+            _in_clause("purpose", KYC_DOCUMENT_PURPOSES), name="ck_kyc_document_ref_purpose"
+        ),
+        MYSQL_TABLE_ARGS,
+    )
+    organization_id: Mapped[int] = mapped_column(
+        big_id(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    kyc_case_id: Mapped[int] = mapped_column(
+        big_id(), ForeignKey("kyc_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    document_id: Mapped[int] = mapped_column(
+        big_id(), ForeignKey("contact_documents.id", ondelete="RESTRICT"), nullable=False
+    )
+    purpose: Mapped[str] = mapped_column(String(16), nullable=False)
 
 
 class SimOrder(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionMixin, Base):

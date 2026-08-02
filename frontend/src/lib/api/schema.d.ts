@@ -3029,6 +3029,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kyc-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Kyc Operations */
+        get: operations["get_kyc_operations_api_v1_kyc_operations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contacts/{contact_id}/kyc-cases": {
         parameters: {
             query?: never;
@@ -3079,6 +3096,59 @@ export interface paths {
         head?: never;
         /** Update Kyc Case */
         patch: operations["update_kyc_case_api_v1_kyc_cases__kyc_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}/document-references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kyc Document References */
+        get: operations["list_kyc_document_references_api_v1_kyc_cases__kyc_id__document_references_get"];
+        /** Set Kyc Document Reference */
+        put: operations["set_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}/document-references/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Kyc Document Reference */
+        delete: operations["remove_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references__purpose__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kyc Appointments */
+        get: operations["list_kyc_appointments_api_v1_kyc_cases__kyc_id__appointments_get"];
+        put?: never;
+        /** Create Kyc Appointment */
+        post: operations["create_kyc_appointment_api_v1_kyc_cases__kyc_id__appointments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/kyc-cases/{kyc_id}/decisions": {
@@ -5512,6 +5582,54 @@ export interface components {
             data: components["schemas"]["JobResponse"][];
             page: components["schemas"]["Page"];
         };
+        /** KycAppointmentCreateRequest */
+        KycAppointmentCreateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Reminder At */
+            reminder_at?: string | null;
+            /** Assigned Agent Id */
+            assigned_agent_id?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** KycAppointmentListResponse */
+        KycAppointmentListResponse: {
+            /** Data */
+            data: components["schemas"]["KycAppointmentResponse"][];
+        };
+        /** KycAppointmentResponse */
+        KycAppointmentResponse: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Reminder At */
+            reminder_at: string | null;
+            /** Assigned Agent Id */
+            assigned_agent_id: string;
+            /** Assigned Agent Name */
+            assigned_agent_name: string | null;
+            /** Row Version */
+            row_version: number;
+        };
         /** KycCaseListResponse */
         KycCaseListResponse: {
             /** Data */
@@ -5543,6 +5661,8 @@ export interface components {
             status: "pending" | "documents_pending" | "under_review" | "approved" | "rejected";
             /** Owner User Id */
             owner_user_id: string | null;
+            /** Requester User Id */
+            requester_user_id: string | null;
             /** Holder Verified */
             holder_verified: boolean;
             /** Delhi Presence Verified */
@@ -5595,6 +5715,8 @@ export interface components {
              * @enum {string}
              */
             decision: "approved" | "rejected" | "needs_information";
+            /** Reason Code */
+            reason_code?: ("holder_mismatch" | "delhi_presence_unverified" | "active_number_unverified" | "aadhaar_missing" | "pan_missing" | "document_unreadable" | "document_mismatch" | "customer_unavailable" | "other") | null;
             /** Reason */
             reason?: string | null;
         };
@@ -5620,6 +5742,8 @@ export interface components {
              * @enum {string}
              */
             decision: "approved" | "rejected" | "needs_information";
+            /** Reason Code */
+            reason_code: ("holder_mismatch" | "delhi_presence_unverified" | "active_number_unverified" | "aadhaar_missing" | "pan_missing" | "document_unreadable" | "document_mismatch" | "customer_unavailable" | "other") | null;
             /** Reason */
             reason: string | null;
             /** Decided By */
@@ -5629,6 +5753,151 @@ export interface components {
              * Format: date-time
              */
             decided_at: string;
+        };
+        /** KycDocumentReferenceListResponse */
+        KycDocumentReferenceListResponse: {
+            /** Data */
+            data: components["schemas"]["KycDocumentReferenceResponse"][];
+        };
+        /** KycDocumentReferenceRequest */
+        KycDocumentReferenceRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "aadhaar" | "pan";
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+        };
+        /** KycDocumentReferenceResponse */
+        KycDocumentReferenceResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kyc Case Id
+             * Format: uuid
+             */
+            kyc_case_id: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "aadhaar" | "pan";
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Title */
+            document_title: string;
+            /** Document Type */
+            document_type: string;
+            /** Document Status */
+            document_status: string;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** KycOperationsCardResponse */
+        KycOperationsCardResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reactivation Case Id
+             * Format: uuid
+             */
+            reactivation_case_id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "documents_pending" | "under_review" | "approved" | "rejected";
+            /** Owner User Id */
+            owner_user_id: string | null;
+            /** Requester User Id */
+            requester_user_id: string | null;
+            /** Holder Verified */
+            holder_verified: boolean;
+            /** Delhi Presence Verified */
+            delhi_presence_verified: boolean;
+            /** Active Delhi Number Verified */
+            active_delhi_number_verified: boolean;
+            /** Appointment At */
+            appointment_at: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Contact Email */
+            contact_email: string | null;
+            /** Owner Name */
+            owner_name: string | null;
+            /**
+             * Reactivation Stage
+             * @enum {string}
+             */
+            reactivation_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Checklist */
+            checklist: components["schemas"]["KycDocumentReferenceResponse"][];
+            /** Checklist Complete */
+            checklist_complete: boolean;
+            /** Progress Percent */
+            progress_percent: number;
+            latest_review: components["schemas"]["KycDecisionResponse"] | null;
+            latest_manager_decision: components["schemas"]["KycDecisionResponse"] | null;
+            /** Appointments */
+            appointments: components["schemas"]["KycAppointmentResponse"][];
+            /**
+             * Sla Status
+             * @enum {string}
+             */
+            sla_status: "not_configured" | "on_track" | "breached" | "resolved";
+            /** Sla Due At */
+            sla_due_at: string | null;
+        };
+        /** KycOperationsResponse */
+        KycOperationsResponse: {
+            /** Data */
+            data: components["schemas"]["KycOperationsCardResponse"][];
+            /** Total */
+            total: number;
         };
         /** KycUpdateRequest */
         KycUpdateRequest: {
@@ -7419,6 +7688,10 @@ export interface components {
             contact_name: string | null;
             /** Conversation Id */
             conversation_id: string | null;
+            /** Reference Type */
+            reference_type: string | null;
+            /** Reference Id */
+            reference_id: string | null;
             /** Title */
             title: string;
             /** Task Type */
@@ -14602,6 +14875,39 @@ export interface operations {
             };
         };
     };
+    get_kyc_operations_api_v1_kyc_operations_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                kyc_status?: ("pending" | "documents_pending" | "under_review" | "approved" | "rejected")[] | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycOperationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_contact_kyc_cases_api_v1_contacts__contact_id__kyc_cases_get: {
         parameters: {
             query?: never;
@@ -14721,6 +15027,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KycCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_kyc_document_references_api_v1_kyc_cases__kyc_id__document_references_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDocumentReferenceListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycDocumentReferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDocumentReferenceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references__purpose__delete: {
+        parameters: {
+            query: {
+                expected_row_version: number;
+            };
+            header?: never;
+            path: {
+                kyc_id: string;
+                purpose: "aadhaar" | "pan";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_kyc_appointments_api_v1_kyc_cases__kyc_id__appointments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycAppointmentListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_kyc_appointment_api_v1_kyc_cases__kyc_id__appointments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycAppointmentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycAppointmentResponse"];
                 };
             };
             /** @description Validation Error */

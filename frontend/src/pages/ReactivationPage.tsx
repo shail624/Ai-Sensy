@@ -5,6 +5,7 @@ import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { Badge, Button, Card, CardHeader, EmptyState } from "@/components/ui";
 import { AiFoundationPanel } from "@/features/ai";
 import { DocumentCenter, ReactivationPipelineBoard, ReactivationReports, REACTIVATION_SECTIONS } from "@/features/reactivation";
+import { KycOperationsWorkspace } from "@/features/kyc";
 
 export function ReactivationPage(): JSX.Element {
   const location = useLocation();
@@ -46,6 +47,7 @@ export function ReactivationWorkspace(): JSX.Element {
   const location = useLocation();
   const section = REACTIVATION_SECTIONS.find((item) => location.pathname.startsWith(item.path));
   if (section?.key === "pipeline") return <ReactivationPipelineBoard />;
+  if (section?.key === "kyc") return <KycOperationsWorkspace />;
   if (section?.key === "documents") return <DocumentCenter />;
   if (section?.key === "reports") return <ReactivationReports />;
 
@@ -53,7 +55,6 @@ export function ReactivationWorkspace(): JSX.Element {
     eligible: { label: "Build an eligibility segment", path: "/segments/new" },
     bulk: { label: "Open contact import", path: "/contacts?import=1" },
     interested: { label: "Open customer CRM", path: "/contacts" },
-    kyc: { label: "Open verification tasks", path: "/tasks?type=verification" },
     documents: { label: "Open document library", path: "/media?type=document" },
     sim: { label: "Open fulfilment tasks", path: "/tasks" },
     activation: { label: "Open customer pipeline", path: "/pipelines" },

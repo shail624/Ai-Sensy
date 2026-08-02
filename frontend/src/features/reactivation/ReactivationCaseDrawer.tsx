@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import { Badge, Button, EmptyState, ErrorState, Modal, Skeleton } from "@/components/ui";
 import { useUsers } from "@/features/admin/api";
 import { DocumentWorkspace } from "@/features/documents";
+import { apiErrorMessage as kycErrorMessage, useContactKycCases, useCreateKycCase } from "@/features/kyc/api";
+import { KYC_STATUS_LABELS } from "@/features/kyc/types";
 import {
   apiErrorMessage,
   useAddReactivationNote,
@@ -32,7 +34,7 @@ import {
 import { TasksSectionForProfile } from "@/features/tasks/TasksSectionForProfile";
 import { useAuth, useHasPermission } from "@/lib/auth";
 
-type DrawerTab = "overview" | "activity" | "work" | "documents";
+type DrawerTab = "overview" | "activity" | "work" | "documents" | "kyc";
 
 const FIELD =
   "h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-focus/20";
@@ -92,6 +94,7 @@ export function ReactivationCaseDrawer({
     { key: "activity", label: "History", icon: History },
     { key: "work", label: "Tasks", icon: ListChecks },
     { key: "documents", label: "Documents", icon: FileText },
+    { key: "kyc", label: "KYC", icon: ShieldAlert },
   ];
 
   return (
@@ -109,7 +112,7 @@ export function ReactivationCaseDrawer({
           </Link>
         </div>
 
-        <div role="tablist" aria-label="Reactivation case details" className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-surface-2 p-1">
+        <div role="tablist" aria-label="Reactivation case details" className="grid grid-cols-5 gap-1 rounded-xl border border-border bg-surface-2 p-1">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -175,9 +178,24 @@ export function ReactivationCaseDrawer({
         {tab === "activity" ? <CaseActivity card={card} /> : null}
         {tab === "work" ? <div role="tabpanel"><TasksSectionForProfile contactId={card.contact_id} /></div> : null}
         {tab === "documents" ? <div role="tabpanel"><DocumentWorkspace contactId={card.contact_id} compact /></div> : null}
+        {tab === "kyc" ? <KycEntryPanel card={card} /> : null}
       </div>
     </Modal>
   );
+}
+
+function KycEntryPanel({ card }: { card: ReactivationCard }): JSX.Element {
+  const canRead = useHasPermission("kyc:read");
+  const canWrite = useHasPermission("kyc:write");
+  const query = useContactKycCases(card.contact_id, canRead);
+  const create = useCreateKycCase();
+  const record = query.data?.[0];
+  const eligibleStage = ["documents_received", "kyc_pending", "verification"].includes(card.stage);
+  if (!canRead) return <EmptyState title="KYC access is restricted" description="Your role cannot view this case's KYC record." />;
+  if (query.isLoading) return <Skeleton className="h-36 w-full" />;
+  if (query.isError) return <ErrorState message={kycErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
+  if (record) return <section role="tabpanel" className="rounded-xl border border-border p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Governed KYC case</h3><p className="mt-1 text-xs text-text-secondary">Verification state is persisted and shared with Customer 360.</p></div><Badge tone={record.status === "approved" ? "success" : record.status === "rejected" ? "danger" : "warning"}>{KYC_STATUS_LABELS[record.status]}</Badge></div><div className="mt-3 grid grid-cols-3 gap-2">{[["Holder",record.holder_verified],["Delhi",record.delhi_presence_verified],["Active number",record.active_delhi_number_verified]].map(([label,value]) => <div key={label as string} className="rounded-lg bg-surface-2 p-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-text-disabled">{label as string}</p><p className={`mt-1 text-xs font-semibold ${value ? "text-success" : "text-warning"}`}>{value ? "Verified" : "Required"}</p></div>)}</div><Link to="/reactivation/kyc" className="mt-4 inline-flex"><Button>Open KYC Operations</Button></Link></section>;
+  return <section role="tabpanel" className="rounded-xl border border-border p-4"><div className="flex items-center gap-2"><ShieldAlert aria-hidden className="h-4 w-4 text-accent" /><h3 className="text-sm font-semibold text-text-primary">Open KYC case</h3></div><p className="mt-2 text-xs leading-relaxed text-text-secondary">KYC can begin only after governed documents are received. Opening the case records audit and Timeline evidence and moves this Reactivation case into KYC pending.</p>{!eligibleStage ? <div className="mt-3"><EmptyState compact title="KYC prerequisites are not met" description={`Move the case through governed document intake before KYC. Current stage: ${REACTIVATION_STAGE_LABELS[card.stage]}.`} /></div> : null}{create.error ? <div className="mt-3"><ErrorState message={kycErrorMessage(create.error)} /></div> : null}{canWrite && eligibleStage ? <div className="mt-4 flex justify-end"><Button loading={create.isPending} onClick={() => create.mutate({ caseId: card.id, ownerUserId: card.owner_user_id })}>Create KYC case</Button></div> : !canWrite ? <p className="mt-3 text-xs text-warning">Read-only: KYC write permission is required.</p> : null}</section>;
 }
 
 function CaseFacts({ card }: { card: ReactivationCard }): JSX.Element {

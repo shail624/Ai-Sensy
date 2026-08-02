@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import case, func, or_, select
 
@@ -13,7 +13,9 @@ from app.models.task import TASK_STATUS_OPEN, Task
 from app.models.user import User
 from app.models.vi_domain import (
     EligibilityCheck,
+    KycCase,
     KycDecision,
+    KycDocumentReference,
     ReactivationCase,
     ReactivationStageEvent,
     SimOrderEvent,
@@ -104,6 +106,141 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             )
         ).all()
         return {str(stage): int(count) for stage, count in rows}
+
+    async def kyc_operations(
+        self,
+        organization_id: int,
+        *,
+        q: str | None,
+        statuses: list[str] | None,
+        limit: int,
+    ) -> tuple[list[tuple[KycCase, ReactivationCase, Contact, User | None]], int]:
+        clauses: list[Any] = [
+            KycCase.organization_id == organization_id,
+            Contact.organization_id == organization_id,
+            Contact.deleted_at.is_(None),
+            ReactivationCase.organization_id == organization_id,
+            ReactivationCase.deleted_at.is_(None),
+        ]
+        if statuses:
+            clauses.append(KycCase.status.in_(statuses))
+        if q:
+            text = q.strip()
+            like = f"%{text.lower()}%"
+            clauses.append(
+                or_(
+                    func.lower(Contact.full_name).like(like),
+                    func.lower(Contact.profile_name).like(like),
+                    func.lower(Contact.email).like(like),
+                    Contact.phone_e164.like(f"%{text}%"),
+                )
+            )
+        base = (
+            select(KycCase, ReactivationCase, Contact, User)
+            .join(ReactivationCase, ReactivationCase.id == KycCase.reactivation_case_id)
+            .join(Contact, Contact.id == KycCase.contact_id)
+            .outerjoin(User, User.id == KycCase.owner_user_id)
+            .where(*clauses)
+        )
+        rows = list(
+            (
+                await self.session.execute(
+                    base.order_by(KycCase.updated_at.desc(), KycCase.id.desc()).limit(limit)
+                )
+            )
+            .tuples()
+            .all()
+        )
+        total = int(
+            (
+                await self.session.scalar(
+                    select(func.count())
+                    .select_from(KycCase)
+                    .join(ReactivationCase, ReactivationCase.id == KycCase.reactivation_case_id)
+                    .join(Contact, Contact.id == KycCase.contact_id)
+                    .where(*clauses)
+                )
+            )
+            or 0
+        )
+        return cast(list[tuple[KycCase, ReactivationCase, Contact, User | None]], rows), total
+
+    async def kyc_operations_evidence(
+        self, organization_id: int, kyc_ids: list[int]
+    ) -> dict[str, dict[int, Any]]:
+        result: dict[str, dict[int, Any]] = {
+            "documents": {},
+            "decisions": {},
+            "appointments": {},
+            "sla": {},
+        }
+        if not kyc_ids:
+            return result
+        document_rows = (
+            await self.session.execute(
+                select(KycDocumentReference, ContactDocument)
+                .join(ContactDocument, ContactDocument.id == KycDocumentReference.document_id)
+                .where(
+                    KycDocumentReference.organization_id == organization_id,
+                    KycDocumentReference.kyc_case_id.in_(kyc_ids),
+                    ContactDocument.organization_id == organization_id,
+                    ContactDocument.deleted_at.is_(None),
+                )
+                .order_by(KycDocumentReference.kyc_case_id, KycDocumentReference.purpose)
+            )
+        ).tuples().all()
+        for reference, document in document_rows:
+            result["documents"].setdefault(reference.kyc_case_id, []).append(
+                (reference, document)
+            )
+        decisions = list(
+            (
+                await self.session.scalars(
+                    select(KycDecision)
+                    .where(
+                        KycDecision.organization_id == organization_id,
+                        KycDecision.kyc_case_id.in_(kyc_ids),
+                    )
+                    .order_by(KycDecision.kyc_case_id, KycDecision.created_at, KycDecision.id)
+                )
+            ).all()
+        )
+        for decision in decisions:
+            result["decisions"].setdefault(decision.kyc_case_id, []).append(decision)
+        appointments = list(
+            (
+                await self.session.scalars(
+                    select(Task)
+                    .where(
+                        Task.organization_id == organization_id,
+                        Task.reference_type == "kyc_case",
+                        Task.reference_id.in_(kyc_ids),
+                        Task.deleted_at.is_(None),
+                    )
+                    .order_by(Task.reference_id, Task.due_at.desc(), Task.id.desc())
+                )
+            ).all()
+        )
+        for task in appointments:
+            if task.reference_id is None:
+                continue
+            result["appointments"].setdefault(task.reference_id, []).append(task)
+        sla_rows = list(
+            (
+                await self.session.scalars(
+                    select(SlaEvent)
+                    .where(
+                        SlaEvent.organization_id == organization_id,
+                        SlaEvent.entity_type == "kyc_case",
+                        SlaEvent.entity_id.in_(kyc_ids),
+                    )
+                    .order_by(SlaEvent.entity_id, SlaEvent.created_at.desc(), SlaEvent.id.desc())
+                )
+            ).all()
+        )
+        for event in sla_rows:
+            result["sla"].setdefault(event.entity_id, event)
+        return result
 
     async def latest_pipeline_evidence(
         self, organization_id: int, case_ids: list[int], contact_ids: list[int]
@@ -346,6 +483,38 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
                 )
             ).all()
         )
+
+    async def kyc_document_references(
+        self, organization_id: int, kyc_case_id: int
+    ) -> list[tuple[KycDocumentReference, ContactDocument]]:
+        return list(
+            (
+                await self.session.execute(
+                    select(KycDocumentReference, ContactDocument)
+                    .join(ContactDocument, ContactDocument.id == KycDocumentReference.document_id)
+                    .where(
+                        KycDocumentReference.organization_id == organization_id,
+                        KycDocumentReference.kyc_case_id == kyc_case_id,
+                        ContactDocument.organization_id == organization_id,
+                        ContactDocument.deleted_at.is_(None),
+                    )
+                    .order_by(KycDocumentReference.purpose)
+                )
+            ).tuples().all()
+        )
+
+    async def kyc_document_reference(
+        self, organization_id: int, kyc_case_id: int, purpose: str
+    ) -> KycDocumentReference | None:
+        return (
+            await self.session.scalars(
+                select(KycDocumentReference).where(
+                    KycDocumentReference.organization_id == organization_id,
+                    KycDocumentReference.kyc_case_id == kyc_case_id,
+                    KycDocumentReference.purpose == purpose,
+                )
+            )
+        ).first()
 
     async def sim_events(self, sim_order_id: int) -> list[SimOrderEvent]:
         return list(

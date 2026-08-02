@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -28,7 +28,7 @@ from app.db.mixins import (
     UUIDMixin,
     VersionMixin,
 )
-from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6
+from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6, uuid_binary
 
 # --- Value objects (Doc 14 §4.2) --------------------------------------------------------------
 TASK_TYPE_CALL = "call"
@@ -114,6 +114,20 @@ class Task(
         ),
         # Conversation / lead tasks.
         Index("ix_tasks_organization_id_conversation_id", "organization_id", "conversation_id"),
+        Index(
+            "ix_tasks_organization_reference_status_due",
+            "organization_id",
+            "reference_type",
+            "reference_id",
+            "status",
+            "due_at",
+        ),
+        UniqueConstraint("organization_id", "idempotency_key", name="uq_tasks_idempotency"),
+        CheckConstraint(
+            "(reference_type IS NULL AND reference_id IS NULL) OR "
+            "(reference_type = 'kyc_case' AND reference_id IS NOT NULL)",
+            name="ck_tasks_reference_pair",
+        ),
         # "Assigned by me" (Doc 14 §10).
         Index(
             "ix_tasks_organization_id_created_by_status",
@@ -144,6 +158,11 @@ class Task(
         ForeignKey("conversations.id", name="fk_tasks_conversation_id", ondelete="SET NULL"),
         nullable=True,
     )
+    #: Optional governed-domain anchor. The task remains the appointment lifecycle authority.
+    reference_type: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    reference_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
+    idempotency_key: Mapped[bytes | None] = mapped_column(uuid_binary(), nullable=True)
+    request_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     #: The owner/doer — required, RESTRICT (a task must always have an assignee).
     assigned_agent_id: Mapped[int] = mapped_column(
         big_id(),

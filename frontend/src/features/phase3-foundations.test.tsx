@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { navItems } from "@/components/layout/navigation";
 import { AiFoundationPanel } from "@/features/ai";
@@ -18,12 +18,27 @@ const contact = {
   updated_at: "2026-07-25T00:00:00Z", row_version: 1,
 } satisfies Contact;
 
+vi.mock("@/lib/auth", () => ({ useHasPermission: () => true }));
+vi.mock("@/features/kyc/api", () => ({
+  apiErrorMessage: () => "KYC unavailable",
+  useContactKycCases: () => ({
+    data: [{
+      id: "kyc-1", contact_id: "contact-1", reactivation_case_id: "case-1",
+      requester_user_id: "user-1", status: "under_review", owner_user_id: "user-2",
+      holder_verified: true, delhi_presence_verified: true,
+      active_delhi_number_verified: false, appointment_at: null, row_version: 3,
+      created_at: "2026-08-01T00:00:00Z", updated_at: "2026-08-02T00:00:00Z",
+    }],
+    isLoading: false, isError: false, error: null, refetch: vi.fn(),
+  }),
+}));
+
 describe("Phase 3 reactivation and automation foundations", () => {
   it("provides every planned reactivation destination without duplicating a domain engine", () => {
     expect(REACTIVATION_SECTIONS.map((section) => section.key)).toEqual([
       "eligible", "bulk", "interested", "pipeline", "kyc", "documents", "sim", "activation", "completed", "reports",
     ]);
-    expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "documents", "reports"]);
+    expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "kyc", "documents", "reports"]);
     expect(REACTIVATION_STAGE_BLUEPRINT).toEqual([
       "New lead", "Follow-up", "Interested", "Eligibility check", "Eligible",
       "Documents pending", "Documents received", "KYC pending", "Verification", "Confirmed",
@@ -42,9 +57,10 @@ describe("Phase 3 reactivation and automation foundations", () => {
     expect(screen.getByRole("button", { name: "Upload scan batch" })).toBeDisabled();
   });
 
-  it("projects typed CRM KYC and SIM values without claiming workflow records", () => {
+  it("projects governed KYC records while retaining the honest SIM foundation", () => {
     const { rerender } = render(<ReactivationSection contact={contact} focus="kyc" />);
-    expect(screen.getByText("submitted")).toBeInTheDocument();
+    expect(screen.getByText("Under review")).toBeInTheDocument();
+    expect(screen.getByText("Active Delhi number")).toBeInTheDocument();
     expect(screen.queryByText("ordered")).not.toBeInTheDocument();
     rerender(<ReactivationSection contact={contact} focus="sim" />);
     expect(screen.getByText("ordered")).toBeInTheDocument();

@@ -109,10 +109,12 @@ export function useCompleteTask() {
       taskId,
       completionNotes,
       createTimelineNote = false,
+      expectedRowVersion,
     }: {
       taskId: string;
       completionNotes?: string | null;
       createTimelineNote?: boolean;
+      expectedRowVersion?: number;
     }): Promise<Task> =>
       unwrap(
         await api.POST("/api/v1/tasks/{task_id}/complete", {
@@ -120,6 +122,7 @@ export function useCompleteTask() {
           body: {
             completion_notes: completionNotes ?? null,
             create_timeline_note: createTimelineNote,
+            expected_row_version: expectedRowVersion,
           },
         }),
       ),
@@ -129,9 +132,9 @@ export function useCompleteTask() {
 /** Skip and cancel share one request body (`TaskReasonRequest`, Doc 14 §8). */
 function useReasonAction(action: "skip" | "cancel") {
   return useTaskMutation(
-    async ({ taskId, reason }: { taskId: string; reason?: string | null }): Promise<Task> => {
+    async ({ taskId, reason, expectedRowVersion }: { taskId: string; reason?: string | null; expectedRowVersion?: number }): Promise<Task> => {
       const path = { path: { task_id: taskId } };
-      const body = { reason: reason ?? null };
+      const body = { reason: reason ?? null, expected_row_version: expectedRowVersion };
       return unwrap(
         action === "skip"
           ? await api.POST("/api/v1/tasks/{task_id}/skip", { params: path, body })
@@ -162,15 +165,17 @@ export function useRescheduleTask() {
       taskId,
       dueAt,
       hasTime,
+      expectedRowVersion,
     }: {
       taskId: string;
       dueAt: string;
       hasTime?: boolean;
+      expectedRowVersion?: number;
     }): Promise<Task> =>
       unwrap(
         await api.POST("/api/v1/tasks/{task_id}/reschedule", {
           params: { path: { task_id: taskId } },
-          body: { due_at: dueAt, has_time: hasTime ?? true },
+          body: { due_at: dueAt, has_time: hasTime ?? true, expected_row_version: expectedRowVersion },
         }),
       ),
   );

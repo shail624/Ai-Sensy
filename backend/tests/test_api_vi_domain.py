@@ -174,14 +174,18 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/reactivation-cases/{case_id}/notes",
         "/api/v1/reactivation-pipeline",
         "/api/v1/kyc-cases/{kyc_id}/approvals",
+        "/api/v1/kyc-operations",
+        "/api/v1/kyc-cases/{kyc_id}/document-references",
+        "/api/v1/kyc-cases/{kyc_id}/appointments",
         "/api/v1/sim-orders/{order_id}/transition",
         "/api/v1/activation-records/{activation_id}/approval",
         "/api/v1/sla/events",
     }
     assert expected <= set(schema["paths"])
-    assert len(schema["paths"]) == 184
+    assert len(schema["paths"]) == 188
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
+    assert "KycOperationsResponse" in schema["components"]["schemas"]
     for immutable_path in (
         "/api/v1/eligibility-checks/{check_id}",
         "/api/v1/kyc-decisions/{decision_id}",

@@ -20,6 +20,8 @@ function taskFixture(overrides: Partial<Task> = {}): Task {
     contact_id: "c1",
     contact_name: "Ramesh K.",
     conversation_id: null,
+    reference_type: null,
+    reference_id: null,
     title: "Collect Aadhaar",
     task_type: "collect_documents",
     status: "open",

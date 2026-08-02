@@ -18,12 +18,21 @@ from app.schemas.vi_domain import (
     EligibilityCheckResponse,
     EligibilityCreateRequest,
     EligibilityListResponse,
+    KycAppointmentCreateRequest,
+    KycAppointmentListResponse,
+    KycAppointmentResponse,
     KycCaseListResponse,
     KycCaseResponse,
     KycCreateRequest,
     KycDecisionListResponse,
     KycDecisionRequest,
     KycDecisionResponse,
+    KycDocumentPurpose,
+    KycDocumentReferenceListResponse,
+    KycDocumentReferenceRequest,
+    KycDocumentReferenceResponse,
+    KycOperationsResponse,
+    KycStatus,
     KycUpdateRequest,
     ReactivationCaseListResponse,
     ReactivationCaseResponse,
@@ -74,6 +83,7 @@ SlaManager = Annotated[User, Depends(require_permissions("sla:manage"))]
 Limit = Annotated[int, Query(ge=1, le=200)]
 PipelineQuery = Annotated[str | None, Query(max_length=160)]
 PipelineStages = Annotated[list[ReactivationStage] | None, Query()]
+KycStatuses = Annotated[list[KycStatus] | None, Query()]
 
 
 @router.get("/reactivation-pipeline", response_model=ReactivationPipelineResponse)
@@ -278,6 +288,24 @@ async def list_kyc_cases(
     return KycCaseListResponse(data=[KycCaseResponse(**row) for row in rows], total=total)
 
 
+@router.get("/kyc-operations", response_model=KycOperationsResponse)
+async def get_kyc_operations(
+    session: SessionDep,
+    actor: KycReader,
+    q: PipelineQuery = None,
+    kyc_status: KycStatuses = None,
+    limit: Limit = 200,
+) -> KycOperationsResponse:
+    return KycOperationsResponse(
+        **await ViDomainService(session).kyc_operations(
+            actor.organization_id,
+            q=q,
+            statuses=list(kyc_status) if kyc_status else None,
+            limit=limit,
+        )
+    )
+
+
 @router.get("/contacts/{contact_id}/kyc-cases", response_model=KycCaseListResponse)
 async def list_contact_kyc_cases(
     contact_id: uuidlib.UUID, session: SessionDep, actor: KycReader
@@ -319,6 +347,94 @@ async def update_kyc_case(
 ) -> KycCaseResponse:
     return KycCaseResponse(
         **await ViDomainService(session).update_kyc(
+            organization_id=actor.organization_id,
+            actor=actor,
+            public_id=kyc_id,
+            payload=payload.model_dump(),
+        )
+    )
+
+
+@router.get(
+    "/kyc-cases/{kyc_id}/document-references",
+    response_model=KycDocumentReferenceListResponse,
+)
+async def list_kyc_document_references(
+    kyc_id: uuidlib.UUID, session: SessionDep, actor: KycReader
+) -> KycDocumentReferenceListResponse:
+    rows = await ViDomainService(session).list_kyc_document_references(
+        actor.organization_id, kyc_id
+    )
+    return KycDocumentReferenceListResponse(
+        data=[KycDocumentReferenceResponse(**row) for row in rows]
+    )
+
+
+@router.put(
+    "/kyc-cases/{kyc_id}/document-references",
+    response_model=KycDocumentReferenceResponse,
+)
+async def set_kyc_document_reference(
+    kyc_id: uuidlib.UUID,
+    payload: KycDocumentReferenceRequest,
+    session: SessionDep,
+    actor: KycWriter,
+) -> KycDocumentReferenceResponse:
+    return KycDocumentReferenceResponse(
+        **await ViDomainService(session).set_kyc_document_reference(
+            organization_id=actor.organization_id,
+            actor=actor,
+            public_id=kyc_id,
+            payload=payload.model_dump(),
+        )
+    )
+
+
+@router.delete(
+    "/kyc-cases/{kyc_id}/document-references/{purpose}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_kyc_document_reference(
+    kyc_id: uuidlib.UUID,
+    purpose: KycDocumentPurpose,
+    session: SessionDep,
+    actor: KycWriter,
+    expected_row_version: Annotated[int, Query(ge=0)],
+) -> None:
+    await ViDomainService(session).remove_kyc_document_reference(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=kyc_id,
+        purpose=purpose,
+        expected_row_version=expected_row_version,
+    )
+
+
+@router.get(
+    "/kyc-cases/{kyc_id}/appointments", response_model=KycAppointmentListResponse
+)
+async def list_kyc_appointments(
+    kyc_id: uuidlib.UUID, session: SessionDep, actor: KycReader
+) -> KycAppointmentListResponse:
+    rows = await ViDomainService(session).list_kyc_appointments(
+        actor.organization_id, kyc_id
+    )
+    return KycAppointmentListResponse(data=[KycAppointmentResponse(**row) for row in rows])
+
+
+@router.post(
+    "/kyc-cases/{kyc_id}/appointments",
+    response_model=KycAppointmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_kyc_appointment(
+    kyc_id: uuidlib.UUID,
+    payload: KycAppointmentCreateRequest,
+    session: SessionDep,
+    actor: KycWriter,
+) -> KycAppointmentResponse:
+    return KycAppointmentResponse(
+        **await ViDomainService(session).create_kyc_appointment(
             organization_id=actor.organization_id,
             actor=actor,
             public_id=kyc_id,

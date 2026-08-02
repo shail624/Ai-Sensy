@@ -11465,6 +11465,99 @@
         }
       }
     },
+    "/api/v1/kyc-operations": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Get Kyc Operations",
+        "operationId": "get_kyc_operations_api_v1_kyc_operations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "kyc_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "pending",
+                      "documents_pending",
+                      "under_review",
+                      "approved",
+                      "rejected"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kyc Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycOperationsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/contacts/{contact_id}/kyc-cases": {
       "get": {
         "tags": [
@@ -11658,6 +11751,278 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/KycCaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc-cases/{kyc_id}/document-references": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "List Kyc Document References",
+        "operationId": "list_kyc_document_references_api_v1_kyc_cases__kyc_id__document_references_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycDocumentReferenceListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Set Kyc Document Reference",
+        "operationId": "set_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycDocumentReferenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycDocumentReferenceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc-cases/{kyc_id}/document-references/{purpose}": {
+      "delete": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Remove Kyc Document Reference",
+        "operationId": "remove_kyc_document_reference_api_v1_kyc_cases__kyc_id__document_references__purpose__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          },
+          {
+            "name": "purpose",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "aadhaar",
+                "pan"
+              ],
+              "type": "string",
+              "title": "Purpose"
+            }
+          },
+          {
+            "name": "expected_row_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Expected Row Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc-cases/{kyc_id}/appointments": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "List Kyc Appointments",
+        "operationId": "list_kyc_appointments_api_v1_kyc_cases__kyc_id__appointments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycAppointmentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Create Kyc Appointment",
+        "operationId": "create_kyc_appointment_api_v1_kyc_cases__kyc_id__appointments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kyc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kyc Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycAppointmentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycAppointmentResponse"
                 }
               }
             }
@@ -19083,6 +19448,148 @@
         ],
         "title": "JobsPage"
       },
+      "KycAppointmentCreateRequest": {
+        "properties": {
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Row Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Idempotency Key"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "reminder_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder At"
+          },
+          "assigned_agent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Agent Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_row_version",
+          "idempotency_key",
+          "due_at"
+        ],
+        "title": "KycAppointmentCreateRequest"
+      },
+      "KycAppointmentListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/KycAppointmentResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "KycAppointmentListResponse"
+      },
+      "KycAppointmentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "reminder_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder At"
+          },
+          "assigned_agent_id": {
+            "type": "string",
+            "title": "Assigned Agent Id"
+          },
+          "assigned_agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Agent Name"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "due_at",
+          "reminder_at",
+          "assigned_agent_id",
+          "assigned_agent_name",
+          "row_version"
+        ],
+        "title": "KycAppointmentResponse"
+      },
       "KycCaseListResponse": {
         "properties": {
           "data": {
@@ -19144,6 +19651,18 @@
             ],
             "title": "Owner User Id"
           },
+          "requester_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester User Id"
+          },
           "holder_verified": {
             "type": "boolean",
             "title": "Holder Verified"
@@ -19190,6 +19709,7 @@
           "contact_id",
           "status",
           "owner_user_id",
+          "requester_user_id",
           "holder_verified",
           "delhi_presence_verified",
           "active_delhi_number_verified",
@@ -19275,6 +19795,28 @@
             ],
             "title": "Decision"
           },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "holder_mismatch",
+                  "delhi_presence_unverified",
+                  "active_number_unverified",
+                  "aadhaar_missing",
+                  "pan_missing",
+                  "document_unreadable",
+                  "document_mismatch",
+                  "customer_unavailable",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
           "reason": {
             "anyOf": [
               {
@@ -19325,6 +19867,28 @@
             ],
             "title": "Decision"
           },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "holder_mismatch",
+                  "delhi_presence_unverified",
+                  "active_number_unverified",
+                  "aadhaar_missing",
+                  "pan_missing",
+                  "document_unreadable",
+                  "document_mismatch",
+                  "customer_unavailable",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
           "reason": {
             "anyOf": [
               {
@@ -19360,11 +19924,384 @@
           "kyc_case_id",
           "decision_type",
           "decision",
+          "reason_code",
           "reason",
           "decided_by",
           "decided_at"
         ],
         "title": "KycDecisionResponse"
+      },
+      "KycDocumentReferenceListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/KycDocumentReferenceResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "KycDocumentReferenceListResponse"
+      },
+      "KycDocumentReferenceRequest": {
+        "properties": {
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Row Version"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "aadhaar",
+              "pan"
+            ],
+            "title": "Purpose"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_row_version",
+          "purpose",
+          "document_id"
+        ],
+        "title": "KycDocumentReferenceRequest"
+      },
+      "KycDocumentReferenceResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kyc_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Kyc Case Id"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "aadhaar",
+              "pan"
+            ],
+            "title": "Purpose"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "document_title": {
+            "type": "string",
+            "title": "Document Title"
+          },
+          "document_type": {
+            "type": "string",
+            "title": "Document Type"
+          },
+          "document_status": {
+            "type": "string",
+            "title": "Document Status"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kyc_case_id",
+          "purpose",
+          "document_id",
+          "document_title",
+          "document_type",
+          "document_status",
+          "row_version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KycDocumentReferenceResponse"
+      },
+      "KycOperationsCardResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reactivation_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reactivation Case Id"
+          },
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "documents_pending",
+              "under_review",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "requester_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester User Id"
+          },
+          "holder_verified": {
+            "type": "boolean",
+            "title": "Holder Verified"
+          },
+          "delhi_presence_verified": {
+            "type": "boolean",
+            "title": "Delhi Presence Verified"
+          },
+          "active_delhi_number_verified": {
+            "type": "boolean",
+            "title": "Active Delhi Number Verified"
+          },
+          "appointment_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appointment At"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "contact_name": {
+            "type": "string",
+            "title": "Contact Name"
+          },
+          "contact_phone": {
+            "type": "string",
+            "title": "Contact Phone"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
+          "reactivation_stage": {
+            "type": "string",
+            "enum": [
+              "new_lead",
+              "follow_up",
+              "interested",
+              "eligibility_check",
+              "eligible",
+              "documents_pending",
+              "documents_received",
+              "kyc_pending",
+              "verification",
+              "confirmed",
+              "sim_order",
+              "activation_pending",
+              "completed",
+              "not_eligible",
+              "not_interested"
+            ],
+            "title": "Reactivation Stage"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/KycDocumentReferenceResponse"
+            },
+            "type": "array",
+            "title": "Checklist"
+          },
+          "checklist_complete": {
+            "type": "boolean",
+            "title": "Checklist Complete"
+          },
+          "progress_percent": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress Percent"
+          },
+          "latest_review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KycDecisionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_manager_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KycDecisionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "appointments": {
+            "items": {
+              "$ref": "#/components/schemas/KycAppointmentResponse"
+            },
+            "type": "array",
+            "title": "Appointments"
+          },
+          "sla_status": {
+            "type": "string",
+            "enum": [
+              "not_configured",
+              "on_track",
+              "breached",
+              "resolved"
+            ],
+            "title": "Sla Status"
+          },
+          "sla_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Due At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reactivation_case_id",
+          "contact_id",
+          "status",
+          "owner_user_id",
+          "requester_user_id",
+          "holder_verified",
+          "delhi_presence_verified",
+          "active_delhi_number_verified",
+          "appointment_at",
+          "row_version",
+          "created_at",
+          "updated_at",
+          "contact_name",
+          "contact_phone",
+          "contact_email",
+          "owner_name",
+          "reactivation_stage",
+          "checklist",
+          "checklist_complete",
+          "progress_percent",
+          "latest_review",
+          "latest_manager_decision",
+          "appointments",
+          "sla_status",
+          "sla_due_at"
+        ],
+        "title": "KycOperationsCardResponse"
+      },
+      "KycOperationsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/KycOperationsCardResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total"
+        ],
+        "title": "KycOperationsResponse"
       },
       "KycUpdateRequest": {
         "properties": {
@@ -24377,6 +25314,28 @@
             ],
             "title": "Conversation Id"
           },
+          "reference_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Type"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
           "title": {
             "type": "string",
             "title": "Title"
@@ -24506,6 +25465,8 @@
           "contact_id",
           "contact_name",
           "conversation_id",
+          "reference_type",
+          "reference_id",
           "title",
           "task_type",
           "status",

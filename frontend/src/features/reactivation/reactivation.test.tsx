@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReactivationPipelineBoard } from "@/features/reactivation/ReactivationPipelineBoard";
+import type { ReactivationCard } from "@/features/reactivation/types";
 
 const mocks = vi.hoisted(() => ({
   permissions: { value: ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read"] },
@@ -12,13 +13,14 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   addNote: vi.fn(),
   recordEligibility: vi.fn(),
+  createKyc: vi.fn(),
 }));
 
-const card = {
+const card: ReactivationCard = {
   id: "case-1",
   contact_id: "contact-1",
-  stage: "new_lead" as const,
-  available_transitions: ["follow_up", "not_interested"] as const,
+  stage: "new_lead",
+  available_transitions: ["follow_up", "not_interested"],
   owner_user_id: "user-1",
   previous_vi_number: "9811111111",
   active_delhi_number: "9822222222",
@@ -71,6 +73,12 @@ vi.mock("@/features/tasks/TasksSectionForProfile", () => ({
   TasksSectionForProfile: () => <div>Persisted task workspace</div>,
 }));
 
+vi.mock("@/features/kyc/api", () => ({
+  apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
+  useContactKycCases: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+  useCreateKycCase: () => ({ mutate: mocks.createKyc, isPending: false, error: null }),
+}));
+
 vi.mock("@/features/reactivation/api", () => ({
   apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
   useReactivationPipeline: () => mocks.pipelineState.value,
@@ -106,6 +114,7 @@ beforeEach(() => {
   mocks.update.mockReset();
   mocks.addNote.mockReset();
   mocks.recordEligibility.mockReset();
+  mocks.createKyc.mockReset();
 });
 
 describe("governed Reactivation pipeline", () => {
@@ -190,5 +199,15 @@ describe("governed Reactivation pipeline", () => {
     expect(screen.getByText("Your role can review this case but cannot move it.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save case" })).not.toBeInTheDocument();
     restricted.unmount();
+  });
+
+  it("opens KYC from a document-ready persisted Reactivation case", () => {
+    mocks.permissions.value.push("kyc:read", "kyc:write");
+    mocks.pipelineState.value = readyState([{ ...card, stage: "documents_received" as const, available_transitions: ["kyc_pending" as const] }]);
+    renderBoard();
+    fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /KYC/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create KYC case" }));
+    expect(mocks.createKyc).toHaveBeenCalledWith({ caseId: "case-1", ownerUserId: "user-1" });
   });
 });
