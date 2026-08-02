@@ -36,6 +36,7 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
         self,
         organization_id: int,
         *,
+        contact_id: int | None,
         q: str | None,
         stages: list[str] | None,
         labels: list[str] | None,
@@ -51,6 +52,8 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
             Contact.organization_id == organization_id,
             Contact.deleted_at.is_(None),
         ]
+        if contact_id is not None:
+            clauses.append(ReactivationCase.contact_id == contact_id)
         if q:
             text = q.strip().lower()
             like = f"%{text}%"

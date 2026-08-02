@@ -47,6 +47,7 @@ export const POLL_INTERVAL_MS = 10_000;
 /** The inbox list filters, as the contract now declares them. */
 export function toListQuery(filters: InboxFilters, cursor: string | null, limit: number) {
   return {
+    contact: filters.contact || null,
     status: filters.status || null,
     assignee: filters.assignee || null,
     tag: filters.tag ? [filters.tag] : null,
@@ -56,7 +57,12 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
   };
 }
 
-export function useConversations(filters: InboxFilters, cursor: string | null, limit = 25) {
+export function useConversations(
+  filters: InboxFilters,
+  cursor: string | null,
+  limit = 25,
+  enabled = true,
+) {
   return useQuery({
     queryKey: inboxKeys.list(filters, cursor),
     queryFn: async (): Promise<ConversationsPage> =>
@@ -67,6 +73,7 @@ export function useConversations(filters: InboxFilters, cursor: string | null, l
       ),
     placeholderData: keepPreviousData,
     refetchInterval: POLL_INTERVAL_MS,
+    enabled,
   });
 }
 

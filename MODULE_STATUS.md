@@ -11,26 +11,27 @@ must also pass ADR-0012 and the twenty-point premium screen Definition of Done i
 inaccessible, placeholder-driven, or inconsistent experience is not final completion.
 
 The owner-corrected CORE-05 extends the existing Reactivation and Task authorities with nine primary
-statuses, six labels, governed dates, due views/actions, assignment, Audit and Timeline. Completed
-KYC/SIM/Activation foundations are preserved; separate new heavy SIM fulfilment and Activation
-operations are no longer canonical without explicit owner authorization.
+statuses, six labels, governed dates, due views/actions, assignment, Audit and Timeline. CORE-07
+converges those facts with identity, WhatsApp history, documents, tasks, KYC/SIM/Activation,
+campaigns and evidence inside the existing Customer 360 route. Completed authorities are reused;
+separate new heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-02T16:18:34+05:30`.
+Last synchronized: `2026-08-02T17:34:14+05:30`.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
 | Dashboard | 70% | Phase 1 product experience — release ready | Replace messaging-only projections with revenue, reactivation, KYC, SIM, activation, SLA, queue, and task facts. | Reactivation, KYC, SIM Orders, Activation, SLA analytics |
-| Inbox | 90% | Shared Inbox + Live Chat simplicity — release ready | Complete intervention-request lifecycle, document/customer-domain context, SLA badges, and final responsive/accessibility regression. | Notifications, Customer 360, SLA |
-| Chat History | 35% | Conversation history exists in Inbox/Customer 360 | Build dedicated route with agent/date/customer/media/campaign/resolution/audit filters and export. | Conversations API extensions, audit, Download Center |
+| Inbox | 91% | Shared Inbox + Live Chat plus CORE-07 exact-contact conversation reuse | Complete intervention-request lifecycle, SLA badges, and final responsive/accessibility regression. | Notifications, SLA |
+| Chat History | 40% | Exact-contact persisted conversation/message history is available in Inbox and Customer 360 | Build dedicated route with agent/date/customer/media/campaign/resolution/audit filters and export. | Audit, Download Center |
 | Contacts | 95% | FR-CON-04 release-ready baseline | Final scope regression for opt-in, eligibility, assignment/export and server-shared saved views; no rebuild. | Saved Views, Reactivation |
-| Customer 360 | 70% | Existing profile projects the real KYC case and governed documents; CORE-05 evidence is already available through shared Timeline/Task authorities | Add lightweight Reactivation status/labels/reminders/SLA convergence, family numbers, and contact conversation history without separate heavy SIM/Activation workspaces. | CORE-07 domain convergence |
+| Customer 360 | 90% | CORE-07 factual workspace composes identity/attributes, WhatsApp threads/messages, Reactivation CRM/reminders/notes/SLA, Tasks, Documents, KYC/SIM/Activation, Campaigns, Audit and Timeline with permission-aware source deep links | Final target-device/WCAG, representative-data query-budget and production-scale commissioning; incorporate future approved source-domain facts without duplicating them. | Source domain milestones, performance lab |
 | Campaigns | 85% | Broadcast engine and guided journey complete | General approval linkage, conversion/ROI to reactivation, failed-message retry UX, complete audience reports. | Approval Workflow, Reactivation analytics |
 | Templates | 80% | Registry, create/sync/status/media flows complete | Categories/favourites server sync, button/variable preview regression, usage analytics, explicit AI placeholder. | Analytics, settings/Meta sync |
 | Segments | 75% | Dynamic/static segment and preset foundation | Complete reactivation/KYC/documents/activation/engagement predicates and shared saved filters. | Domain models, Saved Views |
 | Automation | 65% | Definitions, safe test runtime, trigger receipts complete | Governed live receipt consumption, conditions/actions, delays, reminders, approval/handoff, idempotent effects, operational UI. | Notifications, Approval Workflow, domain services |
 | Analytics | 55% | Messaging rollups and exports complete | Add reactivation funnel/drop-off, lead source, KYC turnaround, SIM delivery, activation success, SLA, agent comparison, date exports. | Domain events and reporting projections |
 | Executive Reports | 25% | Analytics-backed report shell | Revenue/ROI/productivity/workload/SLA/activation reports, schedules, CSV/PDF delivery. | Analytics, Download Center, Notifications |
-| Reactivation | 90% | CORE-05 real nine-status CRM, six labels, Task-backed Follow-up/Release dates, due counters/views/actions, assignment, notes, immutable history/Audit/Timeline, filters and responsive drawer/list/Kanban | Server-shared saved views/pagination, rich Notification Center delivery, analytics, Customer 360 convergence and representative-data visual/WCAG/performance evidence. | Tasks, Notifications, Analytics, Customer 360 |
+| Reactivation | 91% | CORE-05 real CRM plus CORE-07 factual Customer 360 projection and source deep links | Server-shared saved views/pagination, rich Notification Center delivery, analytics and representative-data visual/WCAG/performance evidence. | Tasks, Notifications, Analytics |
 | KYC | 85% | CORE-04 persisted queue/detail workspace, three governed checks, protected Aadhaar/PAN checklist references, Task-backed appointment lifecycle, separated reviewer/manager decisions, structured rejection, immutable audit/Timeline, SLA, Customer 360 and Reactivation handoff complete | Server pagination/saved views, production protected-media commissioning, high-volume performance, and target-browser/device WCAG regression. | Documents, Tasks, Reactivation, Customer 360 |
 | Documents | 87% | Phase 4A governed documents plus CORE-04 verified Aadhaar/PAN purpose references without plaintext identity numbers | General approval/download policies, generated-document links, final encryption/retention commissioning. | Approval Workflow, Download Center |
 | SIM Orders | 35% | CORE-02 order/event lifecycle, address/service area, owner, serial, delivery/failure/customer confirmation, SLA and APIs are preserved; CORE-05 exposes the lightweight `SIM Required` case status | No standalone heavy UI is planned; future exceptional operations require an explicit owner instruction. | Reactivation status, KYC evidence, SLA |
@@ -52,7 +53,7 @@ Last synchronized: `2026-08-02T16:18:34+05:30`.
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
 | Global Search / Command Palette | 80% | Search and `Ctrl+K` foundation complete | Index final domain records/documents/notes/agents/tags and add all approved quick actions. | Final domain APIs |
 | Saved Views | 35% | Local favourites/recent destinations and inbox views exist | Server synchronization and sharing for contacts, campaigns, reactivation, KYC, SIM, reports, and chat history. | Users/RBAC, module filters |
-| Audit Timeline | 89% | CORE-05 records status/label/date/assignment plus Task create/update/snooze/reschedule/complete/due-delivery through existing Audit and Customer Timeline authorities | Normalize remaining old/new values, device/login, generalized approvals and document-access evidence. | All final domain events |
+| Audit Timeline | 90% | CORE-07 exposes distinct Customer Timeline and Audit views over existing immutable evidence, including source references and deep links | Normalize remaining old/new values, device/login, generalized approvals and document-access evidence. | All final domain events |
 
 ## Update rule
 

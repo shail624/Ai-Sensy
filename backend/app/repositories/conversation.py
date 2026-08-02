@@ -47,6 +47,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         self,
         organization_id: int,
         *,
+        contact_id: int | None = None,
         status: str | None = None,
         assignee_id: int | None = None,
         unassigned: bool = False,
@@ -70,6 +71,8 @@ class ConversationRepository(BaseRepository[Conversation]):
             Conversation.organization_id == organization_id,
             Conversation.deleted_at.is_(None),
         ]
+        if contact_id is not None:
+            clauses.append(Conversation.contact_id == contact_id)
         if status:
             clauses.append(Conversation.status == status)
         if unassigned:

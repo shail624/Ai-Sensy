@@ -12492,6 +12492,7 @@ export interface operations {
             query?: {
                 limit?: number | null;
                 cursor?: string | null;
+                contact?: string | null;
                 status?: string | null;
                 assignee?: string | null;
                 number?: string | null;
@@ -14508,6 +14509,7 @@ export interface operations {
     get_reactivation_pipeline_api_v1_reactivation_pipeline_get: {
         parameters: {
             query?: {
+                contact_id?: string | null;
                 q?: string | null;
                 stage?: ("new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required")[] | null;
                 label?: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete")[] | null;

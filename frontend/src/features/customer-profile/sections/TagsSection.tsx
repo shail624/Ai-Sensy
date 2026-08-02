@@ -8,9 +8,11 @@ import {
   useTags,
 } from "@/features/customer-profile/api";
 import type { Contact } from "@/features/customer-profile/types";
+import { useHasPermission } from "@/lib/auth";
 
 /** Tags: view current tags and add/remove them (POST/DELETE /contacts/{id}/tags). */
 export function TagsSection({ contact }: { contact: Contact }): JSX.Element {
+  const canWrite = useHasPermission("contacts:write");
   const available = useTags();
   const addTags = useAddContactTags(contact.id);
   const removeTag = useRemoveContactTag(contact.id);
@@ -31,14 +33,14 @@ export function TagsSection({ contact }: { contact: Contact }): JSX.Element {
                 name={tag.name}
                 color={tag.color}
                 removing={removeTag.isPending}
-                onRemove={() => removeTag.mutate(tag.id)}
+                onRemove={canWrite ? () => removeTag.mutate(tag.id) : undefined}
               />
             </li>
           ))}
         </ul>
       )}
 
-      <form
+      {canWrite ? <form
         className="mt-3 flex items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault();
@@ -70,7 +72,7 @@ export function TagsSection({ contact }: { contact: Contact }): JSX.Element {
         >
           {addTags.isPending ? <Spinner label="Adding…" /> : "Add"}
         </button>
-      </form>
+      </form> : <p className="mt-3 text-xs text-text-secondary">Read-only: your role cannot change contact tags.</p>}
 
       {available.isError ? (
         <div className="mt-2">

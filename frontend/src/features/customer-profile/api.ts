@@ -4,8 +4,11 @@ import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
   AttributeDefinition,
+  ActivationRecord,
   Contact,
   ContactEvent,
+  ReactivationCard,
+  SimOrder,
   Tag,
 } from "@/features/customer-profile/types";
 
@@ -17,6 +20,9 @@ export const contactKeys = {
   timeline: (id: string) => ["contact", id, "timeline"] as const,
   attributeDefinitions: ["custom-attributes"] as const,
   tags: ["tags"] as const,
+  reactivation: (id: string) => ["customer-profile", id, "reactivation"] as const,
+  simOrders: (caseId: string) => ["customer-profile", caseId, "sim-orders"] as const,
+  activations: (caseId: string) => ["customer-profile", caseId, "activations"] as const,
 };
 
 export function useContact(contactId: string) {
@@ -28,6 +34,47 @@ export function useContact(contactId: string) {
           params: { path: { contact_id: contactId } },
         }),
       ),
+  });
+}
+
+export function useContactReactivation(contactId: string, enabled = true) {
+  return useQuery({
+    queryKey: contactKeys.reactivation(contactId),
+    queryFn: async (): Promise<ReactivationCard | null> => {
+      const projection = unwrap(
+        await api.GET("/api/v1/reactivation-pipeline", {
+          params: { query: { contact_id: contactId, limit: 1 } },
+        }),
+      );
+      return projection.data[0] ?? null;
+    },
+    enabled: enabled && Boolean(contactId),
+  });
+}
+
+export function useCaseSimOrders(caseId: string, enabled = true) {
+  return useQuery({
+    queryKey: contactKeys.simOrders(caseId),
+    queryFn: async (): Promise<SimOrder[]> =>
+      unwrap(
+        await api.GET("/api/v1/reactivation-cases/{case_id}/sim-orders", {
+          params: { path: { case_id: caseId } },
+        }),
+      ).data,
+    enabled: enabled && Boolean(caseId),
+  });
+}
+
+export function useCaseActivations(caseId: string, enabled = true) {
+  return useQuery({
+    queryKey: contactKeys.activations(caseId),
+    queryFn: async (): Promise<ActivationRecord[]> =>
+      unwrap(
+        await api.GET("/api/v1/reactivation-cases/{case_id}/activation-records", {
+          params: { path: { case_id: caseId } },
+        }),
+      ).data,
+    enabled: enabled && Boolean(caseId),
   });
 }
 

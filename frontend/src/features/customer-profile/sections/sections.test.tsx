@@ -100,9 +100,20 @@ describe("customer profile sections", () => {
     expect(screen.getByText(/no custom attributes set/i)).toBeInTheDocument();
   });
 
-  it("ConversationHistorySection reports it is unavailable from a contact", () => {
-    render(<ConversationHistorySection />);
-    expect(screen.getByText(/not available from a contact/i)).toBeInTheDocument();
+  it("ConversationHistorySection shows a factual empty state for a contact without threads", async () => {
+    apiResponses.value = {
+      "/api/v1/conversations": {
+        data: [],
+        page: { limit: 20, has_more: false, next_cursor: null },
+      },
+    };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter><ConversationHistorySection contactId="c1" /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/no conversations yet/i)).toBeInTheDocument();
   });
 
   it("AssignmentSection shows the agent when provided and an empty state otherwise", () => {

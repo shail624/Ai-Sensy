@@ -2,7 +2,6 @@ import { useParams } from "react-router-dom";
 
 import { CustomerProfile } from "@/features/customer-profile";
 import { TasksSectionForProfile } from "@/features/tasks";
-import { AiFoundationPanel } from "@/features/ai";
 
 /** Route page: resolves the contact id from the URL and renders the reusable profile. */
 export function ContactProfilePage(): JSX.Element {
@@ -16,7 +15,6 @@ export function ContactProfilePage(): JSX.Element {
     <CustomerProfile
       contactId={contactId}
       extensionSlot={<TasksSectionForProfile contactId={contactId} />}
-      footer={<AiFoundationPanel capabilities={["summary", "document", "reply"]} context="the customer profile and governed engagement history" />}
     />
   );
 }

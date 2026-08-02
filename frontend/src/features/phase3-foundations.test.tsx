@@ -32,6 +32,32 @@ vi.mock("@/features/kyc/api", () => ({
     isLoading: false, isError: false, error: null, refetch: vi.fn(),
   }),
 }));
+vi.mock("@/features/customer-profile/api", () => ({
+  apiErrorMessage: () => "Operations unavailable",
+  useContactReactivation: () => ({
+    data: {
+      id: "case-1", contact_id: "contact-1", stage: "kyc_verification", owner_user_id: "user-2",
+      previous_vi_number: null, active_delhi_number: null, source: "import", closed_reason: null,
+      labels: [], row_version: 1, created_at: "2026-08-01T00:00:00Z", updated_at: "2026-08-02T00:00:00Z",
+      available_transitions: [], contact_name: "Asha", contact_phone: "+919900000001", contact_email: null,
+      contact_attributes: {}, owner_name: "Agent", stage_entered_at: "2026-08-02T00:00:00Z",
+      latest_eligibility_status: "eligible", latest_eligibility_reason: null, open_task_count: 0,
+      overdue_task_count: 0, next_task_due_at: null, document_count: 0, verified_document_count: 0,
+      sla_status: "not_configured", sla_due_at: null, reservation_status: null, family_plan_required: null,
+      family_numbers: [], conversion_indicator: "open", reminders: [], follow_up_at: null, release_at: null,
+      reminder_view: null,
+    },
+    isLoading: false, isError: false, error: null, refetch: vi.fn(),
+  }),
+  useCaseSimOrders: () => ({
+    data: [{ id: "sim-1", status: "requested", service_area: "Delhi NCR", customer_confirmed: false, delivered_at: null }],
+    isLoading: false, isError: false,
+  }),
+  useCaseActivations: () => ({ data: [], isLoading: false, isError: false }),
+}));
+vi.mock("@/features/reactivation/api", () => ({
+  useReactivationNotes: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+}));
 
 describe("Phase 3 reactivation and automation foundations", () => {
   it("provides every planned reactivation destination without duplicating a domain engine", () => {
@@ -56,13 +82,12 @@ describe("Phase 3 reactivation and automation foundations", () => {
     expect(screen.getByRole("button", { name: "Upload scan batch" })).toBeDisabled();
   });
 
-  it("projects governed KYC records while retaining the honest SIM foundation", () => {
-    const { rerender } = render(<ReactivationSection contact={contact} focus="kyc" />);
+  it("projects governed KYC and SIM records from their existing authorities", () => {
+    render(<MemoryRouter><ReactivationSection contact={contact} focus="kyc" /></MemoryRouter>);
     expect(screen.getByText("Under review")).toBeInTheDocument();
-    expect(screen.getByText("Active Delhi number")).toBeInTheDocument();
+    expect(screen.getByText(/Active number pending/i)).toBeInTheDocument();
+    expect(screen.getByText("Requested")).toBeInTheDocument();
     expect(screen.queryByText("ordered")).not.toBeInTheDocument();
-    rerender(<ReactivationSection contact={contact} focus="sim" />);
-    expect(screen.getByText("ordered")).toBeInTheDocument();
   });
 
   it("adds document summarization as a human-controlled AI seam", () => {

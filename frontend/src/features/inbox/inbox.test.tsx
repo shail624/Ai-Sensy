@@ -78,6 +78,7 @@ function withProviders(ui: React.ReactElement) {
 describe("toListQuery", () => {
   it("nulls out unset filters so the contract sees no value", () => {
     expect(toListQuery({}, null, 25)).toEqual({
+      contact: null,
       status: null,
       assignee: null,
       tag: null,
@@ -88,8 +89,9 @@ describe("toListQuery", () => {
   });
 
   it("carries every filter, the cursor and the limit", () => {
-    expect(toListQuery({ status: "open", assignee: "u1", tag: "t1", q: "ramesh" }, "cur1", 50)).toEqual(
+    expect(toListQuery({ contact: "c1", status: "open", assignee: "u1", tag: "t1", q: "ramesh" }, "cur1", 50)).toEqual(
       {
+        contact: "c1",
         status: "open",
         assignee: "u1",
         // The contract declares `tag` repeatable; the UI filters by one at a time.

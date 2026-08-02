@@ -25,6 +25,7 @@ from app.models.message import Message
 from app.models.tag import Tag
 from app.models.user import User
 from app.models.waba import PhoneNumber
+from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.conversation_tag import ConversationTagRepository
 from app.repositories.message import MessageRepository
@@ -75,6 +76,7 @@ class InboxQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._conversations = ConversationRepository(session)
+        self._contacts = ContactRepository(session)
         self._messages = MessageRepository(session)
         self._users = UserRepository(session)
         self._numbers = PhoneNumberRepository(session)
@@ -88,6 +90,7 @@ class InboxQueryService:
         organization_id: int,
         limit: int,
         cursor: tuple[datetime, int] | None,
+        contact: str | None,
         status: str | None,
         assignee: str | None,
         number: str | None,
@@ -98,16 +101,18 @@ class InboxQueryService:
         assignee_id, unassigned, assignee_impossible = await self._resolve_assignee(
             organization_id, assignee
         )
+        contact_id, contact_impossible = await self._resolve_contact(organization_id, contact)
         phone_number_id, number_impossible = await self._resolve_number(organization_id, number)
         tag_id, tag_impossible = await self._resolve_tag(organization_id, tag)
 
         # A filter that named a real-looking but non-existent assignee/number/tag matches nothing —
         # returned as an empty page, not an error: the query was valid, the target just isn't here.
-        if assignee_impossible or number_impossible or tag_impossible:
+        if contact_impossible or assignee_impossible or number_impossible or tag_impossible:
             return ConversationListResult([], {}, {}, {}, {}, has_more=False)
 
         conversations, has_more = await self._conversations.list_page(
             organization_id,
+            contact_id=contact_id,
             status=status,
             assignee_id=assignee_id,
             unassigned=unassigned,
@@ -122,6 +127,19 @@ class InboxQueryService:
         assignees = await self._assignees_for(conversations)
         tags = await self._conv_tags.tags_for_conversations([c.id for c in conversations])
         return ConversationListResult(conversations, contacts, numbers, assignees, tags, has_more)
+
+    async def _resolve_contact(
+        self, organization_id: int, contact: str | None
+    ) -> tuple[int | None, bool]:
+        """Resolve a public contact filter without exposing another tenant's identity."""
+        if not contact:
+            return None, False
+        found = await self._contacts.get_active_by_uuid(
+            organization_id, self._as_uuid(contact, "contact").bytes
+        )
+        if found is None:
+            return None, True
+        return found.id, False
 
     async def _resolve_assignee(
         self, organization_id: int, assignee: str | None

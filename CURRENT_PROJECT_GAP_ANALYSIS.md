@@ -36,7 +36,9 @@ or create a gap.
 - Shared Inbox / Live Chat
 - Conversation filters, assignment, tags, notes, and quick replies
 - Contacts, CSV import, bulk actions, tags, attributes, and segments
-- Customer 360 profile with timeline, conversations, campaigns, documents, notes, KYC/SIM projections, tasks, audit, activity, and AI placeholder tabs
+- Customer 360 profile converged over persisted identity, exact-contact conversations/messages,
+  Reactivation CRM, reminders, notes, documents, tasks, KYC/SIM/Activation facts, campaigns, Audit,
+  and Customer Timeline, with source-workflow deep links and no synthetic metrics
 - Campaign management and campaign wizard
 - WhatsApp template management
 - Analytics foundation
@@ -114,6 +116,21 @@ Automation approval concepts exist, and campaign approval UI exists, but a gener
 
 Conversation history exists inside Inbox and Customer 360, but a dedicated Chat History navigation page with agent/date/media/audit filters is not yet present.
 
+### Customer 360
+
+CORE-07 completes the factual Contact workspace by composing the existing persisted authorities for
+identity and attributes, exact-contact WhatsApp threads/messages, Reactivation status/labels,
+reminders, assignment, notes, Documents, Tasks, KYC/SIM/Activation facts, Campaign participation,
+Audit, and Customer Timeline. It introduces no snapshot table, duplicate record, synthetic metric,
+or parallel workflow. Remaining Customer 360 work is limited to final target-device/WCAG and
+production-scale commissioning plus future facts added by separately approved source milestones.
+
+### Lower-severity maintenance findings
+
+- The owner-bootstrap CLI currently accepts reserved `.test` email addresses that the login request
+  schema rejects. This does not affect valid production addresses or tenant isolation, but the two
+  validation boundaries should be aligned in a later maintenance milestone.
+
 ### Download Center
 
 Export jobs exist at backend level, but a unified user-facing Download Center is not complete.
@@ -147,6 +164,7 @@ The following must not be added:
 5. Deliver protected KYC operations and Customer 360 projection. **Complete and preserved.**
 6. Apply the owner-approved lightweight status/label/Task-reminder CRM correction. **Complete.**
 7. Converge remaining factual CRM projections in Customer 360 without adding heavy standalone
-   SIM/Activation products.
-8. Build the shared server-backed Notification Center over existing due evidence.
-9. Add dedicated Chat History and remaining roadmap capabilities.
+   SIM/Activation products. **Complete.**
+8. Build the general approval engine over existing decision and audit authorities.
+9. Build the shared server-backed Notification Center over existing due evidence.
+10. Add dedicated Chat History and remaining roadmap capabilities.

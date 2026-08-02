@@ -38,6 +38,8 @@ export const STATUS_LABELS: Record<ConversationStatus, string> = {
  * `querySerializer` instead — the response stays fully generated. See `serializeInboxQuery`.
  */
 export interface InboxFilters {
+  /** Exact public contact id for Customer 360 composition. */
+  contact?: string;
   status?: string;
   assignee?: string;
   tag?: string;

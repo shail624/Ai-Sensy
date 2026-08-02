@@ -48,10 +48,12 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(contact).toBeVisible();
   await contact.click();
   await expect(page.getByText(contactName, { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("tab", { name: "KYC", exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "SIM", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Vi operations", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Conversations", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Tasks", exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "AI Assistant", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Documents", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Audit", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "AI Assistant", exact: true })).toHaveCount(0);
 
   // Product release evidence: engagement, reactivation, automation, and scan surfaces must be reachable through
   // the same production edge, authenticated shell, RBAC policy, and API contract.

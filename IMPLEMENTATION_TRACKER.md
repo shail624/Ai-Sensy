@@ -4,8 +4,8 @@
 > of truth. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-08-02 · owner-corrected CORE-05 verified from Git, generated contracts, application/security
-suites, production images, deployed MySQL/Redis/Celery, Playwright, and performance evidence._
+_Last updated: 2026-08-02 · CORE-07 Customer 360 domain convergence verified from Git, generated
+contracts, focused API/UI tests, responsive browser evidence, and canonical validation._
 
 ## Current state
 
@@ -14,9 +14,9 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
   `baseline/fr-con-04-release-ready` at `b565d0f`
 - **Migration head:** `0034_reactivation_crm` (34 linear revisions, base `0001`)
 - **OpenAPI:** 3.1.0 · 189 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 943 tests passed · Ruff clean · raw strict mypy clean across
+- **Backend:** 945 tests passed · Ruff clean · raw strict mypy clean across
   253 source files (exact checker mypy 2.3.0)
-- **Frontend:** 646 tests passed · TypeScript clean · ESLint clean · production build passed
+- **Frontend:** 651 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
   the backend image boots with the 189-path/25-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
@@ -25,15 +25,15 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
 - **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
   and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
   profiles are provider-neutral
-- **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
+- **Deployed gate:** Playwright owner login → queued CSV import → converged persisted contact profile
   → durable automation draft/publish/test-run → second queued import → real `contact.created` receipt
-  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; CORE-05 applied migration `0034` and the
-  current standard-read evidence is p95 17.761 ms / 30 samples (<300 ms target)
+  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; migration `0034` remains current and the
+  current standard-read evidence is p95 10.4 ms / 30 samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** owner-corrected CORE-05 lightweight Reactivation CRM — **COMPLETE; APPLICATION, SECURITY,
-  RELEASE-IMAGE, MIGRATION, DEPLOYED, BROWSER, AND GOVERNANCE VALIDATION PASSED**
+- **Current milestone:** CORE-07 Customer 360 domain convergence — **COMPLETE; VALIDATION EVIDENCE
+  RECORDED IN `VALIDATION_RESULTS.md`**
 
 ## Completed deliverables
 
@@ -67,6 +67,7 @@ suites, production images, deployed MySQL/Redis/Celery, Playwright, and performa
 | Governed Reactivation pipeline | Persisted fifteen-stage dashboard/Kanban/list; pointer and keyboard moves through the CORE-02 transition authority; assignments; eligibility/rejection; immutable stage history/notes; Tasks/Documents/Customer 360 reuse; reservation/family/conversion/SLA evidence; responsive accessible drawer; 184-path contract; ADR-0015 and Design Document 28 |
 | Governed KYC operations | Persisted tenant queue/detail; holder/Delhi/active-number checks; protected Aadhaar/PAN references without identity numbers; Task-backed appointments; structured reviewer/manager decisions and separation; optimistic concurrency/idempotency; immutable audit/Timeline and Reactivation handoff; 188-path contract; migration `0033`; ADR-0016 and Design Document 29 |
 | Lightweight Reactivation CRM | Owner-approved nine-status single case; six labels; Task-backed Follow-up/Release dates; Upcoming/Due Today/Overdue views; Complete/Snooze/Reschedule; assignment, notes, RBAC, tenant isolation, concurrency, Audit/Timeline; 189-path/25-task contract; migration `0034`; ADR-0017 and Design Document 30. Completed KYC/SIM/Activation foundations remain preserved without new heavy workspaces. |
+| Customer 360 domain convergence | Existing Contact profile composes persisted identity/attributes, exact-contact WhatsApp history, Reactivation status/labels/reminders/owner/notes/SLA, Documents, Tasks, KYC/SIM/Activation facts, Campaign participation, Audit and Customer Timeline; permission-aware source deep links; accessible responsive tabs; unchanged 189-path contract and `0034` migration; ADR-0018 and Design Document 31. |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -95,9 +96,9 @@ The canonical final-product sequence is `ROADMAP.md`; the older `docs/ROADMAP.md
 historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
 continues to define the remaining-work baseline. ADR-0012 and Design Document 25 govern premium
 original experience acceptance for every future screen without changing the feature roadmap or
-module percentages. The owner-corrected CORE-05 is complete; the former standalone SIM fulfilment
-and Activation Queue milestones are no longer canonical. CORE-07 Customer 360 convergence is the
-next implementation boundary and requires a separate owner instruction.
+module percentages. The owner-corrected CORE-05 and CORE-07 Customer 360 convergence are complete;
+the former standalone SIM fulfilment and Activation Queue milestones are no longer canonical.
+CORE-08 General approval engine is the next separately approved implementation boundary.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.
 Target-environment work still needs monitoring and commissioning evidence: log shipping,
@@ -115,13 +116,14 @@ intentionally deferred beyond RC1.
 
 ## Known technical debt
 
-- The production frontend build warns about a 720.34 kB main chunk. Analytics, Reactivation,
+- The production frontend build warns about a 737.53 kB main chunk. Analytics, Reactivation,
   Automation, and Scan Studio are route-split; further route-level splitting remains a performance
   improvement.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
 - The production dependency audit reports two moderate React Router advisories. Their fixed line is
   React Router 7.18+, so remediation requires an explicit routing upgrade rather than a silent patch.
-- `ConversationHistorySection.tsx` retains a contact-scoped conversation API TODO.
+- The owner-bootstrap CLI accepts reserved `.test` email addresses that the login request schema
+  rejects; this lower-severity validation inconsistency is recorded for a later maintenance change.
 - The branch name predates the RC1 and frontend work now accumulated on it.
 
 ## Permanent invariants (never violate)

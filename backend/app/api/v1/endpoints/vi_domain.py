@@ -94,6 +94,7 @@ KycStatuses = Annotated[list[KycStatus] | None, Query()]
 async def get_reactivation_pipeline(
     session: SessionDep,
     actor: ReactivationReader,
+    contact_id: uuidlib.UUID | None = None,
     q: PipelineQuery = None,
     stage: PipelineStages = None,
     label: PipelineLabels = None,
@@ -105,6 +106,7 @@ async def get_reactivation_pipeline(
     return ReactivationPipelineResponse(
         **await ViDomainService(session).reactivation_pipeline(
             actor.organization_id,
+            contact_id=contact_id,
             q=q,
             stages=list(stage) if stage else None,
             labels=list(label) if label else None,

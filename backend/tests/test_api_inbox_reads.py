@@ -200,6 +200,36 @@ async def test_filter_by_number(client, make_user, session_factory, monkeypatch,
     assert data[0]["phone_number_id"] == number_uuid
 
 
+@pytest.mark.anyio
+async def test_filter_by_contact_is_exact_and_tenant_scoped(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    await _add_conv(session_factory, org, number, name="Priya", phone="+1811101")
+    await _add_conv(session_factory, org, number, name="Priya", phone="+1811102")
+    async with session_factory() as session:
+        contact = (
+            await session.scalars(select(Contact).where(Contact.phone_e164 == "+1811102"))
+        ).one()
+
+    exact = await client.get(f"{CONVERSATIONS_URL}?contact={contact.public_id}", headers=agent)
+    assert exact.status_code == 200
+    assert [row["contact"]["phone"] for row in exact.json()["data"]] == ["+1811102"]
+
+    hidden = await client.get(f"{CONVERSATIONS_URL}?contact={uuid.uuid4()}", headers=agent)
+    assert hidden.status_code == 200
+    assert hidden.json()["data"] == []
+
+
+@pytest.mark.anyio
+async def test_contact_filter_rejects_malformed_public_id(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, *_ = await _base(client, make_user, session_factory, monkeypatch)
+    response = await client.get(f"{CONVERSATIONS_URL}?contact=not-a-uuid", headers=agent)
+    assert response.status_code == 400
+
+
 # --- List: search ------------------------------------------------------------
 @pytest.mark.anyio
 async def test_search_by_contact_name_and_phone(

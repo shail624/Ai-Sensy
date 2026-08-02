@@ -69,6 +69,11 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
         "completed",
         "not_required",
     }
+    contact_pipeline = await client.get(
+        f"/api/v1/reactivation-pipeline?contact_id={contact.public_id}", headers=agent_headers
+    )
+    assert contact_pipeline.status_code == 200
+    assert [row["contact_id"] for row in contact_pipeline.json()["data"]] == [contact.public_id]
 
     note = await client.post(
         f"/api/v1/reactivation-cases/{case_id}/notes",
@@ -166,6 +171,10 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
     hidden_pipeline = await client.get("/api/v1/reactivation-pipeline", headers=other_headers)
     assert hidden_pipeline.status_code == 200
     assert hidden_pipeline.json()["total"] == 0
+    hidden_contact_pipeline = await client.get(
+        f"/api/v1/reactivation-pipeline?contact_id={contact.public_id}", headers=other_headers
+    )
+    assert hidden_contact_pipeline.status_code == 404
     hidden_notes = await client.get(
         f"/api/v1/reactivation-cases/{case_id}/notes", headers=other_headers
     )

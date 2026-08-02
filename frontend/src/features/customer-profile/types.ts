@@ -7,3 +7,6 @@ export type Tag = components["schemas"]["TagResponse"];
 export type ContactEvent = components["schemas"]["ContactEventResponse"];
 export type AttributeDefinition = components["schemas"]["AttributeDefinitionResponse"];
 export type Note = components["schemas"]["NoteResponse"];
+export type ReactivationCard = components["schemas"]["ReactivationPipelineCardResponse"];
+export type SimOrder = components["schemas"]["SimOrderResponse"];
+export type ActivationRecord = components["schemas"]["ActivationRecordResponse"];

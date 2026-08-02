@@ -110,6 +110,7 @@ class ViDomainService:
         self,
         organization_id: int,
         *,
+        contact_id: uuidlib.UUID | None = None,
         q: str | None,
         stages: list[str] | None,
         labels: list[str] | None = None,
@@ -120,8 +121,12 @@ class ViDomainService:
     ) -> dict[str, Any]:
         """One bounded, factual projection for Kanban/list consumers."""
         owner_id = await self._user_id(organization_id, owner_user_id)
+        internal_contact = (
+            (await self._require_contact(organization_id, contact_id)).id if contact_id else None
+        )
         rows, total = await self._repo.pipeline_cases(
             organization_id,
+            contact_id=internal_contact,
             q=q,
             stages=stages,
             labels=labels,

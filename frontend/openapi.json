@@ -6134,6 +6134,22 @@
             }
           },
           {
+            "name": "contact",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contact"
+            }
+          },
+          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -10712,6 +10728,23 @@
           }
         ],
         "parameters": [
+          {
+            "name": "contact_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contact Id"
+            }
+          },
           {
             "name": "q",
             "in": "query",

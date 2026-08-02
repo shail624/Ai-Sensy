@@ -11,6 +11,51 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Customer 360 domain convergence (CORE-07)
+
+**Added**
+- Converged the existing Contact profile into one persisted, permission-aware workspace for identity
+  and attributes, exact-contact WhatsApp conversations/messages, Reactivation status/labels,
+  reminders, assignment, notes, SLA, Documents, Tasks, KYC/SIM/Activation facts, Campaign
+  participation, Audit, and Customer Timeline.
+- Added accessible Overview, Vi operations, Conversations, Timeline, Tasks, Documents, Campaigns,
+  and Audit tabs, source-workflow deep links, loading/empty/error/denied/read-only states, and
+  responsive desktop/tablet/mobile composition using the existing design system.
+- Added optional exact Contact filters to the existing Inbox conversation query and Reactivation
+  pipeline query; regenerated OpenAPI/TypeScript contracts at the unchanged 189-path boundary; added
+  ADR-0018, Design Document 31, and focused backend/frontend regressions.
+
+**Reused and preserved**
+- Reused Contact, Conversation/Message, Inbox, Reactivation, Task/reminder, Document Center, KYC,
+  SIM, Activation, Campaign, Audit, Customer Timeline, RBAC, tenant, and shared UI authorities.
+  Customer 360 remains a read composition with no parallel model, repository, service, route family,
+  synthetic metric, migration, fake data, or duplicated completed module.
+- Reviewed the approved `0001`, `0008`, `0010`, and `0048` paired reference captures for contextual
+  hierarchy, tabs, density, and activity patterns. Original code, wording, icons, colors, tokens,
+  spacing, and breakpoints are retained; reference files remain ignored and uncommitted.
+
+**Fixed**
+- Fixed the workflow-blocking Contact conversation placeholder. Root cause: the existing Inbox list
+  query could not request one exact public Contact. The query now resolves that id tenant-scoped and
+  reuses the existing message authority; malformed, unknown, and foreign identifiers are covered by
+  API regression tests.
+- Fixed Contact tag mutation controls being exposed to read-only users. Root cause: the section did
+  not apply the existing `contacts:write` permission to its action controls. It now renders an
+  explicit read-only state with focused regression coverage.
+- Removed attribute-derived Vi implications and the AI context placeholder from Customer 360;
+  persisted source facts and honest empty states now define the workspace.
+- Fixed the production owner journey asserting the superseded KYC, SIM, and AI placeholder tabs.
+  Root cause: the release proof had not advanced with the converged information architecture. It now
+  requires Vi operations, Conversations, Tasks, Documents and Audit and asserts the placeholder is
+  absent; the rebuilt deployed journey passes.
+
+**Validated**
+- Focused backend API tests pass 21/21 and the focused Customer 360 frontend regression passes 5/5.
+  Canonical suites pass 945/945 pytest and 651/651 Vitest with Ruff, strict mypy across 253 files,
+  OpenAPI drift, TypeScript/ESLint, build, security scans, SBOMs, image contracts and MySQL/Redis/
+  Celery health. The corrected production owner journey passes 1/1 in 11.1 seconds; desktop/tablet/
+  mobile review found no overflow or console error, and the 30-read canary records p95 10.4 ms.
+
 ### 2026-08-02 — Lightweight Reactivation CRM correction (CORE-05)
 
 **Added**

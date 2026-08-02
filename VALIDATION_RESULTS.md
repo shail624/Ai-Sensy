@@ -2,12 +2,28 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. Corrected CORE-05 starting GitHub baseline: `3457938`; the
-> milestone delivers the owner-approved lightweight Reactivation CRM by extending existing Vi,
-> Task, Contact/User, Celery, Audit, Timeline, RBAC, and SLA authorities. The canonical 22-step
-> deployed-stack gate passed.
+> be refreshed after every milestone. CORE-07 starting GitHub baseline: `4881a1d`; the milestone
+> converges persisted Customer 360 evidence by extending existing Contact, Inbox, Vi, Task,
+> Document, Campaign, Audit, Timeline, RBAC, tenant, and design-system authorities.
 
-Last synchronized: `2026-08-02T16:18:34+05:30`.
+Last synchronized: `2026-08-02T17:34:14+05:30`.
+
+## CORE-07 Customer 360 domain convergence
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| One customer identity and source ownership | PASS | The existing public Contact id joins persisted source authorities; Customer 360 introduces no snapshot, duplicate model, local record, synthetic metric, or write authority. |
+| Conversations and messages | PASS | Existing Inbox repository/service/API and Message ledger accept an exact tenant-scoped Contact filter; unknown/foreign identifiers disclose no records and malformed ids fail through shared validation. |
+| Reactivation and Vi facts | PASS | Existing pipeline/case/Task/note/KYC/SIM/Activation contracts provide real status, labels, owner, reminders, SLA, reservation, family-plan, conversion and immutable evidence facts. |
+| Documents, Tasks, Campaigns, Audit and Timeline | PASS | Existing permission-scoped sections and source deep links are reused; Timeline and Audit remain views over their existing immutable authorities. |
+| RBAC, tenant isolation and read-only behavior | PASS | Backend exact-contact tenant regressions and frontend denied/error/read-only regressions pass; tag mutations are hidden without `contacts:write`. |
+| UI states, accessibility and responsive behavior | PASS | Focused tests cover persisted composition and honest empty/error/denied states; authenticated 1280×720, 768×1024 and 390×844 review found no page overflow or console errors and verified Arrow-key tab navigation. |
+| Reference and originality review | PASS | Paired `0001`, `0008`, `0010` and `0048` approved captures were reviewed for contextual hierarchy, density, tabs and activity patterns; no proprietary code, asset, branding, wording, exact styling or reference file is shipped. |
+| Focused and full tests | PASS | Focused backend APIs pass 21/21 and Customer 360 passes 5/5; canonical suites pass 945/945 pytest and 651/651 Vitest. |
+| Migration and API boundary | PASS | Migration remains the single `0034_reactivation_crm` head; OpenAPI remains 3.1.0 with 189 paths and regenerated TypeScript drift is clean. |
+| Deployed runtime | PASS | Static/application/security/release steps passed; after aligning the stale E2E tab assertion, the rebuilt frontend/runner passed Playwright 1/1 in 11.1 seconds against fresh MySQL/Redis/Celery, with p95 10.4 ms across 30 reads. |
+| Verified defect regressions | PASS | Tests cover exact-contact history, foreign/malformed filters, permission-safe tag actions, factual/no-placeholder composition and the converged production tab contract. |
+| Milestone boundary | PASS | No CORE-08 approval engine, migration, endpoint family, duplicate authority, fake data, copied reference content, or completed-module rebuild was introduced. |
 
 ## CORE-05 lightweight Reactivation CRM correction
 
@@ -105,7 +121,7 @@ Last synchronized: `2026-08-02T16:18:34+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Pytest | PASS | Canonical deployed validation passed 943/943 backend tests in 348.37 seconds. |
+| Pytest | PASS | Canonical validation passed 945/945 backend tests in 523.29 seconds. |
 | Migration validation | PASS | Single head `0034_reactivation_crm`; 34 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
 | Ruff | PASS | Canonical deployed profile passed Ruff across application, tests, scripts, and root tools. |
 | Mypy | PASS | Canonical deployed profile passed strict mypy across 253 backend source files. |
@@ -116,17 +132,17 @@ Last synchronized: `2026-08-02T16:18:34+05:30`.
 | Validation item | Status | Latest evidence |
 |---|---|---|
 | TypeScript | PASS | Frontend and Playwright TypeScript checks passed in the canonical deployed profile with regenerated contracts. |
-| ESLint | PASS | Frontend ESLint passed in the canonical deployed profile. |
-| Vitest | PASS | Full suite passed 646/646 tests across 30 files. |
-| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-05 images in 11.338 seconds. |
-| Production build | PASS | TypeScript and Vite production build passed after final CORE-05 source and generated-contract changes; the known main-chunk warning remains non-blocking. |
+| ESLint | PASS | Frontend ESLint passed without errors or warnings after the final CORE-07 hook-dependency correction. |
+| Vitest | PASS | Full suite passed 651/651 tests across 31 files. |
+| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-07 images in 11.1 seconds. |
+| Production build | PASS | TypeScript and Vite production build passed after final CORE-07 source and generated-contract changes; the known main-chunk warning remains non-blocking. |
 
 ## API
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 188 to 189 paths (+1) without removing a path. |
-| Generated TypeScript contracts | PASS | Generated Reactivation label/reminder and Task Snooze contracts are current; frontend typecheck and drift checks passed. |
+| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 remains at 189 paths with optional exact-Contact filters and no removed path. |
+| Generated TypeScript contracts | PASS | Exact-contact Inbox/Reactivation query contracts are regenerated; frontend typecheck and drift checks passed. |
 
 ## Infrastructure
 
@@ -141,14 +157,14 @@ Last synchronized: `2026-08-02T16:18:34+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Existing responsive/keyboard baseline | PASS | CORE-01/03/04 evidence remains green; CORE-05 tests verify labelled status/label/date/reminder controls, accessible dialog/drawer states, keyboard movement, dense desktop table/Kanban, mobile transformation, and permission-aware read-only behavior. |
+| Existing responsive/keyboard baseline | PASS | CORE-01/03/04/05 evidence remains green; CORE-07 adds labelled tab panels, Arrow/Home/End behavior, focus-safe source actions, denied/read-only states, zero-overflow desktop/tablet/mobile browser evidence, and no console errors. |
 | Full final-scope WCAG regression | PENDING – Host Machine Validation | Must be repeated on every completed final-scope route with real domain data and the target browser/device matrix. |
 
 ## Performance
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Standard-read canary | PASS | p50 10.168 ms and p95 17.761 ms across 30 authenticated reads, below the 300 ms budget. |
+| Standard-read canary | PASS | Deployed CORE-07 canary recorded p95 10.4 ms across 30 authenticated reads, below the 300 ms budget. |
 | Full load/stress/spike/soak and 1M-contact certification | PENDING – Host Machine Validation | Requires the isolated Performance Lab and production-like capacity. |
 
 ## Known limitations
@@ -156,11 +172,11 @@ Last synchronized: `2026-08-02T16:18:34+05:30`.
 | Validation item | Status | Current limitation |
 |---|---|---|
 | Target observability receivers | PENDING – Host Machine Validation | Log shipping, dashboards, alert firing/dead-man delivery, and external synthetic checks need deployed receivers. |
-| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 720.34 kB; further route splitting remains a performance task. |
+| Production frontend bundle | PENDING – Host Machine Validation | The main chunk warning is 737.53 kB; further route splitting remains a performance task. |
 | Docker-backed source scan | PASS | Trivy vulnerability, secret, and IaC scan passed; production backend/frontend image vulnerability scans and CycloneDX SBOM generation also passed. |
 | React Router advisories | PENDING – Host Machine Validation | Two moderate advisories require an explicit React Router 7.18+ upgrade milestone, not a silent dependency change. |
-| Contact-scoped conversation history | PENDING – Host Machine Validation | `ConversationHistorySection.tsx` still exposes the known unavailable/TODO boundary. |
-| Final domain workflows | PENDING – Host Machine Validation | CORE-05 supplies the owner-approved lightweight status/label/reminder CRM while preserving KYC/SIM/Activation foundations; Notification Center, generalized approvals, Google Sheets, Download Center and final Customer 360 convergence remain later milestones. Heavy standalone SIM/Activation workspaces are not planned without explicit owner instruction. |
+| Customer 360 target commissioning | PENDING – Host Machine Validation | Repository/deployed representative-data checks pass; final target screen-reader/device matrix and production-scale query-budget certification remain host work. |
+| Final domain workflows | PENDING – Host Machine Validation | CORE-07 completes Customer 360 convergence; General Approval, Notification Center, Google Sheets, Download Center and later roadmap domains remain. Heavy standalone SIM/Activation workspaces are not planned without explicit owner instruction. |
 
 ## Milestone closeout rule
 
