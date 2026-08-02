@@ -8,6 +8,10 @@ import { TaskTable } from "@/features/tasks/TaskTable";
 import { TasksSectionForProfile } from "@/features/tasks/TasksSectionForProfile";
 import type { Task, TaskListQuery } from "@/features/tasks/types";
 
+vi.mock("@/lib/auth", () => ({
+  useHasPermission: () => true,
+}));
+
 const DAY = 86_400_000;
 
 function taskFixture(overrides: Partial<Task> = {}): Task {

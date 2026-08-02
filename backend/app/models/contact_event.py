@@ -56,6 +56,7 @@ REF_TYPE_SLA_EVENT = "sla_event"
 
 EVENT_REACTIVATION_CREATED = "reactivation_created"
 EVENT_REACTIVATION_TRANSITIONED = "reactivation_transitioned"
+EVENT_REACTIVATION_NOTE_ADDED = "reactivation_note_added"
 EVENT_ELIGIBILITY_RECORDED = "eligibility_recorded"
 EVENT_KYC_UPDATED = "kyc_updated"
 EVENT_KYC_DECIDED = "kyc_decided"

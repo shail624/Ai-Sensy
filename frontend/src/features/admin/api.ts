@@ -40,11 +40,12 @@ export const adminKeys = {
  * 50**, plus the true `page.total`. Search, filtering, sorting and paging run in the client over
  * that page (`selectors.ts`), and the UI says so when `total` exceeds what it holds.
  */
-export function useUsers() {
+export function useUsers(enabled = true) {
   return useQuery({
     queryKey: adminKeys.users,
     queryFn: async () => unwrap(await api.GET("/api/v1/users")),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

@@ -123,6 +123,7 @@ class AuditAction:
     REACTIVATION_CASE_CREATED = "reactivation_case.created"
     REACTIVATION_CASE_UPDATED = "reactivation_case.updated"
     REACTIVATION_STAGE_TRANSITIONED = "reactivation_case.stage_transitioned"
+    REACTIVATION_NOTE_ADDED = "reactivation_case.note_added"
     ELIGIBILITY_RECORDED = "eligibility_check.recorded"
     KYC_CASE_CREATED = "kyc_case.created"
     KYC_CASE_UPDATED = "kyc_case.updated"

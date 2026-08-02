@@ -55,6 +55,45 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
     assert response.status_code == 201, response.text
     case_id = response.json()["id"]
 
+    pipeline = await client.get("/api/v1/reactivation-pipeline", headers=agent_headers)
+    assert pipeline.status_code == 200
+    assert pipeline.json()["total"] == 1
+    assert pipeline.json()["data"][0]["contact_name"] == "API Vi Customer"
+    assert pipeline.json()["data"][0]["available_transitions"] == [
+        "follow_up",
+        "not_interested",
+    ]
+
+    note = await client.post(
+        f"/api/v1/reactivation-cases/{case_id}/notes",
+        headers=agent_headers,
+        json={"body": "Persisted case note"},
+    )
+    assert note.status_code == 201
+    note_list = await client.get(
+        f"/api/v1/reactivation-cases/{case_id}/notes", headers=agent_headers
+    )
+    assert note_list.status_code == 200
+    assert note_list.json()["data"][0]["body"] == "Persisted case note"
+
+    transitioned = await client.post(
+        f"/api/v1/reactivation-cases/{case_id}/transition",
+        headers=agent_headers,
+        json={
+            "idempotency_key": str(uuid.uuid4()),
+            "expected_row_version": 0,
+            "to_stage": "follow_up",
+        },
+    )
+    assert transitioned.status_code == 200
+    stale = await client.patch(
+        f"/api/v1/reactivation-cases/{case_id}",
+        headers=agent_headers,
+        json={"expected_row_version": 0},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "version_conflict"
+
     analyst_headers = await _headers(client, analyst.user.email)
     assert (
         await client.get(f"/api/v1/reactivation-cases/{case_id}", headers=analyst_headers)
@@ -118,6 +157,13 @@ async def test_reactivation_api_permissions_and_tenant_isolation(
     other_headers = await _headers(client, "other-core02@vi.co")
     hidden = await client.get(f"/api/v1/reactivation-cases/{case_id}", headers=other_headers)
     assert hidden.status_code == 404
+    hidden_pipeline = await client.get("/api/v1/reactivation-pipeline", headers=other_headers)
+    assert hidden_pipeline.status_code == 200
+    assert hidden_pipeline.json()["total"] == 0
+    hidden_notes = await client.get(
+        f"/api/v1/reactivation-cases/{case_id}/notes", headers=other_headers
+    )
+    assert hidden_notes.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -125,13 +171,15 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
     schema = (await client.get("/api/v1/openapi.json")).json()
     expected = {
         "/api/v1/reactivation-cases/{case_id}/transition",
+        "/api/v1/reactivation-cases/{case_id}/notes",
+        "/api/v1/reactivation-pipeline",
         "/api/v1/kyc-cases/{kyc_id}/approvals",
         "/api/v1/sim-orders/{order_id}/transition",
         "/api/v1/activation-records/{activation_id}/approval",
         "/api/v1/sla/events",
     }
     assert expected <= set(schema["paths"])
-    assert len(schema["paths"]) == 182
+    assert len(schema["paths"]) == 184
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     for immutable_path in (

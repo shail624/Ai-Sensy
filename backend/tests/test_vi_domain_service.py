@@ -14,6 +14,8 @@ from app.models.contact import Contact
 from app.models.contact_document import ContactDocument
 from app.models.contact_event import ContactEvent
 from app.models.vi_domain import (
+    REACTIVATION_STAGES,
+    REACTIVATION_TRANSITIONS,
     KycCase,
     KycDecision,
     ReactivationCase,
@@ -113,6 +115,106 @@ async def test_reactivation_is_idempotent_versioned_and_projected(
     assert await db_session.scalar(select(func.count()).select_from(ContactEvent)) == 2
     assert await db_session.scalar(select(func.count()).select_from(BusinessEvent)) == 2
     assert await db_session.scalar(select(func.count()).select_from(AuditLog)) == 2
+
+
+def test_reactivation_transition_matrix_is_closed_and_complete() -> None:
+    expected = {
+        "new_lead": {"follow_up", "not_interested"},
+        "follow_up": {"interested", "not_interested"},
+        "interested": {"eligibility_check", "not_interested"},
+        "eligibility_check": {"eligible", "not_eligible"},
+        "eligible": {"documents_pending"},
+        "documents_pending": {"documents_received"},
+        "documents_received": {"kyc_pending"},
+        "kyc_pending": {"verification"},
+        "verification": {"confirmed", "documents_pending", "not_eligible"},
+        "confirmed": {"sim_order"},
+        "sim_order": {"activation_pending"},
+        "activation_pending": {"completed"},
+        "completed": set(),
+        "not_eligible": set(),
+        "not_interested": set(),
+    }
+    assert tuple(expected) == REACTIVATION_STAGES
+    assert {stage: set(targets) for stage, targets in REACTIVATION_TRANSITIONS.items()} == expected
+    for source in REACTIVATION_STAGES:
+        rejected = set(REACTIVATION_STAGES) - expected[source]
+        assert source in rejected
+        assert not (set(REACTIVATION_TRANSITIONS[source]) & rejected)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_projection_assignment_and_immutable_notes(
+    db_session, organization, make_user
+) -> None:
+    actor = (await make_user(email="core03-owner@vi.test", is_superuser=True)).user
+    assignee = (await make_user(email="core03-agent@vi.test")).user
+    contact = await _contact(db_session, organization.id, "3")
+    service = ViDomainService(db_session)
+    created = await service.create_reactivation(
+        organization_id=organization.id,
+        actor=actor,
+        contact_id=uuid.UUID(contact.public_id),
+        payload={
+            "idempotency_key": uuid.uuid4(),
+            "owner_user_id": None,
+            "previous_vi_number": "9811111113",
+            "active_delhi_number": None,
+            "source": "manual",
+        },
+    )
+    assigned = await service.update_reactivation(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuid.UUID(created["id"]),
+        payload={
+            "expected_row_version": 0,
+            "owner_user_id": uuid.UUID(assignee.public_id),
+            "previous_vi_number": "9811111113",
+            "active_delhi_number": "9822222223",
+        },
+    )
+    assert assigned["row_version"] == 1
+
+    projection = await service.reactivation_pipeline(
+        organization.id,
+        q="Customer 3",
+        stages=["new_lead"],
+        owner_user_id=uuid.UUID(assignee.public_id),
+        limit=20,
+    )
+    assert projection["total"] == 1
+    card = projection["data"][0]
+    assert card["contact_name"] == "Vi Customer 3"
+    assert card["owner_name"] == assignee.full_name
+    assert card["available_transitions"] == ["follow_up", "not_interested"]
+    assert card["open_task_count"] == 0
+    assert card["document_count"] == 0
+    assert card["sla_status"] == "not_configured"
+    assert card["conversion_indicator"] == "open"
+    assert len(projection["stage_counts"]) == 15
+
+    note = await service.add_reactivation_note(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuid.UUID(created["id"]),
+        body="  Customer requested a weekday callback.  ",
+    )
+    notes = await service.list_reactivation_notes(organization.id, uuid.UUID(created["id"]))
+    assert notes == [note]
+    assert note["body"] == "Customer requested a weekday callback."
+    timeline = (
+        await db_session.scalars(
+            select(ContactEvent).where(ContactEvent.event_type == "reactivation_note_added")
+        )
+    ).one()
+    assert timeline.ref_id is not None
+    audit = (
+        await db_session.scalars(
+            select(AuditLog).where(AuditLog.action == "reactivation_case.note_added")
+        )
+    ).one()
+    assert audit.entity_id == timeline.ref_id
 
 
 @pytest.mark.asyncio

@@ -24,7 +24,12 @@ describe("Phase 3 reactivation and automation foundations", () => {
       "eligible", "bulk", "interested", "pipeline", "kyc", "documents", "sim", "activation", "completed", "reports",
     ]);
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "documents", "reports"]);
-    expect(REACTIVATION_STAGE_BLUEPRINT).toEqual(["Lead", "Eligibility Check", "Interested", "Documents Received", "Verification", "KYC Approved", "SIM Ordered", "Activation Pending", "Activated", "Completed"]);
+    expect(REACTIVATION_STAGE_BLUEPRINT).toEqual([
+      "New lead", "Follow-up", "Interested", "Eligibility check", "Eligible",
+      "Documents pending", "Documents received", "KYC pending", "Verification", "Confirmed",
+      "SIM order", "Activation pending", "Completed", "Not eligible", "Not interested",
+    ]);
+    expect(navItems.find((item) => item.path === "/reactivation")?.permission).toBe("reactivation:read");
   });
 
   it("keeps Scan Studio separate from the official WhatsApp module and permission-gated", () => {

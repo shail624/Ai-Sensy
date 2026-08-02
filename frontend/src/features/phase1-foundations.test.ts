@@ -47,8 +47,9 @@ describe("Phase 1 information architecture", () => {
     for (const term of EXCLUDED_NAVIGATION_TERMS) expect(catalog).not.toContain(term);
   });
 
-  it("labels approved incomplete routes honestly instead of inventing capability", () => {
-    expect(navItems.find((item) => item.path === "/reactivation")?.maturity).toBe("foundation");
+  it("labels approved incomplete routes honestly while exposing the connected pipeline", () => {
+    expect(navItems.find((item) => item.path === "/reactivation")?.maturity).toBeUndefined();
+    expect(navItems.find((item) => item.path === "/reactivation")?.permission).toBe("reactivation:read");
     expect(navItems.find((item) => item.path === "/automation")?.maturity).toBe("foundation");
     expect(navItems.find((item) => item.path === "/scan")?.maturity).toBe("future");
   });

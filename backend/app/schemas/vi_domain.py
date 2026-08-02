@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -62,6 +62,10 @@ class ReactivationUpdateRequest(VersionedRequest):
 class ReactivationTransitionRequest(IdempotentRequest, VersionedRequest):
     to_stage: ReactivationStage
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class ReactivationNoteCreateRequest(BaseModel):
+    body: str = Field(min_length=1, max_length=4096)
 
 
 class EligibilityCreateRequest(IdempotentRequest):
@@ -196,6 +200,53 @@ class ReactivationCaseResponse(BaseModel):
     row_version: int
     created_at: datetime
     updated_at: datetime
+
+
+class ReactivationPipelineCardResponse(ReactivationCaseResponse):
+    available_transitions: list[ReactivationStage]
+    contact_name: str
+    contact_phone: str
+    contact_email: str | None
+    contact_attributes: dict[str, Any]
+    owner_name: str | None
+    stage_entered_at: datetime
+    latest_eligibility_status: EligibilityStatus | None
+    latest_eligibility_reason: str | None
+    open_task_count: int = Field(ge=0)
+    overdue_task_count: int = Field(ge=0)
+    next_task_due_at: datetime | None
+    document_count: int = Field(ge=0)
+    verified_document_count: int = Field(ge=0)
+    sla_status: Literal["not_configured", "on_track", "breached", "resolved"]
+    sla_due_at: datetime | None
+    reservation_status: str | None
+    family_plan_required: bool | None
+    family_numbers: list[str]
+    conversion_indicator: Literal["open", "converted", "lost"]
+
+
+class ReactivationStageCountResponse(BaseModel):
+    stage: ReactivationStage
+    count: int = Field(ge=0)
+
+
+class ReactivationPipelineResponse(BaseModel):
+    data: list[ReactivationPipelineCardResponse]
+    total: int = Field(ge=0)
+    visible: int = Field(ge=0)
+    stage_counts: list[ReactivationStageCountResponse]
+
+
+class ReactivationNoteResponse(BaseModel):
+    id: int
+    case_id: uuidlib.UUID
+    actor_user_id: uuidlib.UUID
+    body: str
+    created_at: datetime
+
+
+class ReactivationNoteListResponse(BaseModel):
+    data: list[ReactivationNoteResponse]
 
 
 class ReactivationStageEventResponse(BaseModel):

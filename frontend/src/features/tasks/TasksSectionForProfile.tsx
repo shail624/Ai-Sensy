@@ -11,6 +11,7 @@ import {
 } from "@/features/tasks/TaskBadges";
 import { TaskForm } from "@/features/tasks/TaskForm";
 import type { Task } from "@/features/tasks/types";
+import { useHasPermission } from "@/lib/auth";
 
 const PROFILE_PAGE_SIZE = 20;
 
@@ -50,13 +51,15 @@ export function TasksSectionForProfile({ contactId }: { contactId: string }): JS
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  const canRead = useHasPermission("tasks:read");
+  const canWrite = useHasPermission("tasks:write");
 
   const open = useTasks({
     contact_id: contactId,
     status: ["open"],
     sort: "due_at",
     limit: PROFILE_PAGE_SIZE,
-  });
+  }, canRead);
   const completed = useTasks(
     {
       contact_id: contactId,
@@ -64,7 +67,7 @@ export function TasksSectionForProfile({ contactId }: { contactId: string }): JS
       sort: "-completed_at",
       limit: PROFILE_PAGE_SIZE,
     },
-    showCompleted,
+    canRead && showCompleted,
   );
 
   const openRows = open.data?.data ?? [];
@@ -74,16 +77,18 @@ export function TasksSectionForProfile({ contactId }: { contactId: string }): JS
     <Section
       title="Tasks"
       action={
-        <button
+        canWrite ? <button
           type="button"
           onClick={() => setCreating(true)}
           className="rounded-md border border-border px-2 py-1 text-xs text-text-primary hover:bg-hover"
         >
           New task
-        </button>
+        </button> : null
       }
     >
-      {open.isLoading ? (
+      {!canRead ? (
+        <EmptyState title="Task access is restricted" description="Your role cannot view customer tasks." />
+      ) : open.isLoading ? (
         <Spinner label="Loading tasks…" />
       ) : open.isError ? (
         <ErrorState message={apiErrorMessage(open.error)} onRetry={() => void open.refetch()} />

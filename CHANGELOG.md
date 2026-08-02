@@ -11,6 +11,34 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Governed Reactivation pipeline (CORE-03)
+
+**Added**
+- Added a real tenant-scoped pipeline projection with factual fifteen-stage counts, joined contact
+  and owner identity, eligibility/rejection evidence, task/document aggregates, reservation and
+  family-plan facts, conversion indicators, SLA status, and server-published permitted moves.
+- Added two permission-scoped API paths for the pipeline projection and immutable internal case
+  notes; regenerated OpenAPI 3.1.0 at 184 paths and the TypeScript contract.
+- Added pointer drag/drop, keyboard stage movement, responsive board/list views, assignment and
+  number editing, immutable history/notes, Tasks/Documents reuse, Customer 360 links, truthful
+  loading/empty/error/permission states, ADR-0015, Design Document 28, and focused tests.
+
+**Reused and preserved**
+- Extended the existing Reactivation route, CORE-02 Vi repository/service/API authority, Contact and
+  User records, governed Documents, Tasks/reminders, Customer 360, RBAC, Audit, Customer Timeline,
+  SLA, shared Modal, and premium responsive shell; no completed module or parallel authority was
+  rebuilt.
+- Added no migration, mock lead card, fake count, local-only workflow state, KYC operations UI,
+  copied reference code/asset/branding, or tracked `.reference/aisensy/` content.
+
+**Validated**
+- Canonical release and isolated deployed profiles passed all 22 applicable steps: 938 pytest tests,
+  641 Vitest tests, Ruff, strict mypy across 252 files, OpenAPI drift, TypeScript/ESLint, production
+  build, security/dependency/source/image scans, SBOMs, Compose/image contracts, MySQL/Redis/Celery,
+  and Playwright 1/1.
+- Authenticated reference review passed at 1280×720, 768×1024, and 390×844 without page-level
+  horizontal overflow; the deployed 30-read performance canary recorded p95 8.547 ms (<300 ms).
+
 ### 2026-08-02 — Vi domain foundation (CORE-02)
 
 **Added**

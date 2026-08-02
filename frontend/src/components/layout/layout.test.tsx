@@ -57,7 +57,7 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "More" }));
     expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
-    expect(screen.getAllByText("foundation")).toHaveLength(2);
+    expect(screen.getAllByText("foundation")).toHaveLength(1);
     expect(screen.getByText("future")).toBeInTheDocument();
   });
 

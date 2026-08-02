@@ -28,6 +28,11 @@ from app.schemas.vi_domain import (
     ReactivationCaseListResponse,
     ReactivationCaseResponse,
     ReactivationCreateRequest,
+    ReactivationNoteCreateRequest,
+    ReactivationNoteListResponse,
+    ReactivationNoteResponse,
+    ReactivationPipelineResponse,
+    ReactivationStage,
     ReactivationStageEventResponse,
     ReactivationTransitionRequest,
     ReactivationUpdateRequest,
@@ -67,6 +72,28 @@ ActivationApprover = Annotated[User, Depends(require_permissions("activation:app
 SlaReader = Annotated[User, Depends(require_permissions("sla:read"))]
 SlaManager = Annotated[User, Depends(require_permissions("sla:manage"))]
 Limit = Annotated[int, Query(ge=1, le=200)]
+PipelineQuery = Annotated[str | None, Query(max_length=160)]
+PipelineStages = Annotated[list[ReactivationStage] | None, Query()]
+
+
+@router.get("/reactivation-pipeline", response_model=ReactivationPipelineResponse)
+async def get_reactivation_pipeline(
+    session: SessionDep,
+    actor: ReactivationReader,
+    q: PipelineQuery = None,
+    stage: PipelineStages = None,
+    owner_user_id: uuidlib.UUID | None = None,
+    limit: Limit = 200,
+) -> ReactivationPipelineResponse:
+    return ReactivationPipelineResponse(
+        **await ViDomainService(session).reactivation_pipeline(
+            actor.organization_id,
+            q=q,
+            stages=list(stage) if stage else None,
+            owner_user_id=owner_user_id,
+            limit=limit,
+        )
+    )
 
 
 @router.get("/reactivation-cases", response_model=ReactivationCaseListResponse)
@@ -167,6 +194,35 @@ async def list_reactivation_stage_events(
 ) -> StageEventListResponse:
     rows = await ViDomainService(session).stage_events(actor.organization_id, case_id)
     return StageEventListResponse(data=[ReactivationStageEventResponse(**row) for row in rows])
+
+
+@router.get("/reactivation-cases/{case_id}/notes", response_model=ReactivationNoteListResponse)
+async def list_reactivation_notes(
+    case_id: uuidlib.UUID, session: SessionDep, actor: ReactivationReader
+) -> ReactivationNoteListResponse:
+    rows = await ViDomainService(session).list_reactivation_notes(actor.organization_id, case_id)
+    return ReactivationNoteListResponse(data=[ReactivationNoteResponse(**row) for row in rows])
+
+
+@router.post(
+    "/reactivation-cases/{case_id}/notes",
+    response_model=ReactivationNoteResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_reactivation_note(
+    case_id: uuidlib.UUID,
+    payload: ReactivationNoteCreateRequest,
+    session: SessionDep,
+    actor: ReactivationWriter,
+) -> ReactivationNoteResponse:
+    return ReactivationNoteResponse(
+        **await ViDomainService(session).add_reactivation_note(
+            organization_id=actor.organization_id,
+            actor=actor,
+            public_id=case_id,
+            body=payload.body,
+        )
+    )
 
 
 @router.get(

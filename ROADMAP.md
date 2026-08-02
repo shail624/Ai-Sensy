@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-02T04:23:52+05:30`.
+Last synchronized: `2026-08-02T13:20:26+05:30`.
 
 ## Authority and baseline
 
@@ -28,7 +28,7 @@ Last synchronized: `2026-08-02T04:23:52+05:30`.
   verify exact additive contracts before implementation.
 - Exactly one milestone is implemented per commit. Stop after each milestone for owner approval.
 
-Milestone status: `CORE-02` is complete at this synchronization; `CORE-03` is next and requires a
+Milestone status: `CORE-03` is complete at this synchronization; `CORE-04` is next and requires a
 separate owner instruction. Objectives, estimates, sequence, and product scope below are unchanged.
 
 ## Phase 0 — Governance and scope lock

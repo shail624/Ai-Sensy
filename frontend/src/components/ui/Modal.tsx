@@ -8,17 +8,20 @@ interface ModalProps {
    * `sheet` docks the surface to the bottom edge on phones and returns to the centred dialog from
    * `sm` up — the bottom-sheet pattern Doc 05 B3.1 specifies for mobile filters. Default unchanged.
    */
-  variant?: "center" | "sheet";
+  variant?: "center" | "sheet" | "drawer";
 }
 
-const SHELL: Record<"center" | "sheet", string> = {
+const SHELL: Record<"center" | "sheet" | "drawer", string> = {
   center: "flex items-start justify-center overflow-y-auto p-4 sm:p-8",
   sheet: "flex items-end justify-center sm:items-start sm:overflow-y-auto sm:p-8",
+  drawer: "flex items-end justify-center sm:items-stretch sm:justify-end",
 };
 
-const PANEL: Record<"center" | "sheet", string> = {
+const PANEL: Record<"center" | "sheet" | "drawer", string> = {
   center: "w-full max-w-lg rounded-lg",
   sheet: "max-h-[85vh] w-full overflow-y-auto rounded-t-2xl sm:max-w-lg sm:rounded-lg",
+  drawer:
+    "max-h-[92vh] w-full overflow-y-auto rounded-t-2xl sm:h-full sm:max-h-none sm:max-w-2xl sm:rounded-none sm:rounded-l-2xl",
 };
 
 const FOCUSABLE =

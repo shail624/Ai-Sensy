@@ -2855,6 +2855,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reactivation-pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reactivation Pipeline */
+        get: operations["get_reactivation_pipeline_api_v1_reactivation_pipeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reactivation-cases": {
         parameters: {
             query?: never;
@@ -2936,6 +2953,24 @@ export interface paths {
         get: operations["list_reactivation_stage_events_api_v1_reactivation_cases__case_id__stage_events_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reactivation Notes */
+        get: operations["list_reactivation_notes_api_v1_reactivation_cases__case_id__notes_get"];
+        put?: never;
+        /** Add Reactivation Note */
+        post: operations["add_reactivation_note_api_v1_reactivation_cases__case_id__notes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6313,6 +6348,150 @@ export interface components {
              * @default manual
              */
             source: string;
+        };
+        /** ReactivationNoteCreateRequest */
+        ReactivationNoteCreateRequest: {
+            /** Body */
+            body: string;
+        };
+        /** ReactivationNoteListResponse */
+        ReactivationNoteListResponse: {
+            /** Data */
+            data: components["schemas"]["ReactivationNoteResponse"][];
+        };
+        /** ReactivationNoteResponse */
+        ReactivationNoteResponse: {
+            /** Id */
+            id: number;
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReactivationPipelineCardResponse */
+        ReactivationPipelineCardResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Owner User Id */
+            owner_user_id: string | null;
+            /** Previous Vi Number */
+            previous_vi_number: string | null;
+            /** Active Delhi Number */
+            active_delhi_number: string | null;
+            /** Source */
+            source: string;
+            /** Closed Reason */
+            closed_reason: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Available Transitions */
+            available_transitions: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested")[];
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Contact Email */
+            contact_email: string | null;
+            /** Contact Attributes */
+            contact_attributes: {
+                [key: string]: unknown;
+            };
+            /** Owner Name */
+            owner_name: string | null;
+            /**
+             * Stage Entered At
+             * Format: date-time
+             */
+            stage_entered_at: string;
+            /** Latest Eligibility Status */
+            latest_eligibility_status: ("pending" | "eligible" | "not_eligible" | "review_required") | null;
+            /** Latest Eligibility Reason */
+            latest_eligibility_reason: string | null;
+            /** Open Task Count */
+            open_task_count: number;
+            /** Overdue Task Count */
+            overdue_task_count: number;
+            /** Next Task Due At */
+            next_task_due_at: string | null;
+            /** Document Count */
+            document_count: number;
+            /** Verified Document Count */
+            verified_document_count: number;
+            /**
+             * Sla Status
+             * @enum {string}
+             */
+            sla_status: "not_configured" | "on_track" | "breached" | "resolved";
+            /** Sla Due At */
+            sla_due_at: string | null;
+            /** Reservation Status */
+            reservation_status: string | null;
+            /** Family Plan Required */
+            family_plan_required: boolean | null;
+            /** Family Numbers */
+            family_numbers: string[];
+            /**
+             * Conversion Indicator
+             * @enum {string}
+             */
+            conversion_indicator: "open" | "converted" | "lost";
+        };
+        /** ReactivationPipelineResponse */
+        ReactivationPipelineResponse: {
+            /** Data */
+            data: components["schemas"]["ReactivationPipelineCardResponse"][];
+            /** Total */
+            total: number;
+            /** Visible */
+            visible: number;
+            /** Stage Counts */
+            stage_counts: components["schemas"]["ReactivationStageCountResponse"][];
+        };
+        /** ReactivationStageCountResponse */
+        ReactivationStageCountResponse: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Count */
+            count: number;
         };
         /** ReactivationStageEventResponse */
         ReactivationStageEventResponse: {
@@ -13964,6 +14143,40 @@ export interface operations {
             };
         };
     };
+    get_reactivation_pipeline_api_v1_reactivation_pipeline_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                stage?: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested")[] | null;
+                owner_user_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationPipelineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_reactivation_cases_api_v1_reactivation_cases_get: {
         parameters: {
             query?: {
@@ -14181,6 +14394,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StageEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reactivation_notes_api_v1_reactivation_cases__case_id__notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationNoteListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_reactivation_note_api_v1_reactivation_cases__case_id__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactivationNoteCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationNoteResponse"];
                 };
             };
             /** @description Validation Error */

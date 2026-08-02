@@ -29,6 +29,7 @@ from app.models.contact_event import (
     EVENT_KYC_DECIDED,
     EVENT_KYC_UPDATED,
     EVENT_REACTIVATION_CREATED,
+    EVENT_REACTIVATION_NOTE_ADDED,
     EVENT_REACTIVATION_TRANSITIONED,
     EVENT_SIM_ORDER_UPDATED,
     EVENT_SLA_RECORDED,
@@ -43,6 +44,7 @@ from app.models.vi_domain import (
     ACTIVATION_TRANSITIONS,
     KYC_DECISIONS,
     KYC_PREPARATION_TRANSITIONS,
+    REACTIVATION_STAGES,
     REACTIVATION_TRANSITIONS,
     SIM_ORDER_TRANSITIONS,
     ActivationRecord,
@@ -58,6 +60,7 @@ from app.models.vi_domain import (
 )
 from app.repositories.contact import ContactRepository
 from app.repositories.vi_domain import ViDomainRepository
+from app.schemas.attribute import attributes_map
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
@@ -94,6 +97,160 @@ class ViDomainService:
             ReactivationCase, organization_id, contact_id=internal_contact, limit=limit
         )
         return await self.views(rows), total
+
+    async def reactivation_pipeline(
+        self,
+        organization_id: int,
+        *,
+        q: str | None,
+        stages: list[str] | None,
+        owner_user_id: uuidlib.UUID | None,
+        limit: int,
+    ) -> dict[str, Any]:
+        """One bounded, factual projection for Kanban/list consumers."""
+        owner_id = await self._user_id(organization_id, owner_user_id)
+        rows, total = await self._repo.pipeline_cases(
+            organization_id,
+            q=q,
+            stages=stages,
+            owner_user_id=owner_id,
+            limit=limit,
+        )
+        cases = [row[0] for row in rows]
+        evidence = await self._repo.latest_pipeline_evidence(
+            organization_id, [case.id for case in cases], [case.contact_id for case in cases]
+        )
+        cards: list[dict[str, Any]] = []
+        now = utcnow()
+        for case, contact, owner in rows:
+            eligibility = evidence["eligibility"].get(case.id)
+            stage_event = evidence["stage_event"].get(case.id)
+            sla = evidence["sla"].get(case.id)
+            tasks = evidence["tasks"].get(case.contact_id, {})
+            documents = evidence["documents"].get(case.contact_id, {})
+            attributes = attributes_map(contact.attribute_values)
+            sla_status = "not_configured"
+            if sla is not None:
+                if sla.event_type == "resolved":
+                    sla_status = "resolved"
+                elif sla.event_type == "breached" or sla.due_at < now:
+                    sla_status = "breached"
+                else:
+                    sla_status = "on_track"
+            cards.append(
+                {
+                    "id": case.public_id,
+                    "contact_id": contact.public_id,
+                    "stage": case.stage,
+                    "owner_user_id": owner.public_id if owner else None,
+                    "previous_vi_number": case.previous_vi_number,
+                    "active_delhi_number": case.active_delhi_number,
+                    "source": case.source,
+                    "closed_reason": case.closed_reason,
+                    "row_version": case.row_version,
+                    "created_at": case.created_at,
+                    "updated_at": case.updated_at,
+                    "available_transitions": sorted(REACTIVATION_TRANSITIONS[case.stage]),
+                    "contact_name": contact.full_name or contact.profile_name or contact.phone_e164,
+                    "contact_phone": contact.phone_e164,
+                    "contact_email": contact.email,
+                    "contact_attributes": attributes,
+                    "owner_name": owner.full_name if owner else None,
+                    "stage_entered_at": stage_event.created_at if stage_event else case.created_at,
+                    "latest_eligibility_status": eligibility.status if eligibility else None,
+                    "latest_eligibility_reason": eligibility.reason if eligibility else None,
+                    "open_task_count": int(tasks.get("open", 0)),
+                    "overdue_task_count": int(tasks.get("overdue", 0)),
+                    "next_task_due_at": tasks.get("next_due_at"),
+                    "document_count": int(documents.get("total", 0)),
+                    "verified_document_count": int(documents.get("verified", 0)),
+                    "sla_status": sla_status,
+                    "sla_due_at": sla.due_at if sla else None,
+                    "reservation_status": self._first_attribute(
+                        attributes, "number_reservation_status", "reservation_status"
+                    ),
+                    "family_plan_required": self._bool_attribute(
+                        attributes.get("family_plan_required")
+                    ),
+                    "family_numbers": self._string_list_attribute(
+                        attributes.get("related_family_numbers", attributes.get("family_numbers"))
+                    ),
+                    "conversion_indicator": (
+                        "converted"
+                        if case.stage == "completed"
+                        else "lost"
+                        if case.stage in {"not_eligible", "not_interested"}
+                        else "open"
+                    ),
+                }
+            )
+        counts = await self._repo.pipeline_stage_counts(organization_id)
+        return {
+            "data": cards,
+            "total": total,
+            "visible": len(cards),
+            "stage_counts": [
+                {"stage": stage, "count": counts.get(stage, 0)} for stage in REACTIVATION_STAGES
+            ],
+        }
+
+    async def list_reactivation_notes(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> list[dict[str, Any]]:
+        case = await self._require(ReactivationCase, organization_id, public_id)
+        events = await self._timeline.list_for_reference(
+            organization_id,
+            contact_id=case.contact_id,
+            ref_type=REF_TYPE_REACTIVATION_CASE,
+            ref_id=case.id,
+            event_type=EVENT_REACTIVATION_NOTE_ADDED,
+        )
+        return [
+            {
+                "id": event.id,
+                "case_id": public_id,
+                "actor_user_id": uuidlib.UUID(str((event.payload_json or {})["actor_user_id"])),
+                "body": str((event.payload_json or {})["body"]),
+                "created_at": event.created_at,
+            }
+            for event in events
+        ]
+
+    async def add_reactivation_note(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        body: str,
+    ) -> dict[str, Any]:
+        case = await self._require(ReactivationCase, organization_id, public_id)
+        cleaned = body.strip()
+        event = await self._timeline.record(
+            organization_id=organization_id,
+            contact_id=case.contact_id,
+            event_type=EVENT_REACTIVATION_NOTE_ADDED,
+            ref_type=REF_TYPE_REACTIVATION_CASE,
+            ref_id=case.id,
+            payload={"actor_user_id": str(actor.public_id), "body": cleaned},
+        )
+        await self._session.flush()
+        await self._audit.record(
+            AuditAction.REACTIVATION_NOTE_ADDED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="reactivation_case",
+            entity_id=case.id,
+            after={"timeline_event_id": event.id, "body": cleaned},
+        )
+        await self._session.commit()
+        return {
+            "id": event.id,
+            "case_id": public_id,
+            "actor_user_id": uuidlib.UUID(str(actor.public_id)),
+            "body": cleaned,
+            "created_at": event.created_at,
+        }
 
     async def get_reactivation(
         self, organization_id: int, public_id: uuidlib.UUID
@@ -1391,6 +1548,34 @@ class ViDomainService:
     @staticmethod
     def _clean(value: str | None) -> str | None:
         return value.strip() or None if value else None
+
+    @staticmethod
+    def _first_attribute(attributes: dict[str, Any], *keys: str) -> str | None:
+        for key in keys:
+            value = attributes.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        return None
+
+    @staticmethod
+    def _bool_attribute(value: Any) -> bool | None:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"yes", "true", "required", "1"}:
+                return True
+            if normalized in {"no", "false", "not_required", "0"}:
+                return False
+        return None
+
+    @staticmethod
+    def _string_list_attribute(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return []
 
     @staticmethod
     def _check_version(row: Any, expected: int) -> None:

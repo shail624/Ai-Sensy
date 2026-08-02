@@ -55,3 +55,22 @@ class ContactEventService:
         )
         total = await self._events.count_for_contact(contact_id, event_type=event_type)
         return events, has_more, total
+
+    async def list_for_reference(
+        self,
+        organization_id: int,
+        *,
+        contact_id: int,
+        ref_type: str,
+        ref_id: int,
+        event_type: str,
+        limit: int = 100,
+    ) -> list[ContactEvent]:
+        return await self._events.list_for_reference(
+            organization_id,
+            contact_id=contact_id,
+            ref_type=ref_type,
+            ref_id=ref_id,
+            event_type=event_type,
+            limit=limit,
+        )

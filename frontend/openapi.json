@@ -10641,6 +10641,126 @@
         }
       }
     },
+    "/api/v1/reactivation-pipeline": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Get Reactivation Pipeline",
+        "operationId": "get_reactivation_pipeline_api_v1_reactivation_pipeline_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "new_lead",
+                      "follow_up",
+                      "interested",
+                      "eligibility_check",
+                      "eligible",
+                      "documents_pending",
+                      "documents_received",
+                      "kyc_pending",
+                      "verification",
+                      "confirmed",
+                      "sim_order",
+                      "activation_pending",
+                      "completed",
+                      "not_eligible",
+                      "not_interested"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          },
+          {
+            "name": "owner_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner User Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactivationPipelineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reactivation-cases": {
       "get": {
         "tags": [
@@ -11005,6 +11125,110 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StageEventListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reactivation-cases/{case_id}/notes": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "List Reactivation Notes",
+        "operationId": "list_reactivation_notes_api_v1_reactivation_cases__case_id__notes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactivationNoteListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Add Reactivation Note",
+        "operationId": "add_reactivation_note_api_v1_reactivation_cases__case_id__notes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactivationNoteCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactivationNoteResponse"
                 }
               }
             }
@@ -21090,6 +21314,462 @@
           "idempotency_key"
         ],
         "title": "ReactivationCreateRequest"
+      },
+      "ReactivationNoteCreateRequest": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "ReactivationNoteCreateRequest"
+      },
+      "ReactivationNoteListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReactivationNoteResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ReactivationNoteListResponse"
+      },
+      "ReactivationNoteResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Case Id"
+          },
+          "actor_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actor User Id"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "actor_user_id",
+          "body",
+          "created_at"
+        ],
+        "title": "ReactivationNoteResponse"
+      },
+      "ReactivationPipelineCardResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "new_lead",
+              "follow_up",
+              "interested",
+              "eligibility_check",
+              "eligible",
+              "documents_pending",
+              "documents_received",
+              "kyc_pending",
+              "verification",
+              "confirmed",
+              "sim_order",
+              "activation_pending",
+              "completed",
+              "not_eligible",
+              "not_interested"
+            ],
+            "title": "Stage"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "previous_vi_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Vi Number"
+          },
+          "active_delhi_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Delhi Number"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "closed_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Reason"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "available_transitions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "new_lead",
+                "follow_up",
+                "interested",
+                "eligibility_check",
+                "eligible",
+                "documents_pending",
+                "documents_received",
+                "kyc_pending",
+                "verification",
+                "confirmed",
+                "sim_order",
+                "activation_pending",
+                "completed",
+                "not_eligible",
+                "not_interested"
+              ]
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
+          "contact_name": {
+            "type": "string",
+            "title": "Contact Name"
+          },
+          "contact_phone": {
+            "type": "string",
+            "title": "Contact Phone"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "contact_attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Contact Attributes"
+          },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
+          "stage_entered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Stage Entered At"
+          },
+          "latest_eligibility_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "eligible",
+                  "not_eligible",
+                  "review_required"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Eligibility Status"
+          },
+          "latest_eligibility_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Eligibility Reason"
+          },
+          "open_task_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Open Task Count"
+          },
+          "overdue_task_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Overdue Task Count"
+          },
+          "next_task_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Task Due At"
+          },
+          "document_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Document Count"
+          },
+          "verified_document_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Verified Document Count"
+          },
+          "sla_status": {
+            "type": "string",
+            "enum": [
+              "not_configured",
+              "on_track",
+              "breached",
+              "resolved"
+            ],
+            "title": "Sla Status"
+          },
+          "sla_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Due At"
+          },
+          "reservation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reservation Status"
+          },
+          "family_plan_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family Plan Required"
+          },
+          "family_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Family Numbers"
+          },
+          "conversion_indicator": {
+            "type": "string",
+            "enum": [
+              "open",
+              "converted",
+              "lost"
+            ],
+            "title": "Conversion Indicator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "contact_id",
+          "stage",
+          "owner_user_id",
+          "previous_vi_number",
+          "active_delhi_number",
+          "source",
+          "closed_reason",
+          "row_version",
+          "created_at",
+          "updated_at",
+          "available_transitions",
+          "contact_name",
+          "contact_phone",
+          "contact_email",
+          "contact_attributes",
+          "owner_name",
+          "stage_entered_at",
+          "latest_eligibility_status",
+          "latest_eligibility_reason",
+          "open_task_count",
+          "overdue_task_count",
+          "next_task_due_at",
+          "document_count",
+          "verified_document_count",
+          "sla_status",
+          "sla_due_at",
+          "reservation_status",
+          "family_plan_required",
+          "family_numbers",
+          "conversion_indicator"
+        ],
+        "title": "ReactivationPipelineCardResponse"
+      },
+      "ReactivationPipelineResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReactivationPipelineCardResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "visible": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Visible"
+          },
+          "stage_counts": {
+            "items": {
+              "$ref": "#/components/schemas/ReactivationStageCountResponse"
+            },
+            "type": "array",
+            "title": "Stage Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total",
+          "visible",
+          "stage_counts"
+        ],
+        "title": "ReactivationPipelineResponse"
+      },
+      "ReactivationStageCountResponse": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "new_lead",
+              "follow_up",
+              "interested",
+              "eligibility_check",
+              "eligible",
+              "documents_pending",
+              "documents_received",
+              "kyc_pending",
+              "verification",
+              "confirmed",
+              "sim_order",
+              "activation_pending",
+              "completed",
+              "not_eligible",
+              "not_interested"
+            ],
+            "title": "Stage"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "count"
+        ],
+        "title": "ReactivationStageCountResponse"
       },
       "ReactivationStageEventResponse": {
         "properties": {

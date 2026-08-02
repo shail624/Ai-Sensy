@@ -49,3 +49,28 @@ class ContactEventRepository(BaseRepository[ContactEvent]):
             clauses.append(ContactEvent.event_type == event_type)
         stmt = select(func.count()).select_from(ContactEvent).where(*clauses)
         return int((await self.session.scalar(stmt)) or 0)
+
+    async def list_for_reference(
+        self,
+        organization_id: int,
+        *,
+        contact_id: int,
+        ref_type: str,
+        ref_id: int,
+        event_type: str,
+        limit: int = 100,
+    ) -> list[ContactEvent]:
+        """Append-only evidence for one governed contact-scoped domain reference."""
+        stmt = (
+            select(ContactEvent)
+            .where(
+                ContactEvent.organization_id == organization_id,
+                ContactEvent.contact_id == contact_id,
+                ContactEvent.ref_type == ref_type,
+                ContactEvent.ref_id == ref_id,
+                ContactEvent.event_type == event_type,
+            )
+            .order_by(ContactEvent.created_at.desc(), ContactEvent.id.desc())
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())

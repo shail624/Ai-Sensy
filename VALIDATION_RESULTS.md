@@ -2,11 +2,26 @@
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. CORE-02 starting GitHub baseline: `16bd1c6`; the milestone
-> adds the server-owned Vi domain foundation only. Canonical pre-merge, release, image, and isolated
+> be refreshed after every milestone. CORE-03 starting GitHub baseline: `c1cb133`; the milestone
+> connects the existing Reactivation workspace to the server-owned Vi domain. Canonical release and isolated
 > deployed-stack gates all passed.
 
-Last synchronized: `2026-08-02T11:53:32+05:30`.
+Last synchronized: `2026-08-02T13:20:26+05:30`.
+
+## CORE-03 Reactivation pipeline
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Persisted pipeline and factual counts | PASS | Tenant-scoped joined projection returns all fifteen approved stage counts and bounded cards from real cases, contacts, owners, eligibility, tasks, documents, SLA, reservation, family, and conversion facts; no fixture fallback exists. |
+| Governed transitions and concurrency | PASS | All permitted/rejected lifecycle moves pass exact matrix tests; drag, keyboard, and drawer actions use the CORE-02 transition service, server-published targets, idempotency, and `row_version`; stale writes return conflict. |
+| RBAC and tenant isolation | PASS | Read/write/transition actions are permission-aware; cross-tenant pipeline, note, case, owner, task, and document access fails closed in service/API tests. |
+| Assignment and immutable evidence | PASS | Assignment/number edits reuse the versioned CORE-02 update authority; transitions and notes retain immutable stage/audit/Customer Timeline evidence. |
+| Shared module reuse | PASS | Existing Contacts/User directory, Customer 360, Tasks/reminders, Documents, Audit, Timeline, SLA, Modal, router, and design system are extended in place; no completed module was rebuilt. |
+| UI states and accessibility | PASS | Focused tests cover loading, empty, error, permission, responsive board/list, pointer/keyboard movement, drawer labelling/focus, and no-mock guarantees. Authenticated 1280×720, 768×1024, and 390×844 review found no page-level horizontal overflow. |
+| Reference and originality review | PASS | Four paired approved `_full.png`/`_viewport.png` workflows were inventoried for shell, filters, density, modal/drawer and responsive patterns; no proprietary code, asset, branding, exact styling, wording, or reference file is shipped. |
+| Focused CORE-03 tests | PASS | 6 focused backend service/API tests and 9 focused Reactivation/foundation frontend tests pass; the full suites pass 938/938 and 641/641. |
+| Migration/API boundary | PASS | Migration remains single head `0032`; verified projection/note gaps add only 2 paths, advancing OpenAPI from 182 to 184 with generated TypeScript drift clean. |
+| Milestone boundary | PASS | No KYC operations workspace, SIM fulfilment UI, Activation Queue, migration, mock lead card, fake count, local-only workflow state, or duplicate authority was introduced. |
 
 ## CORE-02 Vi domain foundation
 
@@ -53,7 +68,7 @@ Last synchronized: `2026-08-02T11:53:32+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Pytest | PASS | Canonical release validation passed 936 backend tests in 406.78 seconds; pre-merge independently passed the same 936 tests. |
+| Pytest | PASS | Canonical release and deployed validation passed 938 backend tests; the final deployed run completed them in 334.83 seconds. |
 | Migration validation | PASS | Single head `0032_vi_domain_foundation`; 32 linear revisions; SQLite upgrade/downgrade/re-upgrade and deployed MySQL upgrade passed. Generic SQLite `alembic check` remains non-authoritative because of pre-existing repository-wide reflection noise. |
 | Ruff | PASS | Canonical pre-merge and release profiles passed Ruff across application, tests, scripts, and root tools. |
 | Mypy | PASS | Canonical pre-merge and release profiles passed strict mypy across 252 backend source files. |
@@ -65,16 +80,16 @@ Last synchronized: `2026-08-02T11:53:32+05:30`.
 |---|---|---|
 | TypeScript | PASS | Frontend and Playwright TypeScript checks passed in canonical pre-merge and release profiles with regenerated contracts. |
 | ESLint | PASS | Frontend ESLint passed in canonical pre-merge and release profiles. |
-| Vitest | PASS | Full suite passed 636/636 tests across 28 files. |
-| Playwright | PASS | Isolated production owner login → queued CSV import → persisted contact search journey passed against the CORE-02 images in 11.3 seconds. |
-| Production build | PASS | TypeScript and Vite production build passed after final source changes. |
+| Vitest | PASS | Full suite passed 641/641 tests across 29 files. |
+| Playwright | PASS | Isolated production owner journey passed 1/1 against the final CORE-03 images in 9.65 seconds. |
+| Production build | PASS | TypeScript and Vite production build passed after final CORE-03 source and generated-contract changes. |
 
 ## API
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 153 to 182 paths (+29). |
-| Generated TypeScript contracts | PASS | `npm run gen:api` regenerated the typed Vi contracts; frontend typecheck and drift checks passed. |
+| OpenAPI generation | PASS | Live generation and drift validation passed; OpenAPI 3.1.0 advanced from 182 to 184 paths (+2) without a migration. |
+| Generated TypeScript contracts | PASS | `npm run gen:api` regenerated the typed pipeline/note contracts; frontend typecheck and drift checks passed. |
 
 ## Infrastructure
 
@@ -89,14 +104,14 @@ Last synchronized: `2026-08-02T11:53:32+05:30`.
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Existing responsive/keyboard baseline | PASS | CORE-01 focused tests and authenticated desktop browser review verified labelled controls, active state, focus management, 44px mobile targets, and overflow behavior. |
+| Existing responsive/keyboard baseline | PASS | CORE-01 shell evidence remains green; CORE-03 focused tests and authenticated desktop/tablet/mobile review verify labelled controls, pressed state, drag/keyboard movement, focus-managed overlays, responsive transformations, and no page-level overflow. |
 | Full final-scope WCAG regression | PENDING – Host Machine Validation | Must be repeated on every completed final-scope route with real domain data and the target browser/device matrix. |
 
 ## Performance
 
 | Validation item | Status | Latest evidence |
 |---|---|---|
-| Standard-read canary | PASS | p95 16.5 ms across 30 authenticated reads, below the 300 ms budget. |
+| Standard-read canary | PASS | p95 8.547 ms across 30 authenticated reads, below the 300 ms budget. |
 | Full load/stress/spike/soak and 1M-contact certification | PENDING – Host Machine Validation | Requires the isolated Performance Lab and production-like capacity. |
 
 ## Known limitations
@@ -108,7 +123,7 @@ Last synchronized: `2026-08-02T11:53:32+05:30`.
 | Docker-backed source scan | PASS | Trivy vulnerability, secret, and IaC scan passed; production backend/frontend image vulnerability scans and CycloneDX SBOM generation also passed. |
 | React Router advisories | PENDING – Host Machine Validation | Two moderate advisories require an explicit React Router 7.18+ upgrade milestone, not a silent dependency change. |
 | Contact-scoped conversation history | PENDING – Host Machine Validation | `ConversationHistorySection.tsx` still exposes the known unavailable/TODO boundary. |
-| Final domain workflows | PENDING – Host Machine Validation | CORE-02 supplies real Reactivation/KYC/SIM/Activation/SLA server authorities, but their complete operational UIs plus Notification Center, generalized approvals, Google Sheets, and Download Center remain later milestones. |
+| Final domain workflows | PENDING – Host Machine Validation | CORE-03 supplies the real Reactivation pipeline over the CORE-02 authorities; KYC/SIM/Activation operational UIs plus Notification Center, generalized approvals, Google Sheets, and Download Center remain later milestones. |
 
 ## Milestone closeout rule
 

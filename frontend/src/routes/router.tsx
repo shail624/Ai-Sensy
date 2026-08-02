@@ -186,7 +186,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "reactivation",
-            element: <RequirePermission code="contacts:read" />,
+            element: <RequirePermission code="reactivation:read" />,
             children: [
               {
                 path: "",

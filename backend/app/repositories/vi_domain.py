@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 
+from app.db.mixins import utcnow
+from app.models.contact import Contact
+from app.models.contact_document import DOCUMENT_STATUS_VERIFIED, ContactDocument
+from app.models.task import TASK_STATUS_OPEN, Task
+from app.models.user import User
 from app.models.vi_domain import (
     EligibilityCheck,
     KycDecision,
@@ -22,6 +27,200 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
     """One repository boundary for related aggregates and immutable histories."""
 
     model = ReactivationCase
+
+    async def pipeline_cases(
+        self,
+        organization_id: int,
+        *,
+        q: str | None,
+        stages: list[str] | None,
+        owner_user_id: int | None,
+        limit: int,
+    ) -> tuple[list[tuple[ReactivationCase, Contact, User]], int]:
+        """Bounded joined cards for the governed Reactivation workspace."""
+        clauses: list[Any] = [
+            ReactivationCase.organization_id == organization_id,
+            ReactivationCase.deleted_at.is_(None),
+            Contact.organization_id == organization_id,
+            Contact.deleted_at.is_(None),
+        ]
+        if q:
+            text = q.strip().lower()
+            like = f"%{text}%"
+            clauses.append(
+                or_(
+                    func.lower(Contact.full_name).like(like),
+                    func.lower(Contact.email).like(like),
+                    Contact.phone_e164.like(f"%{q.strip()}%"),
+                    Contact.wa_id.like(f"%{q.strip()}%"),
+                    ReactivationCase.previous_vi_number.like(f"%{q.strip()}%"),
+                    ReactivationCase.active_delhi_number.like(f"%{q.strip()}%"),
+                )
+            )
+        if stages:
+            clauses.append(ReactivationCase.stage.in_(stages))
+        if owner_user_id is not None:
+            clauses.append(ReactivationCase.owner_user_id == owner_user_id)
+
+        base = (
+            select(ReactivationCase, Contact, User)
+            .join(Contact, Contact.id == ReactivationCase.contact_id)
+            .outerjoin(User, User.id == ReactivationCase.owner_user_id)
+            .where(*clauses)
+        )
+        rows = list(
+            (
+                await self.session.execute(
+                    base.order_by(
+                        ReactivationCase.updated_at.desc(), ReactivationCase.id.desc()
+                    ).limit(limit)
+                )
+            )
+            .tuples()
+            .all()
+        )
+        total = int(
+            (
+                await self.session.scalar(
+                    select(func.count())
+                    .select_from(ReactivationCase)
+                    .join(Contact, Contact.id == ReactivationCase.contact_id)
+                    .where(*clauses)
+                )
+            )
+            or 0
+        )
+        return rows, total
+
+    async def pipeline_stage_counts(self, organization_id: int) -> dict[str, int]:
+        rows = (
+            await self.session.execute(
+                select(ReactivationCase.stage, func.count())
+                .where(
+                    ReactivationCase.organization_id == organization_id,
+                    ReactivationCase.deleted_at.is_(None),
+                )
+                .group_by(ReactivationCase.stage)
+            )
+        ).all()
+        return {str(stage): int(count) for stage, count in rows}
+
+    async def latest_pipeline_evidence(
+        self, organization_id: int, case_ids: list[int], contact_ids: list[int]
+    ) -> dict[str, dict[int, Any]]:
+        """Resolve card evidence in bounded batched queries, never per-card N+1 calls."""
+        result: dict[str, dict[int, Any]] = {
+            "eligibility": {},
+            "stage_event": {},
+            "sla": {},
+            "tasks": {},
+            "documents": {},
+        }
+        if not case_ids:
+            return result
+
+        eligibility_rows = list(
+            (
+                await self.session.scalars(
+                    select(EligibilityCheck)
+                    .where(
+                        EligibilityCheck.organization_id == organization_id,
+                        EligibilityCheck.case_id.in_(case_ids),
+                    )
+                    .order_by(
+                        EligibilityCheck.case_id,
+                        EligibilityCheck.created_at.desc(),
+                        EligibilityCheck.id.desc(),
+                    )
+                )
+            ).all()
+        )
+        for eligibility in eligibility_rows:
+            result["eligibility"].setdefault(eligibility.case_id, eligibility)
+
+        stage_rows = list(
+            (
+                await self.session.scalars(
+                    select(ReactivationStageEvent)
+                    .where(
+                        ReactivationStageEvent.organization_id == organization_id,
+                        ReactivationStageEvent.case_id.in_(case_ids),
+                    )
+                    .order_by(
+                        ReactivationStageEvent.case_id,
+                        ReactivationStageEvent.created_at.desc(),
+                        ReactivationStageEvent.id.desc(),
+                    )
+                )
+            ).all()
+        )
+        for stage_event in stage_rows:
+            result["stage_event"].setdefault(stage_event.case_id, stage_event)
+
+        sla_rows = list(
+            (
+                await self.session.scalars(
+                    select(SlaEvent)
+                    .where(
+                        SlaEvent.entity_type == "reactivation_case",
+                        SlaEvent.organization_id == organization_id,
+                        SlaEvent.entity_id.in_(case_ids),
+                    )
+                    .order_by(SlaEvent.entity_id, SlaEvent.created_at.desc(), SlaEvent.id.desc())
+                )
+            ).all()
+        )
+        for sla_event in sla_rows:
+            result["sla"].setdefault(sla_event.entity_id, sla_event)
+
+        task_rows = (
+            await self.session.execute(
+                select(
+                    Task.contact_id,
+                    func.count(),
+                    func.sum(case((Task.due_at < utcnow(), 1), else_=0)),
+                    func.min(Task.due_at),
+                )
+                .where(
+                    Task.contact_id.in_(contact_ids),
+                    Task.organization_id == organization_id,
+                    Task.status == TASK_STATUS_OPEN,
+                    Task.deleted_at.is_(None),
+                )
+                .group_by(Task.contact_id)
+            )
+        ).all()
+        result["tasks"] = {
+            int(contact_id): {
+                "open": int(open_count),
+                "overdue": int(overdue_count or 0),
+                "next_due_at": next_due_at,
+            }
+            for contact_id, open_count, overdue_count, next_due_at in task_rows
+        }
+
+        document_rows = (
+            await self.session.execute(
+                select(
+                    ContactDocument.contact_id,
+                    func.count(),
+                    func.sum(
+                        case((ContactDocument.status == DOCUMENT_STATUS_VERIFIED, 1), else_=0)
+                    ),
+                )
+                .where(
+                    ContactDocument.contact_id.in_(contact_ids),
+                    ContactDocument.organization_id == organization_id,
+                    ContactDocument.deleted_at.is_(None),
+                )
+                .group_by(ContactDocument.contact_id)
+            )
+        ).all()
+        result["documents"] = {
+            int(contact_id): {"total": int(total), "verified": int(verified or 0)}
+            for contact_id, total, verified in document_rows
+        }
+        return result
 
     async def by_uuid(self, model: Any, organization_id: int, public_id: bytes) -> Any | None:
         clauses: list[Any] = [model.organization_id == organization_id, model.uuid == public_id]

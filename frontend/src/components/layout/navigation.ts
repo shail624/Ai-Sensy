@@ -217,9 +217,8 @@ export const navItems: NavItem[] = [
   },
   {
     label: "Reactivation", path: "/reactivation", available: true, glyph: "R", icon: Sparkles,
-    group: "Workspace", permission: "contacts:read",
-    description: "The Vi reactivation workspace and customer journey.",
-    maturity: "foundation",
+    group: "Workspace", permission: "reactivation:read",
+    description: "Governed Vi case pipeline, evidence and follow-up work.",
   },
   {
     label: "Tasks", path: "/tasks", available: true, glyph: "Tk", icon: ListChecks,
