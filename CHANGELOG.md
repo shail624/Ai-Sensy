@@ -11,6 +11,31 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-02 — Vi domain foundation (CORE-02)
+
+**Added**
+- Added the ten approved tenant-scoped Reactivation, eligibility, KYC, SIM, Activation, and SLA
+  records with immutable decision/event evidence, strong constraints, transition prerequisites,
+  optimistic concurrency, UUID idempotency, and explicit approval boundaries.
+- Added repository/service/schema layers and 29 permission-scoped lifecycle API paths; regenerated
+  OpenAPI 3.1.0 at 182 paths and the TypeScript contract.
+- Added fifteen additive RBAC permissions, seven durable business-event types, audit and Customer
+  Timeline projections, ADR-0014, Design Document 27, and focused domain/API/migration tests.
+- Added migration `0032_vi_domain_foundation` from the unchanged `0031` head.
+
+**Preserved**
+- Reused contacts, configurable lead pipelines, governed documents, tasks, audit, Customer
+  Timeline, durable business events, automation receipts, and runtime RBAC as existing authorities.
+- Added no Reactivation Kanban, KYC workspace, SIM fulfilment UI, Activation Queue, fake operational
+  data, placeholder workflow, duplicate module, parallel event bus, or migration downgrade.
+
+**Validated**
+- Canonical pre-merge and release profiles passed: 936 pytest tests, 636 Vitest tests, Ruff, strict
+  mypy across 252 source files, OpenAPI drift, ESLint, frontend/browser TypeScript, production build,
+  Bandit, dependency audits, Trivy source/image scans, SBOMs, Compose and image contracts.
+- SQLite migration upgrade/downgrade/re-upgrade passed. The isolated ten-service MySQL/Redis/Celery
+  deployment applied `0032`, passed Playwright, and recorded p95 16.5 ms across 30 reads.
+
 ### 2026-08-02 — Governed premium product shell (CORE-01)
 
 **Added**

@@ -24,6 +24,13 @@ BUSINESS_EVENT_ACTORS = (
 )
 
 BUSINESS_EVENT_CONTACT_CREATED = "contact.created"
+BUSINESS_EVENT_REACTIVATION_CREATED = "reactivation.case.created"
+BUSINESS_EVENT_REACTIVATION_TRANSITIONED = "reactivation.stage.transitioned"
+BUSINESS_EVENT_ELIGIBILITY_DECIDED = "reactivation.eligibility.decided"
+BUSINESS_EVENT_KYC_DECIDED = "kyc.decision.recorded"
+BUSINESS_EVENT_SIM_TRANSITIONED = "sim.order.transitioned"
+BUSINESS_EVENT_ACTIVATION_TRANSITIONED = "sim.activation.transitioned"
+BUSINESS_EVENT_SLA_RECORDED = "audit.sla.recorded"
 
 
 class BusinessEventType(IntPKMixin, Base):

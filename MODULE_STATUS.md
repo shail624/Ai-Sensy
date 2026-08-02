@@ -10,11 +10,11 @@ must also pass ADR-0012 and the twenty-point premium screen Definition of Done i
 25. Visual polish alone never increases completion, and a backend-complete workflow with a generic,
 inaccessible, placeholder-driven, or inconsistent experience is not final completion.
 
-CORE-01 completed the shared navigation shell, permitted-scope guard, RBAC visibility, maturity
-labels, responsive active states, command palette, and accessible overlay behavior. It does not
-change module completion percentages because no domain capability was added or recreated.
+CORE-02 completed the real tenant-scoped Vi domain foundation, permission-scoped lifecycle APIs,
+immutable evidence, audit/Timeline projections, migration `0032`, and generated contracts. It did
+not build the later Reactivation, KYC, SIM, or Activation operational screens.
 
-Last synchronized: `2026-08-02T04:23:52+05:30`.
+Last synchronized: `2026-08-02T11:53:32+05:30`.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
@@ -29,14 +29,14 @@ Last synchronized: `2026-08-02T04:23:52+05:30`.
 | Automation | 65% | Definitions, safe test runtime, trigger receipts complete | Governed live receipt consumption, conditions/actions, delays, reminders, approval/handoff, idempotent effects, operational UI. | Notifications, Approval Workflow, domain services |
 | Analytics | 55% | Messaging rollups and exports complete | Add reactivation funnel/drop-off, lead source, KYC turnaround, SIM delivery, activation success, SLA, agent comparison, date exports. | Domain events and reporting projections |
 | Executive Reports | 25% | Analytics-backed report shell | Revenue/ROI/productivity/workload/SLA/activation reports, schedules, CSV/PDF delivery. | Analytics, Download Center, Notifications |
-| Reactivation | 25% | Ten-route UI shell and pipeline blueprint | Dedicated case/eligibility/stage-event/reservation/family/conversion/SLA models and APIs; real Kanban transitions. | Core domain migration, RBAC, audit |
-| KYC | 20% | Customer 360 projection/UI foundation | KYC case/checklist/appointment/decision models, original-holder/Delhi checks, reviewer and manager approvals, protected audit. | Reactivation, Approval Workflow, Documents |
+| Reactivation | 45% | CORE-02 case, stage-event, eligibility, SLA, RBAC, audit, Timeline, and API foundation complete | CORE-03 real Kanban, assignments, reminders, reservations/family/conversion facts, visual workflow, and saved views. | Generated Vi contracts, Customer 360, Notifications |
+| KYC | 40% | CORE-02 case/checks, immutable review/manager decisions, approval boundary, tenant/RBAC/audit APIs complete | CORE-04 protected workspace, document checklist/access policies, appointment UX, and full operational review journey. | Reactivation, Approval Workflow, Documents |
 | Documents | 85% | Phase 4A governed documents — release ready | Domain-specific document checklists, approval/download policies, generated-document links, final encryption/retention commissioning. | KYC, Approval Workflow, Download Center |
-| SIM Orders | 15% | Reactivation workspace shell | Order/events, address/service area, delivery agent, dispatch/delivery/failure/SLA, serial, confirmation, activation linkage. | KYC approval, SLA, Activation |
-| Activation | 10% | Reactivation workspace shell | Record/queue, verification hand-off, completion/rejection decision, manager approval, audit and customer confirmation. | SIM Orders, Approval Workflow, Notifications |
+| SIM Orders | 35% | CORE-02 order/event lifecycle, address/service area, owner, serial, delivery/failure/customer confirmation, SLA and APIs complete | CORE-05 fulfilment table/detail/mobile UI, notification publishers, operational retry and exception handling. | KYC approval, SLA, Activation |
+| Activation | 35% | CORE-02 record lifecycle, SIM hand-off, verification/approval/completion/rejection rules, RBAC, audit and APIs complete | CORE-06 activation queue/list/detail UI, notification hand-off, and operational completion journey. | SIM Orders, Approval Workflow, Notifications |
 | Notifications | 20% | Preferences foundation | Server-backed center, unread counts, deep links, mark-read, SSE/browser push and optional email/internal WhatsApp adapters. | Domain event taxonomy, user preferences |
 | Settings | 70% | Organization/application/flags/preferences routes complete | Approved business/WhatsApp hours/messages, assignment/auto-resolve/read receipts, campaign/opt-in, pipeline/SLA/notifications/security/audit controls. | Domain configuration APIs, RBAC |
-| API | 75% | 153-path OpenAPI 3.1 contract and API keys | Add final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
+| API | 82% | 182-path OpenAPI 3.1 contract; CORE-02 adds 29 typed Vi lifecycle paths | Remaining final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
 | Webhooks | 80% | Provider webhooks and operations surface complete | Subscription governance, delivery/retry visibility, outbound final-domain events, security/usage documentation. | Domain event taxonomy, API permissions |
 | Google Sheets | 0% | Not implemented | Approved credential model, contact import/sync/export jobs, mapping, audit, retries, admin UX. | Jobs, API keys/secrets, Contacts |
 | WhatsApp Scan | 15% | Honest non-executing Scan Studio shell | Compliant provider contract, upload/batches/dedup/queue/results/retry/export/segments/analytics; no unofficial Web scanning. | Owner-approved compliant method, Jobs, Segments, Download Center |
@@ -51,7 +51,7 @@ Last synchronized: `2026-08-02T04:23:52+05:30`.
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
 | Global Search / Command Palette | 80% | Search and `Ctrl+K` foundation complete | Index final domain records/documents/notes/agents/tags and add all approved quick actions. | Final domain APIs |
 | Saved Views | 35% | Local favourites/recent destinations and inbox views exist | Server synchronization and sharing for contacts, campaigns, reactivation, KYC, SIM, reports, and chat history. | Users/RBAC, module filters |
-| Audit Timeline | 75% | General audit log and several domain histories complete | Normalize final-domain old/new values, device/login, approvals, document access, assignment and stage evidence. | All final domain events |
+| Audit Timeline | 82% | CORE-02 projects Reactivation, eligibility, KYC, SIM, Activation, and SLA evidence through existing audit/Customer Timeline authorities | Normalize remaining old/new values, device/login, generalized approvals, document access and assignment evidence. | All final domain events |
 
 ## Update rule
 

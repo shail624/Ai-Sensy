@@ -43,9 +43,7 @@ def _valid_model() -> dict[str, object]:
     services["frontend"] = _service(healthcheck=False)
     services["nginx"]["ports"] = [{"target": 80, "published": "18080"}]
     for name in ("api", "worker-realtime", "worker-bulk", "worker-jobs", "beat"):
-        services[name]["depends_on"] = {
-            "migrate": {"condition": "service_completed_successfully"}
-        }
+        services[name]["depends_on"] = {"migrate": {"condition": "service_completed_successfully"}}
     services["nginx"]["depends_on"] = {
         "api": {"condition": "service_healthy"},
         "frontend": {"condition": "service_healthy"},
@@ -54,7 +52,9 @@ def _valid_model() -> dict[str, object]:
 
 
 def _valid_compose_text() -> str:
-    required = "\n".join(f"{name}: ${{{name}:?required}}" for name in release_contract.REQUIRED_SECRETS)
+    required = "\n".join(
+        f"{name}: ${{{name}:?required}}" for name in release_contract.REQUIRED_SECRETS
+    )
     return f"image: app:${{IMAGE_TAG:?required}}\n{required}"
 
 
@@ -153,7 +153,7 @@ def test_backend_image_smoke_imports_the_worker_task_modules() -> None:
     command = image_contract.smoke_command("docker", "app:test", "backend")
     code = command[-1]
     assert "loader.import_default_modules()" in code
-    assert "len(app.openapi()['paths']) == 153" in code
+    assert "len(app.openapi()['paths']) == 182" in code
     assert "startswith('app.')" in code
 
 

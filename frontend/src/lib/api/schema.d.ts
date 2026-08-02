@@ -2855,6 +2855,511 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reactivation-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reactivation Cases */
+        get: operations["list_reactivation_cases_api_v1_reactivation_cases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/reactivation-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contact Reactivation Cases */
+        get: operations["list_contact_reactivation_cases_api_v1_contacts__contact_id__reactivation_cases_get"];
+        put?: never;
+        /** Create Reactivation Case */
+        post: operations["create_reactivation_case_api_v1_contacts__contact_id__reactivation_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reactivation Case */
+        get: operations["get_reactivation_case_api_v1_reactivation_cases__case_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Reactivation Case */
+        patch: operations["update_reactivation_case_api_v1_reactivation_cases__case_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition Reactivation Case */
+        post: operations["transition_reactivation_case_api_v1_reactivation_cases__case_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/stage-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reactivation Stage Events */
+        get: operations["list_reactivation_stage_events_api_v1_reactivation_cases__case_id__stage_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/eligibility-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Eligibility Checks */
+        get: operations["list_eligibility_checks_api_v1_reactivation_cases__case_id__eligibility_checks_get"];
+        put?: never;
+        /** Create Eligibility Check */
+        post: operations["create_eligibility_check_api_v1_reactivation_cases__case_id__eligibility_checks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eligibility-checks/{check_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Eligibility Check */
+        get: operations["get_eligibility_check_api_v1_eligibility_checks__check_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kyc Cases */
+        get: operations["list_kyc_cases_api_v1_kyc_cases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/kyc-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contact Kyc Cases */
+        get: operations["list_contact_kyc_cases_api_v1_contacts__contact_id__kyc_cases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/kyc-cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Kyc Case */
+        post: operations["create_kyc_case_api_v1_reactivation_cases__case_id__kyc_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Kyc Case */
+        get: operations["get_kyc_case_api_v1_kyc_cases__kyc_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Kyc Case */
+        patch: operations["update_kyc_case_api_v1_kyc_cases__kyc_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kyc Decisions */
+        get: operations["list_kyc_decisions_api_v1_kyc_cases__kyc_id__decisions_get"];
+        put?: never;
+        /** Record Kyc Review */
+        post: operations["record_kyc_review_api_v1_kyc_cases__kyc_id__decisions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-cases/{kyc_id}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Kyc Approval */
+        post: operations["record_kyc_approval_api_v1_kyc_cases__kyc_id__approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc-decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Kyc Decision */
+        get: operations["get_kyc_decision_api_v1_kyc_decisions__decision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sim-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sim Orders */
+        get: operations["list_sim_orders_api_v1_sim_orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/sim-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Case Sim Orders */
+        get: operations["list_case_sim_orders_api_v1_reactivation_cases__case_id__sim_orders_get"];
+        put?: never;
+        /** Create Sim Order */
+        post: operations["create_sim_order_api_v1_reactivation_cases__case_id__sim_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sim-orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sim Order */
+        get: operations["get_sim_order_api_v1_sim_orders__order_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Sim Order */
+        patch: operations["update_sim_order_api_v1_sim_orders__order_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/sim-orders/{order_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition Sim Order */
+        post: operations["transition_sim_order_api_v1_sim_orders__order_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sim-orders/{order_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sim Order Events */
+        get: operations["list_sim_order_events_api_v1_sim_orders__order_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sim-order-events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sim Order Event */
+        get: operations["get_sim_order_event_api_v1_sim_order_events__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activation-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Activation Records */
+        get: operations["list_activation_records_api_v1_activation_records_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation-cases/{case_id}/activation-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Case Activation Records */
+        get: operations["list_case_activation_records_api_v1_reactivation_cases__case_id__activation_records_get"];
+        put?: never;
+        /** Create Activation Record */
+        post: operations["create_activation_record_api_v1_reactivation_cases__case_id__activation_records_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activation-records/{activation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Activation Record */
+        get: operations["get_activation_record_api_v1_activation_records__activation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Activation Record */
+        patch: operations["update_activation_record_api_v1_activation_records__activation_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/activation-records/{activation_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition Activation Record */
+        post: operations["transition_activation_record_api_v1_activation_records__activation_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activation-records/{activation_id}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Activation Record */
+        post: operations["approve_activation_record_api_v1_activation_records__activation_id__approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sla/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sla Policies */
+        get: operations["list_sla_policies_api_v1_sla_policies_get"];
+        put?: never;
+        /** Create Sla Policy */
+        post: operations["create_sla_policy_api_v1_sla_policies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sla/policies/{policy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sla Policy */
+        get: operations["get_sla_policy_api_v1_sla_policies__policy_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Sla Policy */
+        patch: operations["update_sla_policy_api_v1_sla_policies__policy_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/sla/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sla Events */
+        get: operations["list_sla_events_api_v1_sla_events_get"];
+        put?: never;
+        /** Create Sla Event */
+        post: operations["create_sla_event_api_v1_sla_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sla/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sla Event */
+        get: operations["get_sla_event_api_v1_sla_events__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2881,6 +3386,102 @@ export interface components {
              */
             kind: "action";
             config: components["schemas"]["ActionConfig"];
+        };
+        /** ActivationCreateRequest */
+        ActivationCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Sim Order Id */
+            sim_order_id?: string | null;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+        };
+        /** ActivationRecordListResponse */
+        ActivationRecordListResponse: {
+            /** Data */
+            data: components["schemas"]["ActivationRecordResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** ActivationRecordResponse */
+        ActivationRecordResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reactivation Case Id
+             * Format: uuid
+             */
+            reactivation_case_id: string;
+            /** Sim Order Id */
+            sim_order_id: string | null;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "verification" | "ready" | "approved" | "completed" | "rejected";
+            /** Owner User Id */
+            owner_user_id: string | null;
+            /** Approval Reference */
+            approval_reference: string | null;
+            /** Approved By */
+            approved_by: string | null;
+            /** Approved At */
+            approved_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Rejection Reason */
+            rejection_reason: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ActivationTransitionRequest */
+        ActivationTransitionRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * To Status
+             * @enum {string}
+             */
+            to_status: "pending" | "verification" | "ready" | "approved" | "completed" | "rejected";
+            /** Approval Reference */
+            approval_reference?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ActivationUpdateRequest */
+        ActivationUpdateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Sim Order Id */
+            sim_order_id?: string | null;
         };
         /**
          * AnalyticsBreakdownResponse
@@ -4520,6 +5121,67 @@ export interface components {
              */
             created_at: string;
         };
+        /** EligibilityCheckResponse */
+        EligibilityCheckResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "eligible" | "not_eligible" | "review_required";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "rules" | "manual" | "override";
+            /** Reason */
+            reason: string | null;
+            /** Approval Reference */
+            approval_reference: string | null;
+            /** Checked By */
+            checked_by: string | null;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+        };
+        /** EligibilityCreateRequest */
+        EligibilityCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "eligible" | "not_eligible" | "review_required";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "rules" | "manual" | "override";
+            /** Reason */
+            reason?: string | null;
+            /** Approval Reference */
+            approval_reference?: string | null;
+        };
+        /** EligibilityListResponse */
+        EligibilityListResponse: {
+            /** Data */
+            data: components["schemas"]["EligibilityCheckResponse"][];
+        };
         /**
          * EstimateBreakdownEntry
          * @description One priced ``(country, category)`` group (Doc 04 §17).
@@ -4814,6 +5476,144 @@ export interface components {
             /** Data */
             data: components["schemas"]["JobResponse"][];
             page: components["schemas"]["Page"];
+        };
+        /** KycCaseListResponse */
+        KycCaseListResponse: {
+            /** Data */
+            data: components["schemas"]["KycCaseResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** KycCaseResponse */
+        KycCaseResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reactivation Case Id
+             * Format: uuid
+             */
+            reactivation_case_id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "documents_pending" | "under_review" | "approved" | "rejected";
+            /** Owner User Id */
+            owner_user_id: string | null;
+            /** Holder Verified */
+            holder_verified: boolean;
+            /** Delhi Presence Verified */
+            delhi_presence_verified: boolean;
+            /** Active Delhi Number Verified */
+            active_delhi_number_verified: boolean;
+            /** Appointment At */
+            appointment_at: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** KycCreateRequest */
+        KycCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Appointment At */
+            appointment_at?: string | null;
+        };
+        /** KycDecisionListResponse */
+        KycDecisionListResponse: {
+            /** Data */
+            data: components["schemas"]["KycDecisionResponse"][];
+        };
+        /** KycDecisionRequest */
+        KycDecisionRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "rejected" | "needs_information";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** KycDecisionResponse */
+        KycDecisionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kyc Case Id
+             * Format: uuid
+             */
+            kyc_case_id: string;
+            /**
+             * Decision Type
+             * @enum {string}
+             */
+            decision_type: "review" | "manager_approval";
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approved" | "rejected" | "needs_information";
+            /** Reason */
+            reason: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Decided At
+             * Format: date-time
+             */
+            decided_at: string;
+        };
+        /** KycUpdateRequest */
+        KycUpdateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "documents_pending" | "under_review";
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Holder Verified */
+            holder_verified: boolean;
+            /** Delhi Presence Verified */
+            delhi_presence_verified: boolean;
+            /** Active Delhi Number Verified */
+            active_delhi_number_verified: boolean;
+            /** Appointment At */
+            appointment_at?: string | null;
         };
         /** LeadPipelineCreateRequest */
         LeadPipelineCreateRequest: {
@@ -5448,6 +6248,129 @@ export interface components {
             /** Body */
             body?: string | null;
         };
+        /** ReactivationCaseListResponse */
+        ReactivationCaseListResponse: {
+            /** Data */
+            data: components["schemas"]["ReactivationCaseResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** ReactivationCaseResponse */
+        ReactivationCaseResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Owner User Id */
+            owner_user_id: string | null;
+            /** Previous Vi Number */
+            previous_vi_number: string | null;
+            /** Active Delhi Number */
+            active_delhi_number: string | null;
+            /** Source */
+            source: string;
+            /** Closed Reason */
+            closed_reason: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ReactivationCreateRequest */
+        ReactivationCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Previous Vi Number */
+            previous_vi_number?: string | null;
+            /** Active Delhi Number */
+            active_delhi_number?: string | null;
+            /**
+             * Source
+             * @default manual
+             */
+            source: string;
+        };
+        /** ReactivationStageEventResponse */
+        ReactivationStageEventResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Case Id
+             * Format: uuid
+             */
+            case_id: string;
+            /** From Stage */
+            from_stage: ("new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested") | null;
+            /**
+             * To Stage
+             * @enum {string}
+             */
+            to_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReactivationTransitionRequest */
+        ReactivationTransitionRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * To Stage
+             * @enum {string}
+             */
+            to_stage: "new_lead" | "follow_up" | "interested" | "eligibility_check" | "eligible" | "documents_pending" | "documents_received" | "kyc_pending" | "verification" | "confirmed" | "sim_order" | "activation_pending" | "completed" | "not_eligible" | "not_interested";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ReactivationUpdateRequest */
+        ReactivationUpdateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Previous Vi Number */
+            previous_vi_number?: string | null;
+            /** Active Delhi Number */
+            active_delhi_number?: string | null;
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /**
@@ -5715,6 +6638,331 @@ export interface components {
             values: {
                 [key: string]: unknown;
             };
+        };
+        /** SimOrderCreateRequest */
+        SimOrderCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /** Delivery Address */
+            delivery_address: string;
+            /**
+             * Service Area
+             * @default Delhi NCR
+             */
+            service_area: string;
+            /** Delivery Owner User Id */
+            delivery_owner_user_id?: string | null;
+        };
+        /** SimOrderEventListResponse */
+        SimOrderEventListResponse: {
+            /** Data */
+            data: components["schemas"]["SimOrderEventResponse"][];
+        };
+        /** SimOrderEventResponse */
+        SimOrderEventResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Sim Order Id
+             * Format: uuid
+             */
+            sim_order_id: string;
+            /** From Status */
+            from_status: ("requested" | "approved" | "assigned" | "dispatched" | "delivered" | "failed" | "cancelled") | null;
+            /**
+             * To Status
+             * @enum {string}
+             */
+            to_status: "requested" | "approved" | "assigned" | "dispatched" | "delivered" | "failed" | "cancelled";
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** SimOrderListResponse */
+        SimOrderListResponse: {
+            /** Data */
+            data: components["schemas"]["SimOrderResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** SimOrderResponse */
+        SimOrderResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reactivation Case Id
+             * Format: uuid
+             */
+            reactivation_case_id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "requested" | "approved" | "assigned" | "dispatched" | "delivered" | "failed" | "cancelled";
+            /** Delivery Address */
+            delivery_address: string;
+            /** Service Area */
+            service_area: string;
+            /** Delivery Owner User Id */
+            delivery_owner_user_id: string | null;
+            /** Dispatched At */
+            dispatched_at: string | null;
+            /** Delivered At */
+            delivered_at: string | null;
+            /** Failed At */
+            failed_at: string | null;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /** Sim Serial */
+            sim_serial: string | null;
+            /** Customer Confirmed */
+            customer_confirmed: boolean;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SimOrderTransitionRequest */
+        SimOrderTransitionRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * To Status
+             * @enum {string}
+             */
+            to_status: "requested" | "approved" | "assigned" | "dispatched" | "delivered" | "failed" | "cancelled";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** SimOrderUpdateRequest */
+        SimOrderUpdateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /** Delivery Address */
+            delivery_address: string;
+            /** Service Area */
+            service_area: string;
+            /** Delivery Owner User Id */
+            delivery_owner_user_id?: string | null;
+            /** Sim Serial */
+            sim_serial?: string | null;
+            /**
+             * Customer Confirmed
+             * @default false
+             */
+            customer_confirmed: boolean;
+        };
+        /** SlaEventCreateRequest */
+        SlaEventCreateRequest: {
+            /**
+             * Idempotency Key
+             * Format: uuid
+             */
+            idempotency_key: string;
+            /**
+             * Policy Id
+             * Format: uuid
+             */
+            policy_id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "reactivation_case" | "kyc_case" | "sim_order" | "activation_record";
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "started" | "breached" | "resolved";
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** SlaEventListResponse */
+        SlaEventListResponse: {
+            /** Data */
+            data: components["schemas"]["SlaEventResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** SlaEventResponse */
+        SlaEventResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Policy Id
+             * Format: uuid
+             */
+            policy_id: string;
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "reactivation_case" | "kyc_case" | "sim_order" | "activation_record";
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "started" | "breached" | "resolved";
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** SlaPolicyCreateRequest */
+        SlaPolicyCreateRequest: {
+            /**
+             * Domain
+             * @enum {string}
+             */
+            domain: "reactivation" | "kyc" | "sim" | "activation";
+            /** Trigger Name */
+            trigger_name: string;
+            /** Target Minutes */
+            target_minutes: number;
+            /** Escalation Minutes */
+            escalation_minutes: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** SlaPolicyListResponse */
+        SlaPolicyListResponse: {
+            /** Data */
+            data: components["schemas"]["SlaPolicyResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** SlaPolicyResponse */
+        SlaPolicyResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Domain
+             * @enum {string}
+             */
+            domain: "reactivation" | "kyc" | "sim" | "activation";
+            /** Trigger Name */
+            trigger_name: string;
+            /** Target Minutes */
+            target_minutes: number;
+            /** Escalation Minutes */
+            escalation_minutes: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SlaPolicyUpdateRequest */
+        SlaPolicyUpdateRequest: {
+            /** Expected Row Version */
+            expected_row_version: number;
+            /**
+             * Domain
+             * @enum {string}
+             */
+            domain: "reactivation" | "kyc" | "sim" | "activation";
+            /** Trigger Name */
+            trigger_name: string;
+            /** Target Minutes */
+            target_minutes: number;
+            /** Escalation Minutes */
+            escalation_minutes: number;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** StageEventListResponse */
+        StageEventListResponse: {
+            /** Data */
+            data: components["schemas"]["ReactivationStageEventResponse"][];
         };
         /** StatusHistoryEntry */
         StatusHistoryEntry: {
@@ -12703,6 +13951,1349 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutomationRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reactivation_cases_api_v1_reactivation_cases_get: {
+        parameters: {
+            query?: {
+                contact_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contact_reactivation_cases_api_v1_contacts__contact_id__reactivation_cases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_reactivation_case_api_v1_contacts__contact_id__reactivation_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactivationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reactivation_case_api_v1_reactivation_cases__case_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reactivation_case_api_v1_reactivation_cases__case_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactivationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_reactivation_case_api_v1_reactivation_cases__case_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactivationTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reactivation_stage_events_api_v1_reactivation_cases__case_id__stage_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StageEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_eligibility_checks_api_v1_reactivation_cases__case_id__eligibility_checks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_eligibility_check_api_v1_reactivation_cases__case_id__eligibility_checks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_eligibility_check_api_v1_eligibility_checks__check_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EligibilityCheckResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_kyc_cases_api_v1_kyc_cases_get: {
+        parameters: {
+            query?: {
+                contact_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycCaseListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contact_kyc_cases_api_v1_contacts__contact_id__kyc_cases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycCaseListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_kyc_case_api_v1_reactivation_cases__case_id__kyc_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_kyc_case_api_v1_kyc_cases__kyc_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_kyc_case_api_v1_kyc_cases__kyc_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycCaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_kyc_decisions_api_v1_kyc_cases__kyc_id__decisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDecisionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_kyc_review_api_v1_kyc_cases__kyc_id__decisions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_kyc_approval_api_v1_kyc_cases__kyc_id__approvals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kyc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_kyc_decision_api_v1_kyc_decisions__decision_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sim_orders_api_v1_sim_orders_get: {
+        parameters: {
+            query?: {
+                case_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_case_sim_orders_api_v1_reactivation_cases__case_id__sim_orders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sim_order_api_v1_reactivation_cases__case_id__sim_orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimOrderCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sim_order_api_v1_sim_orders__order_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_sim_order_api_v1_sim_orders__order_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimOrderUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_sim_order_api_v1_sim_orders__order_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimOrderTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sim_order_events_api_v1_sim_orders__order_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sim_order_event_api_v1_sim_order_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimOrderEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_activation_records_api_v1_activation_records_get: {
+        parameters: {
+            query?: {
+                case_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_case_activation_records_api_v1_reactivation_cases__case_id__activation_records_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_activation_record_api_v1_reactivation_cases__case_id__activation_records_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_activation_record_api_v1_activation_records__activation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_activation_record_api_v1_activation_records__activation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_activation_record_api_v1_activation_records__activation_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_activation_record_api_v1_activation_records__activation_id__approval_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivationTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationRecordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sla_policies_api_v1_sla_policies_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaPolicyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sla_policy_api_v1_sla_policies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlaPolicyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaPolicyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sla_policy_api_v1_sla_policies__policy_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaPolicyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_sla_policy_api_v1_sla_policies__policy_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlaPolicyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaPolicyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sla_events_api_v1_sla_events_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sla_event_api_v1_sla_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlaEventCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaEventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sla_event_api_v1_sla_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaEventResponse"];
                 };
             };
             /** @description Validation Error */

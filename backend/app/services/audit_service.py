@@ -120,6 +120,22 @@ class AuditAction:
     AUTOMATION_DISABLED = "automation.disabled"
     AUTOMATION_ENABLED = "automation.enabled"
     AUTOMATION_TEST_RUN_CREATED = "automation.test_run_created"
+    REACTIVATION_CASE_CREATED = "reactivation_case.created"
+    REACTIVATION_CASE_UPDATED = "reactivation_case.updated"
+    REACTIVATION_STAGE_TRANSITIONED = "reactivation_case.stage_transitioned"
+    ELIGIBILITY_RECORDED = "eligibility_check.recorded"
+    KYC_CASE_CREATED = "kyc_case.created"
+    KYC_CASE_UPDATED = "kyc_case.updated"
+    KYC_DECISION_RECORDED = "kyc_decision.recorded"
+    SIM_ORDER_CREATED = "sim_order.created"
+    SIM_ORDER_UPDATED = "sim_order.updated"
+    SIM_ORDER_TRANSITIONED = "sim_order.transitioned"
+    ACTIVATION_CREATED = "activation_record.created"
+    ACTIVATION_UPDATED = "activation_record.updated"
+    ACTIVATION_TRANSITIONED = "activation_record.transitioned"
+    SLA_POLICY_CREATED = "sla_policy.created"
+    SLA_POLICY_UPDATED = "sla_policy.updated"
+    SLA_EVENT_RECORDED = "sla_event.recorded"
 
 
 class AuditService:

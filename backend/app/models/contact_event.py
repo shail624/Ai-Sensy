@@ -48,6 +48,20 @@ EVENT_DOCUMENT_ARCHIVED = "document_archived"
 #: The ``ref_type`` used for all task timeline projections.
 REF_TYPE_TASK = "task"
 REF_TYPE_CONTACT_DOCUMENT = "contact_document"
+REF_TYPE_REACTIVATION_CASE = "reactivation_case"
+REF_TYPE_KYC_CASE = "kyc_case"
+REF_TYPE_SIM_ORDER = "sim_order"
+REF_TYPE_ACTIVATION_RECORD = "activation_record"
+REF_TYPE_SLA_EVENT = "sla_event"
+
+EVENT_REACTIVATION_CREATED = "reactivation_created"
+EVENT_REACTIVATION_TRANSITIONED = "reactivation_transitioned"
+EVENT_ELIGIBILITY_RECORDED = "eligibility_recorded"
+EVENT_KYC_UPDATED = "kyc_updated"
+EVENT_KYC_DECIDED = "kyc_decided"
+EVENT_SIM_ORDER_UPDATED = "sim_order_updated"
+EVENT_ACTIVATION_UPDATED = "activation_updated"
+EVENT_SLA_RECORDED = "sla_recorded"
 
 
 class ContactEvent(Base):

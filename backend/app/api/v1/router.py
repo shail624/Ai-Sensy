@@ -34,6 +34,7 @@ from app.api.v1.endpoints import (
     tasks,
     templates,
     users,
+    vi_domain,
     waba,
     webhooks,
 )
@@ -91,3 +92,6 @@ api_router.include_router(analytics.router, tags=["Analytics"])
 
 # MD5 Phase 2A — versioned automation authoring only; no execution task is registered.
 api_router.include_router(automations.router, tags=["Automations"])
+
+# CORE-02 — governed Vi reactivation, KYC, SIM, activation and SLA foundations.
+api_router.include_router(vi_domain.router, tags=["Vi Reactivation"])

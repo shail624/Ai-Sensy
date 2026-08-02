@@ -86,6 +86,16 @@ _EXPECTED_TABLES = {
     "business_event_types",
     "business_events",
     "automation_trigger_receipts",
+    "reactivation_cases",
+    "reactivation_stage_events",
+    "eligibility_checks",
+    "kyc_cases",
+    "kyc_decisions",
+    "sim_orders",
+    "sim_order_events",
+    "activation_records",
+    "sla_policies",
+    "sla_events",
 }
 
 
@@ -125,7 +135,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0031_automation_trigger_receipts"
+        assert version == "0032_vi_domain_foundation"
     finally:
         con.close()
 

@@ -72,6 +72,48 @@ class BusinessEventService:
         await self._project_automation_receipts(event)
         return event
 
+    async def record_domain_event(
+        self,
+        *,
+        organization_id: int,
+        event_id: uuidlib.UUID,
+        event_type: str,
+        actor_id: int | None,
+        subject_type: str,
+        subject_id: int,
+        contact_id: int | None,
+        occurred_at: datetime,
+        source: str,
+        payload: dict[str, Any],
+    ) -> BusinessEvent:
+        """Append a governed domain fact idempotently and reuse automation receipts."""
+        existing = await self._events.by_event_uuid(organization_id, event_id.bytes)
+        if existing is not None:
+            return existing
+        event = BusinessEvent(
+            uuid=event_id.bytes,
+            organization_id=organization_id,
+            event_type=event_type,
+            event_version=1,
+            occurred_at=occurred_at,
+            actor_type="user" if actor_id is not None else "system",
+            actor_id=actor_id,
+            subject_type=subject_type,
+            subject_id=subject_id,
+            contact_id=contact_id,
+            source=source,
+            schema_ref=f"internal://events/{event_type}/v1",
+            payload_json=payload,
+        )
+        await self._events.add(event)
+        await self._project_automation_receipts(event)
+        return event
+
+    async def find_domain_event(
+        self, organization_id: int, event_id: uuidlib.UUID
+    ) -> BusinessEvent | None:
+        return await self._events.by_event_uuid(organization_id, event_id.bytes)
+
     async def _project_automation_receipts(self, event: BusinessEvent) -> None:
         candidates = await self._automations.event_candidates(event.organization_id)
         for flow, version in candidates:

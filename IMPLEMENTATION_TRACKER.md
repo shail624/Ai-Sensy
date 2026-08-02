@@ -4,21 +4,21 @@
 > of truth. Every new session must read this first.
 > Update it after each verified milestone. Keep it short: state, not narrative.
 
-_Last updated: 2026-08-02 · CORE-01 verified from Git, generated contracts, paired reference
-evidence, authenticated browser review, application suites, and daemon-independent quality gates._
+_Last updated: 2026-08-02 · CORE-02 verified from Git, generated contracts, application/security
+suites, production images, deployed MySQL/Redis/Celery, Playwright, and performance evidence._
 
 ## Current state
 
 - **Branch:** `feature/module6-queue-engine`
 - **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
   `baseline/fr-con-04-release-ready` at `b565d0f`
-- **Migration head:** `0031_automation_trigger_receipts` (31 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 153 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 932 tests passed · Ruff clean · raw strict mypy clean across
-  247 source files (down from 251 findings; exact checker mypy 2.3.0)
+- **Migration head:** `0032_vi_domain_foundation` (32 linear revisions, base `0001`)
+- **OpenAPI:** 3.1.0 · 182 paths · `frontend/openapi.json` verified against the live app
+- **Backend:** 936 tests passed · Ruff clean · raw strict mypy clean across
+  252 source files (exact checker mypy 2.3.0)
 - **Frontend:** 636 tests passed · TypeScript clean · ESLint clean · production build passed
 - **Docker:** development and production Compose models parse cleanly; production images build;
-  the backend image boots with the 153-path/24-task contract; frontend nginx validates. The isolated
+  the backend image boots with the 182-path/24-task contract; frontend nginx validates. The isolated
   automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
   read performance, and project-scoped cleanup.
 - **Current phase:** Phase 1 core operations and real domain ownership — **IN PROGRESS**
@@ -27,13 +27,13 @@ evidence, authenticated browser review, application suites, and daemon-independe
   profiles are provider-neutral
 - **Deployed gate:** Playwright owner login → queued CSV import → persisted contact search/profile
   → durable automation draft/publish/test-run → second queued import → real `contact.created` receipt
-  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; current standard-read evidence is p95
-  19.002 ms / 30 samples (<300 ms target)
+  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; CORE-02 migration `0032` applied and the
+  current standard-read evidence is p95 16.5 ms / 30 samples (<300 ms target)
 - **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
   covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
   digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** CORE-01 navigation, scope, and permitted UI-reference lock — **COMPLETE;
-  APPLICATION AND GOVERNANCE VALIDATION PASSED; DOCKER-DEPENDENT GATES HOST-PENDING**
+- **Current milestone:** CORE-02 Vi domain foundation — **COMPLETE; APPLICATION, SECURITY,
+  RELEASE-IMAGE, MIGRATION, DEPLOYED, BROWSER, AND GOVERNANCE VALIDATION PASSED**
 
 ## Completed deliverables
 
@@ -63,6 +63,7 @@ evidence, authenticated browser review, application suites, and daemon-independe
 | Permanent repository governance | Root state, validation, module-status, repository-rule, and final-scope roadmap ledgers; immutable source-document hashes; permitted AiSensy reference boundary; milestone synchronization gate |
 | Premium product-goal lock | Permanent original enterprise quality target; ordered product priorities; bounded local reference policy; no-placeholder rule; shared-component standard; fourteen-step reference review; twenty-point premium screen Definition of Done; ADR-0012 and Design Document 25 |
 | Governed navigation shell | Original compact/expanded Vi rail; permission-aware grouped More; shared create actions and command palette; mobile bottom navigation/drawer; honest maturity labels; permanent exclusion guard; focus-managed accessible overlays; ADR-0013 and Design Document 26 |
+| Vi domain foundation | Tenant-scoped Reactivation, stage-event, eligibility, KYC/decisions, SIM/events, Activation, and SLA records; fixed transitions and prerequisites; optimistic concurrency; UUID idempotency; approval boundaries; RBAC; audit/Customer Timeline/durable facts; 29 typed API paths; migration `0032`; ADR-0014 and Design Document 27 |
 | Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
 | Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
 | Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
@@ -91,7 +92,7 @@ The canonical final-product sequence is `ROADMAP.md`; the older `docs/ROADMAP.md
 historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
 continues to define the remaining-work baseline. ADR-0012 and Design Document 25 govern premium
 original experience acceptance for every future screen without changing the feature roadmap or
-module percentages. CORE-01 is complete; CORE-02 Vi domain foundation is next and must not start
+module percentages. CORE-02 is complete; CORE-03 Reactivation pipeline is next and must not start
 without a separate owner instruction.
 Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
 from the product roadmap and must not be introduced as placeholders or future milestones.

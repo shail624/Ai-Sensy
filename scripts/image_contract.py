@@ -51,7 +51,7 @@ def smoke_command(docker: str, image: str, kind: str) -> tuple[str, ...]:
             "from app.main import app; "
             "from app.queue.celery_app import celery_app; "
             "celery_app.loader.import_default_modules(); "
-            "assert len(app.openapi()['paths']) == 153; "
+            "assert len(app.openapi()['paths']) == 182; "
             "assert len([name for name in celery_app.tasks if name.startswith('app.')]) == 24; "
             "print('backend image contract passed')"
         )
@@ -74,7 +74,9 @@ def main() -> int:
         for problem in problems:
             print(f"image contract failed: {problem}", file=sys.stderr)
         return 1
-    return subprocess.run(smoke_command(docker, args.image, args.kind), cwd=ROOT, check=False).returncode
+    return subprocess.run(
+        smoke_command(docker, args.image, args.kind), cwd=ROOT, check=False
+    ).returncode
 
 
 if __name__ == "__main__":

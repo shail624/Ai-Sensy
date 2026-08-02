@@ -62,6 +62,18 @@ from app.models.task_event import TaskEvent
 from app.models.template import MessageTemplate, TemplateVersion
 from app.models.token import RefreshToken, UserSession
 from app.models.user import User
+from app.models.vi_domain import (
+    ActivationRecord,
+    EligibilityCheck,
+    KycCase,
+    KycDecision,
+    ReactivationCase,
+    ReactivationStageEvent,
+    SimOrder,
+    SimOrderEvent,
+    SlaEvent,
+    SlaPolicy,
+)
 from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
 from app.models.webhook import WebhookDeadLetter, WebhookEvent
 
@@ -131,4 +143,14 @@ __all__ = [
     "WhatsAppBusinessAccount",
     "contact_tags",
     "role_permissions",
+    "ActivationRecord",
+    "EligibilityCheck",
+    "KycCase",
+    "KycDecision",
+    "ReactivationCase",
+    "ReactivationStageEvent",
+    "SimOrder",
+    "SimOrderEvent",
+    "SlaEvent",
+    "SlaPolicy",
 ]
