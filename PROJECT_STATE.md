@@ -1,80 +1,74 @@
 # Project State
 
-> Current repository snapshot. Update this file at every milestone closeout and whenever the
-> milestone baseline changes. `HEAD` is kept symbolic because a Git commit cannot embed its own
-> final hash; resolve it from the authoritative checkout with `git rev-parse HEAD`.
+> Current repository snapshot. GitHub is the implementation source of truth. `HEAD` is symbolic
+> because a commit cannot embed its own final hash; resolve it after push with `git rev-parse HEAD`.
 
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Original UI branch baseline | `62d4daa50617e2e0c8fff9f5ec9a514848a77f98` (`CORE-09` validated baseline) |
-| Priority 1 starting baseline | `9043fe03a80b682a010304c88c5d29d8ec77d1fa` (`docs(ui): add taste modernization implementation plan`) |
-| Current Git HEAD | `HEAD` (Priority 1 closeout commit; resolve from Git after push) |
-| Current milestone | `UI-TASTE-02 — Shared enterprise design system — IMPLEMENTED; OWNER APPROVAL PENDING` |
-| Current phase | `UI Taste Modernization — Priority 1 implemented; Priority 2 blocked pending approval` |
+| Priority 2 starting baseline | `7d826987c272d28038663ba9cb15c832c37e2b02` (`feat(ui): modernize shared enterprise design system`) |
+| Current Git HEAD | `HEAD` (Dashboard closeout commit; resolve after push) |
+| Current milestone | `UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED; HOST VISUAL REVIEW PENDING` |
+| Current phase | `UI Taste Modernization — Dashboard complete; Reactivation redesign blocked pending owner approval` |
 | Repository version | `1.0.0-rc1` |
-| Current migration head | `0035_notification_center` (35 linear revisions) |
-| OpenAPI path count | `193` (OpenAPI `3.1.0`) |
-| Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests passed; backend not changed or re-run for this frontend-only milestone |
-| Frontend evidence | ESLint PASS; TypeScript PASS; 657/657 Vitest tests across 33 files PASS; production build PASS |
-| Dependency evidence | Production audit has 2 moderate React Router advisories and no high/critical finding; development-tooling audit inventory remains recorded as technical debt |
-| Visual acceptance | `PENDING – Host Machine Validation` for authenticated representative-data desktop/tablet/mobile and reference-comparison review |
-| Last completed product milestone | `CORE-09 — Unified Notification Center` |
-| Last completed governance milestone | `UI-TASTE-01 — Documentation and audit baseline` |
-| Next milestone | `UI-TASTE-03 — Dashboard redesign`, blocked until owner approval of Priority 1 |
-| Current worktree expectation | One Priority 1 squash commit; no sidebar, navigation, route, API, backend, migration, OpenAPI, generated-client, dependency, or workflow file change |
-| Last update timestamp | `2026-08-04T01:38:00+05:30` (Asia/Kolkata) |
+| Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
+| OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
+| Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests; backend not changed or re-run |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
+| Dependency evidence | Production audit has two moderate React Router advisories and no high/critical finding |
+| Bundle evidence | Main chunk `733.62 kB` / `178.16 kB` gzip; operational Dashboard split to `31.96 kB` / `8.61 kB` gzip |
+| Visual acceptance | `PENDING – Host Machine Validation` for authenticated representative-data desktop/tablet/mobile, keyboard, screen-reader and approved-reference review |
+| Last completed milestone | `UI-TASTE-03A — Operator-first Dashboard` (repository engineering gates complete) |
+| Next milestone | `UI-TASTE-03B — Reactivation operational hierarchy`, blocked pending owner approval |
+| Worktree expectation | One Dashboard milestone commit; no backend, migration, OpenAPI, generated-client, dependency, route-catalogue or navigation change |
+| Last update | `2026-08-04T03:00:00+05:30` (Asia/Kolkata) |
 
-## Priority 1 implementation
+## Delivered operator intelligence
 
-Priority 1 modernizes the shared enterprise presentation layer without changing product workflows:
+The first authenticated screen now answers the approved operating questions through existing,
+permission-scoped source authorities:
 
-- added governed `Input`, `Select`, `Textarea`, and `Field` controls with forward refs, semantic
-  disabled/invalid states, icon/action slots, mobile touch targets, and focus-visible treatment;
-- added shared `Toolbar`, `ToolbarGroup`, `ToolbarDivider`, `FilterBar`, and cursor-safe `Pagination`;
-- added named `control`, `surface`, and `overlay` radius tiers without changing existing sidebar or
-  navigation radius utilities;
-- refined shared Button, Card, PageHeader, and PageContainer density and hierarchy;
-- replaced duplicated controls in Contacts, Inbox, and Notification Center while preserving URL
-  filters, bulk actions, saved views, keyboard shortcuts, polling, read-state, and source deep links;
-- added focused semantic and interaction tests for the new primitives.
+- prioritized cross-domain attention queue for blocked customers, KYC, SIM, Activation, campaigns,
+  conversations and templates;
+- blocked-customer reasons, current stage and assignee;
+- reviewer-pending KYC and evidence/SLA state;
+- SIM Required and Activation Pending cases whose persisted SLA is breached;
+- failed, paused or recipient-failing campaigns;
+- unread open/pending conversations ordered by waiting age, explicitly labelled as a derived age and
+  not a configured SLA;
+- rejected, paused or disabled templates;
+- agent attention derived from assigned blocked, overdue, breached-SLA and KYC work without invented
+  productivity scores;
+- today-versus-previous-period KPI changes with metric-aware direction;
+- signed-in operator task snapshot and governed source deep links.
 
-## Preserved boundaries
+## Architecture and truth boundaries
 
-- Sidebar, TopNav structure, command palette, mobile navigation, routes, permissions, source-domain
-  ownership, generated API contracts, backend services, migrations, and business rules are unchanged.
-- No heavy animation library, copied code, reference asset, proprietary wording, fake metric,
-  placeholder workflow, parallel component system, or dependency upgrade was introduced.
-- Existing keyboard navigation, focus management, reduced-motion behavior, semantic light/dark
-  tokens, responsive composition, loading/empty/error states, and truthful disabled states remain.
+- Dashboard composes existing Reactivation, KYC, Task, Campaign, Inbox, Template and Analytics APIs;
+  it adds no dashboard backend, duplicate projection, fake KPI, local persistence or parallel domain.
+- Source errors remain visible as partial-data warnings and are never converted to zero.
+- Reactivation/KYC/Inbox signals are bounded by existing source-query limits; source queues remain the
+  authority for complete pagination and production-scale exact totals.
+- Permission-gated queries do not issue unauthorized requests.
+- Existing primary action links, route catalogue, navigation, source workflows and business rules are
+  preserved.
 
-## Validation evidence
+## Verified fixes and performance work
 
-- `npm run lint`: PASS.
-- `npm run typecheck`: PASS.
-- `npm test`: PASS — 33 files, 657 tests, including 3 new primitive tests, 4 Contacts toolbar tests,
-  24 Inbox tests, 3 Notification Center tests, and 21 layout/navigation tests.
-- `npm run build`: PASS — 2,599 modules transformed; CSS 49.39 kB (9.79 kB gzip); main application
-  chunk 747.91 kB (181.62 kB gzip). The existing >500 kB chunk warning remains technical debt.
-- `npm audit --omit=dev --audit-level=high`: PASS — two moderate React Router advisories only; no
-  high or critical production dependency finding.
-- Full audit inventory: 11 transitive findings in production plus development tooling combined
-  (6 moderate, 4 high, 1 critical). High/critical items are confined to development/build tooling;
-  breaking upgrades remain a separate maintenance milestone.
-- Authenticated representative-data visual comparison and target-device/browser review:
-  `PENDING – Host Machine Validation`.
+- Fixed KPI sentiment literal widening caught by strict TypeScript.
+- Fixed the Dashboard header regression that changed navigable Live Chat/New Campaign links into
+  buttons; the established semantic and test contract is restored.
+- Lazy-loaded the operational intelligence workspace behind an accessible skeleton. The main chunk
+  falls from the Priority 1 measurement of `747.91 kB` to `733.62 kB`; the new workspace is a separate
+  `31.96 kB` chunk.
 
-## Approved phase priorities
+## Validation boundary
 
-1. `UI-TASTE-01` — documentation and audit baseline — complete.
-2. `UI-TASTE-02` — shared enterprise design system — implemented; owner approval pending.
-3. `UI-TASTE-03` — Dashboard redesign — blocked until owner approval.
-4. `UI-TASTE-04` — responsive, accessibility, representative-data, bundle, and route-performance
-   regression.
-5. `UI-TASTE-05` — final owner review and merge closeout.
+Repository validation proves contracts, selectors, semantics, compilation and build integrity. It
+does not prove final density, long-content overflow, contrast, browser behavior or screen-reader
+quality with authenticated representative records. Those remain `PENDING – Host Machine Validation`.
 
 ## Maintenance rule
 
-At closeout, re-read live Git, migration, OpenAPI, dependency, build, and test evidence. Do not claim
-visual production acceptance from source or jsdom tests alone, and do not begin Priority 2 before the
-owner approves this milestone.
+Do not begin Reactivation redesign until the owner approves this closeout. Preserve the operator-first
+information order and never turn bounded source reads into unlabelled enterprise totals.

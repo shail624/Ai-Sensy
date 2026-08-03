@@ -11,6 +11,34 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Operator-first operational Dashboard (UI-TASTE-03A)
+
+**Added**
+- Added a permission-aware operational desk that prioritizes blocked Reactivation customers, KYC
+  reviews, SIM/Activation SLA risk, Campaign failures, waiting conversations, blocked Templates,
+  agent workload and today KPI changes using existing source authorities.
+- Added truthful loading, empty, partial-source error and permission states, governed source actions,
+  signed-in task snapshot, responsive table/card transformations and four focused selector tests.
+
+**Changed**
+- Replaced the messaging-led Dashboard with decision-first operational intelligence while preserving
+  Live Chat/New Campaign primary links and all source workflows.
+- Added optional `enabled` controls to existing Reactivation, KYC, Template and Analytics query hooks
+  so unauthorized Dashboard sources issue no request.
+- Lazy-split the operational workspace behind an accessible skeleton. The main chunk improves from
+  747.91 kB to 733.62 kB; the Dashboard workspace is 31.96 kB / 8.61 kB gzip.
+
+**Fixed**
+- Fixed strict TypeScript widening of KPI sentiment literals.
+- Fixed a regression where primary Dashboard navigation actions had become buttons instead of real
+  links; the established accessibility/navigation contract is restored.
+
+**Validated**
+- Production dependency audit, ESLint, TypeScript, 34 Vitest files / 661 tests and production build
+  pass. Migration `0035`, 193-path OpenAPI, generated client, backend and dependencies are unchanged.
+- Authenticated representative-data visual/reference review remains `PENDING – Host Machine
+  Validation`; bounded source reads are not claimed as exact enterprise totals.
+
 ### 2026-08-04 — Shared enterprise design-system modernization (UI-TASTE-02)
 
 **Added**

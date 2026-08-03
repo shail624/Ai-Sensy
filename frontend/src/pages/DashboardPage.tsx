@@ -1,31 +1,21 @@
-import {
-  ArrowUpRight,
-  CheckCircle2,
-  Clock3,
-  Eye,
-  Megaphone,
-  MessageSquareText,
-  Send,
-  TriangleAlert,
-} from "lucide-react";
+import { lazy, Suspense } from "react";
+import { MessageSquareText, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { PageContainer, PageHeader } from "@/components/layout";
-import { Button, Card, CardHeader, SkeletonStat, StatCard } from "@/components/ui";
-import { useAnalyticsSummary } from "@/features/analytics/api";
-import { formatKpi } from "@/features/analytics/format";
-import type { AnalyticsFilterState } from "@/features/analytics/types";
-import { WhatsAppOverview } from "@/features/channels";
-import { MyWorkQueue } from "@/features/tasks";
+import { Skeleton } from "@/components/ui";
 import { useAuth, useHasPermission } from "@/lib/auth";
 
-const DASH_FILTERS: AnalyticsFilterState = {
-  preset: "last_7d",
-  from: "",
-  to: "",
-  granularity: "day",
-  compare: "",
-};
+const OperationalDashboard = lazy(() =>
+  import("@/features/dashboard/OperationalDashboard").then((module) => ({
+    default: module.OperationalDashboard,
+  })),
+);
+
+const SECONDARY_ACTION =
+  "inline-flex h-9 max-md:h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary shadow-sm transition-[background-color,border-color,color,box-shadow] hover:border-border-strong hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+const PRIMARY_ACTION =
+  "inline-flex h-9 max-md:h-10 items-center justify-center gap-2 rounded-control border border-transparent bg-accent px-4 text-sm font-semibold text-accent-fg shadow-sm transition-[background-color,border-color,color,box-shadow] hover:bg-accent-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -34,123 +24,62 @@ function greeting(): string {
   return "Good evening";
 }
 
-const HEADLINE = [
-  { key: "delivery_rate", label: "Delivery rate", kind: "rate", icon: Send },
-  { key: "read_rate", label: "Read rate", kind: "rate", icon: Eye },
-  { key: "failure_rate", label: "Failure rate", kind: "rate", icon: TriangleAlert },
-  { key: "avg_first_response_seconds", label: "First response", kind: "duration", icon: Clock3 },
-] as const;
-
-function KpiRow(): JSX.Element {
-  const summary = useAnalyticsSummary(DASH_FILTERS);
-  const kpis = summary.data?.kpis;
-
-  if (summary.isLoading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {HEADLINE.map((headline) => <SkeletonStat key={headline.key} />)}
-      </div>
-    );
-  }
-
+function DashboardLoading(): JSX.Element {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {HEADLINE.map((headline) => {
-        const Icon = headline.icon;
-        return (
-          <StatCard
-            key={headline.key}
-            label={headline.label}
-            value={formatKpi(kpis?.[headline.key] ?? null, headline.kind)}
-            icon={<Icon aria-hidden className="h-4 w-4" />}
-            hint="7 days"
-          />
-        );
-      })}
+    <div aria-label="Loading operational dashboard" className="space-y-5" role="status">
+      <Skeleton className="h-12 w-full" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 9 }, (_, index) => (
+          <Skeleton key={index} className="h-28 w-full" />
+        ))}
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(20rem,0.7fr)]">
+        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+      <span className="sr-only">Loading live operational intelligence</span>
     </div>
   );
 }
 
 export function DashboardPage(): JSX.Element {
-  const { user, hasPermission } = useAuth();
-  const canAnalytics = useHasPermission("analytics:read");
-  const canCampaigns = useHasPermission("campaigns:read");
+  const { user } = useAuth();
   const canInbox = useHasPermission("inbox:read");
-  const canTasks = useHasPermission("tasks:read");
-  const canChannels = useHasPermission("waba:read");
+  const canCreateCampaign = useHasPermission("campaigns:write");
   const firstName = user?.full_name.trim().split(/\s+/)[0] ?? "there";
-  const engagementActions = [
-    hasPermission("contacts:import") ? { label: "Import your contacts", path: "/contacts?import=1" } : null,
-    hasPermission("templates:write") ? { label: "Create a message template", path: "/templates/new" } : null,
-    hasPermission("campaigns:write") ? { label: "Launch a campaign", path: "/campaigns/new" } : null,
-  ].filter((item): item is { label: string; path: string } => item !== null);
 
   return (
     <PageContainer>
       <PageHeader
-        title="Dashboard"
-        description={`${greeting()}, ${firstName}. Here’s what needs your attention today.`}
+        eyebrow="Daily operations"
+        title="Operations desk"
+        description={`${greeting()}, ${firstName}. Start with blocked customers, breached service work, waiting conversations and today’s KPI changes.`}
+        meta={
+          <>
+            <span>Real authorized tenant data</span>
+            <span>Decision-first operational view</span>
+          </>
+        }
         actions={
           <>
             {canInbox ? (
-              <Link to="/inbox">
-                <Button variant="secondary" leftIcon={<MessageSquareText className="h-4 w-4" />}>
-                  Live chat
-                </Button>
+              <Link to="/inbox" className={SECONDARY_ACTION}>
+                <MessageSquareText aria-hidden className="h-4 w-4" />
+                Live chat
               </Link>
             ) : null}
-            {canCampaigns ? (
-              <Link to="/campaigns/new">
-                <Button leftIcon={<Megaphone className="h-4 w-4" />}>New campaign</Button>
+            {canCreateCampaign ? (
+              <Link to="/campaigns/new" className={PRIMARY_ACTION}>
+                <Send aria-hidden className="h-4 w-4" />
+                New campaign
               </Link>
             ) : null}
           </>
         }
       />
-
-      {canChannels ? <WhatsAppOverview /> : null}
-
-      {canAnalytics ? (
-        <section aria-label="Key indicators" className="mb-5">
-          <KpiRow />
-        </section>
-      ) : null}
-
-      <div className={`grid grid-cols-1 gap-5 ${canTasks && engagementActions.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        {canTasks ? (
-          <Card padding={false} className="p-4 sm:p-5">
-            <CardHeader
-              title="My work"
-              description="Follow-ups assigned to you"
-              icon={<CheckCircle2 aria-hidden className="h-[18px] w-[18px]" />}
-              action={
-                <Link to="/tasks">
-                  <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>
-                    View all
-                  </Button>
-                </Link>
-              }
-            />
-            <div className="mt-3"><MyWorkQueue /></div>
-          </Card>
-        ) : null}
-
-        <aside className="space-y-4">
-          {engagementActions.length > 0 ? (
-            <Card>
-              <CardHeader title="Start engaging" description="Prepare an audience and send safely" />
-              <div className="mt-2 space-y-1">
-                {engagementActions.map((item, index) => (
-                  <Link key={item.path} to={item.path} className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-hover">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">{index + 1}</span>
-                    <span className="text-sm font-medium text-text-primary">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          ) : null}
-        </aside>
-      </div>
+      <Suspense fallback={<DashboardLoading />}>
+        <OperationalDashboard />
+      </Suspense>
     </PageContainer>
   );
 }

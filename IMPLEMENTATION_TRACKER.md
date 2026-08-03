@@ -1,91 +1,77 @@
 # Implementation Tracker (canonical)
 
-> GitHub at the latest approved HEAD is the repository source of truth. Update this state ledger
-> after every verified milestone; keep implementation evidence distinct from host visual approval.
+> GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
+> engineering evidence separate from authenticated host visual acceptance.
 
-_Last updated: 2026-08-04 · Priority 1 shared enterprise design-system modernization is implemented
-and repository-validated. Owner approval and authenticated representative-data visual review remain
-required before Dashboard work._
+_Last updated: 2026-08-04 · UI-TASTE-03A operator-first Dashboard is implemented and repository-
+validated. Reactivation redesign has not started._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Original UI lineage baseline:** `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`
-- **Priority 1 starting baseline:** `9043fe03a80b682a010304c88c5d29d8ec77d1fa`
+- **Priority 2 baseline:** `7d826987c272d28038663ba9cb15c832c37e2b02`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged by Priority 1
+- **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged
 - **Backend:** unchanged; CORE-09 baseline remains 948 pytest, Ruff clean, strict mypy clean
-- **Frontend:** ESLint PASS · TypeScript PASS · 657/657 Vitest PASS · production build PASS
-- **Production dependency boundary:** no high/critical production finding; two moderate React Router
-  advisories remain
-- **Current milestone:** `UI-TASTE-02 — IMPLEMENTED; OWNER APPROVAL PENDING`
-- **Next milestone:** `UI-TASTE-03 — Dashboard redesign — BLOCKED PENDING APPROVAL`
-- **Host validation:** authenticated representative-data desktop/tablet/mobile, keyboard, visual,
-  and approved-reference comparison is `PENDING – Host Machine Validation`
+- **Frontend:** ESLint PASS · TypeScript PASS · 34 files / 661 Vitest tests PASS · build PASS
+- **Production dependency boundary:** no high/critical finding; two moderate React Router advisories
+- **Current milestone:** `UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED`
+- **Host validation:** `PENDING – Host Machine Validation`
+- **Next milestone:** `UI-TASTE-03B — Reactivation operational hierarchy — BLOCKED PENDING APPROVAL`
 
-## Delivered in UI-TASTE-02
+## Dashboard decisions now supported
 
-| Area | Delivered |
+| Operator question | Factual decision support |
 |---|---|
-| Radius and density | Named `control`/`surface`/`overlay` tiers; restrained shared surfaces; compact responsive gutters and touch-safe controls without altering navigation utilities |
-| Form controls | Forward-ref `Input`, `Select`, `Textarea`, and `Field` with semantic invalid/disabled/focus states, icon/action slots, labels, help, and errors |
-| Enterprise composition | Reusable `Toolbar`, groups/divider, `FilterBar`, and cursor-safe `Pagination` with busy/disabled/summary states |
-| Existing primitives | Button, Card, CardHeader, PageHeader, and PageContainer refined in place; no parallel design system |
-| Contacts | Search, desktop filters, mobile filter sheet, and cursor pagination converge on shared primitives; URL state/import/bulk workflow unchanged |
-| Inbox | Search shortcut, triage views, advanced filters, saved views, bulk selects, and cursor pagination reuse shared primitives; thread workflow unchanged |
-| Notifications | Type/status/date/assignee filters, mark-all, refresh, source actions, offline/read-only states reuse shared primitives; polling/read/deep-link behavior unchanged |
-| Tests | Three focused shared-primitive tests plus the complete 657-test frontend suite |
+| What requires attention now? | Severity-ranked queue combining authorized Reactivation, KYC, Campaign, Inbox and Template records with source deep links |
+| Which customers are blocked? | Breached SLA, overdue follow-up, incomplete-document and unreachable-customer reasons with stage and owner |
+| Which KYC reviews are pending? | `under_review` records with evidence completeness, progress, owner and SLA |
+| Which SIM deliveries are delayed? | `sim_required` cases with breached persisted SLA; presented as delivery risk rather than invented courier data |
+| Which activations are overdue? | `activation_pending` cases with breached persisted SLA |
+| Which campaigns need action? | Failed/paused campaigns and campaigns carrying failed recipients |
+| Which conversations need replies? | Unread open/pending conversations ordered by derived waiting age; not mislabelled as configured SLA |
+| Which templates failed? | Rejected, paused and disabled templates with rejection detail when available |
+| Which agents require attention? | Assigned blocked, overdue, breached-SLA and KYC-review workload; no synthetic performance score |
+| Which KPIs changed today? | Today versus previous equivalent period with lower-is-better handling for failure and response time |
+
+## Delivered implementation
+
+- New `features/dashboard` selectors and responsive operational workspace.
+- Permission-aware conditional queries over existing source APIs.
+- Truthful loading, empty, partial-error, unavailable and success states.
+- Signed-in operator task snapshot, source actions and preserved header action links.
+- Four focused selector tests plus all existing navigation, domain and shared-control regressions.
+- Dashboard lazy split with accessible skeleton: `31.96 kB` / `8.61 kB` gzip.
 
 ## Preserved invariants
 
-- No sidebar/navigation/route redesign and no removed destination.
-- No backend, migration, OpenAPI, generated TypeScript contract, dependency, permission, or source-
-  domain change.
-- No copied reference code/assets/layout, heavy animation dependency, fake data, invented KPI, or
-  executable-looking placeholder.
-- Existing accessibility, focus, keyboard, reduced motion, responsive/mobile, and real-state
-  boundaries remain authoritative.
+- No backend endpoint, model, migration, generated contract, permission or business-rule change.
+- No navigation/sidebar/route-catalogue redesign and no completed module rebuild.
+- No fake record, decorative KPI, local-only workflow, copied reference implementation or duplicate
+  reporting authority.
+- Existing source queues remain authoritative for complete pagination; bounded Dashboard reads are not
+  documented as exact enterprise totals.
 
-## Validation
+## Validation and debt
 
-- PASS: ESLint, TypeScript, 33 Vitest files / 657 tests, production build.
-- PASS: production dependency audit at high severity; only two moderate React Router advisories.
-- PASS: changed-file boundary and existing layout/navigation regressions.
-- PENDING – Host Machine Validation: authenticated representative-data visual/reference comparison,
-  target browser/device matrix, screen-reader pass, and real long-content overflow review.
-- Measured debt: main bundle 747.91 kB minified / 181.62 kB gzip with existing >500 kB warning;
-  development/build-tool audit inventory contains 11 findings and requires a separate dependency
-  modernization milestone rather than an unrelated breaking change here.
+- PASS: production dependency audit, ESLint, strict TypeScript, 661 tests, production build.
+- PASS: attention classification, KPI direction, agent aggregation and primary link semantics.
+- Main chunk improves to `733.62 kB` / `178.16 kB` gzip but remains above the 500 kB warning level.
+- `OperationalDashboard` is split at `31.96 kB` / `8.61 kB` gzip.
+- React Router future warnings and two moderate advisories remain separate upgrade work.
+- PENDING: authenticated representative-data visual/reference comparison, screen reader, long-content
+  overflow and target browser/device matrix.
 
 ## Remaining UI sequence
 
-1. Owner reviews and approves UI-TASTE-02.
-2. UI-TASTE-03 begins with Dashboard only; no Reactivation or other screen in the same milestone.
-3. Later priority-screen milestones reuse the shared layer rather than introducing local variants.
-4. UI-TASTE-04 performs authenticated responsive/accessibility/performance regression.
-5. UI-TASTE-05 records final owner acceptance and merge evidence.
+1. Owner reviews UI-TASTE-03A Dashboard evidence.
+2. UI-TASTE-03B modernizes Reactivation hierarchy only, reusing the shared system and existing domain.
+3. Later reviewed screen milestones cover Inbox, Contacts, Customer 360 and Notification Center.
+4. UI-TASTE-04 performs final responsive/accessibility/performance regression.
+5. UI-TASTE-05 records owner acceptance and merge evidence.
 
 ## Product sequence after UI review
 
-Resume `CORE-10` Dedicated Chat History and `CORE-11` settings/team/tags/SLA controls, followed by the
-approved growth, analytics, integration, enterprise, and release milestones in `ROADMAP.md`.
-Payments, ads, commerce, SaaS billing, marketplace, public signup, reseller, and multi-project
-surfaces remain excluded.
-
-## Known technical debt
-
-- Main application chunk is 747.91 kB minified; further route-level splitting remains required.
-- React Router future-flag warnings remain, and two moderate production advisories require an explicit
-  routing upgrade rather than a silent patch.
-- Development/build tooling contains transitive audit findings, including high/critical severities;
-  production `--omit=dev` has no high/critical finding.
-- Authenticated representative-data visual regression is not yet a canonical automated gate.
-- Owner-bootstrap `.test` email validation mismatch remains unrelated maintenance debt.
-
-## Permanent invariants
-
-Repository → Service → API layering · all sends through `SendService` · Meta payloads stay in the
-adapter · Retry Engine owns classify/backoff · Rate Gate fails safe · persist-first webhooks ·
-campaign status controls dispatch · completed modules are extended, never rebuilt · generated API
-types are authoritative · accessibility, responsive behavior, real state, and original premium
-presentation are completion requirements.
+Resume `CORE-10` Dedicated Chat History and `CORE-11` settings/team/tags/SLA controls, then the
+approved growth, analytics, integration, enterprise and release roadmap. Payments, ads, commerce,
+SaaS billing, marketplace, public signup, reseller and multi-project surfaces remain excluded.

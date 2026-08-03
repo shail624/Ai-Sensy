@@ -68,7 +68,7 @@ export function useAnalyticsSeries(filters: AnalyticsFilterState, metrics: strin
   });
 }
 
-export function useAnalyticsComparison(filters: AnalyticsFilterState) {
+export function useAnalyticsComparison(filters: AnalyticsFilterState, enabled = true) {
   const query = {
     ...toRangeQuery(filters),
     compare: filters.compare || "previous_period",
@@ -78,6 +78,7 @@ export function useAnalyticsComparison(filters: AnalyticsFilterState) {
     queryFn: async (): Promise<AnalyticsComparison> =>
       unwrap(await api.GET("/api/v1/analytics/comparison", { params: { query } })),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

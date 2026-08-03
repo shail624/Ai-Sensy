@@ -23,7 +23,7 @@ export const kycKeys = {
   decisions: (kycId: string) => ["kyc", "decisions", kycId] as const,
 };
 
-export function useKycOperations(filters: KycFilters) {
+export function useKycOperations(filters: KycFilters, enabled = true) {
   return useQuery({
     queryKey: kycKeys.operations(filters),
     queryFn: async (): Promise<KycOperationsResponse> =>
@@ -33,6 +33,7 @@ export function useKycOperations(filters: KycFilters) {
         }),
       ),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

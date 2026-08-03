@@ -35,11 +35,12 @@ export const templateKeys = {
  * over that complete set (`selectors.ts`), which is exact rather than approximate. The alternative
  * — passing parameters the contract does not declare — would mean hand-writing contract shape.
  */
-export function useTemplates() {
+export function useTemplates(enabled = true) {
   return useQuery({
     queryKey: templateKeys.list(),
     queryFn: async (): Promise<Template[]> => unwrap(await api.GET("/api/v1/templates")).data,
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
