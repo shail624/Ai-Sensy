@@ -370,12 +370,20 @@ export function kpiChanges(
   current: AnalyticsKpis | null | undefined,
   previous: AnalyticsKpis | null | undefined,
 ): KpiChangeRow[] {
-  return KPI_SPECS.map((spec) => {
+  return KPI_SPECS.map((spec): KpiChangeRow => {
     const currentValue = current?.[spec.key];
     const previousValue = previous?.[spec.key];
     const change = delta(currentValue, previousValue);
     const changed = change !== null && change !== 0;
     const positive = change !== null && ((change > 0) !== Boolean(spec.lowerIsBetter));
+    const sentiment: KpiChangeRow["sentiment"] =
+      change === null
+        ? "unknown"
+        : change === 0
+          ? "neutral"
+          : positive
+            ? "positive"
+            : "negative";
     return {
       key: spec.key,
       label: spec.label,
@@ -387,14 +395,7 @@ export function kpiChanges(
           : change === 0
             ? "No change"
             : `${change > 0 ? "+" : ""}${formatRate(change)}`,
-      sentiment:
-        change === null
-          ? "unknown"
-          : change === 0
-            ? "neutral"
-            : positive
-              ? "positive"
-              : "negative",
+      sentiment,
       changed,
     };
   }).sort(
