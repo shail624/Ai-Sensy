@@ -41,7 +41,7 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
       placeholder="Search name or number…"
       aria-label="Search contacts"
       leadingIcon={<Search aria-hidden className="h-4 w-4" />}
-      containerClassName="min-w-[220px] flex-1"
+      containerClassName="min-w-0 flex-1 sm:min-w-[220px]"
     />
   );
 
