@@ -17,29 +17,28 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T01:38:00+05:30`.
+Last synchronized: `2026-08-04T03:00:00+05:30`.
 
-## UI Taste Modernization — Priority 1 implementation
+## UI Taste Modernization — operator-first Dashboard
 
-- **Starting baseline:** `9043fe03a80b682a010304c88c5d29d8ec77d1fa`.
-- **Status:** `UI-TASTE-02` is implemented and repository-validated; owner approval and authenticated
-  representative-data visual comparison remain pending before Dashboard work.
-- **Delivered:** named enterprise radius tiers; shared form, toolbar, filter, pagination, Button,
-  Card, PageHeader, and PageContainer improvements; adoption in Contacts, Inbox, and Notification
-  Center; focused shared-primitive regressions.
-- **Preserved:** sidebar/navigation/routes, backend, migrations, OpenAPI/generated contracts,
-  permissions, workflows, keyboard/focus, reduced motion, responsive/mobile behavior, semantic
-  themes, and source-domain ownership.
-- **Validation:** ESLint, TypeScript, 657 Vitest tests, production build, and high-severity production
-  dependency audit pass. Host visual/reference review is pending.
-- **Next:** Dashboard redesign only, blocked until owner approval.
+- **Starting baseline:** `7d826987c272d28038663ba9cb15c832c37e2b02`.
+- **Status:** `UI-TASTE-03A` is implemented and repository-validated; authenticated representative-
+  data visual/reference review remains pending.
+- **Delivered:** cross-domain attention queue; blocked customer, KYC, SIM, Activation, Campaign,
+  Inbox, Template, agent-workload and today-KPI decision support; signed-in task snapshot; truthful
+  partial-source states; source deep links; responsive table/card transformations.
+- **Preserved:** backend, migrations, 193-path OpenAPI, generated contracts, permissions, source
+  workflows, sidebar/navigation, primary action links and existing shared design system.
+- **Performance:** operational workspace is lazy-split at 31.96 kB / 8.61 kB gzip; main chunk is
+  733.62 kB / 178.16 kB gzip, down from the Priority 1 measurement of 747.91 kB.
+- **Next:** Reactivation operational hierarchy only, blocked pending owner approval.
 
-Completion percentages below remain domain-capability measures. Shared polish improves consistency
-without falsely inflating business-workflow completion.
+Completion percentages remain evidence-based domain/product estimates. Host visual acceptance and
+production-scale exact aggregate totals are not claimed by repository-only validation.
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Dashboard | 70% | Phase 1 product experience is functional; UI-TASTE audit identifies a messaging-led hierarchy | Reframe the executive/operator surface around real reactivation stage workload, overdue follow-ups, release dates, KYC/document exceptions, activation outcomes, and factual messaging KPIs; validate realistic-data density and responsive behavior. | Reactivation, KYC, Documents, Notifications, Analytics |
+| Dashboard | 82% | UI-TASTE-03A replaces the messaging-led home with a permission-aware operational desk over real Reactivation, KYC, Task, Campaign, Inbox, Template and Analytics sources; 661 frontend tests and production build pass | Authenticated representative-data visual/WCAG/browser review, server-owned exact cross-domain aggregate totals beyond bounded source reads, and final route-performance commissioning. | Reactivation, KYC, Tasks, Campaigns, Inbox, Templates, Analytics |
 | Inbox | 91% | Shared Inbox + Live Chat plus CORE-07 exact-contact reuse; UI-TASTE-02 converges search, advanced filters, saved views, bulk selects, and pagination on shared accessible controls | Page-specific hierarchy polish, intervention-request lifecycle, SLA badges, and authenticated responsive/accessibility regression. | Notifications, SLA, shared design system |
 | Chat History | 40% | Exact-contact persisted conversation/message history is available in Inbox and Customer 360 | Build dedicated route with agent/date/customer/media/campaign/resolution/audit filters and export. | Audit, Download Center |
 | Contacts | 95% | FR-CON-04 baseline plus UI-TASTE-02 shared search/filter/mobile-sheet/pagination convergence | Page-specific table and bulk-action polish, final opt-in/eligibility/assignment/export regression, and server-shared saved views; no rebuild. | Saved Views, Reactivation, shared design system |

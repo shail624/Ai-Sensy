@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-04T01:38:00+05:30`.
+Last synchronized: `2026-08-04T03:00:00+05:30`.
 
 ## Authority and baseline
 
@@ -42,10 +42,7 @@ It deliberately does not claim SSE, browser push, email, or internal WhatsApp de
 Skipped: Not required by product owner.** No generic approval authority or Approval Center will be
 built; existing KYC-specific approval logic and completed authorization safeguards remain preserved.
 
-`UI-TASTE-01` documentation/audit baseline is complete. `UI-TASTE-02` shared enterprise
-design-system modernization is implemented and repository-validated; owner approval and
-authenticated representative-data visual/reference comparison remain pending. `UI-TASTE-03`
-Dashboard redesign is blocked until that approval.
+`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy is blocked pending owner approval.
 
 ## Phase 0 — Governance and scope lock
 
@@ -95,7 +92,8 @@ remain authoritative.
 |---|---|---|---|
 | UI-TASTE-01 — Documentation and audit baseline — COMPLETE | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Governance records only; design variance `4/10`, motion `3/10`, density `8/10`. | COMPLETE at `9043fe03`; documentation-only boundary and remote HEAD were verified. |
 | UI-TASTE-02 — Shared design-system modernization — IMPLEMENTED; OWNER APPROVAL PENDING | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. | Repository gates pass: lint, typecheck, 657 tests, build and production audit. Host visual/reference comparison and owner approval remain pending; no parallel component system or navigation redesign exists. |
-| UI-TASTE-03 — Priority screen modernization — BLOCKED PENDING APPROVAL | Apply the shared system to the highest-value daily workflows one reviewed screen milestone at a time. | Begin with Dashboard only; later approvals cover Reactivation, Inbox, Contacts, Customer 360 and Notification Center. Preserve real data, permissions, business rules, routes and generated contracts. | Priority 1 is owner-approved first; each screen then passes functional and representative-data desktop/tablet/mobile review with no fake metric, placeholder workflow or backend duplication. |
+| UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED | Replace the messaging-led first screen with factual operational intelligence. | Cross-domain attention, blocked customers, KYC, SIM/Activation SLA risk, Campaigns, unread conversations, Templates, agent workload, today KPI changes, task snapshot and source actions. | Repository gates pass with 661 tests and split build; no fake metric/backend duplication; authenticated representative-data visual/reference review remains pending. |
+| UI-TASTE-03B — Reactivation operational hierarchy — BLOCKED PENDING APPROVAL | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Owner approves Dashboard closeout first; real persisted behavior, permissions, source contracts and representative-data review pass. |
 | UI-TASTE-04 — Responsive, accessibility, and performance regression | Prove the modernization under real operating conditions. | Keyboard/focus, WCAG-oriented semantics/contrast, reduced motion, overflow and long-content handling, browser/device widths, bundle and route performance. | No critical accessibility/regression issue; full frontend gates pass; performance changes are measured and documented. |
 | UI-TASTE-05 — Owner review and merge | Close only after evidence-backed owner review. | Focused corrections, governance/validation updates, final branch review and merge. | Owner approves; changed-file boundary is truthful; all required evidence is recorded; merge occurs without bypassing product or quality gates. |
 
