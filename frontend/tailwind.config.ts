@@ -61,14 +61,15 @@ const config: Config = {
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
       },
-      // Three intentional radius tiers: controls, surfaces, and large overlays.
       borderRadius: {
         sm: "6px",
         DEFAULT: "8px",
-        md: "8px",
-        lg: "10px",
-        xl: "12px",
-        "2xl": "16px",
+        lg: "12px",
+        xl: "16px",
+        // Named enterprise tiers avoid silently changing legacy/navigation radius utilities.
+        control: "10px",
+        surface: "12px",
+        overlay: "16px",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
