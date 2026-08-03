@@ -13,17 +13,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-55";
+  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-accent-fg hover:bg-accent-strong shadow-sm",
-  secondary: "border border-border bg-surface text-text-primary hover:bg-hover",
-  ghost: "text-text-secondary hover:bg-hover hover:text-text-primary",
-  subtle: "bg-accent-soft text-accent hover:bg-accent hover:text-accent-fg",
-  danger: "bg-danger text-white hover:opacity-90 shadow-sm",
+  primary: "border border-transparent bg-accent text-accent-fg shadow-sm hover:bg-accent-strong",
+  secondary:
+    "border border-border bg-surface text-text-primary shadow-sm hover:border-border-strong hover:bg-hover",
+  ghost: "border border-transparent text-text-secondary hover:bg-hover hover:text-text-primary",
+  subtle: "border border-transparent bg-accent-soft text-accent-on-soft hover:bg-accent hover:text-accent-fg",
+  danger: "border border-transparent bg-danger text-white shadow-sm hover:opacity-90",
 };
 
-// Desktop density is unchanged; below `md` every button clears DS-10's 40x40 touch target.
 const SIZES: Record<ButtonSize, string> = {
   sm: "h-8 max-md:h-10 px-3 text-xs",
   md: "h-9 max-md:h-10 px-4 text-sm",
@@ -46,6 +46,8 @@ export function Button({
   return (
     <button
       {...props}
+      data-slot="button"
+      aria-busy={loading || undefined}
       disabled={disabled || loading}
       className={`${BASE} ${VARIANTS[variant]} ${SIZES[size]} ${block ? "w-full" : ""} ${className}`}
     >
