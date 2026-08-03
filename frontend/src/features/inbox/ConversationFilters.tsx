@@ -120,7 +120,7 @@ export function ConversationFilters({
               type="button"
               aria-pressed={active}
               onClick={() => applyQuickInbox(quickInbox.next)}
-              className={`group min-w-0 rounded-lg border px-2 py-2.5 text-left transition-[border-color,background-color,box-shadow] ${
+              className={`group min-w-0 rounded-control border px-2 py-2.5 text-left transition-[border-color,background-color,box-shadow] ${
                 active
                   ? "border-accent bg-accent-soft shadow-sm"
                   : "border-border bg-surface hover:border-accent/40 hover:bg-hover"
@@ -176,6 +176,7 @@ export function ConversationFilters({
           size="md"
           variant={filtersOpen || advancedFilterCount > 0 ? "subtle" : "secondary"}
           aria-expanded={filtersOpen}
+          aria-controls="advanced-inbox-filters"
           onClick={() => setFiltersOpen((open) => !open)}
           leftIcon={<SlidersHorizontal aria-hidden className="h-4 w-4" />}
           className="shrink-0 px-3 text-xs"
@@ -221,8 +222,9 @@ export function ConversationFilters({
 
       {filtersOpen ? (
         <section
+          id="advanced-inbox-filters"
           aria-label="Advanced inbox filters"
-          className="space-y-3 rounded-xl border border-border bg-surface-2 p-3"
+          className="space-y-3 rounded-surface border border-border bg-surface-2 p-3"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -233,7 +235,7 @@ export function ConversationFilters({
               <button
                 type="button"
                 onClick={() => onChange({})}
-                className="text-xs font-semibold text-accent-on-soft hover:underline"
+                className="text-xs font-semibold text-accent hover:underline"
               >
                 Show all
               </button>
@@ -315,7 +317,7 @@ export function ConversationFilters({
               placeholder="Save these filters"
               maxLength={40}
               aria-label="Saved inbox name"
-              className="flex-1"
+              containerClassName="min-w-0 flex-1"
             />
             <Button
               type="submit"
