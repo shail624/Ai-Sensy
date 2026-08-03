@@ -1,7 +1,16 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 
-import { Badge, Button, Modal } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Field,
+  FilterBar,
+  Input,
+  Modal,
+  Select,
+  ToolbarGroup,
+} from "@/components/ui";
 import type { ContactFilters } from "@/features/contacts/buildRules";
 import type { AttributeDefinition, Tag } from "@/features/contacts/types";
 import { useIsCompact } from "@/lib/useMediaQuery";
@@ -14,9 +23,6 @@ interface Props {
   enumAttributes: AttributeDefinition[];
 }
 
-const SELECT =
-  "h-9 max-md:h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50";
-
 function activeFilterCount(filters: ContactFilters): number {
   return (filters.tagId ? 1 : 0) + Object.values(filters.attributes).filter(Boolean).length;
 }
@@ -27,23 +33,16 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
   const activeCount = activeFilterCount(filters);
 
   const search = (
-    <div className="relative min-w-[220px] flex-1">
-      <label htmlFor="contacts-search" className="sr-only">
-        Search contacts
-      </label>
-      <Search
-        aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled"
-      />
-      <input
-        id="contacts-search"
-        type="search"
-        value={filters.search}
-        onChange={(event) => onChange({ ...filters, search: event.target.value })}
-        placeholder="Search name or number…"
-        className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-text-primary placeholder:text-text-disabled focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-      />
-    </div>
+    <Input
+      id="contacts-search"
+      type="search"
+      value={filters.search}
+      onChange={(event) => onChange({ ...filters, search: event.target.value })}
+      placeholder="Search name or number…"
+      aria-label="Search contacts"
+      leadingIcon={<Search aria-hidden className="h-4 w-4" />}
+      containerClassName="min-w-0 flex-1 sm:min-w-[220px]"
+    />
   );
 
   function setTag(value: string): void {
@@ -58,10 +57,10 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
   if (compact) {
     return (
       <>
-        <div className="flex items-center gap-2">
+        <FilterBar label="Contact search and filters" contentClassName="w-full flex-nowrap">
           {search}
           <Button
-            variant="secondary"
+            variant={activeCount > 0 ? "subtle" : "secondary"}
             leftIcon={<SlidersHorizontal className="h-4 w-4" />}
             onClick={() => setSheetOpen(true)}
             aria-expanded={sheetOpen}
@@ -69,21 +68,17 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
             Filters
             {activeCount > 0 ? <Badge tone="accent">{activeCount}</Badge> : null}
           </Button>
-        </div>
+        </FilterBar>
 
         {sheetOpen ? (
           <Modal title="Filters" variant="sheet" onClose={() => setSheetOpen(false)}>
-            <div className="space-y-3.5">
-              <div>
-                <label htmlFor="contacts-filter-tag" className="mb-1 block text-xs font-semibold text-text-secondary">
-                  Tag
-                </label>
-                <select
+            <div className="space-y-4">
+              <Field htmlFor="contacts-filter-tag" label="Tag">
+                <Select
                   id="contacts-filter-tag"
                   value={filters.tagId}
                   onChange={(event) => setTag(event.target.value)}
                   disabled={tags.length === 0}
-                  className={`${SELECT} w-full`}
                 >
                   <option value="">All tags</option>
                   {tags.map((tag) => (
@@ -91,22 +86,15 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
                       {tag.name}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Field>
 
               {enumAttributes.map((attr) => (
-                <div key={attr.id}>
-                  <label
-                    htmlFor={`contacts-filter-${attr.id}`}
-                    className="mb-1 block text-xs font-semibold text-text-secondary"
-                  >
-                    {attr.label}
-                  </label>
-                  <select
+                <Field key={attr.id} htmlFor={`contacts-filter-${attr.id}`} label={attr.label}>
+                  <Select
                     id={`contacts-filter-${attr.id}`}
                     value={filters.attributes[attr.key_name] ?? ""}
                     onChange={(event) => setAttribute(attr.key_name, event.target.value)}
-                    className={`${SELECT} w-full`}
                   >
                     <option value="">All</option>
                     {(attr.enum_values ?? []).map((value) => (
@@ -114,8 +102,8 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
                         {value}
                       </option>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </Field>
               ))}
             </div>
 
@@ -139,44 +127,47 @@ export function ContactsToolbar({ filters, onChange, tags, enumAttributes }: Pro
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <FilterBar label="Contact search and filters" contentClassName="w-full">
       {search}
 
-      <SlidersHorizontal aria-hidden className="h-4 w-4 text-text-disabled" />
+      <ToolbarGroup className="shrink-0">
+        <span className="inline-flex items-center gap-1.5 px-1 text-xs font-semibold text-text-secondary">
+          <SlidersHorizontal aria-hidden className="h-4 w-4 text-text-disabled" />
+          Filters
+        </span>
 
-      {/* Tag filter */}
-      <select
-        aria-label="Filter by tag"
-        value={filters.tagId}
-        onChange={(event) => setTag(event.target.value)}
-        disabled={tags.length === 0}
-        className={SELECT}
-      >
-        <option value="">All tags</option>
-        {tags.map((tag) => (
-          <option key={tag.id} value={tag.id}>
-            {tag.name}
-          </option>
-        ))}
-      </select>
-
-      {/* Enum custom-attribute filters */}
-      {enumAttributes.map((attr) => (
-        <select
-          key={attr.id}
-          aria-label={`Filter by ${attr.label}`}
-          value={filters.attributes[attr.key_name] ?? ""}
-          onChange={(event) => setAttribute(attr.key_name, event.target.value)}
-          className={SELECT}
+        <Select
+          aria-label="Filter by tag"
+          value={filters.tagId}
+          onChange={(event) => setTag(event.target.value)}
+          disabled={tags.length === 0}
+          className="min-w-[10rem] !w-auto"
         >
-          <option value="">{attr.label}: All</option>
-          {(attr.enum_values ?? []).map((value) => (
-            <option key={value} value={value}>
-              {value}
+          <option value="">All tags</option>
+          {tags.map((tag) => (
+            <option key={tag.id} value={tag.id}>
+              {tag.name}
             </option>
           ))}
-        </select>
-      ))}
-    </div>
+        </Select>
+
+        {enumAttributes.map((attr) => (
+          <Select
+            key={attr.id}
+            aria-label={`Filter by ${attr.label}`}
+            value={filters.attributes[attr.key_name] ?? ""}
+            onChange={(event) => setAttribute(attr.key_name, event.target.value)}
+            className="min-w-[10rem] !w-auto"
+          >
+            <option value="">{attr.label}: All</option>
+            {(attr.enum_values ?? []).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        ))}
+      </ToolbarGroup>
+    </FilterBar>
   );
 }

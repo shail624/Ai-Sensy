@@ -2,7 +2,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { EmptyState, ErrorState, Pagination, Select, Skeleton } from "@/components/ui";
 import { useTags } from "@/features/customer-profile/api";
 import {
   apiErrorMessage,
@@ -17,11 +17,14 @@ import { ConversationList } from "@/features/inbox/ConversationList";
 import { ConversationThread } from "@/features/inbox/ConversationThread";
 import { useInboxPreferences } from "@/features/inbox/preferences";
 import type { InboxFilters } from "@/features/inbox/types";
-import { CONVERSATION_STATUSES, STATUS_LABELS, type ConversationStatus } from "@/features/inbox/types";
+import {
+  CONVERSATION_STATUSES,
+  STATUS_LABELS,
+  type ConversationStatus,
+} from "@/features/inbox/types";
 import { useAuth } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
-const PAGER_CLASS = "rounded-md border border-border px-2 py-1 text-xs hover:bg-hover disabled:opacity-50";
 
 function readFilters(params: URLSearchParams): InboxFilters {
   return {
@@ -60,7 +63,11 @@ export function Inbox(): JSX.Element {
   const bulkTags = useBulkAddConversationTags();
   const rows = conversations.data?.data ?? [];
   const page = conversations.data?.page;
-  const tagOptions = (tags.data ?? []).map((tag) => ({ id: tag.id, name: tag.name, color: tag.color ?? null }));
+  const tagOptions = (tags.data ?? []).map((tag) => ({
+    id: tag.id,
+    name: tag.name,
+    color: tag.color ?? null,
+  }));
   const bulkPending = bulkStatus.isPending || bulkAssign.isPending || bulkTags.isPending;
   const bulkError = bulkStatus.error ?? bulkAssign.error ?? bulkTags.error;
 
@@ -81,12 +88,16 @@ export function Inbox(): JSX.Element {
   }
 
   function toggleSelection(id: string): void {
-    setSelection((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setSelection((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas lg:flex-row">
-      <div className={`${selectedId ? "hidden lg:flex" : "flex"} w-full shrink-0 flex-col border-b border-border bg-surface lg:w-[360px] lg:border-b-0 lg:border-r`}>
+      <div
+        className={`${selectedId ? "hidden lg:flex" : "flex"} w-full shrink-0 flex-col border-b border-border bg-surface lg:w-[360px] lg:border-b-0 lg:border-r`}
+      >
         <ConversationFilters
           filters={filters}
           onChange={applyFilters}
@@ -100,71 +111,110 @@ export function Inbox(): JSX.Element {
         {selection.length > 0 ? (
           <div className="border-b border-border bg-accent-soft p-3" aria-label="Bulk actions">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold text-accent">{selection.length} selected</span>
-              <button type="button" onClick={() => setSelection([])} aria-label="Clear selection" className="rounded p-1 text-text-secondary hover:bg-hover">
+              <span className="text-xs font-bold text-accent-on-soft">
+                {selection.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelection([])}
+                aria-label="Clear selection"
+                className="rounded-md p-1 text-text-secondary hover:bg-hover"
+              >
                 <X aria-hidden className="h-4 w-4" />
               </button>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-              <label className="sr-only" htmlFor="bulk-status">Change status for selected conversations</label>
-              <select
+              <Select
                 id="bulk-status"
                 aria-label="Change status for selected conversations"
                 defaultValue=""
                 disabled={bulkPending}
+                controlSize="sm"
                 onChange={(event) => {
                   if (!event.target.value) return;
-                  void bulkStatus.mutateAsync({ ids: selection, status: event.target.value as ConversationStatus }).then(() => setSelection([]));
+                  void bulkStatus
+                    .mutateAsync({
+                      ids: selection,
+                      status: event.target.value as ConversationStatus,
+                    })
+                    .then(() => setSelection([]));
                 }}
-                className="rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-primary"
               >
                 <option value="">Change status…</option>
-                {CONVERSATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-              </select>
-              <label className="sr-only" htmlFor="bulk-assignee">Assign selected conversations</label>
-              <select
+                {CONVERSATION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </Select>
+              <Select
                 id="bulk-assignee"
                 aria-label="Assign selected conversations"
                 defaultValue=""
                 disabled={bulkPending}
+                controlSize="sm"
                 onChange={(event) => {
                   if (!event.target.value) return;
-                  void bulkAssign.mutateAsync({ ids: selection, assigneeId: event.target.value }).then(() => setSelection([]));
+                  void bulkAssign
+                    .mutateAsync({ ids: selection, assigneeId: event.target.value })
+                    .then(() => setSelection([]));
                 }}
-                className="rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-primary"
               >
                 <option value="">Assign…</option>
-                {(assignees.data ?? []).map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.full_name}</option>)}
-              </select>
-              <label className="sr-only" htmlFor="bulk-tag">Label selected conversations</label>
-              <select
+                {(assignees.data ?? []).map((assignee) => (
+                  <option key={assignee.id} value={assignee.id}>
+                    {assignee.full_name}
+                  </option>
+                ))}
+              </Select>
+              <Select
                 id="bulk-tag"
                 aria-label="Label selected conversations"
                 defaultValue=""
                 disabled={bulkPending}
+                controlSize="sm"
                 onChange={(event) => {
                   if (!event.target.value) return;
-                  void bulkTags.mutateAsync({ ids: selection, tagId: event.target.value }).then(() => setSelection([]));
+                  void bulkTags
+                    .mutateAsync({ ids: selection, tagId: event.target.value })
+                    .then(() => setSelection([]));
                 }}
-                className="rounded-md border border-border bg-surface px-2 py-2 text-xs text-text-primary"
               >
                 <option value="">Add label…</option>
-                {tagOptions.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-              </select>
+                {tagOptions.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
+              </Select>
             </div>
-            {bulkError ? <p role="alert" className="mt-2 text-xs text-danger">{apiErrorMessage(bulkError)}</p> : null}
+            {bulkError ? (
+              <p role="alert" className="mt-2 text-xs text-danger-on-soft">
+                {apiErrorMessage(bulkError)}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {conversations.isLoading ? (
             <div className="space-y-3 p-3" aria-label="Loading conversations">
-              {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-20 w-full rounded-xl" />)}
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-20 w-full rounded-xl" />
+              ))}
             </div>
           ) : conversations.isError ? (
-            <div className="p-3"><ErrorState message={apiErrorMessage(conversations.error)} onRetry={() => void conversations.refetch()} /></div>
+            <div className="p-3">
+              <ErrorState
+                message={apiErrorMessage(conversations.error)}
+                onRetry={() => void conversations.refetch()}
+              />
+            </div>
           ) : rows.length === 0 ? (
-            <EmptyState title="No conversations" description="Nothing matches these filters. Try clearing a filter or changing your search." />
+            <EmptyState
+              title="No conversations"
+              description="Nothing matches these filters. Try clearing a filter or changing your search."
+            />
           ) : (
             <ConversationList
               conversations={rows}
@@ -178,16 +228,29 @@ export function Inbox(): JSX.Element {
           )}
         </div>
 
-        <nav aria-label="Conversation pagination" className="flex justify-end gap-2 border-t border-border p-2">
-          <button type="button" disabled={!page?.prev_cursor} onClick={() => page?.prev_cursor && goToCursor(page.prev_cursor)} className={PAGER_CLASS}>Previous</button>
-          <button type="button" disabled={!page?.next_cursor} onClick={() => page?.next_cursor && goToCursor(page.next_cursor)} className={PAGER_CLASS}>Next</button>
-        </nav>
+        <Pagination
+          compact
+          label="Conversation pagination"
+          hasPrevious={Boolean(page?.prev_cursor)}
+          hasNext={Boolean(page?.next_cursor)}
+          busy={conversations.isFetching}
+          onPrevious={() => {
+            if (page?.prev_cursor) goToCursor(page.prev_cursor);
+          }}
+          onNext={() => {
+            if (page?.next_cursor) goToCursor(page.next_cursor);
+          }}
+        />
       </div>
 
       <div className={`${selectedId ? "block" : "hidden lg:block"} min-h-0 min-w-0 flex-1`}>
         {selectedId ? (
           <div className="flex h-full min-h-0 flex-col">
-            <button type="button" onClick={() => setSearchParams(writeParams(filters, null))} className="flex items-center gap-2 border-b border-border bg-surface px-4 py-3 text-sm font-semibold text-text-primary lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSearchParams(writeParams(filters, null))}
+              className="flex items-center gap-2 border-b border-border bg-surface px-4 py-3 text-sm font-semibold text-text-primary lg:hidden"
+            >
               <ArrowLeft aria-hidden className="h-4 w-4" /> Back to conversations
             </button>
             <div className="min-h-0 flex-1">
@@ -201,7 +264,12 @@ export function Inbox(): JSX.Element {
             </div>
           </div>
         ) : (
-          <div className="p-6"><EmptyState title="Select a conversation" description="Choose a conversation to read, collaborate, and reply." /></div>
+          <div className="p-6">
+            <EmptyState
+              title="Select a conversation"
+              description="Choose a conversation to read, collaborate, and reply."
+            />
+          </div>
         )}
       </div>
     </div>

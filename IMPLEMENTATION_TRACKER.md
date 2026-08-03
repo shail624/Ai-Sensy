@@ -1,131 +1,91 @@
 # Implementation Tracker (canonical)
 
-> Canonical implementation tracker. GitHub at the latest approved HEAD remains the repository source
-> of truth. Every new session must read this first. Update it after each verified milestone. Keep it
-> short: state, not narrative.
+> GitHub at the latest approved HEAD is the repository source of truth. Update this state ledger
+> after every verified milestone; keep implementation evidence distinct from host visual approval.
 
-_Last updated: 2026-08-04 · CORE-09 Unified Notification Center is merged and validated. Phase 1 UI
-Taste Modernization is owner-approved on `ui/taste-modernization`; the current milestone is a
-documentation-only implementation plan._
+_Last updated: 2026-08-04 · Priority 1 shared enterprise design-system modernization is implemented
+and repository-validated. Owner approval and authenticated representative-data visual review remain
+required before Dashboard work._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Implementation baseline:** `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`
-- **Release baseline:** `v1.0.0-rc1`
-- **Migration head:** `0035_notification_center` (35 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 193 paths · generated TypeScript contract remains authoritative
-- **Backend evidence:** 948 tests passed · Ruff clean · strict mypy clean across 258 source files
-- **Frontend evidence:** CORE-09 focused notification/layout tests passed before merge; the full
-  frontend suite is intentionally not re-run in this documentation-only milestone
-- **Current milestone:** `UI-TASTE-01 — Taste Modernization implementation plan — DOCUMENTATION ONLY`
-- **Current restriction:** only `PROJECT_STATE.md`, `MODULE_STATUS.md`,
-  `IMPLEMENTATION_TRACKER.md`, and `ROADMAP.md` may change; no application code, dependency,
-  migration, OpenAPI, generated client, or runtime behavior change is authorized
-- **Last completed milestone:** `CORE-09 — Unified Notification Center`
-- **Next milestone:** `UI-TASTE-02 — Shared design-system modernization`, after owner review of the
-  documentation plan
-- **Roadmap correction:** `CORE-08 — Skipped: Not required by product owner.` Preserve existing
-  KYC-specific approval logic and completed authorization safeguards; do not create a generic
-  Approval Center, framework, queue, escalation system, or authority.
+- **Original UI lineage baseline:** `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`
+- **Priority 1 starting baseline:** `9043fe03a80b682a010304c88c5d29d8ec77d1fa`
+- **Release:** `1.0.0-rc1`
+- **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged by Priority 1
+- **Backend:** unchanged; CORE-09 baseline remains 948 pytest, Ruff clean, strict mypy clean
+- **Frontend:** ESLint PASS · TypeScript PASS · 657/657 Vitest PASS · production build PASS
+- **Production dependency boundary:** no high/critical production finding; two moderate React Router
+  advisories remain
+- **Current milestone:** `UI-TASTE-02 — IMPLEMENTED; OWNER APPROVAL PENDING`
+- **Next milestone:** `UI-TASTE-03 — Dashboard redesign — BLOCKED PENDING APPROVAL`
+- **Host validation:** authenticated representative-data desktop/tablet/mobile, keyboard, visual,
+  and approved-reference comparison is `PENDING – Host Machine Validation`
 
-## UI Taste Modernization approval
+## Delivered in UI-TASTE-02
 
-- **Design variance:** `4/10`
-- **Motion intensity:** `3/10`
-- **Visual density:** `8/10`
-- **Approach:** targeted modernization of the existing React/Tailwind application; no rewrite and no
-  imitation of another product.
-- **Preserve:** sidebar and route structure, permissions, generated API contracts, source-domain
-  ownership, real workflows, mobile navigation, keyboard/focus behavior, reduced motion, semantic
-  light/dark tokens, and existing test contracts.
-
-### Phase 1 audit findings
-
-1. The application shell is already a strong accessible/responsive foundation and must be refined,
-   not replaced.
-2. Dashboard hierarchy is messaging-led and does not prioritize factual Reactivation operator work.
-3. Reactivation mixes connected production capability with foundation/future states; maturity and
-   action hierarchy need clearer separation.
-4. Large radii, nested cards, soft fills, and gradients are overused for dense enterprise workflows.
-5. Inbox, Contacts, and adjacent modules use inconsistent raw controls for filters, selects,
-   pagination, toolbars, bulk actions, and loading/empty/error states.
-6. Navigation is robust but information-heavy; everyday role-relevant work and advanced controls
-   need clearer hierarchy and contextual shortcuts.
-7. Source review is not final visual evidence. Authenticated representative-data browser review,
-   responsive overflow, keyboard/focus, accessibility, bundle, and route performance checks remain
-   mandatory.
-
-### Approved execution order
-
-1. **UI-TASTE-01 — Documentation/audit baseline:** synchronize branch, baseline, findings,
-   boundaries, priorities, and acceptance rules. No application code.
-2. **UI-TASTE-02 — Shared design system:** normalize density, radius, typography, form controls,
-   page headers, toolbars, pagination, bulk actions, skeleton/empty/error states, and responsive
-   behavior through existing shared components.
-3. **UI-TASTE-03 — Priority screens:** Dashboard → Reactivation → Inbox → Contacts → Customer 360 →
-   Notification Center. Preserve backend behavior and generated contracts.
-4. **UI-TASTE-04 — Regression:** desktop/tablet/mobile, keyboard, focus, WCAG-oriented semantics and
-   contrast, reduced motion, representative-data overflow, bundle size, and route performance.
-5. **UI-TASTE-05 — Review and merge:** owner review, focused corrections, full frontend gates,
-   recorded evidence, and merge only after approval.
-
-## Completed baseline
-
-| Area | Verified state at baseline `62d4daa` |
+| Area | Delivered |
 |---|---|
-| Foundation | Identity, authentication, RBAC, audit, settings, API keys, queue/storage, and linear migrations `0001`–`0035` |
-| CRM and engagement | Contacts, tags/attributes, segments, import/export/bulk, WhatsApp channels, templates, campaigns, Inbox, Tasks, media, analytics, and Customer Timeline |
-| Reactivation domain | Persisted Reactivation pipeline and lightweight CRM, KYC operations, Documents, Task-backed Follow-up/Release dates, SLA evidence, and Customer 360 convergence |
-| Notification Center | Durable tenant/user-scoped projection, unread count, mark-one/all-read, read-only team filtering, deep links, 15-second polling, Task/Reactivation event projection, Audit evidence, and lifecycle-consistency regression |
-| Frontend shell | Permission-aware compact/expanded rail, grouped More navigation, command palette, mobile bottom navigation/drawer, semantic tokens, light/dark themes, focus-managed overlays, and reduced-motion behavior |
-| Quality | CORE-09 backend closeout passed Ruff, strict mypy, and all 948 pytest tests; no uncommitted application change is part of UI-TASTE-01 |
+| Radius and density | Named `control`/`surface`/`overlay` tiers; restrained shared surfaces; compact responsive gutters and touch-safe controls without altering navigation utilities |
+| Form controls | Forward-ref `Input`, `Select`, `Textarea`, and `Field` with semantic invalid/disabled/focus states, icon/action slots, labels, help, and errors |
+| Enterprise composition | Reusable `Toolbar`, groups/divider, `FilterBar`, and cursor-safe `Pagination` with busy/disabled/summary states |
+| Existing primitives | Button, Card, CardHeader, PageHeader, and PageContainer refined in place; no parallel design system |
+| Contacts | Search, desktop filters, mobile filter sheet, and cursor pagination converge on shared primitives; URL state/import/bulk workflow unchanged |
+| Inbox | Search shortcut, triage views, advanced filters, saved views, bulk selects, and cursor pagination reuse shared primitives; thread workflow unchanged |
+| Notifications | Type/status/date/assignee filters, mark-all, refresh, source actions, offline/read-only states reuse shared primitives; polling/read/deep-link behavior unchanged |
+| Tests | Three focused shared-primitive tests plus the complete 657-test frontend suite |
 
-## Remaining implementation sequence
+## Preserved invariants
 
-- Complete the five approved UI Taste milestones above without changing product scope or duplicating
-  completed authorities.
-- Resume final-product sequence after UI review: `CORE-10` Dedicated Chat History, `CORE-11` core
-  settings/team/tags/SLA controls, then the approved growth, analytics, integrations, enterprise,
-  and release milestones in `ROADMAP.md`.
-- Payments, catalogs, carts, checkout, orders, refunds, commerce, ads, public signup, reseller,
-  marketplace, and multi-project journeys remain permanently excluded.
+- No sidebar/navigation/route redesign and no removed destination.
+- No backend, migration, OpenAPI, generated TypeScript contract, dependency, permission, or source-
+  domain change.
+- No copied reference code/assets/layout, heavy animation dependency, fake data, invented KPI, or
+  executable-looking placeholder.
+- Existing accessibility, focus, keyboard, reduced motion, responsive/mobile, and real-state
+  boundaries remain authoritative.
 
-## Release blockers
+## Validation
 
-- Full load/stress/spike/soak and 1M-contact capacity evidence requires the isolated Performance Lab.
-- Metrics/dashboard/alerting/log-shipping and external synthetic-monitor evidence remain target-
-  environment deployment work.
-- TLS/host hardening, UAT, verified restore, rollback rehearsal, and production approval remain
-  environment commissioning evidence.
+- PASS: ESLint, TypeScript, 33 Vitest files / 657 tests, production build.
+- PASS: production dependency audit at high severity; only two moderate React Router advisories.
+- PASS: changed-file boundary and existing layout/navigation regressions.
+- PENDING – Host Machine Validation: authenticated representative-data visual/reference comparison,
+  target browser/device matrix, screen-reader pass, and real long-content overflow review.
+- Measured debt: main bundle 747.91 kB minified / 181.62 kB gzip with existing >500 kB warning;
+  development/build-tool audit inventory contains 11 findings and requires a separate dependency
+  modernization milestone rather than an unrelated breaking change here.
+
+## Remaining UI sequence
+
+1. Owner reviews and approves UI-TASTE-02.
+2. UI-TASTE-03 begins with Dashboard only; no Reactivation or other screen in the same milestone.
+3. Later priority-screen milestones reuse the shared layer rather than introducing local variants.
+4. UI-TASTE-04 performs authenticated responsive/accessibility/performance regression.
+5. UI-TASTE-05 records final owner acceptance and merge evidence.
+
+## Product sequence after UI review
+
+Resume `CORE-10` Dedicated Chat History and `CORE-11` settings/team/tags/SLA controls, followed by the
+approved growth, analytics, integration, enterprise, and release milestones in `ROADMAP.md`.
+Payments, ads, commerce, SaaS billing, marketplace, public signup, reseller, and multi-project
+surfaces remain excluded.
 
 ## Known technical debt
 
-- The production frontend build previously warned about a roughly 737.53 kB main chunk. Analytics,
-  Reactivation, Automation, and Scan Studio are route-split; further route-level splitting remains.
-- Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
-- Two moderate React Router advisories require an explicit React Router 7.18+ upgrade rather than a
-  silent patch.
-- Owner bootstrap accepts reserved `.test` email addresses that the login request schema rejects.
-- Representative-data authenticated visual regression infrastructure is not yet a canonical gate.
+- Main application chunk is 747.91 kB minified; further route-level splitting remains required.
+- React Router future-flag warnings remain, and two moderate production advisories require an explicit
+  routing upgrade rather than a silent patch.
+- Development/build tooling contains transitive audit findings, including high/critical severities;
+  production `--omit=dev` has no high/critical finding.
+- Authenticated representative-data visual regression is not yet a canonical automated gate.
+- Owner-bootstrap `.test` email validation mismatch remains unrelated maintenance debt.
 
 ## Permanent invariants
 
-Repository → Service → API layering · all sends through `SendService` · provider payloads remain in
-the Meta adapter · Retry Engine is the single classify/backoff authority · Rate Gate fails safe ·
-persist-first webhooks · campaign status controls dispatch · completed modules are extended rather
-than rebuilt · unbuilt surfaces remain absent or honestly gated · partitioned tables carry no FKs ·
-frontend API types are generated only · accessibility, responsive behavior, and real data are part of
-completion rather than optional polish.
-
-## Notes for the next session
-
-- Confirm `git branch --show-current` is `ui/taste-modernization` and the baseline ancestry includes
-  `62d4daa` before application edits.
-- Begin only `UI-TASTE-02`; do not jump directly into page-specific redesigns before shared primitive
-  decisions are implemented and tested.
-- Run backend commands from `backend/` via `.venv/Scripts/python.exe`.
-- Run frontend typecheck, lint, focused tests, production build, and then the full Vitest suite for
-  every implementation closeout.
-- Regenerate OpenAPI/types only when an approved backend contract changes; UI Taste work must not
-  hand-edit generated API types.
+Repository → Service → API layering · all sends through `SendService` · Meta payloads stay in the
+adapter · Retry Engine owns classify/backoff · Rate Gate fails safe · persist-first webhooks ·
+campaign status controls dispatch · completed modules are extended, never rebuilt · generated API
+types are authoritative · accessibility, responsive behavior, real state, and original premium
+presentation are completion requirements.

@@ -66,6 +66,10 @@ const config: Config = {
         DEFAULT: "8px",
         lg: "12px",
         xl: "16px",
+        // Named enterprise tiers avoid silently changing legacy/navigation radius utilities.
+        control: "10px",
+        surface: "12px",
+        overlay: "16px",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
