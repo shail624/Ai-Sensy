@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components/ui";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
@@ -29,7 +29,7 @@ function filtersToParams(filters: ContactFilters): URLSearchParams {
 /** A table-shaped skeleton so the page keeps its layout while the first page loads. */
 function LoadingRows(): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
           <Skeleton className="h-4 w-4" />
@@ -113,111 +113,98 @@ export function ContactsList(): JSX.Element {
   return (
     <PageContainer>
       <div style={{ paddingBottom: dockedSpace }}>
-      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
-      <PageHeader
-        eyebrow="Customer data"
-        title="Contacts"
-        description="Search, segment, and act on a complete customer record from one workspace."
-        meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
-        actions={canImport ? (
-          <Button
-            variant="secondary"
-            leftIcon={<Upload className="h-4 w-4" />}
-            onClick={() => setImporting(true)}
-          >
-            Import
-          </Button>
-        ) : undefined}
-      />
-
-      {importing ? (
-        <ImportWizard
-          onClose={() => {
-            setImporting(false);
-            void contacts.refetch();
-          }}
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
+        <PageHeader
+          eyebrow="Customer data"
+          title="Contacts"
+          description="Search, segment, and act on a complete customer record from one workspace."
+          meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
+          actions={canImport ? (
+            <Button
+              variant="secondary"
+              leftIcon={<Upload className="h-4 w-4" />}
+              onClick={() => setImporting(true)}
+            >
+              Import
+            </Button>
+          ) : undefined}
         />
-      ) : null}
 
-      {/* Search + filters */}
-      <div className="mb-4">
-        <ContactsToolbar
-          filters={filters}
-          onChange={applyFilters}
-          tags={tags.data ?? []}
-          enumAttributes={enumAttributes}
-        />
-      </div>
+        {importing ? (
+          <ImportWizard
+            onClose={() => {
+              setImporting(false);
+              void contacts.refetch();
+            }}
+          />
+        ) : null}
 
-      {/* Bulk actions — docked to the bottom edge on phones (DS-14), inline from `md` up. */}
-      <BulkActionsBar
-        selectedIds={selectedIds}
-        onClear={() => setSelectedIds(new Set())}
-        rules={rules}
-        onDockedHeightChange={setDockedSpace}
-      />
-
-      {contacts.isLoading ? (
-        <LoadingRows />
-      ) : contacts.isError ? (
-        <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
-      ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface shadow-sm">
-          <EmptyState
-            icon={<ContactIcon className="h-6 w-6" />}
-            title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
-            description={
-              hasActiveFilters(filters)
-                ? "Try a broader search or clear the filters to see everyone."
-                : "Import a CSV or add your first customer to start reactivating."
-            }
-            action={
-              hasActiveFilters(filters) ? (
-                <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
-                  Clear filters
-                </Button>
-              ) : canImport ? (
-                // First run: the Design Book's own call to action (B3.1 "Empty").
-                <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
-                  Import your contacts
-                </Button>
-              ) : undefined
-            }
+        <div className="mb-4">
+          <ContactsToolbar
+            filters={filters}
+            onChange={applyFilters}
+            tags={tags.data ?? []}
+            enumAttributes={enumAttributes}
           />
         </div>
-      ) : (
-        <>
-          <ContactsTable
-            contacts={rows}
-            selectedIds={selectedIds}
-            onToggle={toggle}
-            onToggleAll={toggleAll}
-            reactivationKey={reactivationKey}
-          />
-          <nav aria-label="Pagination" className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!page?.prev_cursor}
-              onClick={() => {
+
+        <BulkActionsBar
+          selectedIds={selectedIds}
+          onClear={() => setSelectedIds(new Set())}
+          rules={rules}
+          onDockedHeightChange={setDockedSpace}
+        />
+
+        {contacts.isLoading ? (
+          <LoadingRows />
+        ) : contacts.isError ? (
+          <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface shadow-sm">
+            <EmptyState
+              icon={<ContactIcon className="h-6 w-6" />}
+              title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
+              description={
+                hasActiveFilters(filters)
+                  ? "Try a broader search or clear the filters to see everyone."
+                  : "Import a CSV or add your first customer to start reactivating."
+              }
+              action={
+                hasActiveFilters(filters) ? (
+                  <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
+                    Clear filters
+                  </Button>
+                ) : canImport ? (
+                  <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
+                    Import your contacts
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ContactsTable
+              contacts={rows}
+              selectedIds={selectedIds}
+              onToggle={toggle}
+              onToggleAll={toggleAll}
+              reactivationKey={reactivationKey}
+            />
+            <Pagination
+              label="Contact pagination"
+              hasPrevious={Boolean(page?.prev_cursor)}
+              hasNext={Boolean(page?.next_cursor)}
+              onPrevious={() => {
                 if (page?.prev_cursor) goToCursor(page.prev_cursor);
               }}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!page?.next_cursor}
-              onClick={() => {
+              onNext={() => {
                 if (page?.next_cursor) goToCursor(page.next_cursor);
               }}
-            >
-              Next
-            </Button>
-          </nav>
-        </>
-      )}
+              summary={page?.total != null ? `${page.total.toLocaleString()} total contacts` : undefined}
+            />
+          </>
+        )}
       </div>
     </PageContainer>
   );
