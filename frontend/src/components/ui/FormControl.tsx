@@ -9,7 +9,7 @@ import {
 export type ControlSize = "sm" | "md" | "lg";
 
 const CONTROL_BASE =
-  "w-full min-w-0 rounded-lg border border-border bg-surface text-text-primary transition-[border-color,box-shadow,background-color] placeholder:text-text-disabled hover:border-border-strong focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-text-disabled disabled:opacity-70";
+  "w-full min-w-0 rounded-control border border-border bg-surface text-text-primary transition-[border-color,box-shadow,background-color] placeholder:text-text-disabled hover:border-border-strong focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-text-disabled disabled:opacity-70";
 
 const CONTROL_SIZES: Record<ControlSize, string> = {
   sm: "h-8 px-2.5 text-xs max-md:h-10",
@@ -51,6 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       {...props}
       ref={ref}
+      data-slot="input"
       aria-invalid={invalid || props["aria-invalid"] || undefined}
       className={controlClasses(
         controlSize,
@@ -92,6 +93,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     <select
       {...props}
       ref={ref}
+      data-slot="select"
       aria-invalid={invalid || props["aria-invalid"] || undefined}
       className={controlClasses(controlSize, invalid, `pr-8 ${className}`)}
     />
@@ -111,6 +113,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       {...props}
       ref={ref}
       rows={rows}
+      data-slot="textarea"
       aria-invalid={invalid || props["aria-invalid"] || undefined}
       className={`${CONTROL_BASE} min-h-24 resize-y px-3 py-2.5 text-sm ${
         invalid ? "border-danger focus-visible:border-danger focus-visible:ring-danger" : ""
@@ -140,13 +143,16 @@ export function Field({
 }: FieldProps): JSX.Element {
   return (
     <div className={`min-w-0 ${className}`}>
-      <label htmlFor={htmlFor} className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-text-secondary">
+      <label
+        htmlFor={htmlFor}
+        className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-text-secondary"
+      >
         <span>{label}</span>
         {optional ? <span className="font-normal text-text-disabled">Optional</span> : null}
       </label>
       {children}
       {error ? (
-        <p role="alert" className="mt-1.5 text-xs text-danger-on-soft">
+        <p role="alert" className="mt-1.5 text-xs text-danger">
           {error}
         </p>
       ) : description ? (
