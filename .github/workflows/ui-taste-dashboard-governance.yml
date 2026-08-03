@@ -1,0 +1,42 @@
+name: UI Taste Dashboard Governance
+
+on:
+  pull_request:
+    branches:
+      - work/ui-taste-dashboard
+
+permissions:
+  contents: write
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout governance tools
+        uses: actions/checkout@v4
+        with:
+          ref: validation/ui-taste-dashboard-governance
+          path: tools
+      - name: Checkout Dashboard work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/ui-taste-dashboard
+          fetch-depth: 0
+          path: repo
+      - name: Synchronize governance ledgers
+        working-directory: repo
+        run: python ../tools/scripts/ui_taste_dashboard_governance.py
+      - name: Commit governance closeout
+        working-directory: repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATE.md MODULE_STATUS.md IMPLEMENTATION_TRACKER.md VALIDATION_RESULTS.md CHANGELOG.md ROADMAP.md
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "Governance already synchronized"
+            exit 0
+          fi
+          git commit -m "docs(dashboard): record operational Dashboard evidence"
+          git push origin HEAD:work/ui-taste-dashboard
