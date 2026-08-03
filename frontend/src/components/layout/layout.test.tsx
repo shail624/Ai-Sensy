@@ -127,7 +127,7 @@ describe("TopNav", () => {
     renderTopNav();
     expect(screen.queryByText("WhatsApp Business")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search/i })).toBeEnabled();
-    expect(screen.getByLabelText(/attention center/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/notification center/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/toggle color theme/i)).not.toBeInTheDocument();
   });
 

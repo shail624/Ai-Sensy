@@ -50,6 +50,7 @@ from app.models.job_records import BulkJob, ExportJob, ImportJob
 from app.models.lead import LeadPipeline, LeadStage
 from app.models.media import MediaAsset
 from app.models.message import Message, MessageStatusHistory
+from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.quick_reply import QuickReply
 from app.models.rate_card import RateCard
@@ -116,6 +117,7 @@ __all__ = [
     "Message",
     "MessageTemplate",
     "MessageStatusHistory",
+    "Notification",
     "Organization",
     "Permission",
     "QuickReply",

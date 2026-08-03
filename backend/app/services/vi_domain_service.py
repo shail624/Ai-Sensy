@@ -71,6 +71,7 @@ from app.schemas.attribute import attributes_map
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
+from app.services.notification_service import NotificationService
 from app.services.task_service import TaskService, TaskView
 
 
@@ -355,6 +356,18 @@ class ViDomainService:
             BUSINESS_EVENT_REACTIVATION_CREATED,
             {"stage": case.stage},
         )
+        if owner_id is not None:
+            await NotificationService(self._session).emit(
+                organization_id=organization_id,
+                recipient_user_id=owner_id,
+                actor_user_id=actor.id,
+                contact_id=contact.id,
+                reactivation_case_id=case.id,
+                notification_type="case_assigned",
+                title="Reactivation case assigned",
+                body="You are now responsible for this customer case.",
+                dedup_key=f"case:{case.public_id}:assigned:create:{owner_id}",
+            )
         await self._session.commit()
         return (await self.views([case]))[0]
 
@@ -370,6 +383,7 @@ class ViDomainService:
             "active_delhi_number": case.active_delhi_number,
             "labels": [row.label for row in current_labels],
         }
+        previous_owner_id = case.owner_user_id
         if "owner_user_id" in payload:
             case.owner_user_id = await self._user_id(organization_id, payload.get("owner_user_id"))
         if "previous_vi_number" in payload:
@@ -428,6 +442,18 @@ class ViDomainService:
                 ),
             },
         )
+        if case.owner_user_id is not None and case.owner_user_id != previous_owner_id:
+            await NotificationService(self._session).emit(
+                organization_id=organization_id,
+                recipient_user_id=case.owner_user_id,
+                actor_user_id=actor.id,
+                contact_id=case.contact_id,
+                reactivation_case_id=case.id,
+                notification_type="case_assigned",
+                title="Reactivation case assigned",
+                body="You are now responsible for this customer case.",
+                dedup_key=f"case:{case.public_id}:assigned:v{case.row_version}:{case.owner_user_id}",
+            )
         await self._session.commit()
         return (await self.views([case]))[0]
 
@@ -1802,6 +1828,21 @@ class ViDomainService:
             {"from_stage": previous, "to_stage": target, "reason": event.reason},
             event_id=uuidlib.UUID(bytes=event.uuid),
         )
+        if case.owner_user_id is not None:
+            await NotificationService(self._session).emit(
+                organization_id=case.organization_id,
+                recipient_user_id=case.owner_user_id,
+                actor_user_id=actor.id,
+                contact_id=case.contact_id,
+                reactivation_case_id=case.id,
+                notification_type="case_status_changed",
+                title="Reactivation status updated",
+                body=(
+                    f"Status moved from {previous.replace('_', ' ')} "
+                    f"to {target.replace('_', ' ')}."
+                ),
+                dedup_key=f"case:{case.public_id}:stage:{event.public_id}",
+            )
         return event
 
     async def _validate_reactivation_gate(self, case: ReactivationCase, target: str) -> None:

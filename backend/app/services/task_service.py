@@ -78,6 +78,7 @@ from app.repositories.task import (
 )
 from app.services.audit_service import AuditAction, AuditService
 from app.services.contact_event_service import ContactEventService
+from app.services.notification_service import NotificationService
 
 _UTC = ZoneInfo("UTC")
 _VALID_SORTS = {SORT_DUE_AT, SORT_CREATED_AT, SORT_PRIORITY, SORT_COMPLETED_AT}
@@ -447,6 +448,7 @@ class TaskService:
             task.reminder_at = reminder_at
         if rescheduled:
             task.due_notified_at = None
+            await NotificationService(self._session).resolve_task(task)
             await self._project(task, EVENT_TASK_RESCHEDULED)
         self._bump(task, actor.id)
         await self._audit_task(
@@ -501,6 +503,7 @@ class TaskService:
             before={"status": previous},
             after={"status": task.status},
         )
+        await NotificationService(self._session).resolve_task(task)
         if commit:
             await self._session.commit()
         return (await self._build_views([task]))[0]
@@ -604,6 +607,7 @@ class TaskService:
         )
         task.due_at = due_at
         task.due_notified_at = None
+        await NotificationService(self._session).resolve_task(task)
         if has_time is not None:
             task.has_time = has_time
         if reminder_at is not None:
@@ -638,6 +642,7 @@ class TaskService:
         task.due_at = utcnow() + timedelta(minutes=minutes)
         task.reminder_at = None
         task.due_notified_at = None
+        await NotificationService(self._session).resolve_task(task)
         self._add_event(
             task,
             TASK_EVENT_SNOOZED,
@@ -684,6 +689,25 @@ class TaskService:
                     "due_at": task.due_at.isoformat(),
                 },
             )
+            is_follow_up = task.task_type == "reminder"
+            await NotificationService(self._session).emit(
+                organization_id=task.organization_id,
+                recipient_user_id=task.assigned_agent_id,
+                notification_type="follow_up_due" if is_follow_up else "release_date_due",
+                title="Follow-up is due" if is_follow_up else "Release date is due",
+                body=(
+                    "A customer follow-up needs attention."
+                    if is_follow_up
+                    else "A name-change release action needs attention."
+                ),
+                dedup_key=f"task:{task.public_id}:due:{task.due_at.isoformat()}",
+                contact_id=task.contact_id,
+                reactivation_case_id=(
+                    task.reference_id if task.reference_type == "reactivation_case" else None
+                ),
+                task_id=task.id,
+                due_at=task.due_at,
+            )
         await self._session.commit()
         return {"notified": len(tasks)}
 
@@ -710,6 +734,7 @@ class TaskService:
         )
         task.assigned_agent_id = assignee.id
         task.due_notified_at = None
+        await NotificationService(self._session).resolve_task(task)
         await self._project(task, EVENT_TASK_ASSIGNED)
         self._bump(task, actor.id)
         await self._audit_task(
@@ -898,6 +923,7 @@ class TaskService:
             before={"status": previous},
             after={"status": status, "reason": reason},
         )
+        await NotificationService(self._session).resolve_task(task)
         if commit:
             await self._session.commit()
         return (await self._build_views([task]))[0]

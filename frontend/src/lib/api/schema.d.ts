@@ -2346,6 +2346,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notifications */
+        get: operations["list_notifications_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unread notification count */
+        get: operations["unread_count_api_v1_notifications_unread_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notification_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark notification read */
+        post: operations["mark_read_api_v1_notifications__notification_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all notifications read */
+        post: operations["mark_all_read_api_v1_notifications_read_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/summary": {
         parameters: {
             query?: never;
@@ -5304,6 +5372,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["EligibilityCheckResponse"][];
         };
+        /** EntityReference */
+        EntityReference: {
+            /** Id */
+            id: string;
+            /** Name */
+            name?: string | null;
+        };
         /**
          * EstimateBreakdownEntry
          * @description One priced ``(country, category)`` group (Doc 04 §17).
@@ -6038,6 +6113,11 @@ export interface components {
             /** Mfa Code */
             mfa_code?: string | null;
         };
+        /** MarkAllReadResponse */
+        MarkAllReadResponse: {
+            /** Updated */
+            updated: number;
+        };
         /** MeResponse */
         MeResponse: {
             /** Id */
@@ -6293,6 +6373,43 @@ export interface components {
              */
             kind: "notification";
             config: components["schemas"]["NotificationConfig"];
+        };
+        /** NotificationResponse */
+        NotificationResponse: {
+            /** Id */
+            id: string;
+            /** Type */
+            type: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Read Status */
+            read_status: string;
+            /** Lifecycle Status */
+            lifecycle_status: string;
+            /** Due At */
+            due_at: string | null;
+            /** Read At */
+            read_at: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            recipient: components["schemas"]["UserReference"];
+            actor: components["schemas"]["UserReference"] | null;
+            contact: components["schemas"]["EntityReference"] | null;
+            reactivation_case: components["schemas"]["EntityReference"] | null;
+            task: components["schemas"]["EntityReference"] | null;
+        };
+        /** NotificationsPage */
+        NotificationsPage: {
+            /** Data */
+            data: components["schemas"]["NotificationResponse"][];
+            page: components["schemas"]["Page"];
         };
         /** OrganizationResponse */
         OrganizationResponse: {
@@ -8077,6 +8194,11 @@ export interface components {
             kind: "trigger";
             config: components["schemas"]["TriggerConfig"];
         };
+        /** UnreadCountResponse */
+        UnreadCountResponse: {
+            /** Unread */
+            unread: number;
+        };
         /** UserCreateRequest */
         UserCreateRequest: {
             /**
@@ -8102,6 +8224,13 @@ export interface components {
             locale: string;
             /** Roles */
             roles?: string[];
+        };
+        /** UserReference */
+        UserReference: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** UserResponse */
         UserResponse: {
@@ -13514,6 +13643,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_notifications_api_v1_notifications_get: {
+        parameters: {
+            query?: {
+                type?: ("follow_up_due" | "release_date_due" | "case_assigned" | "case_status_changed") | null;
+                status?: ("unread" | "read" | "overdue" | "resolved") | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                assignee_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unread_count_api_v1_notifications_unread_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCountResponse"];
+                };
+            };
+        };
+    };
+    mark_read_api_v1_notifications__notification_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_all_read_api_v1_notifications_read_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkAllReadResponse"];
                 };
             };
         };

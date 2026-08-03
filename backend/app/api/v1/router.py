@@ -25,6 +25,7 @@ from app.api.v1.endpoints import (
     leads,
     media,
     messages,
+    notifications,
     organization,
     quick_replies,
     roles,
@@ -86,6 +87,8 @@ api_router.include_router(quick_replies.router, tags=["Inbox"])
 
 # Doc 14 — Task & Activity Management (CRM Follow-up Engine); permissions tasks:read/write/assign.
 api_router.include_router(tasks.router, tags=["Tasks"])
+# CORE-09 — durable per-user projection over Tasks and Reactivation domain events.
+api_router.include_router(notifications.router, tags=["Notifications"])
 
 # Phase 8 — Analytics & Reporting (Doc 15); permissions analytics:read/export/executive.
 api_router.include_router(analytics.router, tags=["Analytics"])

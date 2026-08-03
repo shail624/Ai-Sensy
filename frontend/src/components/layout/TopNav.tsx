@@ -8,7 +8,6 @@ import {
   Plus,
   Search,
   Sun,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 import { visibleCreateActions } from "@/components/layout/navigation";
 import { CommandPalette } from "@/features/global-search";
+import { NotificationCenter, useUnreadCount } from "@/features/notifications";
 import { useQueues } from "@/features/operations/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -47,7 +47,11 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const canSystem = hasPermission("system:read");
+  const canReadNotifications = hasPermission("tasks:read");
+  const canViewTeamNotifications = hasPermission("tasks:assign");
+  const canViewUsers = hasPermission("users:read");
   const queues = useQueues(canSystem);
+  const unread = useUnreadCount(canReadNotifications);
   const [accountOpen, setAccountOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -57,11 +61,17 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
   const createButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
 
   const queueDepth = (queues.data?.queues ?? []).reduce((sum, queue) => sum + queue.depth, 0);
   const parked = queues.data?.dead_letter_parked ?? 0;
   const noWorkers = canSystem && Boolean(queues.data) && (queues.data?.workers.length ?? 0) === 0;
-  const attentionCount = (queueDepth > 100 ? 1 : 0) + (parked > 0 ? 1 : 0) + (noWorkers ? 1 : 0);
+  const unreadCount = unread.data?.unread ?? 0;
+  const systemSignals = [
+    ...(noWorkers ? [{ title: "No workers online", description: "Queued work cannot run until a worker reports a heartbeat." }] : []),
+    ...(queueDepth > 100 ? [{ title: "Queue backlog needs review", description: `${queueDepth.toLocaleString()} tasks are waiting across the fleet.` }] : []),
+    ...(parked > 0 ? [{ title: "Dead-letter work present", description: `${parked.toLocaleString()} task${parked === 1 ? " is" : "s are"} parked for operator review.` }] : []),
+  ];
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -183,10 +193,10 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
             </div>
           ) : null}
 
-          <button type="button" aria-label={`Attention center${attentionCount ? `, ${attentionCount} alerts` : ""}`} onClick={() => setAttentionOpen(true)} className={`relative ${iconBtn}`}>
+          <button ref={notificationButtonRef} type="button" aria-label={`Notification center${unreadCount ? `, ${unreadCount} unread` : ""}`} aria-expanded={attentionOpen} onClick={() => setAttentionOpen(true)} className={`relative ${iconBtn}`}>
             <Bell aria-hidden className="h-[18px] w-[18px]" />
-            {attentionCount > 0 ? (
-              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white ring-2 ring-surface">{attentionCount}</span>
+            {unreadCount > 0 ? (
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white ring-2 ring-surface">{unreadCount > 99 ? "99+" : unreadCount}</span>
             ) : null}
           </button>
           <div ref={accountMenuRef} className="relative">
@@ -230,25 +240,18 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      {attentionOpen ? (
-        <div className="fixed inset-0 z-[60] flex justify-end bg-black/35 backdrop-blur-sm">
-          <button type="button" aria-label="Close attention center" onClick={() => setAttentionOpen(false)} className="absolute inset-0" />
-          <aside role="dialog" aria-modal="true" aria-label="Attention center" className="relative z-10 h-full w-full max-w-md overflow-y-auto border-l border-border bg-surface p-5 shadow-lg">
-            <div className="flex items-start justify-between gap-3">
-              <div><h2 className="text-lg font-bold text-text-primary">Attention center</h2><p className="mt-1 text-sm text-text-secondary">Live operational signals that may need action.</p></div>
-              <button type="button" aria-label="Close" onClick={() => setAttentionOpen(false)} className={iconBtn}><X aria-hidden className="h-4 w-4" /></button>
-            </div>
-            <div className="mt-6 space-y-3">
-              {!canSystem ? <p className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-secondary">No operational alerts are available for your role.</p> : null}
-              {canSystem && attentionCount === 0 ? <p className="rounded-xl border border-success bg-success-soft p-4 text-sm text-success-on-soft">All monitored queues and workers look healthy.</p> : null}
-              {noWorkers ? <Attention title="No workers online" description="Queued work cannot run until a worker reports a heartbeat." /> : null}
-              {queueDepth > 100 ? <Attention title="Queue backlog needs review" description={`${queueDepth.toLocaleString()} tasks are waiting across the fleet.`} /> : null}
-              {parked > 0 ? <Attention title="Dead-letter work present" description={`${parked.toLocaleString()} task${parked === 1 ? " is" : "s are"} parked for operator review.`} /> : null}
-            </div>
-            {canSystem ? <button type="button" onClick={() => { setAttentionOpen(false); navigate("/operations"); }} className="mt-6 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-fg">Open Operations</button> : null}
-          </aside>
-        </div>
-      ) : null}
+      <NotificationCenter
+        open={attentionOpen}
+        onClose={() => {
+          setAttentionOpen(false);
+          notificationButtonRef.current?.focus();
+        }}
+        canRead={canReadNotifications}
+        canViewTeam={canViewTeamNotifications}
+        canViewUsers={canViewUsers}
+        canViewSystem={canSystem}
+        systemSignals={systemSignals}
+      />
 
       {helpOpen ? (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4 backdrop-blur-sm">
@@ -263,8 +266,4 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
       ) : null}
     </>
   );
-}
-
-function Attention({ title, description }: { title: string; description: string }): JSX.Element {
-  return <div className="flex gap-3 rounded-xl border border-warning bg-warning-soft p-4"><TriangleAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-warning-on-soft" /><div><p className="text-sm font-semibold text-text-primary">{title}</p><p className="mt-1 text-xs leading-relaxed text-text-secondary">{description}</p></div></div>;
 }

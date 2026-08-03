@@ -98,6 +98,7 @@ _EXPECTED_TABLES = {
     "activation_records",
     "sla_policies",
     "sla_events",
+    "notifications",
 }
 
 
@@ -137,7 +138,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0034_reactivation_crm"
+        assert version == "0035_notification_center"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()

@@ -9,6 +9,8 @@ interface ModalProps {
    * `sm` up — the bottom-sheet pattern Doc 05 B3.1 specifies for mobile filters. Default unchanged.
    */
   variant?: "center" | "sheet" | "drawer";
+  panelClassName?: string;
+  contentClassName?: string;
 }
 
 const SHELL: Record<"center" | "sheet" | "drawer", string> = {
@@ -32,7 +34,7 @@ const FOCUSABLE =
  * close it, focus returns to whatever opened it, and the surface is labelled by its heading
  * (Doc 05 DS-10 "Focus management").
  */
-export function Modal({ title, onClose, children, variant = "center" }: ModalProps): JSX.Element {
+export function Modal({ title, onClose, children, variant = "center", panelClassName = "", contentClassName = "" }: ModalProps): JSX.Element {
   const panelRef = useRef<HTMLDivElement>(null);
   // Kept in a ref so an inline `onClose` arrow does not re-run the focus effect on every render.
   const closeRef = useRef(onClose);
@@ -91,7 +93,7 @@ export function Modal({ title, onClose, children, variant = "center" }: ModalPro
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`border border-border bg-surface shadow-lg focus:outline-none ${PANEL[variant]}`}
+        className={`border border-border bg-surface shadow-lg focus:outline-none ${PANEL[variant]} ${panelClassName}`}
       >
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
@@ -104,7 +106,7 @@ export function Modal({ title, onClose, children, variant = "center" }: ModalPro
             ×
           </button>
         </header>
-        <div className="px-4 py-3">{children}</div>
+        <div className={`px-4 py-3 ${contentClassName}`}>{children}</div>
       </div>
     </div>
   );
