@@ -13,14 +13,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-55";
+  "inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: "border border-transparent bg-accent text-accent-fg shadow-sm hover:bg-accent-strong",
   secondary:
     "border border-border bg-surface text-text-primary shadow-sm hover:border-border-strong hover:bg-hover",
   ghost: "border border-transparent text-text-secondary hover:bg-hover hover:text-text-primary",
-  subtle: "border border-transparent bg-accent-soft text-accent-on-soft hover:bg-accent hover:text-accent-fg",
+  subtle:
+    "border border-transparent bg-accent-soft text-accent-on-soft hover:bg-accent hover:text-accent-fg",
   danger: "border border-transparent bg-danger text-white shadow-sm hover:opacity-90",
 };
 
