@@ -1,12 +1,28 @@
 # Validation Results
 
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
-> `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence; it must
-> be refreshed after every milestone. CORE-07 starting GitHub baseline: `4881a1d`; the milestone
-> converges persisted Customer 360 evidence by extending existing Contact, Inbox, Vi, Task,
-> Document, Campaign, Audit, Timeline, RBAC, tenant, and design-system authorities.
+> `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
+> separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-02T17:34:14+05:30`.
+Last synchronized: `2026-08-04T01:38:00+05:30`.
+
+
+## UI-TASTE-02 shared enterprise design system
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Starting baseline and branch | PASS | Implementation starts from `9043fe03a80b682a010304c88c5d29d8ec77d1fa` and targets `ui/taste-modernization`; the original CORE-09 lineage remains `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`. |
+| Shared architecture | PASS | Existing React/Tailwind architecture is extended in place with named radius tiers, forward-ref form controls, toolbar/filter composition, cursor pagination, and refinements to existing Button/Card/PageHeader/PageContainer primitives; no parallel design system exists. |
+| Product workflow preservation | PASS | Contacts URL filters/import/bulk flow, Inbox quick views/search shortcut/saved views/bulk mutations/thread flow, and Notification polling/read/team/deep-link behavior are unchanged. |
+| Sidebar, navigation and contract boundary | PASS | Sidebar, TopNav structure, command palette, mobile navigation, routes, permissions, backend, migration `0035`, 193-path OpenAPI, generated client, and dependencies are unchanged. |
+| Accessibility and responsive contracts | PASS | Shared controls retain labels, forward refs, focus-visible rings, invalid/disabled/busy semantics and mobile targets; existing 21 layout, 24 Inbox, 4 Contacts toolbar and 3 Notification Center tests pass. |
+| Focused shared-primitive regression | PASS | Three new tests cover semantic labels/help/errors, invalid state, action slots, cursor pagination disabled/callback behavior, and loading-button accessible name/`aria-busy`. |
+| Lint, typecheck and full frontend suite | PASS | ESLint passes; `tsc --noEmit` passes; 33 Vitest files and 657 tests pass. |
+| Production build and bundle measurement | PASS | Vite transforms 2,599 modules and builds successfully; CSS is 49.39 kB / 9.79 kB gzip and the main application chunk is 747.91 kB / 181.62 kB gzip. The known >500 kB warning remains recorded debt. |
+| Production dependency boundary | PASS | `npm audit --omit=dev --audit-level=high` reports only two moderate React Router advisories and no high/critical production finding. Combined development/build tooling reports 11 transitive findings and requires a separate upgrade milestone. |
+| Originality and scope | PASS | Implementation is original, uses existing semantic product tokens and Lucide icons, imports no reference code/assets/branding/layout, adds no fake data/metric/placeholder, and introduces no heavy animation library. |
+| Authenticated representative-data visual and reference comparison | PENDING – Host Machine Validation | Source review and jsdom tests cannot prove final visual density, long-content overflow, screen-reader behavior, or desktop/tablet/mobile comparison against the approved reference library. Owner/host review is required before Priority 2. |
+| Milestone boundary | PASS | Only Priority 1 shared-system work and required governance evidence are included; Dashboard and all other Priority 2 screen redesign work remain absent. |
 
 ## CORE-07 Customer 360 domain convergence
 

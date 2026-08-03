@@ -11,6 +11,41 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Shared enterprise design-system modernization (UI-TASTE-02)
+
+**Added**
+- Added original shared `Input`, `Select`, `Textarea`, `Field`, `Toolbar`, `FilterBar`, and cursor
+  `Pagination` primitives with semantic focus, disabled, invalid, busy, label, help, error, icon,
+  action, summary, and mobile touch-target behavior.
+- Added named `control`, `surface`, and `overlay` radius tiers so enterprise density can converge
+  without silently changing legacy sidebar or navigation utilities.
+- Added three focused shared-primitive tests covering semantic labels, invalid state, pagination
+  callbacks/disabled state, and loading-button accessibility.
+
+**Changed**
+- Refined shared Button, Card/CardHeader, PageHeader, and PageContainer hierarchy, spacing, elevation,
+  responsive action alignment, and restrained interaction treatment.
+- Replaced duplicated Contacts search/filter/mobile-sheet/pagination styling, Inbox search/advanced-
+  filter/saved-view/bulk-select/pagination styling, and Notification Center filter/action styling
+  with governed shared components. Existing URL state, shortcuts, bulk behavior, polling, read
+  state, permissions, and source deep links are unchanged.
+
+**Preserved**
+- Sidebar, navigation, routes, backend, migrations, OpenAPI, generated contracts, dependencies,
+  permissions, real workflows, keyboard/focus handling, reduced motion, responsive navigation, and
+  source-domain ownership are unchanged. No heavy animation library, copied reference implementation,
+  proprietary asset, fake metric, or parallel component system was introduced.
+
+**Validated**
+- ESLint and TypeScript pass; all 33 Vitest files and 657 tests pass; the production build passes
+  after transforming 2,599 modules. The main application chunk is 747.91 kB minified / 181.62 kB
+  gzip and retains the known >500 kB warning.
+- The production dependency audit has no high/critical finding and reports two moderate React Router
+  advisories. The combined development-tool inventory reports 11 transitive findings and remains a
+  separately governed dependency-modernization task.
+- Authenticated representative-data desktop/tablet/mobile and approved-reference visual comparison
+  remains `PENDING – Host Machine Validation`; Priority 2 is blocked pending owner approval.
+
 ### 2026-08-02 — Customer 360 domain convergence (CORE-07)
 
 **Added**
