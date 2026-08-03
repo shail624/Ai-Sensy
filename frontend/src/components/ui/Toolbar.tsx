@@ -21,7 +21,7 @@ export function Toolbar({
       aria-label={label}
       className={`flex min-w-0 flex-wrap items-center ${
         density === "compact" ? "gap-2" : "gap-3"
-      } ${surface ? "rounded-xl border border-border bg-surface p-2.5 shadow-sm" : ""} ${className}`}
+      } ${surface ? "rounded-surface border border-border bg-surface p-2.5 shadow-sm" : ""} ${className}`}
     >
       {children}
     </div>
@@ -69,7 +69,7 @@ export function FilterBar({
   return (
     <section
       aria-label={label}
-      className={`rounded-xl border border-border bg-surface p-2.5 shadow-sm ${className}`}
+      className={`rounded-surface border border-border bg-surface p-2.5 shadow-sm ${className}`}
     >
       <div className={`flex min-w-0 flex-wrap items-center gap-2 ${contentClassName}`}>
         {children}
