@@ -1,9 +1,9 @@
 name: UI Taste Priority 1 Validation
 
 on:
-  push:
+  pull_request:
     branches:
-      - validation/ui-taste-priority-1
+      - work/ui-taste-priority-1
 
 permissions:
   contents: read
