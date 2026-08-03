@@ -420,8 +420,10 @@ class TaskService:
             task.title = title
         if description is not None:
             task.description = description
-        if task_type is not None:
+        notification_revision_changed = False
+        if task_type is not None and task_type != task.task_type:
             task.task_type = task_type
+            notification_revision_changed = True
         if priority is not None and priority != task.priority:
             self._add_event(
                 task,
@@ -442,13 +444,15 @@ class TaskService:
             )
             task.due_at = due_at
             rescheduled = True
+            notification_revision_changed = True
         if has_time is not None:
             task.has_time = has_time
         if reminder_at is not None:
             task.reminder_at = reminder_at
-        if rescheduled:
+        if notification_revision_changed:
             task.due_notified_at = None
             await NotificationService(self._session).resolve_task(task)
+        if rescheduled:
             await self._project(task, EVENT_TASK_RESCHEDULED)
         self._bump(task, actor.id)
         await self._audit_task(
@@ -572,6 +576,8 @@ class TaskService:
         task.completed_at = None
         task.completed_by = None
         task.completion_notes = None
+        task.due_notified_at = None
+        await NotificationService(self._session).resolve_task(task)
         self._add_event(
             task,
             TASK_EVENT_REOPENED,
@@ -700,7 +706,10 @@ class TaskService:
                     if is_follow_up
                     else "A name-change release action needs attention."
                 ),
-                dedup_key=f"task:{task.public_id}:due:{task.due_at.isoformat()}",
+                dedup_key=(
+                    f"task:{task.public_id}:due:v{task.row_version}:"
+                    f"{task.assigned_agent_id}:{task.due_at.isoformat()}"
+                ),
                 contact_id=task.contact_id,
                 reactivation_case_id=(
                     task.reference_id if task.reference_type == "reactivation_case" else None
@@ -752,6 +761,7 @@ class TaskService:
         """Soft-delete — data cleanup, distinct from ``cancel`` (Doc 14 TA-INV 5)."""
         task = await self._require_task(organization_id, public_id)
         task.deleted_at = utcnow()
+        await NotificationService(self._session).resolve_task(task)
         self._bump(task, actor.id)
         await self._session.commit()
 
@@ -818,6 +828,7 @@ class TaskService:
         """
         if status is not None and status != task.status:
             self._check_transition(task, status)
+        notification_revision_changed = False
         if priority is not None and priority != task.priority:
             self._add_event(
                 task,
@@ -836,6 +847,8 @@ class TaskService:
                 to_json={"due_at": due_at.isoformat()},
             )
             task.due_at = due_at
+            task.due_notified_at = None
+            notification_revision_changed = True
             await self._project(task, EVENT_TASK_RESCHEDULED)
         if assignee is not None and assignee.id != task.assigned_agent_id:
             previous = await self._public_user_id(task.assigned_agent_id)
@@ -847,6 +860,8 @@ class TaskService:
                 to_json={"assigned_agent": assignee.public_id},
             )
             task.assigned_agent_id = assignee.id
+            task.due_notified_at = None
+            notification_revision_changed = True
             await self._project(task, EVENT_TASK_ASSIGNED)
         if status is not None and status != task.status:
             previous_status = task.status
@@ -858,9 +873,14 @@ class TaskService:
                 from_json={"status": previous_status},
                 to_json={"status": status},
             )
+            if status == TASK_STATUS_OPEN:
+                task.due_notified_at = None
+            notification_revision_changed = True
             projection = _STATUS_PROJECTION.get(status)
             if projection is not None:
                 await self._project(task, projection)
+        if notification_revision_changed:
+            await NotificationService(self._session).resolve_task(task)
         self._bump(task, actor.id)
 
     async def bulk_delete(
@@ -870,6 +890,7 @@ class TaskService:
         found = {t.uuid for t in tasks}
         for task in tasks:
             task.deleted_at = utcnow()
+            await NotificationService(self._session).resolve_task(task)
             self._bump(task, actor.id)
         await self._session.commit()
         missing = len(public_ids) - len({pid.bytes for pid in public_ids} & found)
