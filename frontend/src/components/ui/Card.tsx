@@ -18,11 +18,11 @@ export function Card({
   return (
     <div
       data-slot="card"
-      className={`rounded-xl border border-border bg-surface shadow-sm ${
+      className={`rounded-surface border border-border bg-surface shadow-sm ${
         padding ? "p-4 sm:p-5" : ""
       } ${
         interactive
-          ? "transition-[border-color,box-shadow,background-color] hover:border-[color-mix(in_srgb,var(--color-accent)_38%,var(--color-border-default))] hover:bg-[color-mix(in_srgb,var(--color-bg-surface)_96%,var(--color-accent-soft))] hover:shadow-md"
+          ? "transition-[border-color,box-shadow,background-color] hover:border-accent/40 hover:bg-hover hover:shadow-md"
           : ""
       } ${className}`}
     >
@@ -51,7 +51,7 @@ export function CardHeader({
     <div className={`flex items-start justify-between gap-3 ${className}`}>
       <div className="flex min-w-0 items-start gap-3">
         {icon ? (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-on-soft">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent-on-soft">
             {icon}
           </span>
         ) : null}
