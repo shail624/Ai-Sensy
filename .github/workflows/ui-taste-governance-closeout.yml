@@ -1,0 +1,322 @@
+name: UI Taste Governance Closeout
+
+on:
+  push:
+    branches:
+      - validation/ui-taste-priority-1
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/ui-taste-priority-1
+          fetch-depth: 0
+
+      - name: Synchronize governance ledgers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          START = "9043fe03a80b682a010304c88c5d29d8ec77d1fa"
+          ORIGINAL = "62d4daa50617e2e0c8fff9f5ec9a514848a77f98"
+          STAMP = "2026-08-04T01:38:00+05:30"
+
+          project_state = f'''# Project State
+
+> Current repository snapshot. Update this file at every milestone closeout and whenever the
+> milestone baseline changes. `HEAD` is kept symbolic because a Git commit cannot embed its own
+> final hash; resolve it from the authoritative checkout with `git rev-parse HEAD`.
+
+| Field | Current value |
+|---|---|
+| Current branch | `ui/taste-modernization` |
+| Original UI branch baseline | `{ORIGINAL}` (`CORE-09` validated baseline) |
+| Priority 1 starting baseline | `{START}` (`docs(ui): add taste modernization implementation plan`) |
+| Current Git HEAD | `HEAD` (Priority 1 closeout commit; resolve from Git after push) |
+| Current milestone | `UI-TASTE-02 — Shared enterprise design system — IMPLEMENTED; OWNER APPROVAL PENDING` |
+| Current phase | `UI Taste Modernization — Priority 1 implemented; Priority 2 blocked pending approval` |
+| Repository version | `1.0.0-rc1` |
+| Current migration head | `0035_notification_center` (35 linear revisions) |
+| OpenAPI path count | `193` (OpenAPI `3.1.0`) |
+| Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests passed; backend not changed or re-run for this frontend-only milestone |
+| Frontend evidence | ESLint PASS; TypeScript PASS; 657/657 Vitest tests across 33 files PASS; production build PASS |
+| Dependency evidence | Production audit has 2 moderate React Router advisories and no high/critical finding; development-tooling audit inventory remains recorded as technical debt |
+| Visual acceptance | `PENDING – Host Machine Validation` for authenticated representative-data desktop/tablet/mobile and reference-comparison review |
+| Last completed product milestone | `CORE-09 — Unified Notification Center` |
+| Last completed governance milestone | `UI-TASTE-01 — Documentation and audit baseline` |
+| Next milestone | `UI-TASTE-03 — Dashboard redesign`, blocked until owner approval of Priority 1 |
+| Current worktree expectation | One Priority 1 squash commit; no sidebar, navigation, route, API, backend, migration, OpenAPI, generated-client, dependency, or workflow file change |
+| Last update timestamp | `{STAMP}` (Asia/Kolkata) |
+
+## Priority 1 implementation
+
+Priority 1 modernizes the shared enterprise presentation layer without changing product workflows:
+
+- added governed `Input`, `Select`, `Textarea`, and `Field` controls with forward refs, semantic
+  disabled/invalid states, icon/action slots, mobile touch targets, and focus-visible treatment;
+- added shared `Toolbar`, `ToolbarGroup`, `ToolbarDivider`, `FilterBar`, and cursor-safe `Pagination`;
+- added named `control`, `surface`, and `overlay` radius tiers without changing existing sidebar or
+  navigation radius utilities;
+- refined shared Button, Card, PageHeader, and PageContainer density and hierarchy;
+- replaced duplicated controls in Contacts, Inbox, and Notification Center while preserving URL
+  filters, bulk actions, saved views, keyboard shortcuts, polling, read-state, and source deep links;
+- added focused semantic and interaction tests for the new primitives.
+
+## Preserved boundaries
+
+- Sidebar, TopNav structure, command palette, mobile navigation, routes, permissions, source-domain
+  ownership, generated API contracts, backend services, migrations, and business rules are unchanged.
+- No heavy animation library, copied code, reference asset, proprietary wording, fake metric,
+  placeholder workflow, parallel component system, or dependency upgrade was introduced.
+- Existing keyboard navigation, focus management, reduced-motion behavior, semantic light/dark
+  tokens, responsive composition, loading/empty/error states, and truthful disabled states remain.
+
+## Validation evidence
+
+- `npm run lint`: PASS.
+- `npm run typecheck`: PASS.
+- `npm test`: PASS — 33 files, 657 tests, including 3 new primitive tests, 4 Contacts toolbar tests,
+  24 Inbox tests, 3 Notification Center tests, and 21 layout/navigation tests.
+- `npm run build`: PASS — 2,599 modules transformed; CSS 49.39 kB (9.79 kB gzip); main application
+  chunk 747.91 kB (181.62 kB gzip). The existing >500 kB chunk warning remains technical debt.
+- `npm audit --omit=dev --audit-level=high`: PASS — two moderate React Router advisories only; no
+  high or critical production dependency finding.
+- Full audit inventory: 11 transitive findings in production plus development tooling combined
+  (6 moderate, 4 high, 1 critical). High/critical items are confined to development/build tooling;
+  breaking upgrades remain a separate maintenance milestone.
+- Authenticated representative-data visual comparison and target-device/browser review:
+  `PENDING – Host Machine Validation`.
+
+## Approved phase priorities
+
+1. `UI-TASTE-01` — documentation and audit baseline — complete.
+2. `UI-TASTE-02` — shared enterprise design system — implemented; owner approval pending.
+3. `UI-TASTE-03` — Dashboard redesign — blocked until owner approval.
+4. `UI-TASTE-04` — responsive, accessibility, representative-data, bundle, and route-performance
+   regression.
+5. `UI-TASTE-05` — final owner review and merge closeout.
+
+## Maintenance rule
+
+At closeout, re-read live Git, migration, OpenAPI, dependency, build, and test evidence. Do not claim
+visual production acceptance from source or jsdom tests alone, and do not begin Priority 2 before the
+owner approves this milestone.
+'''
+          Path("PROJECT_STATE.md").write_text(project_state, encoding="utf-8")
+
+          tracker = f'''# Implementation Tracker (canonical)
+
+> GitHub at the latest approved HEAD is the repository source of truth. Update this state ledger
+> after every verified milestone; keep implementation evidence distinct from host visual approval.
+
+_Last updated: 2026-08-04 · Priority 1 shared enterprise design-system modernization is implemented
+and repository-validated. Owner approval and authenticated representative-data visual review remain
+required before Dashboard work._
+
+## Current state
+
+- **Branch:** `ui/taste-modernization`
+- **Original UI lineage baseline:** `{ORIGINAL}`
+- **Priority 1 starting baseline:** `{START}`
+- **Release:** `1.0.0-rc1`
+- **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged by Priority 1
+- **Backend:** unchanged; CORE-09 baseline remains 948 pytest, Ruff clean, strict mypy clean
+- **Frontend:** ESLint PASS · TypeScript PASS · 657/657 Vitest PASS · production build PASS
+- **Production dependency boundary:** no high/critical production finding; two moderate React Router
+  advisories remain
+- **Current milestone:** `UI-TASTE-02 — IMPLEMENTED; OWNER APPROVAL PENDING`
+- **Next milestone:** `UI-TASTE-03 — Dashboard redesign — BLOCKED PENDING APPROVAL`
+- **Host validation:** authenticated representative-data desktop/tablet/mobile, keyboard, visual,
+  and approved-reference comparison is `PENDING – Host Machine Validation`
+
+## Delivered in UI-TASTE-02
+
+| Area | Delivered |
+|---|---|
+| Radius and density | Named `control`/`surface`/`overlay` tiers; restrained shared surfaces; compact responsive gutters and touch-safe controls without altering navigation utilities |
+| Form controls | Forward-ref `Input`, `Select`, `Textarea`, and `Field` with semantic invalid/disabled/focus states, icon/action slots, labels, help, and errors |
+| Enterprise composition | Reusable `Toolbar`, groups/divider, `FilterBar`, and cursor-safe `Pagination` with busy/disabled/summary states |
+| Existing primitives | Button, Card, CardHeader, PageHeader, and PageContainer refined in place; no parallel design system |
+| Contacts | Search, desktop filters, mobile filter sheet, and cursor pagination converge on shared primitives; URL state/import/bulk workflow unchanged |
+| Inbox | Search shortcut, triage views, advanced filters, saved views, bulk selects, and cursor pagination reuse shared primitives; thread workflow unchanged |
+| Notifications | Type/status/date/assignee filters, mark-all, refresh, source actions, offline/read-only states reuse shared primitives; polling/read/deep-link behavior unchanged |
+| Tests | Three focused shared-primitive tests plus the complete 657-test frontend suite |
+
+## Preserved invariants
+
+- No sidebar/navigation/route redesign and no removed destination.
+- No backend, migration, OpenAPI, generated TypeScript contract, dependency, permission, or source-
+  domain change.
+- No copied reference code/assets/layout, heavy animation dependency, fake data, invented KPI, or
+  executable-looking placeholder.
+- Existing accessibility, focus, keyboard, reduced motion, responsive/mobile, and real-state
+  boundaries remain authoritative.
+
+## Validation
+
+- PASS: ESLint, TypeScript, 33 Vitest files / 657 tests, production build.
+- PASS: production dependency audit at high severity; only two moderate React Router advisories.
+- PASS: changed-file boundary and existing layout/navigation regressions.
+- PENDING – Host Machine Validation: authenticated representative-data visual/reference comparison,
+  target browser/device matrix, screen-reader pass, and real long-content overflow review.
+- Measured debt: main bundle 747.91 kB minified / 181.62 kB gzip with existing >500 kB warning;
+  development/build-tool audit inventory contains 11 findings and requires a separate dependency
+  modernization milestone rather than an unrelated breaking change here.
+
+## Remaining UI sequence
+
+1. Owner reviews and approves UI-TASTE-02.
+2. UI-TASTE-03 begins with Dashboard only; no Reactivation or other screen in the same milestone.
+3. Later priority-screen milestones reuse the shared layer rather than introducing local variants.
+4. UI-TASTE-04 performs authenticated responsive/accessibility/performance regression.
+5. UI-TASTE-05 records final owner acceptance and merge evidence.
+
+## Product sequence after UI review
+
+Resume `CORE-10` Dedicated Chat History and `CORE-11` settings/team/tags/SLA controls, followed by the
+approved growth, analytics, integration, enterprise, and release milestones in `ROADMAP.md`.
+Payments, ads, commerce, SaaS billing, marketplace, public signup, reseller, and multi-project
+surfaces remain excluded.
+
+## Known technical debt
+
+- Main application chunk is 747.91 kB minified; further route-level splitting remains required.
+- React Router future-flag warnings remain, and two moderate production advisories require an explicit
+  routing upgrade rather than a silent patch.
+- Development/build tooling contains transitive audit findings, including high/critical severities;
+  production `--omit=dev` has no high/critical finding.
+- Authenticated representative-data visual regression is not yet a canonical automated gate.
+- Owner-bootstrap `.test` email validation mismatch remains unrelated maintenance debt.
+
+## Permanent invariants
+
+Repository → Service → API layering · all sends through `SendService` · Meta payloads stay in the
+adapter · Retry Engine owns classify/backoff · Rate Gate fails safe · persist-first webhooks ·
+campaign status controls dispatch · completed modules are extended, never rebuilt · generated API
+types are authoritative · accessibility, responsive behavior, real state, and original premium
+presentation are completion requirements.
+'''
+          Path("IMPLEMENTATION_TRACKER.md").write_text(tracker, encoding="utf-8")
+
+          module_path = Path("MODULE_STATUS.md")
+          module = module_path.read_text(encoding="utf-8")
+          module = module.replace(
+              "Last synchronized: `2026-08-04T01:27:00+05:30`.",
+              f"Last synchronized: `{STAMP}`.",
+          )
+          module = re.sub(
+              r"## UI Taste Modernization implementation plan\n.*?The plan does not change module completion percentages\. Percentages move only after implemented,\ntested, evidence-backed application changes\.\n\n",
+              '''## UI Taste Modernization — Priority 1 implementation\n\n- **Starting baseline:** `9043fe03a80b682a010304c88c5d29d8ec77d1fa`.\n- **Status:** `UI-TASTE-02` is implemented and repository-validated; owner approval and authenticated\n  representative-data visual comparison remain pending before Dashboard work.\n- **Delivered:** named enterprise radius tiers; shared form, toolbar, filter, pagination, Button,\n  Card, PageHeader, and PageContainer improvements; adoption in Contacts, Inbox, and Notification\n  Center; focused shared-primitive regressions.\n- **Preserved:** sidebar/navigation/routes, backend, migrations, OpenAPI/generated contracts,\n  permissions, workflows, keyboard/focus, reduced motion, responsive/mobile behavior, semantic\n  themes, and source-domain ownership.\n- **Validation:** ESLint, TypeScript, 657 Vitest tests, production build, and high-severity production\n  dependency audit pass. Host visual/reference review is pending.\n- **Next:** Dashboard redesign only, blocked until owner approval.\n\nCompletion percentages below remain domain-capability measures. Shared polish improves consistency\nwithout falsely inflating business-workflow completion.\n\n''',
+              module,
+              count=1,
+              flags=re.S,
+          )
+          module = module.replace(
+              "| Inbox | 91% | Shared Inbox + Live Chat plus CORE-07 exact-contact conversation reuse | UI-TASTE shared-control convergence, intervention-request lifecycle, SLA badges, and final responsive/accessibility regression. | Notifications, SLA, shared design system |",
+              "| Inbox | 91% | Shared Inbox + Live Chat plus CORE-07 exact-contact reuse; UI-TASTE-02 converges search, advanced filters, saved views, bulk selects, and pagination on shared accessible controls | Page-specific hierarchy polish, intervention-request lifecycle, SLA badges, and authenticated responsive/accessibility regression. | Notifications, SLA, shared design system |",
+          )
+          module = module.replace(
+              "| Contacts | 95% | FR-CON-04 release-ready baseline | UI-TASTE toolbar/table/pagination/bulk-action consistency plus final scope regression for opt-in, eligibility, assignment/export and server-shared saved views; no rebuild. | Saved Views, Reactivation, shared design system |",
+              "| Contacts | 95% | FR-CON-04 baseline plus UI-TASTE-02 shared search/filter/mobile-sheet/pagination convergence | Page-specific table and bulk-action polish, final opt-in/eligibility/assignment/export regression, and server-shared saved views; no rebuild. | Saved Views, Reactivation, shared design system |",
+          )
+          module = module.replace(
+              "| Notifications | 85% | CORE-09 unified durable Notification Center: tenant/user-scoped records, unread count, mark-one/all-read, deep links, read-only team filter, 15-second polling, Task/Reactivation projections, Audit evidence, migration `0035`, and 193-path generated contract | UI-TASTE visual/density pass, final full frontend/regression evidence, notification settings, and separately approved optional delivery channels. SSE/browser push/email/internal WhatsApp are not implied by CORE-09. | Tasks, Reactivation, user preferences, shared design system |",
+              "| Notifications | 85% | CORE-09 durable center plus UI-TASTE-02 shared type/status/date/assignee filters and action controls; polling, read-state, team view and deep links are preserved | Page-specific visual hierarchy, authenticated responsive review, notification settings, and separately approved optional channels. SSE/browser push/email/internal WhatsApp are not implied. | Tasks, Reactivation, user preferences, shared design system |",
+          )
+          marker = "| Team Management | 80% | Users, roles, permissions, workload foundations complete |"
+          if "| Shared Enterprise Design System |" not in module:
+              module = module.replace(
+                  marker,
+                  "| Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |\n" + marker,
+                  1,
+              )
+          module_path.write_text(module, encoding="utf-8")
+
+          changelog_path = Path("CHANGELOG.md")
+          changelog = changelog_path.read_text(encoding="utf-8")
+          entry = '''\n### 2026-08-04 — Shared enterprise design-system modernization (UI-TASTE-02)\n\n**Added**\n- Added original shared `Input`, `Select`, `Textarea`, `Field`, `Toolbar`, `FilterBar`, and cursor\n  `Pagination` primitives with semantic focus, disabled, invalid, busy, label, help, error, icon,\n  action, summary, and mobile touch-target behavior.\n- Added named `control`, `surface`, and `overlay` radius tiers so enterprise density can converge\n  without silently changing legacy sidebar or navigation utilities.\n- Added three focused shared-primitive tests covering semantic labels, invalid state, pagination\n  callbacks/disabled state, and loading-button accessibility.\n\n**Changed**\n- Refined shared Button, Card/CardHeader, PageHeader, and PageContainer hierarchy, spacing, elevation,\n  responsive action alignment, and restrained interaction treatment.\n- Replaced duplicated Contacts search/filter/mobile-sheet/pagination styling, Inbox search/advanced-\n  filter/saved-view/bulk-select/pagination styling, and Notification Center filter/action styling\n  with the governed shared components. Existing URL state, shortcuts, bulk behavior, polling, read\n  state, permissions, and source deep links are unchanged.\n\n**Preserved**\n- Sidebar, navigation, routes, backend, migrations, OpenAPI, generated contracts, dependencies,\n  permissions, real workflows, keyboard/focus handling, reduced motion, responsive navigation, and\n  source-domain ownership are unchanged. No heavy animation library, copied reference implementation,\n  proprietary asset, fake metric, or parallel component system was introduced.\n\n**Validated**\n- ESLint and TypeScript pass; all 33 Vitest files and 657 tests pass; the production build passes\n  after transforming 2,599 modules. The main application chunk is 747.91 kB minified / 181.62 kB\n  gzip and retains the known >500 kB warning.\n- The production dependency audit has no high/critical finding and reports two moderate React Router\n  advisories. The combined development-tool inventory reports 11 transitive findings and remains a\n  separately governed dependency-modernization task.\n- Authenticated representative-data desktop/tablet/mobile and approved-reference visual comparison\n  remains `PENDING – Host Machine Validation`; Priority 2 is blocked pending owner approval.\n'''
+          anchor = "## [Unreleased]\n"
+          if "Shared enterprise design-system modernization (UI-TASTE-02)" not in changelog:
+              changelog = changelog.replace(anchor, anchor + entry, 1)
+          changelog_path.write_text(changelog, encoding="utf-8")
+
+          validation_path = Path("VALIDATION_RESULTS.md")
+          validation = validation_path.read_text(encoding="utf-8")
+          validation = re.sub(
+              r"> Status vocabulary is restricted to `PASS`, `FAIL`, and\n> `PENDING – Host Machine Validation`\..*?authorities\.\n",
+              "> Status vocabulary is restricted to `PASS`, `FAIL`, and\n> `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and\n> separates repository-verifiable engineering gates from target-host visual/commissioning evidence.\n",
+              validation,
+              count=1,
+              flags=re.S,
+          )
+          validation = validation.replace(
+              "Last synchronized: `2026-08-02T17:34:14+05:30`.",
+              f"Last synchronized: `{STAMP}`.",
+          )
+          section = '''\n## UI-TASTE-02 shared enterprise design system\n\n| Validation item | Status | Latest evidence |\n|---|---|---|\n| Starting baseline and branch | PASS | Implementation starts from `9043fe03a80b682a010304c88c5d29d8ec77d1fa` on the isolated Priority 1 work branch and targets `ui/taste-modernization`; the original CORE-09 lineage remains `62d4daa`. |\n| Shared architecture | PASS | Existing React/Tailwind architecture is extended in place with named radius tiers, forward-ref form controls, toolbar/filter composition, cursor pagination, and refinements to existing Button/Card/PageHeader/PageContainer primitives; no parallel design system exists. |\n| Product workflow preservation | PASS | Contacts URL filters/import/bulk flow, Inbox quick views/search shortcut/saved views/bulk mutations/thread flow, and Notification polling/read/team/deep-link behavior are unchanged. |\n| Sidebar, navigation and contract boundary | PASS | Sidebar, TopNav structure, command palette, mobile navigation, routes, permissions, backend, migration `0035`, 193-path OpenAPI, generated client, and dependencies are unchanged. |\n| Accessibility and responsive contracts | PASS | Shared controls retain labels, forward refs, focus-visible rings, invalid/disabled/busy semantics and mobile targets; existing 21 layout, 24 Inbox, 4 Contacts toolbar and 3 Notification Center tests pass. |\n| Focused shared-primitive regression | PASS | Three new tests cover semantic labels/help/errors, invalid state, action slots, cursor pagination disabled/callback behavior, and loading-button accessible name/`aria-busy`. |\n| Lint, typecheck and full frontend suite | PASS | ESLint passes; `tsc --noEmit` passes; 33 Vitest files and 657 tests pass in the isolated validation run. |\n| Production build and bundle measurement | PASS | Vite transforms 2,599 modules and builds successfully; CSS is 49.39 kB / 9.79 kB gzip and the main application chunk is 747.91 kB / 181.62 kB gzip. The known >500 kB warning remains recorded debt. |\n| Production dependency boundary | PASS | `npm audit --omit=dev --audit-level=high` reports only two moderate React Router advisories and no high/critical production finding. Combined development/build tooling reports 11 transitive findings and requires a separate upgrade milestone. |\n| Originality and scope | PASS | Implementation is original, uses existing semantic product tokens and Lucide icons, imports no reference code/assets/branding/layout, adds no fake data/metric/placeholder, and introduces no heavy animation library. |\n| Authenticated representative-data visual and reference comparison | PENDING – Host Machine Validation | Source review and jsdom tests cannot prove final visual density, long-content overflow, screen-reader behavior, or desktop/tablet/mobile comparison against the approved reference library. Owner/host review is required before Priority 2. |\n| Milestone boundary | PASS | Only Priority 1 shared-system work and required governance evidence are included; Dashboard and all other Priority 2 screen redesign work remain absent. |\n\n'''
+          anchor = "## CORE-07 Customer 360 domain convergence\n"
+          if "## UI-TASTE-02 shared enterprise design system" not in validation:
+              validation = validation.replace(anchor, section + anchor, 1)
+          validation_path.write_text(validation, encoding="utf-8")
+
+          roadmap_path = Path("ROADMAP.md")
+          roadmap = roadmap_path.read_text(encoding="utf-8")
+          roadmap = roadmap.replace(
+              "Last synchronized: `2026-08-04T01:27:00+05:30`.",
+              f"Last synchronized: `{STAMP}`.",
+          )
+          roadmap = roadmap.replace(
+              "- UI Taste Modernization implementation baseline:\n  `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`.",
+              f"- UI Taste Modernization lineage baseline: `{ORIGINAL}`.\n- Priority 1 starting baseline: `{START}`.",
+          )
+          roadmap = roadmap.replace(
+              "The owner has approved `UI-TASTE-01 — Taste Modernization implementation plan` on branch\n`ui/taste-modernization`. UI-TASTE-01 is documentation only: no application code, dependency,\nmigration, OpenAPI, generated client, or runtime behavior may change in its commit.",
+              "`UI-TASTE-01` documentation/audit baseline is complete. `UI-TASTE-02` shared enterprise\ndesign-system modernization is implemented and repository-validated; owner approval and\nauthenticated representative-data visual/reference comparison remain pending. `UI-TASTE-03`\nDashboard redesign is blocked until that approval.",
+          )
+          roadmap = roadmap.replace(
+              "| UI-TASTE-01 — Documentation and audit baseline — APPROVED | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Only `PROJECT_STATE.md`, `MODULE_STATUS.md`, `IMPLEMENTATION_TRACKER.md`, and `ROADMAP.md`; design variance `4/10`, motion `3/10`, density `8/10`. | One documentation-only commit on `ui/taste-modernization`; no application/dependency/contract/runtime change; remote HEAD verified. |",
+              "| UI-TASTE-01 — Documentation and audit baseline — COMPLETE | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Governance records only; design variance `4/10`, motion `3/10`, density `8/10`. | COMPLETE at `9043fe03`; documentation-only boundary and remote HEAD were verified. |",
+          )
+          roadmap = roadmap.replace(
+              "| UI-TASTE-02 — Shared design-system modernization | Establish consistent enterprise density and hierarchy before page work. | Existing tokens/primitives extended for radius, typography, fields/selects, page headers, toolbars, pagination, bulk actions, skeleton/empty/error states, responsive behavior, and restrained motion. | Shared components are reused by priority screens; no parallel component system; typecheck/lint/focused tests/build pass; accessibility contracts preserved. |",
+              "| UI-TASTE-02 — Shared design-system modernization — IMPLEMENTED; OWNER APPROVAL PENDING | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. | Repository gates pass: lint, typecheck, 657 tests, build and production audit. Host visual/reference comparison and owner approval remain pending; no parallel component system or navigation redesign exists. |",
+          )
+          roadmap = roadmap.replace(
+              "| UI-TASTE-03 — Priority screen modernization | Apply the shared system to the highest-value daily workflows. | Dashboard → Reactivation → Inbox → Contacts → Customer 360 → Notification Center. Preserve real data, permissions, business rules, routes, and generated contracts. | Each screen passes its functional tests and representative-data desktop/tablet/mobile review; no fake metric, placeholder workflow, or backend duplication is introduced. |",
+              "| UI-TASTE-03 — Priority screen modernization — BLOCKED PENDING APPROVAL | Apply the shared system to the highest-value daily workflows one reviewed screen milestone at a time. | Begin with Dashboard only; later approvals cover Reactivation, Inbox, Contacts, Customer 360 and Notification Center. Preserve real data, permissions, business rules, routes and generated contracts. | Priority 1 is owner-approved first; each screen then passes functional and representative-data desktop/tablet/mobile review with no fake metric, placeholder workflow or backend duplication. |",
+          )
+          roadmap_path.write_text(roadmap, encoding="utf-8")
+
+          for path in (
+              "PROJECT_STATE.md",
+              "MODULE_STATUS.md",
+              "IMPLEMENTATION_TRACKER.md",
+              "CHANGELOG.md",
+              "VALIDATION_RESULTS.md",
+              "ROADMAP.md",
+          ):
+              text = Path(path).read_text(encoding="utf-8")
+              if not text.endswith("\n"):
+                  Path(path).write_text(text + "\n", encoding="utf-8")
+          PY
+
+      - name: Commit governance closeout
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATE.md MODULE_STATUS.md IMPLEMENTATION_TRACKER.md CHANGELOG.md VALIDATION_RESULTS.md ROADMAP.md
+          git diff --cached --check
+          git commit -m "docs(ui): record priority 1 validation"
+          git push origin HEAD:work/ui-taste-priority-1
