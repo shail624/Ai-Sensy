@@ -1,155 +1,131 @@
 # Implementation Tracker (canonical)
 
 > Canonical implementation tracker. GitHub at the latest approved HEAD remains the repository source
-> of truth. Every new session must read this first.
-> Update it after each verified milestone. Keep it short: state, not narrative.
+> of truth. Every new session must read this first. Update it after each verified milestone. Keep it
+> short: state, not narrative.
 
-_Last updated: 2026-08-02 · CORE-07 Customer 360 domain convergence verified; owner governance
-correction records CORE-08 — Skipped: Not required by product owner, and CORE-09 Notification
-Center as next._
+_Last updated: 2026-08-04 · CORE-09 Unified Notification Center is merged and validated. Phase 1 UI
+Taste Modernization is owner-approved on `ui/taste-modernization`; the current milestone is a
+documentation-only implementation plan._
 
 ## Current state
 
-- **Branch:** `feature/module6-queue-engine`
-- **Release baseline:** `v1.0.0-rc1`; FR-CON-04 stable baseline
-  `baseline/fr-con-04-release-ready` at `b565d0f`
-- **Migration head:** `0034_reactivation_crm` (34 linear revisions, base `0001`)
-- **OpenAPI:** 3.1.0 · 189 paths · `frontend/openapi.json` verified against the live app
-- **Backend:** 945 tests passed · Ruff clean · raw strict mypy clean across
-  253 source files (exact checker mypy 2.3.0)
-- **Frontend:** 651 tests passed · TypeScript clean · ESLint clean · production build passed
-- **Docker:** development and production Compose models parse cleanly; production images build;
-  the backend image boots with the 189-path/25-task contract; frontend nginx validates. The isolated
-  automated gate validates migrations, owner bootstrap, API/worker/queue health, browser smoke,
-  read performance, and project-scoped cleanup.
-- **Current phase:** Phase 1 core operations and real domain ownership — **IN PROGRESS**
-- **Security automation:** Bandit clean; backend production dependency audit clean; tracked-source
-  and built-application-image Trivy HIGH/CRITICAL scans clean; CycloneDX SBOMs generated; release
-  profiles are provider-neutral
-- **Deployed gate:** Playwright owner login → queued CSV import → converged persisted contact profile
-  → durable automation draft/publish/test-run → second queued import → real `contact.created` receipt
-  evidence passed across nginx/SPA/API/MySQL/Redis/Celery; migration `0034` remains current and the
-  current standard-read evidence is p95 10.4 ms / 30 samples (<300 ms target)
-- **Observability gate:** canonical correlated HTTP events and defensive formatter redaction are
-  covered in isolation and in the real stack; Redis loss makes readiness return 503; the mounted
-  digest-pinned nginx configuration is syntax-checked
-- **Current milestone:** CORE-07 Customer 360 domain convergence — **COMPLETE; VALIDATION EVIDENCE
-  RECORDED IN `VALIDATION_RESULTS.md`**
-- **Roadmap correction:** **CORE-08 — Skipped: Not required by product owner.** Preserve existing
-  KYC-specific approval logic and completed authorization safeguards;
-  do not create a generic approval authority, center, queue, or escalation system.
-- **Next milestone:** CORE-09 Notification Center — requires a separate owner instruction.
+- **Branch:** `ui/taste-modernization`
+- **Implementation baseline:** `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`
+- **Release baseline:** `v1.0.0-rc1`
+- **Migration head:** `0035_notification_center` (35 linear revisions, base `0001`)
+- **OpenAPI:** 3.1.0 · 193 paths · generated TypeScript contract remains authoritative
+- **Backend evidence:** 948 tests passed · Ruff clean · strict mypy clean across 258 source files
+- **Frontend evidence:** CORE-09 focused notification/layout tests passed before merge; the full
+  frontend suite is intentionally not re-run in this documentation-only milestone
+- **Current milestone:** `UI-TASTE-01 — Taste Modernization implementation plan — DOCUMENTATION ONLY`
+- **Current restriction:** only `PROJECT_STATE.md`, `MODULE_STATUS.md`,
+  `IMPLEMENTATION_TRACKER.md`, and `ROADMAP.md` may change; no application code, dependency,
+  migration, OpenAPI, generated client, or runtime behavior change is authorized
+- **Last completed milestone:** `CORE-09 — Unified Notification Center`
+- **Next milestone:** `UI-TASTE-02 — Shared design-system modernization`, after owner review of the
+  documentation plan
+- **Roadmap correction:** `CORE-08 — Skipped: Not required by product owner.` Preserve existing
+  KYC-specific approval logic and completed authorization safeguards; do not create a generic
+  Approval Center, framework, queue, escalation system, or authority.
 
-## Completed deliverables
+## UI Taste Modernization approval
 
-| Area | Delivered |
+- **Design variance:** `4/10`
+- **Motion intensity:** `3/10`
+- **Visual density:** `8/10`
+- **Approach:** targeted modernization of the existing React/Tailwind application; no rewrite and no
+  imitation of another product.
+- **Preserve:** sidebar and route structure, permissions, generated API contracts, source-domain
+  ownership, real workflows, mobile navigation, keyboard/focus behavior, reduced motion, semantic
+  light/dark tokens, and existing test contracts.
+
+### Phase 1 audit findings
+
+1. The application shell is already a strong accessible/responsive foundation and must be refined,
+   not replaced.
+2. Dashboard hierarchy is messaging-led and does not prioritize factual Reactivation operator work.
+3. Reactivation mixes connected production capability with foundation/future states; maturity and
+   action hierarchy need clearer separation.
+4. Large radii, nested cards, soft fills, and gradients are overused for dense enterprise workflows.
+5. Inbox, Contacts, and adjacent modules use inconsistent raw controls for filters, selects,
+   pagination, toolbars, bulk actions, and loading/empty/error states.
+6. Navigation is robust but information-heavy; everyday role-relevant work and advanced controls
+   need clearer hierarchy and contextual shortcuts.
+7. Source review is not final visual evidence. Authenticated representative-data browser review,
+   responsive overflow, keyboard/focus, accessibility, bundle, and route performance checks remain
+   mandatory.
+
+### Approved execution order
+
+1. **UI-TASTE-01 — Documentation/audit baseline:** synchronize branch, baseline, findings,
+   boundaries, priorities, and acceptance rules. No application code.
+2. **UI-TASTE-02 — Shared design system:** normalize density, radius, typography, form controls,
+   page headers, toolbars, pagination, bulk actions, skeleton/empty/error states, and responsive
+   behavior through existing shared components.
+3. **UI-TASTE-03 — Priority screens:** Dashboard → Reactivation → Inbox → Contacts → Customer 360 →
+   Notification Center. Preserve backend behavior and generated contracts.
+4. **UI-TASTE-04 — Regression:** desktop/tablet/mobile, keyboard, focus, WCAG-oriented semantics and
+   contrast, reduced motion, representative-data overflow, bundle size, and route performance.
+5. **UI-TASTE-05 — Review and merge:** owner review, focused corrections, full frontend gates,
+   recorded evidence, and merge only after approval.
+
+## Completed baseline
+
+| Area | Verified state at baseline `62d4daa` |
 |---|---|
-| Foundation | Identity, authentication, RBAC, audit, settings, API keys, migrations `0001`–`0004` |
-| CRM + queue | Contacts, tags, segments, attributes, import/export/bulk, queue/storage, migrations `0005`–`0013` |
-| WhatsApp core | Channel abstraction, WABAs/numbers, webhooks, conversations, messages, media, migrations `0014`–`0016` |
-| Templates + campaigns | Template registry, adaptive rate gate, campaign audience/dispatch/lifecycle/scheduling/cost, migrations `0017`–`0022` |
-| Inbox + work | Shared inbox, notes, quick replies, conversation tags, reactions, task/activity engine, migrations `0023`–`0026` |
-| Analytics | Rollups, queries, report exports, migration `0027` |
-| Governed customer documents | Contact-linked document records, immutable versions, verification/rejection, expiry, archive, audit/history, signed previews, and migration `0028` |
-| Frontend | Auth shell, dashboard, contacts/profile, inbox, campaigns, templates, media, channels, segments, pipelines, tasks, analytics, operations, admin, settings |
-| Phase 1 product experience | Business-first responsive shell; command palette/search; premium dashboard and sign-in; customer 360; saved-view/bulk inbox; approval-ready campaign journey; Operations/Admin centers; honest Automation/Reactivation foundations |
-| Phase 2 customer engagement | Server-synchronized inbox custom views/pins; customer/notes/AI thread context; governed Broadcast Center; template favorites; segment recents; factual engagement funnel; export navigation; human-controlled AI integration seams |
-| Phase 3 reactivation + automation | Ten-route Reactivation workspace; ten-stage pipeline blueprint; 12-tab Customer 360; document boundary; analytics-backed reports; separate Scan Studio boundary; accessible non-executing automation canvas; document-summary AI seam |
-| Phase 4A governed documents | Tenant-scoped document workflow shared by Customer 360 and Reactivation; media reuse; least-privilege RBAC; optimistic concurrency; immutable version and decision evidence |
-| Compact engagement shell | Six-item task rail by default, permission-aware advanced navigation, original teal engagement palette, and preserved responsive/keyboard navigation |
-| Guided campaign journey | Scroll-free progress rail; clear six-step hierarchy; audience/delivery choice cards; customer message preview; compact review/actions; optional AI assistance collapsed by default |
-| Live Chat simplicity | Requests/Active/My chats triage over existing filters; advanced controls on demand; compact conversation rows; customer context, notes, labels and AI assistance one click away |
-| Audience and retargeting presets | Four marketer-friendly quick-start templates over verified segment facts; preset-shaped saved segments surface as one-click campaign audiences; existing duplicate journey remains the follow-up path; campaign-specific event cohorts remain contract-gated rather than inferred from partial recipient pages |
-| Campaign follow-up journey | Completed campaigns expose a clear Create follow-up action; the original definition opens as a fresh editable draft and still passes through the existing audience, schedule, approval and dispatch path |
-| Chat link and QR | Every real WhatsApp number can generate a private browser-only `wa.me` link, optional prefilled message and downloadable QR; no tracking, shortening, external QR service, API or schema was introduced |
-| Versioned automation definitions | Tenant-scoped durable drafts; typed bounded graph; fail-closed publication validation; immutable content-addressed versions; restore/enable/disable; least-privilege RBAC; audit; optimistic concurrency; generated API client; real searchable authoring workspace; migration `0029` |
-| Deterministic automation test runtime | Immutable-version test runs; tenant-scoped run/attempt ledger; UUID idempotency; stable DAG execution; checkpoint/resume; existing retry/DLQ and job visibility; safe simulated actions; run history UI; migration `0030` |
-| Durable automation trigger receipts | Additive `contact.created` taxonomy; immutable partitioned business-event ledger; atomic API/import/system publishers; enabled clean immutable-version matching; idempotent tenant-scoped receipts; read-only builder evidence; no live effects; migration `0031` |
-| Permanent repository governance | Root state, validation, module-status, repository-rule, and final-scope roadmap ledgers; immutable source-document hashes; permitted AiSensy reference boundary; milestone synchronization gate |
-| Premium product-goal lock | Permanent original enterprise quality target; ordered product priorities; bounded local reference policy; no-placeholder rule; shared-component standard; fourteen-step reference review; twenty-point premium screen Definition of Done; ADR-0012 and Design Document 25 |
-| Governed navigation shell | Original compact/expanded Vi rail; permission-aware grouped More; shared create actions and command palette; mobile bottom navigation/drawer; honest maturity labels; permanent exclusion guard; focus-managed accessible overlays; ADR-0013 and Design Document 26 |
-| Vi domain foundation | Tenant-scoped Reactivation, stage-event, eligibility, KYC/decisions, SIM/events, Activation, and SLA records; fixed transitions and prerequisites; optimistic concurrency; UUID idempotency; approval boundaries; RBAC; audit/Customer Timeline/durable facts; 29 typed API paths; migration `0032`; ADR-0014 and Design Document 27 |
-| Governed Reactivation pipeline | Persisted fifteen-stage dashboard/Kanban/list; pointer and keyboard moves through the CORE-02 transition authority; assignments; eligibility/rejection; immutable stage history/notes; Tasks/Documents/Customer 360 reuse; reservation/family/conversion/SLA evidence; responsive accessible drawer; 184-path contract; ADR-0015 and Design Document 28 |
-| Governed KYC operations | Persisted tenant queue/detail; holder/Delhi/active-number checks; protected Aadhaar/PAN references without identity numbers; Task-backed appointments; structured reviewer/manager decisions and separation; optimistic concurrency/idempotency; immutable audit/Timeline and Reactivation handoff; 188-path contract; migration `0033`; ADR-0016 and Design Document 29 |
-| Lightweight Reactivation CRM | Owner-approved nine-status single case; six labels; Task-backed Follow-up/Release dates; Upcoming/Due Today/Overdue views; Complete/Snooze/Reschedule; assignment, notes, RBAC, tenant isolation, concurrency, Audit/Timeline; 189-path/25-task contract; migration `0034`; ADR-0017 and Design Document 30. Completed KYC/SIM/Activation foundations remain preserved without new heavy workspaces. |
-| Customer 360 domain convergence | Existing Contact profile composes persisted identity/attributes, exact-contact WhatsApp history, Reactivation status/labels/reminders/owner/notes/SLA, Documents, Tasks, KYC/SIM/Activation facts, Campaign participation, Audit and Customer Timeline; permission-aware source deep links; accessible responsive tabs; unchanged 189-path contract and `0034` migration; ADR-0018 and Design Document 31. |
-| Deployment | Ten-service production topology, nginx edge, runbook, container execution fixes and artifact routing |
-| Post-RC1 CRM | Premium responsive contacts UI, bulk actions, CSV import, add-selection-to-campaign, and Excel import inspection/wizard support |
-| Module 11 hardening | Raw strict mypy clean; provider-neutral static/pre-merge/release/deployed gates; SAST, dependency/source/image scans and SBOMs; isolated ten-service Playwright CSV-import journey; bounded read-latency canary; correlated/redacted runtime logging and dependency-readiness proof |
+| Foundation | Identity, authentication, RBAC, audit, settings, API keys, queue/storage, and linear migrations `0001`–`0035` |
+| CRM and engagement | Contacts, tags/attributes, segments, import/export/bulk, WhatsApp channels, templates, campaigns, Inbox, Tasks, media, analytics, and Customer Timeline |
+| Reactivation domain | Persisted Reactivation pipeline and lightweight CRM, KYC operations, Documents, Task-backed Follow-up/Release dates, SLA evidence, and Customer 360 convergence |
+| Notification Center | Durable tenant/user-scoped projection, unread count, mark-one/all-read, read-only team filtering, deep links, 15-second polling, Task/Reactivation event projection, Audit evidence, and lifecycle-consistency regression |
+| Frontend shell | Permission-aware compact/expanded rail, grouped More navigation, command palette, mobile bottom navigation/drawer, semantic tokens, light/dark themes, focus-managed overlays, and reduced-motion behavior |
+| Quality | CORE-09 backend closeout passed Ruff, strict mypy, and all 948 pytest tests; no uncommitted application change is part of UI-TASTE-01 |
 
-## FR-CON-04 release-ready scope
+## Remaining implementation sequence
 
-- Permission-gated, tenant-scoped `POST /api/v1/contacts/import/inspect`.
-- Non-mutating `.xlsx` header/sample/sheet/row-estimate inspection using the same openpyxl parser
-  and cell rendering as the worker import path.
-- Synchronous workbook work moved off the async request loop and bounded to 25 MB for inspection.
-- Import wizard accepts CSV up to 100 MB and `.xlsx` up to 25 MB for inline inspection; the existing
-  async import request contract, mapping, deduplication, routing, and job behavior are preserved.
-- ADR-0002 accepted; API/UI design docs, OpenAPI JSON, generated TypeScript types, backend tests,
-  frontend tests, and changelog updated.
-
-## Remaining deliverables
-
-No repository implementation remains in Phase 4A, MD5 Phase 1, Phase 2A, Phase 2B, or Phase 2C. The active
-AiSensy-inspired parity roadmap is recorded in Design Document 20, with the five-phase execution
-sequence in Design Document 21. The next separately governed Phase 2 boundary is live automation
-receipt consumption with idempotent internal effects and approval/handoff. WhatsApp Forms
-follows only after its own data/API/security contract. These remain real milestones rather than
-simulated UI. The remaining Phase 4 contract backlog is recorded
-in Design Documents 18 and 19 and requires separately approved milestones.
-The canonical final-product sequence is `ROADMAP.md`; the older `docs/ROADMAP.md` is retained as
-historical module-delivery evidence and has not been overwritten. `CURRENT_PROJECT_GAP_ANALYSIS.md`
-continues to define the remaining-work baseline. ADR-0012 and Design Document 25 govern premium
-original experience acceptance for every future screen without changing the feature roadmap or
-module percentages. The owner-corrected CORE-05 and CORE-07 Customer 360 convergence are complete;
-the former standalone SIM fulfilment and Activation Queue milestones are no longer canonical.
-CORE-08 — Skipped: Not required by product owner. Existing KYC-specific approvals and
-authorization safeguards remain intact. CORE-09 Notification Center is the next separately approved
-implementation boundary.
-Payments, catalogs, carts, checkout, orders, refunds and commerce journeys are explicitly excluded
-from the product roadmap and must not be introduced as placeholders or future milestones.
-Target-environment work still needs monitoring and commissioning evidence: log shipping,
-metrics/dashboards, alert firing and dead-man validation, and external synthetic checks. Full
-capacity certification remains a separate Performance Lab task. The AI assistant module remains
-intentionally deferred beyond RC1.
+- Complete the five approved UI Taste milestones above without changing product scope or duplicating
+  completed authorities.
+- Resume final-product sequence after UI review: `CORE-10` Dedicated Chat History, `CORE-11` core
+  settings/team/tags/SLA controls, then the approved growth, analytics, integrations, enterprise,
+  and release milestones in `ROADMAP.md`.
+- Payments, catalogs, carts, checkout, orders, refunds, commerce, ads, public signup, reseller,
+  marketplace, and multi-project journeys remain permanently excluded.
 
 ## Release blockers
 
 - Full load/stress/spike/soak and 1M-contact capacity evidence requires the isolated Performance Lab.
 - Metrics/dashboard/alerting/log-shipping and external synthetic-monitor evidence remain target-
-  environment deployment work; repository tests cannot prove receiver delivery or dead-man alerts.
-- TLS/host hardening, UAT, verified restore, rollback rehearsal, and production approval are
-  environment commissioning evidence and cannot be truthfully closed by repository tests.
+  environment deployment work.
+- TLS/host hardening, UAT, verified restore, rollback rehearsal, and production approval remain
+  environment commissioning evidence.
 
 ## Known technical debt
 
-- The production frontend build warns about a 737.53 kB main chunk. Analytics, Reactivation,
-  Automation, and Scan Studio are route-split; further route-level splitting remains a performance
-  improvement.
+- The production frontend build previously warned about a roughly 737.53 kB main chunk. Analytics,
+  Reactivation, Automation, and Scan Studio are route-split; further route-level splitting remains.
 - Frontend tests emit React Router v7 future-flag and Node localStorage experimental warnings.
-- The production dependency audit reports two moderate React Router advisories. Their fixed line is
-  React Router 7.18+, so remediation requires an explicit routing upgrade rather than a silent patch.
-- The owner-bootstrap CLI accepts reserved `.test` email addresses that the login request schema
-  rejects; this lower-severity validation inconsistency is recorded for a later maintenance change.
-- The branch name predates the RC1 and frontend work now accumulated on it.
+- Two moderate React Router advisories require an explicit React Router 7.18+ upgrade rather than a
+  silent patch.
+- Owner bootstrap accepts reserved `.test` email addresses that the login request schema rejects.
+- Representative-data authenticated visual regression infrastructure is not yet a canonical gate.
 
-## Permanent invariants (never violate)
+## Permanent invariants
 
-Repository → Service → API layering · all sends through `SendService` · provider payloads stay in
-the Meta adapter · Retry Engine is the single authority on classify/backoff · Rate Gate never opens
-(fail-safe pacing) · persist-first webhooks · campaign status controls dispatch · frozen modules
-are not redesigned · unbuilt surfaces stay absent rather than stubbed · partitioned tables carry no
-FKs · frontend API types are generated only, never hand-written.
+Repository → Service → API layering · all sends through `SendService` · provider payloads remain in
+the Meta adapter · Retry Engine is the single classify/backoff authority · Rate Gate fails safe ·
+persist-first webhooks · campaign status controls dispatch · completed modules are extended rather
+than rebuilt · unbuilt surfaces remain absent or honestly gated · partitioned tables carry no FKs ·
+frontend API types are generated only · accessibility, responsive behavior, and real data are part of
+completion rather than optional polish.
 
 ## Notes for the next session
 
-- Run backend commands from `backend/` via `.venv/Scripts/python.exe` so pytest loads `pyproject.toml`.
-- Run the blocking backend type gate directly with `mypy app`; no debt baseline or global error-code
-  suppression remains.
-- Run `python scripts/quality_gate.py static`, `pre-merge`, `release`, or `deployed` from the repository root
-  using the backend virtual-environment Python. Generated security/SBOM evidence is ignored under
-  `.quality-artifacts/`; Docker scanner cache is ignored under `.quality-cache/`.
-- `alembic check` requires live MySQL; migration integrity is covered by `tests/test_migrations.py`.
-- Regenerate the contract with `python scripts/export_openapi.py` from `backend/`, then
-  `npm run gen:api` from `frontend/`. Use `python scripts/export_openapi.py --check` as the drift gate.
-- Docker Desktop must be running before the production image-build and image-smoke gates execute.
+- Confirm `git branch --show-current` is `ui/taste-modernization` and the baseline ancestry includes
+  `62d4daa` before application edits.
+- Begin only `UI-TASTE-02`; do not jump directly into page-specific redesigns before shared primitive
+  decisions are implemented and tested.
+- Run backend commands from `backend/` via `.venv/Scripts/python.exe`.
+- Run frontend typecheck, lint, focused tests, production build, and then the full Vitest suite for
+  every implementation closeout.
+- Regenerate OpenAPI/types only when an approved backend contract changes; UI Taste work must not
+  hand-edit generated API types.
