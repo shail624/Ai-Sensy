@@ -1,10 +1,14 @@
-import { MessageSquareText, Workflow } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { MessageSquareText, Send } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { PageContainer, PageHeader } from "@/components/layout";
-import { Button } from "@/components/ui";
 import { OperationalDashboard } from "@/features/dashboard";
 import { useAuth, useHasPermission } from "@/lib/auth";
+
+const SECONDARY_ACTION =
+  "inline-flex h-9 max-md:h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary shadow-sm transition-[background-color,border-color,color,box-shadow] hover:border-border-strong hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+const PRIMARY_ACTION =
+  "inline-flex h-9 max-md:h-10 items-center justify-center gap-2 rounded-control border border-transparent bg-accent px-4 text-sm font-semibold text-accent-fg shadow-sm transition-[background-color,border-color,color,box-shadow] hover:bg-accent-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -14,10 +18,9 @@ function greeting(): string {
 }
 
 export function DashboardPage(): JSX.Element {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const canInbox = useHasPermission("inbox:read");
-  const canReactivation = useHasPermission("reactivation:read");
+  const canCreateCampaign = useHasPermission("campaigns:write");
   const firstName = user?.full_name.trim().split(/\s+/)[0] ?? "there";
 
   return (
@@ -35,21 +38,16 @@ export function DashboardPage(): JSX.Element {
         actions={
           <>
             {canInbox ? (
-              <Button
-                variant="secondary"
-                leftIcon={<MessageSquareText aria-hidden className="h-4 w-4" />}
-                onClick={() => navigate("/inbox")}
-              >
-                Open live chat
-              </Button>
+              <Link to="/inbox" className={SECONDARY_ACTION}>
+                <MessageSquareText aria-hidden className="h-4 w-4" />
+                Live chat
+              </Link>
             ) : null}
-            {canReactivation ? (
-              <Button
-                leftIcon={<Workflow aria-hidden className="h-4 w-4" />}
-                onClick={() => navigate("/reactivation/pipeline")}
-              >
-                Open Reactivation
-              </Button>
+            {canCreateCampaign ? (
+              <Link to="/campaigns/new" className={PRIMARY_ACTION}>
+                <Send aria-hidden className="h-4 w-4" />
+                New campaign
+              </Link>
             ) : null}
           </>
         }
