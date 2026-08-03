@@ -18,18 +18,26 @@ jobs:
         with:
           ref: work/ui-taste-dashboard
           fetch-depth: 0
-      - name: Align approved milestone status
+      - name: Finalize approved milestone wording
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path("ROADMAP.md")
           text = path.read_text(encoding="utf-8")
-          old = "| UI-TASTE-02 — Shared design-system modernization — IMPLEMENTED; OWNER APPROVAL PENDING |"
-          new = "| UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED |"
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise RuntimeError("UI-TASTE-02 roadmap status was not found")
+          text = text.replace(
+              "| UI-TASTE-02 — Shared design-system modernization — IMPLEMENTED; OWNER APPROVAL PENDING |",
+              "| UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED |",
+              1,
+          )
+          text = text.replace(
+              "Host visual/reference comparison and owner approval remain pending; no parallel component system or navigation redesign exists.",
+              "Host visual/reference comparison remains pending; no parallel component system or navigation redesign exists.",
+              1,
+          )
+          if "UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED" not in text:
+              raise RuntimeError("Approved UI-TASTE-02 status was not found")
+          if "Host visual/reference comparison and owner approval remain pending" in text:
+              raise RuntimeError("Stale owner-approval wording remains")
           path.write_text(text, encoding="utf-8")
           PY
       - name: Commit governance correction
@@ -39,8 +47,8 @@ jobs:
           git add ROADMAP.md
           git diff --cached --check
           if git diff --cached --quiet; then
-            echo "Approval status already synchronized"
+            echo "Roadmap wording already synchronized"
             exit 0
           fi
-          git commit -m "docs(dashboard): align approved UI milestone status"
+          git commit -m "docs(dashboard): finalize approved milestone wording"
           git push origin HEAD:work/ui-taste-dashboard
