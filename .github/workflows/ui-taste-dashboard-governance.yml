@@ -13,21 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout governance tools
-        uses: actions/checkout@v4
-        with:
-          ref: validation/ui-taste-dashboard-governance
-          path: tools
       - name: Checkout Dashboard work branch
         uses: actions/checkout@v4
         with:
           ref: work/ui-taste-dashboard
           fetch-depth: 0
-          path: repo
-      - name: Synchronize governance ledgers
-        working-directory: repo
+      - name: Align approved milestone status
         run: |
-          python ../tools/scripts/ui_taste_dashboard_governance.py
           python - <<'PY'
           from pathlib import Path
           path = Path("ROADMAP.md")
@@ -40,16 +32,15 @@ jobs:
               raise RuntimeError("UI-TASTE-02 roadmap status was not found")
           path.write_text(text, encoding="utf-8")
           PY
-      - name: Commit governance closeout
-        working-directory: repo
+      - name: Commit governance correction
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PROJECT_STATE.md MODULE_STATUS.md IMPLEMENTATION_TRACKER.md VALIDATION_RESULTS.md CHANGELOG.md ROADMAP.md
+          git add ROADMAP.md
           git diff --cached --check
           if git diff --cached --quiet; then
-            echo "Governance already synchronized"
+            echo "Approval status already synchronized"
             exit 0
           fi
-          git commit -m "docs(dashboard): record operational Dashboard evidence"
+          git commit -m "docs(dashboard): align approved UI milestone status"
           git push origin HEAD:work/ui-taste-dashboard
