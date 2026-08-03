@@ -23,7 +23,7 @@ export const reactivationKeys = {
   eligibility: (caseId: string) => ["reactivation", "eligibility", caseId] as const,
 };
 
-export function useReactivationPipeline(filters: ReactivationFilters) {
+export function useReactivationPipeline(filters: ReactivationFilters, enabled = true) {
   return useQuery({
     queryKey: reactivationKeys.pipeline(filters),
     queryFn: async (): Promise<ReactivationPipeline> =>
@@ -33,6 +33,7 @@ export function useReactivationPipeline(filters: ReactivationFilters) {
         }),
       ),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
