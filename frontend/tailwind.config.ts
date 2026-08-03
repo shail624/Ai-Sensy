@@ -61,11 +61,14 @@ const config: Config = {
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
       },
+      // Three intentional radius tiers: controls, surfaces, and large overlays.
       borderRadius: {
         sm: "6px",
         DEFAULT: "8px",
-        lg: "12px",
-        xl: "16px",
+        md: "8px",
+        lg: "10px",
+        xl: "12px",
+        "2xl": "16px",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
