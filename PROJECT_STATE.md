@@ -6,42 +6,78 @@
 
 | Field | Current value |
 |---|---|
-| Current branch | `feature/module6-queue-engine` |
-| Current Git HEAD | `HEAD` (roadmap-correction starting baseline `32ecfeeb3a5d4cc68d1974024f85666beb122eca`; resolve the correction commit from Git) |
-| Current milestone | `CORE-07 — Customer 360 domain convergence — COMPLETE` |
-| Current phase | `Phase 1 — Core operations and real domain ownership — IN PROGRESS` |
+| Current branch | `ui/taste-modernization` |
+| Implementation baseline | `62d4daa50617e2e0c8fff9f5ec9a514848a77f98` (`fix(notifications): keep task lifecycle deliveries consistent`) |
+| Current Git HEAD | `HEAD` (documentation commit over baseline `62d4daa`; resolve from Git after push) |
+| Current milestone | `UI-TASTE-01 — Taste Modernization implementation plan — DOCUMENTATION ONLY` |
+| Current phase | `UI Taste Modernization — Phase 1 approved; application coding not started` |
 | Repository version | `1.0.0-rc1` |
-| Current migration head | `0034_reactivation_crm` (34 linear revisions) |
-| OpenAPI path count | `189` (OpenAPI `3.1.0`) |
-| Backend test count | `945` pytest tests passed |
-| Frontend test count | `651` Vitest tests passed |
-| Validation status | `PASS` — static, application, security, release-image, MySQL migration, Redis/Celery, Playwright, responsive browser, and performance gates passed |
-| Last completed milestone | `CORE-07 — Customer 360 domain convergence` |
-| Next milestone | `CORE-09 — Notification Center` (requires owner approval; **CORE-08 — Skipped: Not required by product owner.**) |
-| Current worktree status | `GOVERNANCE CORRECTION REVIEWED; clean state required after the correction commit; local quality artifacts and permitted references remain ignored` |
-| Last update timestamp | `2026-08-02T17:39:04+05:30` (Asia/Calcutta) |
+| Current migration head | `0035_notification_center` (35 linear revisions) |
+| OpenAPI path count | `193` (OpenAPI `3.1.0`) |
+| Backend test count | `948` pytest tests passed |
+| Frontend test evidence | CORE-09 focused notification/layout tests passed before merge; the full frontend suite is not re-run in this documentation-only milestone |
+| Validation status | `PASS` for CORE-09 backend closeout: Ruff clean, strict mypy clean across 258 source files, and 948 pytest tests passed; UI implementation validation is pending because no application code changes are authorized in this milestone |
+| Last completed milestone | `CORE-09 — Unified Notification Center` |
+| Next implementation milestone | `UI-TASTE-02 — Shared design-system modernization`, after owner review of this plan |
+| Current worktree expectation | Documentation-only changes in `PROJECT_STATE.md`, `MODULE_STATUS.md`, `IMPLEMENTATION_TRACKER.md`, and `ROADMAP.md`; no application code changes |
+| Last update timestamp | `2026-08-04T01:27:00+05:30` (Asia/Kolkata) |
+
+## UI Taste Modernization approval
+
+- **Branch:** `ui/taste-modernization`.
+- **Baseline:** `62d4daa` after CORE-09 was fast-forwarded into `feature/module6-queue-engine`.
+- **Taste settings:** design variance `4/10`, motion intensity `3/10`, visual density `8/10`.
+- **Boundary:** preserve the existing React/Tailwind stack, sidebar, routing, permissions, real-data
+  workflows, accessibility behavior, and responsive navigation. This is a targeted modernization,
+  not a rewrite or an imitation of another product.
+- **Current milestone restriction:** documentation only. No frontend, backend, migration, OpenAPI,
+  generated client, dependency, or runtime behavior changes are permitted in this commit.
+
+## Phase 1 audit findings
+
+1. The application shell is a strong foundation: compact/expanded desktop rail, mobile drawer and
+   bottom navigation, skip link, keyboard handling, focus restoration, reduced-motion support,
+   semantic tokens, and light/dark themes should be preserved rather than rebuilt.
+2. The Dashboard is messaging-led and does not yet surface the most important Reactivation operator
+   signals such as stage workload, overdue follow-ups, release dates, KYC exceptions, document gaps,
+   and activation outcomes.
+3. Reactivation navigation mixes connected production workspaces with foundation/future states,
+   weakening the distinction between live operator actions and contract-gated capability.
+4. The interface overuses large radii, nested cards, soft fills, and decorative gradients. Enterprise
+   hierarchy should rely more on typography, spacing, density, dividers, and restrained elevation.
+5. Shared primitives are incomplete. Inbox, Contacts, and other data-heavy workspaces use different
+   raw buttons, selects, pagination controls, toolbars, and bulk-action patterns.
+6. Navigation is accessible and permission-aware but information-heavy. Role-relevant hierarchy,
+   contextual shortcuts, and clearer separation of everyday work from advanced controls should be
+   improved without removing approved routes.
+7. Source review alone cannot prove final visual quality. Representative data, authenticated runtime,
+   target viewport, keyboard, accessibility, bundle, and performance checks remain required.
+
+## Approved phase priorities
+
+1. **UI-TASTE-01 — Documentation and audit baseline:** synchronize governance records and freeze the
+   findings, branch, baseline, boundaries, and acceptance order. No application code.
+2. **UI-TASTE-02 — Shared design system:** normalize density, radius, typography, form controls,
+   page headers, toolbars, pagination, bulk actions, states, and responsive behavior through existing
+   shared components.
+3. **UI-TASTE-03 — Priority screens:** Dashboard, Reactivation, Inbox, Contacts, Customer 360, then
+   Notification Center. Preserve business logic and generated API contracts.
+4. **UI-TASTE-04 — Regression:** responsive, keyboard, focus, WCAG-oriented contrast/semantics,
+   reduced motion, realistic-data overflow, bundle, and route performance checks.
+5. **UI-TASTE-05 — Review and merge:** owner review, focused fixes, full frontend gates, and merge only
+   after evidence is recorded.
 
 ## Snapshot evidence
 
-- GitHub baseline at the CORE-07 start:
-  `4881a1d93580dfe48932a9f6e615b276629f4114`.
-- Contract: `frontend/openapi.json` contains 189 paths and the generated TypeScript contract/drift
-  checks pass.
-- Tests: pytest passed 945 tests; Vitest passed 651 tests.
-- Migration lineage: `0001` through `0034` is present without a gap or downgrade; SQLite
-  upgrade/downgrade/re-upgrade and deployed MySQL upgrade both passed.
-- CORE-07 composes existing Contact, Inbox, Reactivation, Task, Document, KYC/SIM/Activation,
-  Campaign, Audit and Customer Timeline sources inside one permission-aware Customer 360 workspace.
-  Exact Contact filters extend existing APIs; no duplicate model, migration, endpoint family,
-  synthetic metric, fake data, or rebuilt module was introduced.
-- Owner decision: **CORE-08 — Skipped: Not required by product owner.**
-  No Approval Center, generic framework, queue, escalation system, or new approval authority is
-  planned. Existing KYC-specific approvals and authorization safeguards remain unchanged.
-- Canonical static/application/security/release steps and the corrected isolated deployed step pass,
-  including Ruff, strict mypy across 253 files, OpenAPI drift, TypeScript, ESLint, production build,
-  945 pytest and 651 Vitest tests, Bandit, dependency audits, Trivy source/image scans, SBOMs,
-  Compose/image contracts, the 189-path/25-task backend image, and MySQL/Redis/Celery. Playwright
-  passed 1/1 in 11.1 seconds and the authenticated read canary recorded p95 10.4 ms across 30 reads.
+- Git implementation baseline: `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`.
+- CORE-09 added migration `0035_notification_center`, advanced the generated contract to 193 paths,
+  and delivered durable user-scoped notifications, unread/read state, mark-one/all-read actions,
+  permission-aware team filtering, deep links, polling, and Task/Reactivation projections.
+- CORE-09 backend closeout passed Ruff, strict mypy across 258 source files, and 948 pytest tests.
+- The notification lifecycle regression covers reassignment, reopen, bulk changes, and deletion so a
+  stale delivery is resolved and the correct recipient/revision can receive a fresh notification.
+- Owner decision remains: **CORE-08 — Skipped: Not required by product owner.** No generic approval
+  authority, Approval Center, approval queue, or escalation system is planned.
 
 ## Maintenance rule
 
