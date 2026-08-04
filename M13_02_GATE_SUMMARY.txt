@@ -1,6 +1,6 @@
 === STATUS ===
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30893859200
+RUN=30894263878
 FIRST_FAILURE=FOCUSED_TESTS
 
 === STAGE RESULTS ===
@@ -31,7 +31,7 @@ EXIT=4
 
 === FAILING STAGE OUTPUT ===
 === FOCUSED_TESTS ===
-ERROR: file or directory not found: tests/test_contact_events.py
+ERROR: file or directory not found: tests/test_audit.py
 
 ============================= test session starts ==============================
 platform linux -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
