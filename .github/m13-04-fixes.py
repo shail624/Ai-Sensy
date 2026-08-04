@@ -21,13 +21,13 @@ replace_once(
 )
 replace_once(
     "backend/app/services/session_manager.py",
-    '                "lease_expires_at": row.lease_expires_at,\n',
-    '                "lease_expires_at": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n',
+    """                \"fencing_token\": row.fencing_token,\n                \"lease_expires_at\": row.lease_expires_at,\n                \"row_version\": row.row_version,\n""",
+    """                \"fencing_token\": row.fencing_token,\n                \"lease_expires_at\": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n                \"row_version\": row.row_version,\n""",
 )
 replace_once(
     "backend/app/services/session_manager.py",
-    '                "last_heartbeat_at": row.last_heartbeat_at,\n                "lease_expires_at": row.lease_expires_at,\n',
-    '                "last_heartbeat_at": (\n                    row.last_heartbeat_at.isoformat()\n                    if row.last_heartbeat_at is not None\n                    else None\n                ),\n                "lease_expires_at": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n',
+    """                \"last_heartbeat_at\": row.last_heartbeat_at,\n                \"lease_expires_at\": row.lease_expires_at,\n""",
+    """                \"last_heartbeat_at\": (\n                    row.last_heartbeat_at.isoformat()\n                    if row.last_heartbeat_at is not None\n                    else None\n                ),\n                \"lease_expires_at\": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n""",
 )
 replace_once(
     "backend/app/services/session_manager.py",
