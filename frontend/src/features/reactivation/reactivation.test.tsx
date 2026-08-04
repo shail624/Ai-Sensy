@@ -2,15 +2,19 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ReactivationMissionControl } from "@/features/reactivation/ReactivationMissionControl";
 import { ReactivationPipelineBoard } from "@/features/reactivation/ReactivationPipelineBoard";
 import type { ReactivationCard } from "@/features/reactivation/types";
 
 const mocks = vi.hoisted(() => ({
-  permissions: { value: ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read"] },
+  permissions: { value: ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read", "kyc:read"] },
   pipelineState: { value: {} as Record<string, unknown> },
+  kycOperationsState: { value: {} as Record<string, unknown> },
   refetch: vi.fn(),
+  kycRefetch: vi.fn(),
   transition: vi.fn(),
   update: vi.fn(),
+  bulkUpdate: vi.fn(),
   addNote: vi.fn(),
   recordEligibility: vi.fn(),
   createKyc: vi.fn(),
@@ -79,6 +83,7 @@ vi.mock("@/features/tasks/TasksSectionForProfile", () => ({
 
 vi.mock("@/features/kyc/api", () => ({
   apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
+  useKycOperations: () => mocks.kycOperationsState.value,
   useContactKycCases: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
   useCreateKycCase: () => ({ mutate: mocks.createKyc, isPending: false, error: null }),
 }));
@@ -88,6 +93,7 @@ vi.mock("@/features/reactivation/api", () => ({
   useReactivationPipeline: () => mocks.pipelineState.value,
   useTransitionReactivation: () => ({ mutate: mocks.transition, isPending: false, error: null }),
   useUpdateReactivation: () => ({ mutate: mocks.update, isPending: false, error: null }),
+  useBulkUpdateReactivation: () => ({ mutate: mocks.bulkUpdate, isPending: false, data: undefined }),
   useReactivationEvents: () => ({ data: [{ id: "event-1", case_id: "case-1", from_stage: null, to_stage: "new_lead", actor_user_id: "user-1", reason: null, created_at: "2026-08-01T08:00:00Z" }], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
   useReactivationNotes: () => ({ data: [{ id: 1, case_id: "case-1", actor_user_id: "user-1", body: "Customer prefers a weekday callback", created_at: "2026-08-02T09:00:00Z" }], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
   useAddReactivationNote: () => ({ mutate: mocks.addNote, isPending: false, error: null }),
@@ -106,34 +112,57 @@ function readyState(data = [card]) {
   };
 }
 
-function renderBoard() {
-  return render(<MemoryRouter><ReactivationPipelineBoard /></MemoryRouter>);
+function renderBoard(initialEntry = "/reactivation/pipeline") {
+  return render(<MemoryRouter initialEntries={[initialEntry]}><ReactivationPipelineBoard /></MemoryRouter>);
 }
 
 beforeEach(() => {
-  mocks.permissions.value = ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read"];
+  mocks.permissions.value = ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read", "kyc:read"];
   mocks.pipelineState.value = readyState();
+  mocks.kycOperationsState.value = { data: { data: [], total: 0 }, isLoading: false, isError: false, isFetching: false, error: null, refetch: mocks.kycRefetch };
   mocks.refetch.mockReset();
+  mocks.kycRefetch.mockReset();
   mocks.transition.mockReset();
   mocks.update.mockReset();
+  mocks.bulkUpdate.mockReset();
   mocks.addNote.mockReset();
   mocks.recordEligibility.mockReset();
   mocks.createKyc.mockReset();
 });
 
+describe("Reactivation Mission Control", () => {
+  it("ranks persisted attention and deep-links to the exact case", () => {
+    render(<MemoryRouter><ReactivationMissionControl /></MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "Attention now" })).toBeInTheDocument();
+    expect(screen.getByText("Resolve the breached SLA and record the next action")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Asha Mehra" })).toHaveAttribute("href", "/reactivation/pipeline?view=attention&case=case-1");
+    expect(screen.getByRole("link", { name: /Document gaps/ })).toHaveAttribute("href", "/reactivation/pipeline?view=documents");
+  });
+
+  it("does not request or expose KYC details to a role without KYC access", () => {
+    mocks.permissions.value = mocks.permissions.value.filter((permission) => permission !== "kyc:read");
+    render(<MemoryRouter><ReactivationMissionControl /></MemoryRouter>);
+    expect(screen.getByText("Restricted")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /KYC operations/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("governed Reactivation pipeline", () => {
-  it("renders all approved stages and factual persisted cards without the former mock shell", () => {
-    renderBoard();
+  it("renders all approved stages and factual persisted cards without a placeholder shell", () => {
+    renderBoard("/reactivation/pipeline?mode=board");
     expect(screen.getByText("Asha Mehra")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Pipeline summary" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "New Lead" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Not Required" })).toBeInTheDocument();
-    expect(screen.getAllByRole("region")).toHaveLength(10);
-    expect(screen.queryByText(/No verified cards/i)).not.toBeInTheDocument();
+    for (const label of ["Lead Confirmed", "Documents Pending", "Documents Received", "KYC / Verification", "SIM Required", "Activation Pending", "Completed"]) {
+      expect(screen.getByRole("region", { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/Ready for governed data/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Reference only/i)).not.toBeInTheDocument();
   });
 
   it("supports keyboard and drag movement through the same governed confirmation", () => {
-    renderBoard();
+    renderBoard("/reactivation/pipeline?mode=board");
     const caseCard = screen.getByLabelText("Asha Mehra, New Lead");
     fireEvent.keyDown(caseCard, { key: "ArrowRight", altKey: true });
     expect(screen.getByRole("dialog", { name: "Move to Lead Confirmed" })).toBeInTheDocument();
@@ -150,7 +179,7 @@ describe("governed Reactivation pipeline", () => {
   });
 
   it("keeps server data visible across refresh and provides the responsive list transformation", () => {
-    const { container } = renderBoard();
+    const { container } = renderBoard("/reactivation/pipeline?mode=board");
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(mocks.refetch).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Asha Mehra")).toBeInTheDocument();
@@ -159,9 +188,8 @@ describe("governed Reactivation pipeline", () => {
     expect(container.querySelector(".md\\:hidden")).not.toBeNull();
   });
 
-  it("opens accessible case details with assignment, evidence, notes, tasks and documents", async () => {
-    renderBoard();
-    fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
+  it("opens an accessible bookmarkable case drawer with assignment, evidence, notes, tasks and documents", async () => {
+    renderBoard("/reactivation/pipeline?view=attention&case=case-1");
     expect(screen.getByRole("dialog", { name: /Asha Mehra · New Lead/ })).toBeInTheDocument();
     expect(screen.getByText("Awaiting confirmation")).toBeInTheDocument();
     expect(screen.getAllByText("Follow-up").length).toBeGreaterThan(0);
@@ -183,6 +211,38 @@ describe("governed Reactivation pipeline", () => {
     await waitFor(() => expect(screen.getByText("Persisted document workspace")).toBeInTheDocument());
   });
 
+  it("paginates the bounded loaded set and preserves the operational view in the URL", () => {
+    const rows = Array.from({ length: 26 }, (_, index) => ({
+      ...card,
+      id: `case-${index + 1}`,
+      contact_id: `contact-${index + 1}`,
+      contact_name: `Case ${index + 1}`,
+    }));
+    mocks.pipelineState.value = readyState(rows);
+    renderBoard("/reactivation/pipeline?view=attention");
+    expect(screen.getByText("Case 1")).toBeInTheDocument();
+    expect(screen.queryByText("Case 26")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Case 26")).toBeInTheDocument();
+    expect(screen.getByText(/26–26 of 26 matching loaded records/)).toBeInTheDocument();
+  });
+
+  it("applies permission-safe bulk owner and label updates through existing case PATCH authority", () => {
+    renderBoard();
+    fireEvent.click(screen.getByLabelText("Select Asha Mehra"));
+    fireEvent.change(screen.getByLabelText("Assign owner"), { target: { value: "user-2" } });
+    fireEvent.change(screen.getByLabelText("Label action"), { target: { value: "add:documents_incomplete" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply to selected" }));
+    expect(mocks.bulkUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cards: [expect.objectContaining({ id: "case-1", row_version: 2 })],
+        ownerUserId: "user-2",
+        addLabel: "documents_incomplete",
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("renders truthful loading, empty, error and permission-aware states", () => {
     mocks.pipelineState.value = { ...readyState(), data: undefined, isLoading: true };
     const loading = renderBoard();
@@ -191,7 +251,7 @@ describe("governed Reactivation pipeline", () => {
 
     mocks.pipelineState.value = readyState([]);
     const empty = renderBoard();
-    expect(screen.getByText("No reactivation cases yet")).toBeInTheDocument();
+    expect(screen.getByText("No cases match this operating view")).toBeInTheDocument();
     empty.unmount();
 
     mocks.pipelineState.value = { ...readyState(), data: undefined, isError: true, error: new Error("Pipeline unavailable") };
@@ -201,8 +261,9 @@ describe("governed Reactivation pipeline", () => {
 
     mocks.pipelineState.value = readyState();
     mocks.permissions.value = ["reactivation:read"];
-    const restricted = renderBoard();
+    const restricted = renderBoard("/reactivation/pipeline?mode=board");
     expect(screen.getByLabelText("Asha Mehra, New Lead")).toHaveAttribute("draggable", "false");
+    expect(screen.queryByLabelText("Select Asha Mehra")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
     expect(screen.getByText("Your role can review this case but cannot move it.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save case" })).not.toBeInTheDocument();
@@ -210,7 +271,7 @@ describe("governed Reactivation pipeline", () => {
   });
 
   it("opens KYC from a document-ready persisted Reactivation case", () => {
-    mocks.permissions.value.push("kyc:read", "kyc:write");
+    mocks.permissions.value.push("kyc:write");
     mocks.pipelineState.value = readyState([{ ...card, stage: "documents_received" as const, available_transitions: ["kyc_verification" as const] }]);
     renderBoard();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
