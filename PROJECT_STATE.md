@@ -6,63 +6,63 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| M13-03 starting baseline | `283ebe83b53a510ce671f150bfe14fe38a5292f6` (`feat(identity): complete customer identity resolution`) |
-| Current Git HEAD | `HEAD` (M13-03 closeout; resolve after push) |
-| Current milestone | `M13-03 — Persistent Channel Connections & Endpoint Records — REPOSITORY VALIDATED` |
-| Current phase | `Provider-neutral persistence foundation delivered; M13-04 unstarted` |
+| M13-04 starting baseline | `9d8f379f09719820c847be2b7c7df301e1617977` (`feat(channels): persist channel connections`) |
+| Current Git HEAD | `HEAD` (M13-04 closeout; resolve after push) |
+| Current milestone | `M13-04 — QR Session Manager Foundation — REPOSITORY VALIDATED` |
+| Current phase | `Provider-neutral durable session state and lease/fencing foundation delivered; M13-05 unstarted` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0037_persistent_channel_connections` (37 linear revisions) |
+| Migration head | `0038_qr_session_manager_foundation` (38 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · generated TypeScript authority unchanged |
-| Backend evidence | Ruff PASS · strict mypy PASS across 275 source files · 4 focused persistence tests PASS · 965 full pytest tests PASS |
+| Backend evidence | Ruff PASS · strict mypy PASS across 279 source files · 7 focused session/migration tests PASS · 970 full pytest tests PASS |
 | Frontend evidence | Unchanged source; production audit high threshold PASS · ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
-| Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
+| Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; CSS `49.90 kB` / `9.90 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
 | M13 contract | ADR-0020 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `24%` evidence-based estimate: generic foundation, exact Customer identity convergence, and persistent provider-neutral connection records |
-| QR provider | Not selected; Required evaluation remains external |
-| Next Module 13 milestone | `M13-04`; not started |
-| Host evidence | Target-host MySQL migration, production key/KMS custody, representative multi-tenant persistence checks and staged feature-flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Nine persistence/model/repository/service/migration/test files plus six required governance records; no API, generated contract, dependency, provider runtime, frontend or M13-04 change |
-| Last update | `2026-08-04T17:45:00+05:30` (Asia/Kolkata) |
+| Module 13 implementation | `32%` evidence-based estimate: generic channel contracts, exact Customer identity, persistent connection records and provider-neutral session control-plane foundation |
+| QR provider | Not selected; no provider adapter or live session exists |
+| Next Module 13 milestone | `M13-05`; not started |
+| Host evidence | Target-host MySQL migration, multi-node lease/fencing contention, runtime heartbeat/expiration/restart/recovery monitoring, KMS secret-reference custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
+| Worktree expectation | Eleven session/model/repository/service/permission/migration/test files plus six required governance records; no API, generated contract, provider adapter/runtime, frontend, messaging, synchronization or M13-05 change |
+| Last update | `2026-08-04T19:05:00+05:30` (Asia/Kolkata) |
 
-## M13-03 delivered persistence foundation
+## M13-04 delivered session-manager foundation
 
-- Added organization-owned, tenant-scoped `ChannelConnection`, `ChannelEndpoint` and `ChannelSecret` records.
-- Added immutable provider identifiers, desired/observed lifecycle, factual health, provider/configuration/endpoint metadata, Audit references, soft deletion and optimistic row versions.
-- Added AES-GCM encrypted credential storage behind a provider-neutral secret-cipher abstraction with secret versioning, rotation lineage, revocation and redacted representations.
-- Added tenant-scoped repositories and a disabled-by-default feature-gated service; no secret is exposed through an API and plaintext is excluded from metadata and Audit payloads.
-- Added additive migration `0037_persistent_channel_connections`; OpenAPI and generated client remain unchanged at 200 paths.
+- Added provider-neutral `SessionManager` contracts and durable `ChannelSession` records linked to the existing organization-owned `ChannelConnection`; no duplicate connection, endpoint, credential or message storage was introduced.
+- Added registration/discovery/ownership, governed lifecycle transitions, factual health, heartbeat and expiration, recovery metadata, restart policy, capability references and Audit evidence.
+- Added database-backed leases, fencing tokens, row-version concurrency protection and tenant-scoped locking/release semantics for future multi-runtime safety.
+- Added disabled-by-default session read/write feature flags and `channels:read/manage/diagnose` RBAC enforcement; metadata rejects secret-shaped material and stores secret references only.
+- Added additive migration `0038_qr_session_manager_foundation`; OpenAPI and generated client remain unchanged at 200 paths.
 
 ## Preserved completed foundations
 
-- M13-01 provider-neutral contracts/registries/flags/DI and M13-02 Contact identity resolution remain authoritative and unchanged except for model registration required by the additive migration.
-- Canonical Contact, Inbox, Customer 360, Timeline, Notification Center, Analytics, media, message and existing `ChannelAdapter` authorities remain unchanged.
+- M13-01 provider-neutral contracts, M13-02 Contact identity resolution and M13-03 connection/endpoint/encrypted-secret persistence remain authoritative and unchanged except for required model, permission and migration registration.
+- Existing `ChannelAdapter`, Contact, Inbox, Customer 360, Timeline, Notification Center, Analytics, media, message and Audit authorities remain unchanged.
 
 ## Preserved boundaries
 
-- No QR login/pairing/session runtime, Meta or QR provider adapter, history synchronization, message sync, live messaging, webhook, routing-engine, Inbox or Customer 360 UI work exists.
-- No public API route, OpenAPI path, generated client surface, frontend source, package dependency, queue, deployment topology or provider-specific branch was added.
-- Provider identifiers are immutable after persistence; absent feature flags fail closed; soft-deleted rows and revoked secrets are excluded by default.
+- No QR code generation/scanning, WhatsApp login, provider adapter, executable session runtime, message/history synchronization, sending, inbound webhook runtime, routing, Inbox or Customer 360 change exists.
+- No public API route, OpenAPI path, generated client surface, frontend source, package dependency, provider-specific table or runtime message storage was added.
+- Session metadata stores no plaintext provider secret; provider identifiers remain owned by existing connection records.
 
 ## Validation boundary
 
-Repository validation proves schema/repository/service invariants, tenant isolation, immutable identifiers,
-optimistic locking, encrypted credential rotation/revocation, soft deletion, Audit hygiene, migration
-upgrade/downgrade/upgrade, lint, typing, full backend regression and unchanged frontend/OpenAPI builds.
-It does not prove production KMS/HSM custody, target-host MySQL behavior, provider certification,
-runtime sessions, operator workflows, performance, disaster recovery or production rollout.
+Repository validation proves lifecycle/state-machine rules, tenant/RBAC/flag boundaries, ownership,
+secure metadata, database lease/fencing and optimistic concurrency behavior, heartbeat/expiration,
+recovery/restart metadata, Audit serialization, additive migration, lint, typing, full backend regression
+and unchanged frontend/OpenAPI builds. It does not prove target-host multi-node contention, a live provider
+session, real runtime heartbeats, provider certification, production monitoring, disaster recovery or rollout.
 
 ## Required remaining contract work
 
-Provider selection/certification, provider-specific backfill, session lease/fencing, runtime health,
-QR pairing, inbound/history, outbound messaging and unified operator experience remain later gated
-milestones. M13-04 is not started.
+Target-host session commissioning, provider selection/certification, QR pairing, provider adapters,
+inbound/history, outbound messaging and unified operator experience remain later gated milestones.
+M13-05 is not started.
 
 ## Existing UI modernization state
 
 UI-TASTE-03A remains implemented and repository-validated with authenticated host review pending.
-M13-03 changes no frontend source or UI modernization sequence.
+M13-04 changes no frontend source or UI modernization sequence.
 
 ## Maintenance rule
 
-Stop after M13-03. Do not begin M13-04, provider selection, provider-specific backfill, session/runtime,
-QR, messaging, synchronization, webhook, routing or UI work without a separate explicit owner instruction.
+Stop after M13-04. Do not begin M13-05, provider selection/backfill, QR pairing/login, provider adapters/runtime,
+messaging, synchronization, webhook, routing or UI work without a separate explicit owner instruction.

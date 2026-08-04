@@ -4,7 +4,32 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-04T17:45:00+05:30`.
+Last synchronized: `2026-08-04T19:05:00+05:30`.
+
+## M13-04 QR Session Manager Foundation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `9d8f379f09719820c847be2b7c7df301e1617977` on `ui/taste-modernization`. |
+| Provider-neutral session abstraction | PASS | Lifecycle, restart, health and capability contracts contain no Meta, WhatsApp or QR-specific branch and no provider adapter/runtime is registered. |
+| Persistence reuse | PASS | One additive `channel_sessions` table links existing organization-owned `ChannelConnection`, optional endpoint/credential references and introduces no duplicate connection, credential, message or history storage. |
+| Lifecycle and state transitions | PASS | REGISTERED → INITIALIZING → WAITING_FOR_PAIRING → ACTIVE → DEGRADED → RECONNECTING → PAUSED → EXPIRED → TERMINATED plus governed recovery paths reject illegal or terminal transitions. |
+| Registration, discovery and ownership | PASS | Tenant-scoped repository/service registration, discovery and owner validation fail closed for foreign organizations and unauthorized users. |
+| Health, heartbeat and expiration | PASS | Factual health/observation, heartbeat, lease expiry and explicit session expiry persist with timezone-aware evidence and no live-provider claims. |
+| Recovery and restart policy | PASS | Provider-neutral recovery metadata, attempt counters, next-attempt facts and NEVER/ON_FAILURE/ALWAYS restart policies are durable and validated. |
+| Locking and concurrency | PASS | Database leases, holder runtime ids, fencing tokens and optimistic row versions reject concurrent/stale runtime commands and support safe release/reacquisition. |
+| Capabilities and provider metadata | PASS | Sessions reference normalized capability ids and existing provider/connection metadata; no new provider authority or provider-specific table exists. |
+| Security boundary | PASS | Secret-shaped metadata is rejected, only existing credential references may be stored, Audit payloads serialize safe facts and no provider secret/API exposure exists. |
+| Feature flags and RBAC | PASS | Disabled-by-default session read/write flags and `channels:read/manage/diagnose` permissions enforce organization-scoped discovery and mutation. |
+| Ruff / mypy | PASS | Ruff passes; strict mypy reports no issues across 279 source files. |
+| Backend tests | PASS | 7 focused session/migration tests and all 970 backend tests pass in workflow `30913610932`. |
+| Frontend gates | PASS | Production audit high threshold, ESLint, TypeScript, 34 Vitest files / 661 tests and production build pass; frontend source is unchanged. |
+| OpenAPI / generated client | PASS | OpenAPI 3.1 remains 200 paths; generated TypeScript authority regenerates without drift. |
+| Migration | PASS | Additive `0038_qr_session_manager_foundation` upgrades, downgrades to `0037`, and upgrades again without destructive existing-schema changes. |
+| Bandit / dependency audit | PASS | Bandit high-severity gate and Python dependency audit pass; frontend production audit retains two pre-existing moderate React Router advisories and no high/critical failure. |
+| Bundle impact | PASS | No frontend source changed; main remains 733.62/178.16 kB gzip, CSS 49.90/9.90 kB gzip and Operational Dashboard 31.96/8.61 kB gzip; existing >500 kB warning remains. |
+| Host validation | PENDING – Host Machine Validation | Target-host MySQL migration/rollback, real multi-node lease/fencing contention, runtime heartbeat/expiration/restart/recovery monitoring, KMS secret-reference custody and representative tenant/RBAC/flag rollout remain unproven. |
+| Milestone boundary | PASS | Exact eleven-file implementation boundary before governance; M13-01–M13-03 behavior is preserved and M13-05, provider adapters/runtime, QR/login, sync, messaging, webhooks, routing and UI are absent. |
 
 ## M13-03 Persistent Channel Connections & Endpoint Records
 

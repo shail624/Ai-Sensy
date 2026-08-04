@@ -18,6 +18,8 @@ class OmnichannelFeatureFlag(StrEnum):
 
     CONNECTIONS_READ = "omnichannel_connections_read"
     CONNECTIONS_WRITE = "omnichannel_connections_write"
+    SESSIONS_READ = "omnichannel_sessions_read"
+    SESSIONS_WRITE = "omnichannel_sessions_write"
 
 
 @dataclass(frozen=True, slots=True)

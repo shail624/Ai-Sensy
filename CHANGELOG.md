@@ -11,6 +11,25 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — QR Session Manager Foundation (M13-04)
+
+**Added**
+- Added provider-neutral session lifecycle/state contracts and durable `ChannelSession` records linked to existing organization-owned channel connections.
+- Added tenant-scoped registration/discovery/ownership, factual health, heartbeat/expiration, recovery metadata, restart policy, capability references, database leases, fencing tokens, optimistic concurrency and Audit evidence.
+- Added disabled-by-default session flags, channel session RBAC permissions and additive migration `0038_qr_session_manager_foundation`.
+
+**Security**
+- Session metadata rejects secret-shaped material and stores only optional references to existing encrypted credentials; provider secrets are never returned through APIs, OpenAPI, generated clients, logs or Audit payloads.
+
+**Preserved**
+- M13-01 through M13-03 channel, identity and persistence authorities remain intact; no duplicate connection, endpoint, credential, message or history storage was introduced.
+- No QR code generation/scanning, WhatsApp login, provider adapter/runtime, message/history synchronization, sending, incoming webhook runtime, routing, Inbox/Customer 360 change or M13-05 work is included.
+
+**Validated**
+- Ruff and strict mypy across 279 source files pass; 7 focused session/migration tests and all 970 backend tests pass.
+- Migration upgrade/downgrade/upgrade, OpenAPI/client regeneration, Bandit high-severity and dependency audits pass; OpenAPI remains 200 paths.
+- Unchanged frontend passes ESLint, TypeScript, 34 Vitest files / 661 tests and production build with no bundle change. M13-04 reaches `Repository Validated`; target-host multi-node/runtime/MySQL/KMS/rollout commissioning remains pending.
+
 ### 2026-08-04 — Persistent Channel Connections & Endpoint Records (M13-03)
 
 **Added**

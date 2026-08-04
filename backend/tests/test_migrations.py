@@ -102,6 +102,7 @@ _EXPECTED_TABLES = {
     "channel_connections",
     "channel_endpoints",
     "channel_secrets",
+    "channel_sessions",
 }
 
 
@@ -141,7 +142,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0037_persistent_channel_connections"
+        assert version == "0038_qr_session_manager_foundation"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -193,6 +194,40 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "deleted_at",
         } <= secret_columns
         assert not {"plaintext", "secret_value", "token"} & secret_columns
+        session_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_sessions)").fetchall()
+        }
+        assert {
+            "connection_id",
+            "owner_user_id",
+            "secret_id",
+            "session_revision",
+            "state",
+            "health_state",
+            "restart_policy",
+            "holder_runtime_id",
+            "lease_expires_at",
+            "fencing_token",
+            "last_heartbeat_at",
+            "expires_at",
+            "capability_references_json",
+            "provider_metadata_json",
+            "recovery_metadata_json",
+            "row_version",
+            "deleted_at",
+        } <= session_columns
+        assert not {"plaintext", "secret_value", "token", "encrypted_payload"} & session_columns
+        channel_permissions = {
+            row[0]
+            for row in con.execute(
+                "SELECT code FROM permissions WHERE resource = 'channels'"
+            ).fetchall()
+        }
+        assert channel_permissions == {
+            "channels:read",
+            "channels:manage",
+            "channels:diagnose",
+        }
         con.execute("PRAGMA foreign_keys=OFF")
         case_key = bytes.fromhex("10" * 16)
         event_key = bytes.fromhex("20" * 16)

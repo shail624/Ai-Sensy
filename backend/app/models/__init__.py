@@ -40,6 +40,7 @@ from app.models.channel_connection import (
     ChannelEndpoint,
     ChannelSecret,
 )
+from app.models.channel_session import ChannelSession
 from app.models.contact import Contact
 from app.models.contact_document import (
     ContactDocument,
@@ -109,6 +110,7 @@ __all__ = [
     "ChannelConnection",
     "ChannelEndpoint",
     "ChannelSecret",
+    "ChannelSession",
     "Contact",
     "ContactIdentity",
     "IdentityConflict",
