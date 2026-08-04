@@ -1,0 +1,150 @@
+name: M13-02 Gate Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-gate-diagnostic
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-builder-v2
+          path: builder
+          clean: false
+
+      - name: Checkout latest approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          path: source
+          clean: false
+
+      - name: Checkout report branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-gate-output
+          path: output
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: source/backend/pyproject.toml
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/frontend/package-lock.json
+
+      - name: Capture first failing acceptance gate
+        shell: bash
+        run: |
+          set +e
+          report="$GITHUB_WORKSPACE/output/M13_02_GATE_DIAGNOSTIC.txt"
+          : > "$report"
+          printf 'BASELINE=%s\n' "$(git -C source rev-parse HEAD)" >> "$report"
+          printf 'RUN=%s\n' "$GITHUB_RUN_ID" >> "$report"
+
+          run_stage() {
+            local name="$1"
+            shift
+            printf '\n=== %s ===\n' "$name" >> "$report"
+            "$@" >> "$report" 2>&1
+            local code=$?
+            printf '\nEXIT=%s\n' "$code" >> "$report"
+            if [ "$code" -ne 0 ]; then
+              printf '\nFIRST_FAILURE=%s\n' "$name" >> "$report"
+              return "$code"
+            fi
+            return 0
+          }
+
+          run_stage APPLY_SOURCE python builder/.github/m13-02-build.py source || exit 0
+          run_stage APPLY_VERIFIED_FIXES python builder/.github/m13-02-fixes.py source || exit 0
+          run_stage INSTALL_BACKEND python -m pip install -e './source/backend[dev]' || exit 0
+
+          run_stage FORMAT bash -lc 'cd source/backend && ruff format app/identity app/models/contact_identity.py app/models/__init__.py app/models/contact_event.py app/repositories/contact_identity.py app/services/identity_resolution_service.py app/services/audit_service.py app/schemas/contact_identity.py app/api/v1/endpoints/contact_identity.py app/api/v1/router.py alembic/versions/0036_customer_identity_resolution.py tests/test_identity_resolution.py' || exit 0
+
+          run_stage OPENAPI bash -lc 'cd source/backend && ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:// SECRET_KEY=test-secret-key-not-for-production-use-only python - <<"PY"
+import json
+from pathlib import Path
+from app.main import create_app
+schema = create_app().openapi()
+Path("../frontend/openapi.json").write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+print(f"OPENAPI_PATHS={len(schema[\"paths\"])}")
+PY' || exit 0
+
+          run_stage NPM_CI bash -lc 'cd source/frontend && npm ci' || exit 0
+          run_stage GENERATE_CLIENT bash -lc 'cd source/frontend && npm run gen:api' || exit 0
+          run_stage RUFF_FORMAT_CHECK bash -lc 'cd source/backend && ruff format --check app tests alembic/versions/0036_customer_identity_resolution.py' || exit 0
+          run_stage RUFF_CHECK bash -lc 'cd source/backend && ruff check app tests alembic/versions/0036_customer_identity_resolution.py' || exit 0
+          run_stage MYPY bash -lc 'cd source/backend && mypy app' || exit 0
+          run_stage FOCUSED_TESTS bash -lc 'cd source/backend && pytest tests/test_identity_resolution.py tests/test_api_contacts.py tests/test_contact_events.py tests/test_audit.py tests/test_channel_foundation.py' || exit 0
+
+          run_stage MIGRATION bash -lc 'cd source/backend && rm -f /tmp/m13-02-identity.db && ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:////tmp/m13-02-identity.db SECRET_KEY=test-secret-key-not-for-production-use-only alembic upgrade head && ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:////tmp/m13-02-identity.db SECRET_KEY=test-secret-key-not-for-production-use-only alembic downgrade 0035_notification_center && ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:////tmp/m13-02-identity.db SECRET_KEY=test-secret-key-not-for-production-use-only alembic upgrade head && python - <<"PY"
+import sqlite3
+connection = sqlite3.connect("/tmp/m13-02-identity.db")
+tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type=\"table\"")}
+expected = {"contact_identities", "identity_conflicts", "identity_merge_recommendations"}
+assert expected <= tables, sorted(expected - tables)
+print("MIGRATION_TABLES_PASS")
+PY' || exit 0
+
+          run_stage FULL_PYTEST bash -lc 'cd source/backend && pytest' || exit 0
+          run_stage PIP_AUDIT bash -lc 'cd source/backend && pip-audit' || exit 0
+          run_stage BANDIT bash -lc 'cd source/backend && bandit -q -r app' || exit 0
+          run_stage NPM_PRODUCTION_AUDIT bash -lc 'cd source/frontend && npm audit --omit=dev --audit-level=high' || exit 0
+          run_stage FRONTEND_LINT bash -lc 'cd source/frontend && npm run lint' || exit 0
+          run_stage FRONTEND_TYPECHECK bash -lc 'cd source/frontend && npm run typecheck' || exit 0
+          run_stage VITEST bash -lc 'cd source/frontend && npm test' || exit 0
+          run_stage PRODUCTION_BUILD bash -lc 'cd source/frontend && npm run build' || exit 0
+
+          run_stage BOUNDARY bash -lc 'cd source && git diff --check && test -z "$(git diff --name-only -- backend/app/channels/foundation.py backend/app/channels/registry.py backend/app/channels/validation.py backend/app/channels/flags.py backend/app/channels/dependencies.py backend/app/api/deps.py backend/tests/test_channel_foundation.py)" && python - <<"PY"
+import subprocess
+expected = {
+    "backend/alembic/versions/0036_customer_identity_resolution.py",
+    "backend/app/api/v1/endpoints/contact_identity.py",
+    "backend/app/api/v1/router.py",
+    "backend/app/identity/__init__.py",
+    "backend/app/identity/domain.py",
+    "backend/app/identity/flags.py",
+    "backend/app/models/__init__.py",
+    "backend/app/models/contact_event.py",
+    "backend/app/models/contact_identity.py",
+    "backend/app/repositories/contact_identity.py",
+    "backend/app/schemas/contact_identity.py",
+    "backend/app/services/audit_service.py",
+    "backend/app/services/identity_resolution_service.py",
+    "backend/tests/test_identity_resolution.py",
+    "frontend/openapi.json",
+    "frontend/src/lib/api/schema.d.ts",
+}
+tracked = set(subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines())
+untracked = set(subprocess.check_output(["git", "ls-files", "--others", "--exclude-standard"], text=True).splitlines())
+actual = tracked | untracked
+assert actual == expected, {"expected": sorted(expected), "actual": sorted(actual)}
+print("M13_02_BOUNDARY_PASS")
+PY' || exit 0
+
+          printf '\nALL_DIAGNOSTIC_GATES_PASS\n' >> "$report"
+
+      - name: Commit diagnostic report
+        working-directory: output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add M13_02_GATE_DIAGNOSTIC.txt
+          git commit -m 'ci(validation): capture M13-02 gate diagnostic'
+          git push origin HEAD:validation/m13-02-gate-output
