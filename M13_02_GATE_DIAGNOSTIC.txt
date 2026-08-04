@@ -1,5 +1,5 @@
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30893253784
+RUN=30893562537
 
 === APPLY_SOURCE ===
 /home/runner/work/Ai-Sensy/Ai-Sensy/builder/.github/m13-02-build.py:66: SyntaxWarning: invalid escape sequence '\+'
@@ -313,8 +313,8 @@ Using cached tzlocal-5.4.4-py3-none-any.whl (18 kB)
 Building wheels for collected packages: wa-platform-backend
   Building editable for wa-platform-backend (pyproject.toml): started
   Building editable for wa-platform-backend (pyproject.toml): finished with status 'done'
-  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=e3c201639c8d01d6e033e460494095fc315c0d58d3eddc016857260c9b8b5775
-  Stored in directory: /tmp/pip-ephem-wheel-cache-2_ctquvy/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
+  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=2ff2267b661030a0be08963da06beba502f4286fbe42dbe3f438d90821e987f7
+  Stored in directory: /tmp/pip-ephem-wheel-cache-tnstbptj/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
 Successfully built wa-platform-backend
 Installing collected packages: sortedcontainers, boolean.py, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing_extensions, tomli-w, tomli, stevedore, six, ruff, redis, PyYAML, python-multipart, python-dotenv, pyparsing, PyMySQL, pyjwt, pygments, pycparser, pluggy, platformdirs, pip-api, pathspec, packaging, packageurl-python, mypy_extensions, msgpack, mdurl, MarkupSafe, license-expression, librt, iniconfig, idna, httptools, h11, greenlet, filelock, et-xmlfile, dnspython, defusedxml, coverage, click, charset_normalizer, certifi, billiard, ast-serialize, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, py-serializable, prompt-toolkit, pip-requirements-parser, openpyxl, mypy, markdown-it-py, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, aiomysql, watchfiles, starlette, rich, pytest-cov, pytest-asyncio, pydantic, kombu, httpx, cyclonedx-python-lib, cryptography, click-repl, CacheControl, argon2-cffi-bindings, alembic, pydantic-settings, fastapi, celery, bandit, argon2-cffi, wa-platform-backend, pip-audit
 
@@ -361,7 +361,7 @@ EXIT=0
 > openapi-typescript openapi.json -o src/lib/api/schema.d.ts
 
 ✨ openapi-typescript 7.13.0
-🚀 openapi.json → src/lib/api/schema.d.ts [571.2ms]
+🚀 openapi.json → src/lib/api/schema.d.ts [534.4ms]
 
 EXIT=0
 
@@ -371,158 +371,32 @@ EXIT=0
 EXIT=0
 
 === RUFF_CHECK ===
-B008 Do not perform function call `Query` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
-  --> app/api/v1/endpoints/contact_identity.py:77:54
-   |
-75 |     session: SessionDep,
-76 |     actor: IdentityReadActor,
-77 |     conflict_status: IdentityConflictStatus | None = Query(default=None, alias="status"),
-   |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-78 |     limit: int = Query(default=50, ge=1, le=100),
-79 |     offset: int = Query(default=0, ge=0),
-   |
-
 I001 [*] Import block is un-sorted or un-formatted
-  --> app/models/__init__.py:9:1
+  --> app/repositories/contact_identity.py:3:1
    |
- 7 |   """
- 8 |
- 9 | / from __future__ import annotations
-10 | |
-11 | | from app.models.analytics import (
-12 | |     AnalyticsCampaignRollup,
-13 | |     AnalyticsContactRollup,
-14 | |     AnalyticsConversationRollup,
-15 | |     AnalyticsFailureRollup,
-16 | |     AnalyticsMessageRollup,
-17 | |     AnalyticsRollupRun,
-18 | |     AnalyticsTaskRollup,
-19 | | )
-20 | | from app.models.api_key import ApiKey
-21 | | from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
-22 | | from app.models.audit import AuditLog
-23 | | from app.models.automation import (
-24 | |     AutomationFlow,
-25 | |     AutomationFlowVersion,
-26 | |     AutomationRun,
-27 | |     AutomationStepAttempt,
-28 | |     AutomationTriggerReceipt,
-29 | | )
-30 | | from app.models.business_event import BusinessEvent, BusinessEventType
-31 | | from app.models.campaign import (
-32 | |     Campaign,
-33 | |     CampaignBatch,
-34 | |     CampaignRecipient,
-35 | |     CampaignRetry,
-36 | |     CampaignSchedule,
-37 | | )
-38 | | from app.models.contact import Contact
-39 | | from app.models.contact_identity import (
-40 | |     ContactIdentity,
-41 | |     IdentityConflict,
-42 | |     IdentityMergeRecommendation,
-43 | | )
-44 | | from app.models.contact_document import (
-45 | |     ContactDocument,
-46 | |     ContactDocumentEvent,
-47 | |     ContactDocumentVersion,
-48 | | )
-49 | | from app.models.contact_event import ContactEvent
-50 | | from app.models.conversation import Conversation
-51 | | from app.models.conversation_tag import conversation_tags
-52 | | from app.models.internal_note import InternalNote
-53 | | from app.models.job import DeadLetter, JobMetadata
-54 | | from app.models.job_records import BulkJob, ExportJob, ImportJob
-55 | | from app.models.lead import LeadPipeline, LeadStage
-56 | | from app.models.media import MediaAsset
-57 | | from app.models.message import Message, MessageStatusHistory
-58 | | from app.models.notification import Notification
-59 | | from app.models.organization import Organization
-60 | | from app.models.quick_reply import QuickReply
-61 | | from app.models.rate_card import RateCard
-62 | | from app.models.role import Permission, Role, UserRole, role_permissions
-63 | | from app.models.segment import Segment, SegmentRule
-64 | | from app.models.settings import FeatureFlag, Setting
-65 | | from app.models.tag import Tag, contact_tags
-66 | | from app.models.task import Task
-67 | | from app.models.task_event import TaskEvent
-68 | | from app.models.template import MessageTemplate, TemplateVersion
-69 | | from app.models.token import RefreshToken, UserSession
-70 | | from app.models.user import User
-71 | | from app.models.vi_domain import (
-72 | |     ActivationRecord,
-73 | |     EligibilityCheck,
-74 | |     KycCase,
-75 | |     KycDecision,
-76 | |     KycDocumentReference,
-77 | |     ReactivationCase,
-78 | |     ReactivationCaseLabel,
-79 | |     ReactivationStageEvent,
-80 | |     SimOrder,
-81 | |     SimOrderEvent,
-82 | |     SlaEvent,
-83 | |     SlaPolicy,
-84 | | )
-85 | | from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
-86 | | from app.models.webhook import WebhookDeadLetter, WebhookEvent
-   | |______________________________________________________________^
-87 |
-88 |   __all__ = [
-   |
+ 1 |   """Tenant-scoped persistence queries for M13-02 identity records."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | import uuid as uuidlib
+ 6 | |
+ 7 | | from sqlalchemy import func, select
+ 8 | | from app.models.contact_identity import (
+ 9 | |     ContactIdentity,
+10 | |     IdentityConflict,
+11 | |     IdentityMergeRecommendation,
+12 | | )
+13 | | from app.repositories.base import BaseRepository
+   | |________________________________________________^
 help: Organize imports
-   |
-38 | from app.models.contact import Contact
-   - from app.models.contact_identity import (
-   -     ContactIdentity,
-   -     IdentityConflict,
-   -     IdentityMergeRecommendation,
-   - )
-39 | from app.models.contact_document import (
---------------------------------------------------------------------------------
-44 | from app.models.contact_event import ContactEvent
-45 + from app.models.contact_identity import (
-46 +     ContactIdentity,
-47 +     IdentityConflict,
-48 +     IdentityMergeRecommendation,
-49 + )
-50 | from app.models.conversation import Conversation
-   |
-
-F401 [*] `sqlalchemy.ext.asyncio.AsyncSession` imported but unused
-  --> app/repositories/contact_identity.py:8:36
-   |
- 7 | from sqlalchemy import func, select
- 8 | from sqlalchemy.ext.asyncio import AsyncSession
-   |                                    ^^^^^^^^^^^^
- 9 |
-10 | from app.models.contact_identity import (
-   |
-help: Remove unused import: `sqlalchemy.ext.asyncio.AsyncSession`
   |
 7 | from sqlalchemy import func, select
-  - from sqlalchemy.ext.asyncio import AsyncSession
-8 |
+8 +
+9 | from app.models.contact_identity import (
   |
 
-F401 [*] `app.identity.domain.IdentityConflictStatus` imported but unused
-  --> app/schemas/contact_identity.py:14:5
-   |
-12 |     IdentityAssertion,
-13 |     IdentityConfidence,
-14 |     IdentityConflictStatus,
-   |     ^^^^^^^^^^^^^^^^^^^^^^
-15 |     IdentityKind,
-16 |     IdentitySource,
-   |
-help: Remove unused import: `app.identity.domain.IdentityConflictStatus`
-   |
-13 |     IdentityConfidence,
-   -     IdentityConflictStatus,
-14 |     IdentityKind,
-   |
-
-Found 4 errors.
-[*] 3 fixable with the `--fix` option.
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
 
 EXIT=1
 
