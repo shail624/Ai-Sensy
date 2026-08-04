@@ -1,0 +1,46 @@
+name: M13-02 Customer Identity Resolution Builder v2
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-builder-v2
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-builder-v2
+          path: builder
+          clean: false
+
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-02-customer-identity-resolution
+          fetch-depth: 0
+          path: work
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: work/backend/pyproject.toml
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: work/frontend/package-lock.json
+
+      - name: Build, validate and commit M13-02
+        run: bash builder/.github/m13-02-run.sh
