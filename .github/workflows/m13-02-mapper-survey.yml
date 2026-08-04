@@ -1,0 +1,27 @@
+name: M13-02 Mapper Survey
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-mapper-survey
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          clean: false
+      - name: Locate duplicate reactivation relationship
+        shell: bash
+        run: |
+          echo '=== active_reactivation_case ==='
+          grep -R -n -C 12 --exclude-dir=.git 'active_reactivation_case' backend/app backend/tests || true
+          echo '=== ReactivationCase relationships/backrefs ==='
+          grep -R -n -C 8 --exclude-dir=.git -E 'class ReactivationCase|backref=|back_populates=|relationship\(' backend/app/models backend/app/services backend/app/repositories | grep -E -C 8 'Reactivation|reactivation|active_reactivation|Contact' || true
+          echo '=== relevant model files ==='
+          find backend/app/models -maxdepth 2 -type f -name '*.py' -print | sort | grep -E 'react|case|contact' || true
