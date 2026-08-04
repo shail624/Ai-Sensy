@@ -1,0 +1,33 @@
+name: M13-01 CI Survey
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-survey
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+      - name: Show canonical validation commands
+        run: |
+          echo '=== WORKFLOWS ==='
+          find .github/workflows -maxdepth 1 -type f -print | sort
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            [ -f "$file" ] || continue
+            echo "--- $file ---"
+            grep -n -E 'uv |ruff|mypy|pytest|npm ci|npm run|audit' "$file" || true
+          done
+          echo '=== PYPROJECT GROUPS ==='
+          grep -n -A80 -B10 'dependency-groups\|tool.uv\|tool.pytest\|tool.mypy\|tool.ruff' backend/pyproject.toml
+          echo '=== PACKAGE SCRIPTS ==='
+          python - <<'PY'
+          import json
+          print(json.dumps(json.load(open('frontend/package.json'))['scripts'], indent=2))
+          PY
