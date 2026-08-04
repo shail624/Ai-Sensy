@@ -30,6 +30,26 @@ jobs:
           tar -xzf /tmp/m13-05-overlay.tar.gz
           base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
           tar -xzf /tmp/m13-05-fix.tar.gz
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('backend/app/services/pairing_manager.py')
+          text = path.read_text()
+          wrong = (
+              '    PairingState,\n'
+              '    RuntimeMetadata,\n'
+              '    RuntimeEvent,\n'
+              '    RuntimeEventType,\n'
+          )
+          correct = (
+              '    PairingState,\n'
+              '    RuntimeEvent,\n'
+              '    RuntimeEventType,\n'
+              '    RuntimeMetadata,\n'
+          )
+          if wrong not in text:
+              raise SystemExit('expected transferred pairing import order not found')
+          path.write_text(text.replace(wrong, correct, 1))
+          PY
           git status --short
 
       - name: Set up Python
