@@ -31,6 +31,7 @@ jobs:
       - name: Run isolated validation
         run: |
           mkdir -p /tmp/ui-taste-03b
-          tar -xzf .validation/ui-taste-03b/payload.tar.gz -C /tmp/ui-taste-03b
+          cat .validation/ui-taste-03b/payload.b64 .validation/ui-taste-03b/payload.part* | base64 --decode > /tmp/ui-taste-03b-payload.tar.gz
+          tar -xzf /tmp/ui-taste-03b-payload.tar.gz -C /tmp/ui-taste-03b
           chmod +x /tmp/ui-taste-03b/run_ui_taste_03b.sh
           /tmp/ui-taste-03b/run_ui_taste_03b.sh
