@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - validation/m13-00-governance-builder
+  pull_request:
+    branches:
+      - ui/taste-modernization
 
 permissions:
   contents: write
@@ -377,6 +380,7 @@ additive ADR.
           git diff --check origin/ui/taste-modernization
           python - <<'PY'
           from pathlib import Path
+          import subprocess
 
           allowed = {
               "CHANGELOG.md",
@@ -388,7 +392,6 @@ additive ADR.
               "docs/adr/0020-enterprise-omnichannel-channel-manager.md",
               "docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md",
           }
-          import subprocess
           changed = set(subprocess.check_output(
               ["git", "diff", "--name-only", "origin/ui/taste-modernization"], text=True
           ).splitlines())
