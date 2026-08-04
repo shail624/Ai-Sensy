@@ -22,9 +22,12 @@ format_new = '''ruff format --check \\
 fix_old = 'python builder/.github/m13-02-fixes.py work'
 fix_new = '''python builder/.github/m13-02-fixes.py work
 python builder/.github/m13-02-fixes-2.py work'''
-if source.count(format_old) != 1 or source.count(fix_old) != 1:
+test_old = '  tests/test_contact_events.py \\\n'
+if source.count(format_old) != 1 or source.count(fix_old) != 1 or source.count(test_old) != 1:
     raise SystemExit('verified M13-02 runner marker changed')
-source = source.replace(format_old, format_new, 1).replace(fix_old, fix_new, 1)
+source = source.replace(format_old, format_new, 1)
+source = source.replace(fix_old, fix_new, 1)
+source = source.replace(test_old, '', 1)
 Path('/tmp/m13-02-run.sh').write_text(source, encoding='utf-8')
 PY
 
