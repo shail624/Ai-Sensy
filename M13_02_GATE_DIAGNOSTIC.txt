@@ -1,5 +1,5 @@
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30895322763
+RUN=30895997061
 
 === APPLY_SOURCE ===
 /home/runner/work/Ai-Sensy/Ai-Sensy/builder/.github/m13-02-build.py:66: SyntaxWarning: invalid escape sequence '\+'
@@ -16,6 +16,10 @@ EXIT=0
 EXIT=0
 
 === APPLY_VERIFIED_FIXES_3 ===
+
+EXIT=0
+
+=== APPLY_VERIFIED_FIXES_4 ===
 
 EXIT=0
 
@@ -321,8 +325,8 @@ Using cached tzlocal-5.4.4-py3-none-any.whl (18 kB)
 Building wheels for collected packages: wa-platform-backend
   Building editable for wa-platform-backend (pyproject.toml): started
   Building editable for wa-platform-backend (pyproject.toml): finished with status 'done'
-  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=80ebdff32a6b29670b9a1744e419b674107fcb4a91d966695b387b6aebe70730
-  Stored in directory: /tmp/pip-ephem-wheel-cache-lhd9nfcz/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
+  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=0e0d5519d0fac59f1b768b42f8e4755fa66ac4e1bec1cd6bc1ebe45ae85ae857
+  Stored in directory: /tmp/pip-ephem-wheel-cache-1czhjjhf/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
 Successfully built wa-platform-backend
 Installing collected packages: sortedcontainers, boolean.py, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing_extensions, tomli-w, tomli, stevedore, six, ruff, redis, PyYAML, python-multipart, python-dotenv, pyparsing, PyMySQL, pyjwt, pygments, pycparser, pluggy, platformdirs, pip-api, pathspec, packaging, packageurl-python, mypy_extensions, msgpack, mdurl, MarkupSafe, license-expression, librt, iniconfig, idna, httptools, h11, greenlet, filelock, et-xmlfile, dnspython, defusedxml, coverage, click, charset_normalizer, certifi, billiard, ast-serialize, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, py-serializable, prompt-toolkit, pip-requirements-parser, openpyxl, mypy, markdown-it-py, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, aiomysql, watchfiles, starlette, rich, pytest-cov, pytest-asyncio, pydantic, kombu, httpx, cyclonedx-python-lib, cryptography, click-repl, CacheControl, argon2-cffi-bindings, alembic, pydantic-settings, fastapi, celery, bandit, argon2-cffi, wa-platform-backend, pip-audit
 
@@ -369,7 +373,7 @@ EXIT=0
 > openapi-typescript openapi.json -o src/lib/api/schema.d.ts
 
 ✨ openapi-typescript 7.13.0
-🚀 openapi.json → src/lib/api/schema.d.ts [435.4ms]
+🚀 openapi.json → src/lib/api/schema.d.ts [506.1ms]
 
 EXIT=0
 
@@ -401,7 +405,7 @@ tests/test_identity_resolution.py ......                                 [ 27%]
 tests/test_api_contacts.py .........                                     [ 68%]
 tests/test_channel_foundation.py .......                                 [100%]
 
-============================== 22 passed in 3.87s ==============================
+============================== 22 passed in 4.34s ==============================
 
 EXIT=0
 
@@ -507,7 +511,7 @@ tests/test_api_tasks.py .............................................    [ 62%]
 tests/test_api_templates.py .............................                [ 65%]
 tests/test_api_timeline.py ...                                           [ 65%]
 tests/test_api_users.py .........                                        [ 66%]
-tests/test_api_vi_domain.py .F                                           [ 67%]
+tests/test_api_vi_domain.py ..                                           [ 67%]
 tests/test_api_waba.py .......................                           [ 69%]
 tests/test_api_webhooks.py .........................                     [ 72%]
 tests/test_bootstrap.py ...                                              [ 72%]
@@ -520,7 +524,7 @@ tests/test_identity_resolution.py ......                                 [ 80%]
 tests/test_integration_module1.py .                                      [ 80%]
 tests/test_kyc_operations.py ..                                          [ 80%]
 tests/test_logging.py ..                                                 [ 80%]
-tests/test_migrations.py F.                                              [ 81%]
+tests/test_migrations.py ..                                              [ 81%]
 tests/test_notification_center.py ..                                     [ 81%]
 tests/test_notification_center_task_lifecycle.py .                       [ 81%]
 tests/test_quality_gate_tools.py ..............                          [ 82%]
@@ -538,115 +542,123 @@ tests/test_task_service.py ............................................. [ 99%]
 ...                                                                      [ 99%]
 tests/test_vi_domain_service.py ....                                     [100%]
 
-=================================== FAILURES ===================================
-__________ test_vi_openapi_exposes_typed_permission_scoped_foundation __________
+======================= 961 passed in 274.05s (0:04:34) ========================
 
-client = <httpx.AsyncClient object at 0x7f841376f4d0>
+EXIT=0
 
-    @pytest.mark.asyncio
-    async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> None:
-        schema = (await client.get("/api/v1/openapi.json")).json()
-        expected = {
-            "/api/v1/reactivation-cases/{case_id}/transition",
-            "/api/v1/reactivation-cases/{case_id}/notes",
-            "/api/v1/reactivation-pipeline",
-            "/api/v1/kyc-cases/{kyc_id}/approvals",
-            "/api/v1/kyc-operations",
-            "/api/v1/kyc-cases/{kyc_id}/document-references",
-            "/api/v1/kyc-cases/{kyc_id}/appointments",
-            "/api/v1/sim-orders/{order_id}/transition",
-            "/api/v1/activation-records/{activation_id}/approval",
-            "/api/v1/sla/events",
-            "/api/v1/notifications",
-            "/api/v1/notifications/unread-count",
-            "/api/v1/notifications/{notification_id}/read",
-            "/api/v1/notifications/read-all",
-        }
-        assert expected <= set(schema["paths"])
->       assert len(schema["paths"]) == 193
-E       AssertionError: assert 200 == 193
-E        +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+=== PIP_AUDIT ===
+No known vulnerabilities found
+Name                Skip Reason
+------------------- -------------------------------------------------------------------------------------
+wa-platform-backend Dependency not found on PyPI and could not be audited: wa-platform-backend (1.0.0rc1)
 
-tests/test_api_vi_domain.py:204: AssertionError
-_________________ test_migrations_upgrade_downgrade_roundtrip __________________
+EXIT=0
 
-tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_migrations_upgrade_downgr0')
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f8416d4baf0>
+=== BANDIT ===
+[tester]	WARNING	nosec encountered (B324), but no failed test on file app/services/job_service.py:40
+[tester]	WARNING	nosec encountered (B324), but no failed test on file app/services/job_service.py:40
+Run started:2026-08-04 09:29:05.981219+00:00
 
-    def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> None:
-        """upgrade head → full schema + seed; downgrade base → clean; re-upgrade → works."""
-        db_path = tmp_path / "migration_test.db"
-        # Point the Alembic env (which reads app settings) at the throwaway file DB.
-        monkeypatch.setattr(settings, "database_url", f"sqlite+aiosqlite:///{db_path.as_posix()}")
-        cfg = _alembic_config()
-    
-        command.upgrade(cfg, "head")
-    
-        tables = _table_names(db_path)
-        assert tables >= _EXPECTED_TABLES
-        assert "alembic_version" in tables
-    
-        con = sqlite3.connect(db_path)
-        try:
-            # The full catalog is seeded (Doc 04 §4.3).
-            count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
-            assert count == len(PERMISSION_CATALOG)
-            version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
->           assert version == "0035_notification_center"
-E           AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
-E             
-E             - 0035_notification_center
-E             + 0036_customer_identity_resolution
+Test results:
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'hub.verify_token'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/channels/meta/webhooks.py:29:13
+28	_HUB_MODE = "hub.mode"
+29	_HUB_TOKEN = "hub.verify_token"
+30	_HUB_CHALLENGE = "hub.challenge"
 
-tests/test_migrations.py:141: AssertionError
------------------------------ Captured stderr call -----------------------------
-INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
-INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
-INFO  [alembic.runtime.migration] Running upgrade  -> 0001_identity_and_audit, Identity & Access + Audit schema (Module 1 — Doc 03 §4, §11.2).
-INFO  [alembic.runtime.migration] Running upgrade 0001_identity_and_audit -> 0002_seed_permissions, Seed the permission catalog (Module 1 — Doc 04 §4.3).
-INFO  [alembic.runtime.migration] Running upgrade 0002_seed_permissions -> 0003_settings_feature_flags, System settings & feature flags (Module 1 — Doc 03 §11.5, §11.7).
-INFO  [alembic.runtime.migration] Running upgrade 0003_settings_feature_flags -> 0004_api_keys, API keys (Module 1 — Doc 03 §4.4).
-INFO  [alembic.runtime.migration] Running upgrade 0004_api_keys -> 0005_contacts, Contacts (Module 2 — Doc 03 §6.1).
-INFO  [alembic.runtime.migration] Running upgrade 0005_contacts -> 0006_tags_events_leads, Tags, contact events & lead pipelines (Module 2 — Doc 03 §6.2/§6.5, Doc 07 §23.2).
-INFO  [alembic.runtime.migration] Running upgrade 0006_tags_events_leads -> 0007_segments, Segments & segment rules (Module 2 — Doc 03 §6.4).
-INFO  [alembic.runtime.migration] Running upgrade 0007_segments -> 0008_custom_attributes, Custom attributes (Module 2 — Doc 03 §6.3).
-INFO  [alembic.runtime.migration] Running upgrade 0008_custom_attributes -> 0009_queue_engine, Queue engine: job metadata & dead letter (Module 6 — Doc 03 §11.7, Doc 06 §7).
-INFO  [alembic.runtime.migration] Running upgrade 0009_queue_engine -> 0010_media_assets, Media assets (Storage foundation — Doc 03 §7.2).
-INFO  [alembic.runtime.migration] Running upgrade 0010_media_assets -> 0011_imports, Contact import job records (Module 2 async — Doc 03 §11.6).
-INFO  [alembic.runtime.migration] Running upgrade 0011_imports -> 0012_exports, Contact export job records (Module 2 async — Doc 03 §11.6).
-INFO  [alembic.runtime.migration] Running upgrade 0012_exports -> 0013_bulk_jobs, Bulk contact operation job records (Module 2 Step 5C — Doc 03 §11.6 family).
-INFO  [alembic.runtime.migration] Running upgrade 0013_bulk_jobs -> 0014_waba_phone_numbers, WhatsApp infrastructure: WABAs & phone numbers (Module 4 Step 2 — Doc 03 §5.1/§5.2).
-INFO  [alembic.runtime.migration] Running upgrade 0014_waba_phone_numbers -> 0015_webhook_events, Inbound webhook storage: events & dead letter (Module 4 Step 3 — Doc 03 §9.4).
-INFO  [alembic.runtime.migration] Running upgrade 0015_webhook_events -> 0016_conversations_messages, Conversations & the message ledger (Module 4 Step 4 — Doc 03 §9.1/§9.2/§9.3).
-INFO  [alembic.runtime.migration] Running upgrade 0016_conversations_messages -> 0017_message_templates, Template registry: templates & versions (Module 5 — Doc 03 §7.1).
-INFO  [alembic.runtime.migration] Running upgrade 0017_message_templates -> 0018_campaigns, Campaign registry: campaigns & recipients (Phase 6 Step 1 — Doc 03 §8.1/§8.3).
-INFO  [alembic.runtime.migration] Running upgrade 0018_campaigns -> 0019_campaign_batches, Campaign batches: dispatch checkpoints (Phase 6 Step 2 — Doc 03 §8.4).
-INFO  [alembic.runtime.migration] Running upgrade 0019_campaign_batches -> 0020_campaign_retry_queue, Campaign retry queue (Phase 6 Step 3 — Doc 03 §8.4).
-INFO  [alembic.runtime.migration] Running upgrade 0020_campaign_retry_queue -> 0021_campaign_schedules, Campaign schedules (Phase 6 Step 4 — Doc 03 §8.2).
-INFO  [alembic.runtime.migration] Running upgrade 0021_campaign_schedules -> 0022_rate_cards, Rate cards (Phase 6 Step 5 — Doc 03 §8.5).
-INFO  [alembic.runtime.migration] Running upgrade 0022_rate_cards -> 0023_internal_notes, Internal notes (Phase 7 Step 1 — Doc 03 §9.5).
-INFO  [alembic.runtime.migration] Running upgrade 0023_internal_notes -> 0024_quick_replies, Quick replies (Phase 7 Step 4 — Doc 03 §9.5).
-INFO  [alembic.runtime.migration] Running upgrade 0024_quick_replies -> 0025_conversation_tags, Conversation tags (Phase 7 Step 5 — Doc 03 §9.7, v1.3).
-INFO  [alembic.runtime.migration] Running upgrade 0025_conversation_tags -> 0026_tasks, Task & Activity Management (Doc 14 — CRM Follow-up Engine).
-INFO  [alembic.runtime.migration] Running upgrade 0026_tasks -> 0027_analytics, Analytics & Reporting foundation (Doc 15 — Phase 8).
-INFO  [alembic.runtime.migration] Running upgrade 0027_analytics -> 0028_contact_documents, Governed customer documents (Design Book 19, Phase 4A).
-INFO  [alembic.runtime.migration] Running upgrade 0028_contact_documents -> 0029_automation_definitions, Versioned automation definitions (Design Book 22, MD5 Phase 2A).
-INFO  [alembic.runtime.migration] Running upgrade 0029_automation_definitions -> 0030_automation_test_runtime, Deterministic automation test-run ledger (Design Book 23, MD5 Phase 2B).
-INFO  [alembic.runtime.migration] Running upgrade 0030_automation_test_runtime -> 0031_automation_trigger_receipts, Durable business events and automation trigger receipts (Design Book 24).
-INFO  [alembic.runtime.migration] Running upgrade 0031_automation_trigger_receipts -> 0032_vi_domain_foundation, CORE-02 tenant-scoped Vi domain foundation.
-INFO  [alembic.runtime.migration] Running upgrade 0032_vi_domain_foundation -> 0033_kyc_operations, CORE-04 governed KYC operations persistence gaps.
-INFO  [alembic.runtime.migration] Running upgrade 0033_kyc_operations -> 0034_reactivation_crm, Owner-approved lightweight Reactivation CRM workflow.
-INFO  [alembic.runtime.migration] Running upgrade 0034_reactivation_crm -> 0035_notification_center, Durable tenant-scoped Notification Center projection.
-INFO  [alembic.runtime.migration] Running upgrade 0035_notification_center -> 0036_customer_identity_resolution, Provider-independent Customer identity resolution records.
-=========================== short test summary info ============================
-FAILED tests/test_api_vi_domain.py::test_vi_openapi_exposes_typed_permission_scoped_foundation - AssertionError: assert 200 == 193
- +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
-FAILED tests/test_migrations.py::test_migrations_upgrade_downgrade_roundtrip - AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
-  
-  - 0035_notification_center
-  + 0036_customer_identity_resolution
-================== 2 failed, 959 passed in 253.01s (0:04:13) ===================
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'access'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/core/security.py:31:20
+30	
+31	TOKEN_TYPE_ACCESS = "access"
+32	_REFRESH_TOKEN_BYTES = 48  # 384 bits of entropy for the opaque refresh secret
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: app/db/session.py:78:4
+77	    get_engine()
+78	    assert _sessionmaker is not None  # noqa: S101 — guaranteed by get_engine()
+79	    return _sessionmaker
+
+--------------------------------------------------
+>> Issue: [B101:assert_used] Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html
+   Location: app/schemas/message.py:137:8
+136	        template = self.template
+137	        assert template is not None  # noqa: S101 - guarded by `_payload_matches_type`
+138	        content: dict[str, Any] = {
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'user.token_refresh'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/services/audit_service.py:29:20
+28	    LOGOUT_ALL = "user.logout_all"
+29	    TOKEN_REFRESH = "user.token_refresh"
+30	    TOKEN_REUSE_DETECTED = "user.token_reuse_detected"
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'user.token_reuse_detected'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/services/audit_service.py:30:27
+29	    TOKEN_REFRESH = "user.token_refresh"
+30	    TOKEN_REUSE_DETECTED = "user.token_reuse_detected"
+31	    PASSWORD_CHANGED = "user.password_changed"
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'user.password_changed'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/services/audit_service.py:31:23
+30	    TOKEN_REUSE_DETECTED = "user.token_reuse_detected"
+31	    PASSWORD_CHANGED = "user.password_changed"
+32	    SESSION_REVOKED = "user.session_revoked"
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: app/services/waba_service.py:119:71
+118	            # Never the token — only that one was supplied.
+119	            after={"waba_id": waba_id, "business_name": business_name, "token_set": True},
+120	        )
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 38666
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 1
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 8
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 6
+		High: 2
+Files skipped (0):
 
 EXIT=1
 
-FIRST_FAILURE=FULL_PYTEST
+FIRST_FAILURE=BANDIT
