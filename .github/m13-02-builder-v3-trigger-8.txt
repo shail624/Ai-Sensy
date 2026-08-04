@@ -1,0 +1,1 @@
+Trigger the diagnostic after correcting the verified connector fixture count. This file is never merged.
