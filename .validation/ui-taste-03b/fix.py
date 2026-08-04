@@ -217,3 +217,19 @@ require(changed == expected, f"unexpected implementation boundary: {sorted(chang
 if old not in text:
     raise SystemExit("implementation boundary patch target missing")
 apply_script.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+finalizer = root / "finalize_tracking.py"
+text = finalizer.read_text(encoding="utf-8")
+text = text.replace(
+    '    if line.startswith("| UI-TASTE-03B |"):\n',
+    '    if line.startswith("| UI-TASTE-03B —"):\n',
+)
+text = text.replace(
+    '        cells = [part.strip() for part in line.split("|")]\n        # Preserve the approved objective and evidence columns; append repository status.\n        lines[index] = line[:-1].rstrip() + " **REPOSITORY VALIDATED.** |"\n',
+    '        lines[index] = line.replace("OWNER-APPROVED; NOT STARTED", "REPOSITORY VALIDATED")\n',
+)
+text = text.replace(
+    '    if line.startswith("| UI-TASTE-04 |"):\n',
+    '    if line.startswith("| UI-TASTE-04 —"):\n',
+)
+finalizer.write_text(text, encoding="utf-8")
