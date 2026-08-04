@@ -1,6 +1,6 @@
 === STATUS ===
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30894981467
+RUN=30895154675
 FIRST_FAILURE=APPLY_VERIFIED_FIXES_3
 
 === STAGE RESULTS ===
@@ -17,6 +17,6 @@ EXIT=1
 
 === FAILURE TAIL ===
 === APPLY_VERIFIED_FIXES_3 ===
-verified connector fixture count changed: 6
+verified connector fixture count changed: 0
 
 EXIT=1
