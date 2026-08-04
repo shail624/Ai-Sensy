@@ -3,22 +3,29 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-04 · M13-01 Generic Channel Foundation is Repository Validated. No
-provider, persisted channel connection or executable omnichannel workflow has started._
+_Last updated: 2026-08-04 · M13-02 Customer Identity Resolution is Repository Validated. M13-03 has not started._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
 - **Baseline:** `8b878bdbd21877cf3f77eac5e9bb209d6b6022be`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged
-- **Current milestone:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`
-- **Module 13 completion:** `8%` evidence-based foundation estimate
+- **Migration/OpenAPI:** `0036_customer_identity_resolution` · 200 paths
+- **Current milestone:** `M13-02 — Customer Identity Resolution — REPOSITORY VALIDATED`
+- **Module 13 completion:** `16%` evidence-based estimate
 - **Provider selection:** pending; no provider is registered
-- **Next milestone:** `M13-02` — not authorized
-- **Last synchronized:** `2026-08-04T12:56:16+05:30`
+- **Next milestone:** `M13-03` — not started
+- **Last synchronized:** `2026-08-04T15:24:00+05:30`
 
 ## Delivered
+
+### M13-02 Customer Identity Resolution
+
+- Canonical Contact-based exact identity resolution with immutable provider/endpoint aliases.
+- Tenant-scoped conflict/review queue and non-destructive recommendations with explicit decisions.
+- RBAC, disabled-by-default feature flag, Audit/Timeline integration, migration `0036`, 200-path OpenAPI and generated TypeScript authority.
+- Repository gates: Ruff PASS, mypy PASS (271 files), 22 focused and 961 full backend tests PASS; frontend lint/type/Vitest/build and migration/client generation PASS.
+
 
 | Area | Repository result |
 |---|---|
@@ -53,11 +60,11 @@ Customer 360/Timeline/Notification/Analytics changes and new dependencies are ab
 
 - Persistent channel connection, endpoint and secret records plus Meta backfill remain a
   Required frozen-contract gap and need explicit owner sequencing.
-- M13-02 identity convergence is not authorized.
+- M13-03 session and connection control plane is not started.
 - Provider evaluation, runtime, pairing, inbound/history, outbound and unified operator
   experience remain later gated work.
 
 ## Stop rule
 
-Do not begin M13-02 or any unassigned persistence/provider work. Any architecture, scope,
+Do not begin M13-03 or any unassigned persistence/provider work. Any architecture, scope,
 abstraction or milestone-order deviation requires owner approval and an additive ADR.

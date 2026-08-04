@@ -17,9 +17,18 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T12:56:16+05:30`.
+Last synchronized: `2026-08-04T15:24:00+05:30`.
 
 ## Module 13 — M13-01 generic channel foundation
+
+## Module 13 — M13-02 customer identity resolution
+
+- **Milestone status:** `M13-02 — Customer Identity Resolution — REPOSITORY VALIDATED`.
+- **Completion:** `16%` evidence-based estimate.
+- **Delivered:** canonical Contact identity aliases, exact scoped resolution, confidence, conflict detection, tenant review queue, recommendations, approve/reject, RBAC, feature flag, Audit/Timeline, migration/API/client.
+- **Preserved:** no automatic/destructive Contact merge, provider runtime, QR workflow or M13-03 work.
+- **Next:** M13-03 is not started. Host/provider/runtime commissioning remains pending.
+
 
 - **Module:** Enterprise Omnichannel Channel Manager.
 - **Milestone status:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`.
@@ -72,7 +81,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 | Activation | 35% | CORE-02 record lifecycle, hand-off, verification/approval/completion/rejection rules, RBAC, audit and APIs are preserved; CORE-05 exposes `Activation Pending`, `Completed` and `Not Required` case outcomes | No standalone Activation Queue or generic approval engine is planned; future exceptional operations require an explicit owner instruction. | Reactivation status, Notifications |
 | Notifications | 85% | CORE-09 durable center plus UI-TASTE-02 shared type/status/date/assignee filters and action controls; polling, read-state, team view and deep links are preserved | Page-specific visual hierarchy, authenticated responsive review, notification settings, and separately approved optional channels. SSE/browser push/email/internal WhatsApp are not implied. | Tasks, Reactivation, user preferences, shared design system |
 | Settings | 70% | Organization/application/flags/preferences routes complete | Approved business/WhatsApp hours/messages, assignment/auto-resolve/read receipts, campaign/opt-in, pipeline/SLA/notifications/security/audit controls. | Domain configuration APIs, RBAC |
-| API | 85% | 193-path OpenAPI 3.1 contract; CORE-09 adds four notification paths while preserving generated TypeScript authority | Remaining final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
+| API | 87% | 200-path OpenAPI 3.1 contract; M13-02 adds seven identity-resolution/review paths with generated TypeScript authority | Remaining final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
 | Webhooks | 80% | Provider webhooks and operations surface complete | Subscription governance, delivery/retry visibility, outbound final-domain events, security/usage documentation. | Domain event taxonomy, API permissions |
 | Google Sheets | 0% | Not implemented | Approved credential model, contact import/sync/export jobs, mapping, audit, retries, admin UX. | Jobs, API keys/secrets, Contacts |
 | WhatsApp Scan | 15% | Honest non-executing Scan Studio shell | Compliant provider contract, upload/batches/dedup/queue/results/retry/export/segments/analytics; no unofficial Web scanning. | Owner-approved compliant method, Jobs, Segments, Download Center |
@@ -83,7 +92,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 8% | M13-00 contract plus M13-01 provider-neutral intent/policy/metadata/health/lifecycle contracts, registries, validation, flags and DI are Repository Validated; existing ChannelAdapter is reused | Persistent connection/endpoint/secret records and Meta backfill remain Required; no provider/runtime/API/UI exists; M13-02 not authorized | Existing ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
+| Enterprise Omnichannel Channel Manager | 16% | M13-00/M13-01 plus M13-02 exact Contact identity convergence, immutable aliases, conflict review, recommendations, RBAC, Audit/Timeline, migration `0036` and 200-path API are Repository Validated | Persistent connection/endpoint/secret records and Meta backfill remain Required; provider/runtime/UI absent; M13-03 not started | Existing Contact/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |

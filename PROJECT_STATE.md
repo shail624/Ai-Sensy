@@ -7,24 +7,33 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | M13-01 starting baseline | `8b878bdbd21877cf3f77eac5e9bb209d6b6022be` (`docs(omnichannel): freeze M13-00 implementation contract`) |
-| Current Git HEAD | `HEAD` (M13-01 closeout; resolve after push) |
-| Current milestone | `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED` |
-| Current phase | `Provider-neutral omnichannel contracts delivered; no provider/runtime/persistence workflow started` |
+| Current Git HEAD | `HEAD` (M13-02 closeout; resolve after push) |
+| Current milestone | `M13-02 — Customer Identity Resolution — REPOSITORY VALIDATED` |
+| Current phase | `Exact Contact identity convergence and restricted manual review delivered; M13-03 unstarted` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
-| OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
-| Backend evidence | Ruff PASS · strict mypy PASS across 263 source files · 46 focused tests PASS · 955 full pytest tests PASS |
+| Migration head | `0036_customer_identity_resolution` (36 linear revisions) |
+| OpenAPI | `3.1.0` · `200` paths · generated TypeScript authority current |
+| Backend evidence | Ruff PASS · strict mypy PASS across 271 source files · 22 focused tests PASS · 961 full pytest tests PASS |
 | Frontend evidence | Unchanged source; production audit high threshold PASS · ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
 | Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
 | M13 contract | ADR-0020 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `8%` evidence-based estimate: provider-neutral in-process foundation only; no channel connection persistence or provider behavior |
+| Module 13 implementation | `16%` evidence-based estimate: generic foundation plus exact Customer identity convergence |
 | QR provider | Not selected; Required evaluation remains external |
-| Next Module 13 milestone | `M13-02`; not authorized and not started |
+| Next Module 13 milestone | `M13-03`; not started |
 | Host evidence | Not applicable to this backend-only non-executable foundation; no Host Validated or Production Ready claim |
 | Worktree expectation | Seven foundation/test files plus required governance only; no migration, route, generated contract, dependency, provider, frontend or runtime change |
-| Last update | `2026-08-04T12:56:16+05:30` (Asia/Kolkata) |
+| Last update | `2026-08-04T15:24:00+05:30` (Asia/Kolkata) |
 
 ## M13-01 delivered foundation
+
+## M13-02 delivered identity resolution
+
+- Added exact organization/namespace/scope/value identity normalization and immutable Contact ownership.
+- Added ambiguity/conflict detection, tenant-scoped review queue and non-destructive merge recommendations.
+- Added explicit approve/reject decisions with row-version checks, RBAC, feature flag, Audit and Timeline evidence.
+- Added migration `0036_customer_identity_resolution`, seven API paths and regenerated OpenAPI/client authority.
+- No Contact merge is executed and no identity ownership is moved by this milestone.
+
 
 - Added immutable provider-independent communication intent, communication policy, channel
   metadata, health and lifecycle contracts plus shared enums and validation.
@@ -69,5 +78,5 @@ pending. M13-01 does not alter the UI modernization sequence.
 
 ## Maintenance rule
 
-Stop after M13-01. Do not begin M13-02, persistence/backfill work, provider selection or any
+Stop after M13-02. Do not begin M13-03, persistence/backfill work, provider selection or any
 provider/runtime implementation without a separate explicit owner instruction.

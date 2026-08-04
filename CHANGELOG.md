@@ -11,6 +11,22 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Customer Identity Resolution (M13-02)
+
+**Added**
+- Added exact tenant-scoped provider and endpoint identities linked to the canonical Contact, with immutable ownership, factual confidence, ambiguous/conflict detection and a restricted manual-review queue.
+- Added non-destructive merge recommendations with explicit approve/reject decisions, RBAC, feature flags, Audit and Customer Timeline evidence.
+- Added migration `0036_customer_identity_resolution`, seven additive API paths, generated OpenAPI/client authority and focused identity regressions.
+
+**Preserved**
+- M13-01 channel foundations, canonical Contact ownership and existing CRM, Inbox, Customer 360, Timeline and Audit authorities remain unchanged; approval never merges Contacts or moves identities.
+- No M13-03 session/connection control-plane, provider runtime, QR pairing, messaging, UI route or provider selection work is included.
+
+**Validated**
+- Ruff, strict mypy across 271 source files, 22 focused tests and all 961 backend tests pass.
+- Frontend production audit, ESLint, TypeScript, Vitest and production build pass; OpenAPI has 200 paths and the generated client is current.
+- Migration upgrade/downgrade/upgrade passes. M13-02 reaches `Repository Validated`; host/runtime commissioning remains pending.
+
 ### 2026-08-04 — Generic Channel Foundation (M13-01)
 
 **Added**

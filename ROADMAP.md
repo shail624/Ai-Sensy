@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-04T12:56:16+05:30`.
+Last synchronized: `2026-08-04T15:24:00+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED**
+**Current status: M13-02 — Customer Identity Resolution — REPOSITORY VALIDATED**
 
 ADR-0020 and Design Document 33 remain frozen. M13-01 implements only the owner-approved,
 provider-neutral in-process foundation: shared communication intent/policy/metadata/health/
@@ -63,8 +63,8 @@ into M13-02, and require a separately approved sequencing decision before provid
 | M13-00 — Architecture & Provider Lock | Freeze architecture, provider, security, session, identity, API/database, rollback, rollout and validation contracts | **REPOSITORY VALIDATED** |
 | M13-01 — Generic Channel Foundation | Add provider-independent domain contracts, registries, validation, generic flags and DI while reusing `ChannelAdapter` | **REPOSITORY VALIDATED**; no provider/runtime/persistence workflow |
 | Required connection persistence/backfill gate | Add frozen connection/endpoint/secret persistence and Meta backfill | Unassigned; separate owner sequencing required; not M13-02 |
-| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | Not authorized; blocked by explicit owner instruction and required foundation gates |
-| M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Blocked by provider approval, persistence and M13-02 |
+| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | **REPOSITORY VALIDATED**; immutable aliases, review queue and non-destructive recommendations delivered |
+| M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Not started; blocked by provider approval and persistence |
 | M13-04 — QR pairing and health | Pairing, devices, reconnect, re-authentication and diagnostics | Blocked by M13-03 security/runtime evidence |
 | M13-05 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | Blocked by provider certification |
 | M13-06 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
@@ -72,7 +72,7 @@ into M13-02, and require a separately approved sequencing decision before provid
 | M13-08 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
 | M13-09 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
 
-Stop after M13-01. No M13-02, persistence/backfill, provider selection or runtime work begins
+Stop after M13-02. No M13-03, persistence/backfill, provider selection or runtime work begins
 automatically.
 
 ## Phase 0 — Governance and scope lock

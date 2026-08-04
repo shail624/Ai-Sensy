@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     automations,
     campaigns,
     contact_documents,
+    contact_identity,
     contacts,
     conversations,
     jobs,
@@ -53,6 +54,7 @@ api_router.include_router(audit.router, tags=["Audit"])
 
 # Module 2 — Contacts CRM (Doc 04 §14; Doc 07 §19/§23 lead model).
 api_router.include_router(contacts.router, tags=["Contacts"])
+api_router.include_router(contact_identity.router, tags=["Customer Identity"])
 api_router.include_router(contact_documents.router, tags=["Customer Documents"])
 api_router.include_router(tags.router, tags=["Tags"])
 api_router.include_router(attributes.router, tags=["Custom Attributes"])

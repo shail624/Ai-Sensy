@@ -42,6 +42,11 @@ from app.models.contact_document import (
     ContactDocumentVersion,
 )
 from app.models.contact_event import ContactEvent
+from app.models.contact_identity import (
+    ContactIdentity,
+    IdentityConflict,
+    IdentityMergeRecommendation,
+)
 from app.models.conversation import Conversation
 from app.models.conversation_tag import conversation_tags
 from app.models.internal_note import InternalNote
@@ -97,6 +102,9 @@ __all__ = [
     "CampaignRetry",
     "CampaignSchedule",
     "Contact",
+    "ContactIdentity",
+    "IdentityConflict",
+    "IdentityMergeRecommendation",
     "ContactDocument",
     "ContactDocumentEvent",
     "ContactDocumentVersion",
