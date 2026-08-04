@@ -1,0 +1,52 @@
+name: Finalize ADR-0020 provider classification
+
+on:
+  pull_request:
+    branches:
+      - validation/adr-0020-provider-classes-base
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout validation runner
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preserve validation script
+        run: cp .validation/finalize_adr_0020_provider_classes.py /tmp/finalize_adr_0020_provider_classes.py
+
+      - name: Restore approved baseline and apply clarification
+        run: |
+          git checkout --force d20fefce1ec1fbdd97cd6bbdbfba2af9df9b9975
+          git switch -C work/adr-0020-provider-classes
+          python /tmp/finalize_adr_0020_provider_classes.py apply
+
+      - name: Validate documentation boundary
+        run: |
+          python /tmp/finalize_adr_0020_provider_classes.py validate
+          test "$(git diff --name-only d20fefce1ec1fbdd97cd6bbdbfba2af9df9b9975 | wc -l)" = "2"
+          test -z "$(git ls-files --others --exclude-standard)"
+
+      - name: Create the single product commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md docs/adr/0020-enterprise-omnichannel-channel-manager.md
+          git commit -m 'docs(architecture): classify approved providers'
+          test "$(git rev-list --count d20fefce1ec1fbdd97cd6bbdbfba2af9df9b9975..HEAD)" = "1"
+          python /tmp/finalize_adr_0020_provider_classes.py validate
+
+      - name: Verify target baseline and publish validated commit
+        run: |
+          target_head="$(git ls-remote origin refs/heads/ui/taste-modernization | awk '{print $1}')"
+          test "$target_head" = "d20fefce1ec1fbdd97cd6bbdbfba2af9df9b9975"
+          git push --force-with-lease origin HEAD:refs/heads/work/adr-0020-provider-classes
+          echo "Validated commit: $(git rev-parse HEAD)"
+          git show --stat --oneline --no-renames HEAD
+          test -z "$(git status --short)"
