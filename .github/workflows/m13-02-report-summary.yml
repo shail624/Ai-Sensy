@@ -22,6 +22,7 @@ jobs:
       - name: Build concise report
         shell: bash
         run: |
+          failure="$(grep '^FIRST_FAILURE=' M13_02_GATE_DIAGNOSTIC.txt | tail -n 1 | cut -d= -f2-)"
           {
             echo '=== STATUS ==='
             grep -E '^(FIRST_FAILURE|ALL_DIAGNOSTIC_GATES_PASS|BASELINE|RUN)=' M13_02_GATE_DIAGNOSTIC.txt || true
@@ -29,8 +30,12 @@ jobs:
             echo '=== STAGE RESULTS ==='
             grep -E '^=== |^EXIT=' M13_02_GATE_DIAGNOSTIC.txt || true
             echo
-            echo '=== REPORT TAIL ==='
-            tail -n 320 M13_02_GATE_DIAGNOSTIC.txt
+            echo '=== FAILING STAGE OUTPUT ==='
+            if [ -n "$failure" ]; then
+              sed -n "/^=== ${failure} ===$/,/^EXIT=/p" M13_02_GATE_DIAGNOSTIC.txt
+            else
+              tail -n 160 M13_02_GATE_DIAGNOSTIC.txt
+            fi
           } > M13_02_GATE_SUMMARY.txt
 
       - name: Commit concise report
