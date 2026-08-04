@@ -1,0 +1,461 @@
+name: M13-00 Governance Builder
+
+on:
+  push:
+    branches:
+      - validation/m13-00-governance-builder
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout documentation work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-00-implementation-contract
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Synchronize M13-00 governance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          NOW = "2026-08-04T11:20:00+05:30"
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}: {old[:100]!r}")
+              file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          project_state = """# Project State
+
+          > Current repository snapshot. GitHub is the implementation source of truth. `HEAD` is symbolic
+          > because a commit cannot embed its own final hash; resolve it after push with `git rev-parse HEAD`.
+
+          | Field | Current value |
+          |---|---|
+          | Current branch | `ui/taste-modernization` |
+          | M13-00 starting baseline | `7e503a3f2e1d35d54548d9d8fe95e82591e26be1` (`docs(governance): freeze approved Module 13 architecture`) |
+          | Current Git HEAD | `HEAD` (M13-00 documentation-only closeout; resolve after push) |
+          | Current milestone | `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED` |
+          | Current phase | `Module 13 implementation contract frozen; implementation remains unstarted and gated` |
+          | Repository version | `1.0.0-rc1` |
+          | Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
+          | OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
+          | Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests; backend unchanged and not re-run for documentation-only M13-00 |
+          | Frontend evidence | Existing UI-TASTE-03A baseline: ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS; frontend unchanged and not re-run |
+          | Dependency evidence | Dependencies unchanged; existing production audit boundary remains two moderate React Router advisories and no high/critical production finding |
+          | M13-00 contract | ADR-0020 and Design Document 33 are accepted, frozen and repository-validated |
+          | Module 13 implementation | `0%` — no product source, API, migration, generated contract, route, runtime or deployment implementation exists |
+          | QR provider | Not selected; Required provider evaluation is an explicit external gate, not a fabricated decision |
+          | Next existing-roadmap implementation | `UI-TASTE-03B — Reactivation operational hierarchy`; previously approved and not started on the target branch |
+          | Next Module 13 milestone | `M13-01`; not authorized and blocked by recorded prerequisite, provider and separate owner-instruction gates |
+          | Host evidence | Not applicable to this documentation-only milestone; no Host Validated or Production Ready claim |
+          | Worktree expectation | ADR/design/governance Markdown only; no application, migration, API, dependency, generated-client, route or architecture implementation change |
+          | Last update | `2026-08-04T11:20:00+05:30` (Asia/Kolkata) |
+
+          ## M13-00 delivered contract
+
+          - Accepted and froze ADR-0020 for the Enterprise Omnichannel Channel Manager.
+          - Added Design Document 33 as the complete implementation contract covering the provider
+            capability matrix, QR provider evaluation, threat model, security, session lifecycle,
+            identity resolution, API/database evolution, rollback, feature flags, rollout, disaster
+            recovery, monitoring, performance, testing, acceptance, risks and dependencies.
+          - Confirmed that the existing capability-based `ChannelAdapter`, canonical message/event
+            model, Contact, Conversation/Message, Inbox, Customer 360, media, Notification Center,
+            Analytics, RBAC, tenant and Audit authorities are extended rather than duplicated.
+          - Resolved two documentation inconsistencies additively: Module 13 retains the single existing
+            adapter seam, and ADR-0020 permits Instagram only as a future separately approved adapter
+            possibility despite the older Doc 07 exclusion. No future-provider implementation is authorized.
+          - Classified all discovered gaps as Required, Recommended or Future Enhancement.
+          - Froze objective provider pass/fail criteria without inventing a provider selection.
+
+          ## Implementation boundary
+
+          - No QR login, QR provider dependency, session runtime, Channel Manager, schema migration,
+            API endpoint, backend service, frontend route, Inbox change or Customer 360 change was made.
+          - M13-00 reaches `Repository Validated` only. It cannot be Host Validated, Production Ready or
+            Released because it intentionally contains no executable workflow.
+          - M13-01 does not start automatically. The existing prerequisite workflows must reach their
+            recorded status, a QR provider must pass Required evaluation, and the owner must issue a
+            separate implementation instruction.
+          - Any deviation from ADR-0020 or Design Document 33 requires explicit owner approval and an
+            additive ADR before engineering continues.
+
+          ## Existing UI modernization state
+
+          UI-TASTE-03A remains implemented and repository-validated with authenticated representative-
+          data host review pending. UI-TASTE-03B remains the next previously approved implementation
+          milestone on the existing roadmap and was not started or changed by M13-00.
+
+          ## Maintenance rule
+
+          Continue from the latest approved Git HEAD. Preserve the frozen Module 13 contract, existing
+          architecture and one-milestone boundary. Do not begin M13-01 or any later Module 13 milestone
+          without a separate explicit owner instruction.
+          """
+          Path("PROJECT_STATE.md").write_text(project_state.replace("          ", ""), encoding="utf-8")
+
+          tracker = """# Implementation Tracker (canonical)
+
+          > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
+          > engineering evidence separate from authenticated host visual acceptance.
+
+          _Last updated: 2026-08-04 · M13-00 Architecture & Provider Lock is documentation-complete and
+          repository-validated. Module 13 implementation has not started._
+
+          ## Current state
+
+          - **Branch:** `ui/taste-modernization`
+          - **M13-00 baseline:** `7e503a3f2e1d35d54548d9d8fe95e82591e26be1`
+          - **Release:** `1.0.0-rc1`
+          - **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged
+          - **Product source:** unchanged; no backend, frontend, API, migration, generated client,
+            dependency, route, queue, runtime or deployment implementation
+          - **Current milestone:** `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED`
+          - **Contract:** ADR-0020 + Design Document 33 — accepted and frozen
+          - **Provider selection:** Required external gate pending; no candidate is claimed
+          - **Module 13 implementation:** `0%`
+          - **Next Module 13 milestone:** `M13-01` — not authorized
+          - **Existing roadmap next implementation:** `UI-TASTE-03B` — previously approved, not started
+          - **Host validation:** not applicable to documentation-only M13-00; no higher status claimed
+
+          ## M13-00 implementation contract
+
+          | Contract area | Frozen result |
+          |---|---|
+          | Architecture decision | One existing capability-based ChannelAdapter; one CRM/Contact/ledger; separate endpoint conversations under one Customer 360 |
+          | Provider behavior | Meta official capabilities remain official; QR is restricted to approved declared human/session/history/media capabilities |
+          | Provider selection | Required pass/fail criteria frozen; legal, stable IDs, replay, ambiguous-send reconciliation, session security/recovery, history, media, health and support must pass |
+          | Security | Separate encrypted secret types, write-only APIs, short-lived QR, RBAC/object authorization, organization isolation, lease/fencing and redacted evidence |
+          | Session lifecycle | Durable desired/observed state, legal transition matrix, one active holder, bounded reconnect and explicit re-authentication |
+          | Identity | Exact organization/namespace/scope/value resolution; no fuzzy auto-merge; one provider identity belongs to one active Contact |
+          | API | Additive `/api/v1` connection, endpoint, auth-session, device, health, history and conversation-send resources; current Meta APIs remain compatible |
+          | Database | Eight approved generic records plus additive links/backfills; expand/backfill/dual-write/verify/switch/contract; migration head unchanged in M13-00 |
+          | Operations | Disabled-by-default flags, staged Meta parity then QR pilots, explicit rollback, DR, metrics, alerts and runbook evidence |
+          | Quality | Repository, security, performance, browser, accessibility, UX, operator and production gates mapped to future implementation milestones |
+
+          ## Verified gaps
+
+          ### Required
+
+          - Select and approve a concrete QR provider using the frozen evidence matrix.
+          - Complete legal/policy/data-processing review.
+          - Select production key management and session-runtime deployment topology.
+          - Verify Meta backfill cardinality, high-volume migration/query plans and provider-scoped
+            idempotency before the affected implementation milestone.
+          - Define the restricted identity-conflict workflow and ratify target RPO/RTO.
+          - Satisfy recorded prerequisite workflows and obtain a separate owner instruction.
+
+          ### Recommended
+
+          - Step-up authentication for pairing/credential rotation.
+          - Formal provider support SLA, conformance harness, per-connection capacity model and operator runbook.
+
+          ### Future Enhancement
+
+          - Calls, presence, typing, edit/delete synchronization, advanced interactions, additional
+            providers and expanded device administration. None are current Module 13 requirements.
+
+          ## Consistency decisions
+
+          - Existing `ChannelAdapter` remains the only adapter abstraction; optional provider operations
+            use the existing capability mechanism.
+          - ADR-0020 is the later owner decision that permits Instagram only as future evaluation scope;
+            it does not authorize implementation and does not reopen excluded SaaS/ads/payments/commerce scope.
+          - The current private deployment remains organization-scoped and self-hosted; organization
+            predicates remain mandatory even though public multi-tenant SaaS is excluded.
+
+          ## Validation boundary
+
+          - PASS: required headings, contract areas, governance links and gap classifications exist.
+          - PASS: documentation agrees with existing schema/API/channel/CRM authorities and records
+            intentional additive migrations without modifying them.
+          - PASS: changed-file boundary is documentation only.
+          - Existing application test and bundle evidence remains unchanged because product source is unchanged.
+          - Browser, screenshots, operator journey, runtime performance, provider certification and DR
+            evidence belong to later executable milestones and are not claimed by M13-00.
+
+          ## Next-step rule
+
+          Stop after M13-00. Do not begin M13-01. Any architecture/scope/abstraction/milestone-order
+          deviation requires owner approval and an additive ADR.
+          """
+          Path("IMPLEMENTATION_TRACKER.md").write_text(tracker.replace("          ", ""), encoding="utf-8")
+
+          replace_once(
+              "MODULE_STATUS.md",
+              "Last synchronized: `2026-08-04T10:52:00+05:30`.",
+              f"Last synchronized: `{NOW}`.",
+          )
+          old_module_section = """## Module 13 — owner-approved architecture freeze
+
+- **Module:** Enterprise Omnichannel Channel Manager.
+- **Planning status:** **Owner Approved**.
+- **Implementation status:** not started; implementation completion remains `0%` because planning
+  approval is not product implementation evidence.
+- **Contract:** the approved Module 13 Architecture Review and its approved additive refinements are
+  frozen as the implementation contract.
+- **Change control:** no scope expansion, new abstraction, milestone reordering or redesign is allowed.
+  A verified implementation blocker may be recorded, but any deviation requires explicit owner
+  approval before implementation continues.
+- **Prerequisite gate:** Reactivation Mission Control, Customer 360, Unified Inbox and Notification
+  Center must each be `Production Ready` under `ENGINEERING_STANDARDS.md`.
+- **Start gate:** satisfying the prerequisites does not start Module 13; a separate explicit owner
+  instruction is still required.
+- **Current direction:** continue the existing roadmap only and do not create further Module 13
+  planning documents.
+"""
+          new_module_section = """## Module 13 — M13-00 repository-validated implementation contract
+
+- **Module:** Enterprise Omnichannel Channel Manager.
+- **Milestone status:** `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED`.
+- **Implementation status:** not started; implementation completion remains `0%` because documentation
+  validation is not product implementation evidence.
+- **Contract:** ADR-0020 and Design Document 33 are accepted and frozen. They specify capability,
+  provider, security, session, identity, API, database, rollback, rollout, DR, observability,
+  performance, testing and acceptance boundaries without adding implementation.
+- **Provider status:** no QR provider is selected. Every Required provider criterion must pass before a
+  dependency or adapter implementation is approved.
+- **Change control:** no scope expansion, new adapter hierarchy, milestone reordering or redesign is
+  allowed. A verified blocker may be recorded, but deviation requires explicit owner approval and an
+  additive ADR.
+- **Prerequisite/start gate:** recorded prerequisite workflows, provider approval and a separate owner
+  instruction are all required before M13-01.
+- **Current direction:** stop after M13-00 and continue only the separately approved existing roadmap.
+"""
+          replace_once("MODULE_STATUS.md", old_module_section, new_module_section)
+          replace_once(
+              "MODULE_STATUS.md",
+              "| Enterprise Omnichannel Channel Manager | 0% | Module 13 architecture planning is **Owner Approved** and frozen as the implementation contract; no product code, API, migration, UI or runtime implementation has started | Blocked until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready`, followed by a separate explicit owner instruction; any architectural deviation requires owner approval | Existing ChannelAdapter/capability registry, Conversation/Message services, Customer 360, Inbox, Tasks, KYC, SIM, Activation, SLA, Notes, Timeline, Notifications, Analytics, RBAC, Audit |",
+              "| Enterprise Omnichannel Channel Manager | 0% | M13-00 is **Repository Validated**: ADR-0020 and Design Document 33 freeze the complete implementation contract and classified gap register; no product code, API, migration, UI, dependency or runtime implementation has started | Select/approve a QR provider; satisfy recorded prerequisite workflows; obtain separate owner authorization for M13-01; later milestones must produce repository/host/security/performance/deployment evidence | Existing ChannelAdapter/capability registry, Meta adapter, Conversation/Message/Event/Media services, Contact/Customer 360/Inbox/Timeline, Notifications, Analytics, RBAC, Audit, queues and deployment infrastructure |",
+          )
+
+          replace_once(
+              "ROADMAP.md",
+              "Last synchronized: `2026-08-04T10:52:00+05:30`.",
+              f"Last synchronized: `{NOW}`.",
+          )
+          old_roadmap = """## Module 13 — Enterprise Omnichannel Channel Manager planning freeze
+
+**Status: Owner Approved**
+
+The approved Module 13 Architecture Review and every approved additive refinement are frozen as the
+implementation contract. Planning is complete; no Module 13 product code, API, migration, UI,
+provider runtime or deployment implementation has started.
+
+- Do not expand scope, introduce new abstractions, change milestone ordering or redesign approved
+  decisions.
+- A verified implementation blocker may be recorded, but any deviation requires explicit owner
+  approval before implementation continues.
+- Module 13 cannot start until Reactivation Mission Control, Customer 360, Unified Inbox and
+  Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`.
+- Passing those prerequisites does not authorize implementation; a separate explicit owner
+  instruction is still required.
+- Continue the existing roadmap only and do not create additional Module 13 planning documents.
+"""
+          new_roadmap = """## Module 13 — Enterprise Omnichannel Channel Manager
+
+**Current status: M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED**
+
+ADR-0020 and Design Document 33 are the frozen implementation contract. They finalize the existing
+single-ChannelAdapter architecture, provider capability matrix, QR evaluation gate, threat/security
+model, session/identity contracts, additive API/database evolution, rollback, feature flags, staged
+rollout, disaster recovery, observability, performance, testing, acceptance, risks and dependencies.
+No Module 13 product implementation has started and completion remains `0%`.
+
+A concrete QR provider is intentionally not invented. Selection is a Required external gate and must
+pass the frozen legal, identity, idempotency, session, history, media, health, error and support
+criteria. The recorded prerequisite workflows and a separate owner instruction also remain mandatory.
+
+| Milestone | Objective | Status / start gate |
+|---|---|---|
+| M13-00 — Architecture & Provider Lock | Freeze ADR, provider criteria, threat/security/session/identity/API/DB/rollback/flag/rollout/DR/monitoring/performance/testing contract and classified gaps | **REPOSITORY VALIDATED**; documentation only |
+| M13-01 — Channel connection foundation | Add generic connection/endpoint/secret records and Meta backfill without changing Meta behavior | Not authorized; requires prerequisites, provider plan where relevant and explicit owner instruction |
+| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | Blocked by M13-01 |
+| M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Blocked by approved provider and M13-02 |
+| M13-04 — QR pairing and health | Pairing, devices, reconnect, re-authentication and diagnostics | Blocked by M13-03 security/runtime evidence |
+| M13-05 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | Blocked by provider certification |
+| M13-06 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
+| M13-07 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by source milestones |
+| M13-08 — Notifications, analytics and diagnostics | Reuse existing authorities with provider dimensions and factual availability | Blocked by stable unified sources |
+| M13-09 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
+
+Do not begin M13-01 automatically. Do not expand scope, create a second adapter hierarchy, duplicate
+CRM authorities or implement future providers. Any deviation requires explicit owner approval and an
+additive ADR.
+"""
+          replace_once("ROADMAP.md", old_roadmap, new_roadmap)
+
+          replace_once(
+              "VALIDATION_RESULTS.md",
+              "Last synchronized: `2026-08-04T03:00:00+05:30`.",
+              f"Last synchronized: `{NOW}`.",
+          )
+          m13_validation = """## M13-00 Architecture & Provider Lock
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Documentation work starts from `7e503a3f2e1d35d54548d9d8fe95e82591e26be1` on `ui/taste-modernization`. |
+| Architecture decision | PASS | ADR-0020 is accepted and freezes one existing capability-based ChannelAdapter, one Contact/CRM/message ledger, endpoint-scoped conversations, independent provider failure domains and no automatic cross-provider failover. |
+| Complete implementation contract | PASS | Design Document 33 covers all requested architecture, capability, provider, threat, security, session, identity, API, database, rollback, flag, rollout, DR, monitoring, performance, testing, acceptance, risk and dependency areas. |
+| Existing-authority reuse | PASS | Contract names existing Meta adapter, ChannelAdapter, canonical models, Conversation/Message/Event/Send/Media services, Inbox, Customer 360, Timeline, Notification Center, Analytics, RBAC, tenant and Audit authorities; no duplicate service family is approved. |
+| Provider capability matrix | PASS | Meta official capabilities and QR human/session/history/media capabilities are separated; templates, campaigns, broadcasts and bulk automation cannot route through QR. |
+| QR provider gate | PASS | No vendor is fabricated. Required pass/fail evidence covers legal/policy, stable IDs, replay, ambiguous acknowledgement, secure session lifecycle, history, media, health, errors, isolation, support and testability. |
+| Threat and security architecture | PASS | Assets, trust boundaries and spoofing/tampering/repudiation/disclosure/DoS/elevation/cross-tenant/split-brain/duplicate/merge/media/supply-chain threats have required controls and Blocker criteria. |
+| Session lifecycle | PASS | Durable desired/observed states, legal transitions, single-holder lease, fencing, heartbeat, bounded reconnect, re-authentication and recovery rules are explicit. |
+| Identity resolution | PASS | Exact organization/namespace/scope/value resolution, one identity-to-Contact ownership, no fuzzy auto-merge and restricted conflict handling are frozen. |
+| API contract | PASS | Additive connection, lifecycle, QR-auth, endpoint/device/health, history and conversation-send resources follow existing `/api/v1`, UUID, RFC 7807, pagination, idempotency, concurrency and generated-contract conventions. |
+| Database and migration contract | PASS | Eight approved generic records, additive existing-table links and expand/backfill/dual-write/verify/switch/contract stages are explicit; migration remains `0035` in M13-00. |
+| Rollback, flags and rollout | PASS | Disabled-by-default server flags, Meta parity-first rollout, controlled QR pilots, explicit stop/go decisions and non-destructive rollback are defined. |
+| DR, monitoring and performance | PASS | Durable/rebuildable state, recovery scenarios, safe dimensions/alerts and provisional latency/health/failover/zero-duplicate objectives are documented without claiming target-host measurements. |
+| Testing and acceptance | PASS | Unit, API, migration, provider certification, security, browser/accessibility/operator, failure/DR suites and 27 final acceptance criteria are mapped to future executable milestones. |
+| Gap analysis | PASS | Missing facts are classified as Required, Recommended or Future Enhancement; provider selection, legal review, production key management, migration evidence, runtime topology, idempotency, identity conflict handling, RPO/RTO, prerequisites and owner instruction are explicit Required gates. |
+| Documentation consistency | PASS | The existing ChannelAdapter remains the only adapter abstraction. ADR-0020 additively resolves older Doc 07's Instagram exclusion only for future separately approved evaluation; no future provider is implemented or scheduled inside M13. |
+| Product/change boundary | PASS | Diff is limited to ADR/design/governance Markdown. No backend, frontend, API, migration, generated contract, dependency, route, queue, runtime or deployment file changes. |
+| Existing application evidence | PASS | Product source is unchanged, so existing `0035` / 193-path / 948-backend-test / 661-frontend-test baseline remains the applicable evidence; application suites are not falsely re-run or re-attributed to M13-00. |
+| Host and production evidence boundary | PASS | M13-00 is correctly limited to `Repository Validated`; it claims no provider, browser, screenshot, operator, runtime performance, DR, Host Validated, Production Ready or Released evidence. |
+| Milestone boundary | PASS | M13-01 and all implementation milestones remain unstarted and require a separate owner instruction. |
+
+"""
+          replace_once(
+              "VALIDATION_RESULTS.md",
+              "\n\n## UI-TASTE-03A operator-first Dashboard",
+              "\n\n" + m13_validation + "## UI-TASTE-03A operator-first Dashboard",
+          )
+
+          changelog_entry = """### 2026-08-04 — Module 13 implementation contract (M13-00)
+
+**Added**
+- Added accepted ADR-0020 and frozen Design Document 33 for the Enterprise Omnichannel Channel
+  Manager, preserving the existing capability-based channel seam and shared CRM authorities.
+- Added the provider capability matrix, objective QR provider evaluation gate, threat model, security
+  architecture, session lifecycle, exact customer identity contract, additive API/database plan,
+  rollback, feature flags, staged rollout, disaster recovery, observability, performance objectives,
+  testing strategy, acceptance criteria, risk register and external dependencies.
+- Added a classified gap analysis with Required, Recommended and Future Enhancement findings.
+
+**Clarified**
+- Confirmed that Module 13 extends the existing `ChannelAdapter` rather than introducing a parallel
+  adapter hierarchy or duplicate Contact, Inbox, message, media, notification, analytics or audit authority.
+- Recorded ADR-0020 as the later owner decision permitting Instagram only as a future separately
+  approved adapter possibility despite the older Doc 07 exclusion; no future-provider implementation
+  is authorized by M13-00.
+- Kept QR provider selection honest: no vendor is claimed until every Required criterion passes.
+
+**Preserved**
+- No QR login, session runtime, Channel Manager, backend, frontend, migration, API, generated contract,
+  dependency, route, queue or deployment implementation was added.
+- Repository remains `1.0.0-rc1`, migration `0035_notification_center`, OpenAPI 193 paths and Module 13
+  implementation completion `0%`.
+
+**Validated**
+- M13-00 reaches `Repository Validated` through documentation structure, consistency, changed-file,
+  gap-classification and governance checks. Host/runtime/provider/production evidence is intentionally
+  not claimed, and M13-01 remains unstarted pending its explicit gates and owner instruction.
+
+"""
+          replace_once(
+              "CHANGELOG.md",
+              "## [Unreleased]\n\n",
+              "## [Unreleased]\n\n" + changelog_entry,
+          )
+          PY
+
+      - name: Validate documentation contract and change boundary
+        shell: bash
+        run: |
+          git fetch origin ui/taste-modernization --quiet
+          git diff --check origin/ui/taste-modernization
+          python - <<'PY'
+          from pathlib import Path
+
+          allowed = {
+              "CHANGELOG.md",
+              "IMPLEMENTATION_TRACKER.md",
+              "MODULE_STATUS.md",
+              "PROJECT_STATE.md",
+              "ROADMAP.md",
+              "VALIDATION_RESULTS.md",
+              "docs/adr/0020-enterprise-omnichannel-channel-manager.md",
+              "docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md",
+          }
+          import subprocess
+          changed = set(subprocess.check_output(
+              ["git", "diff", "--name-only", "origin/ui/taste-modernization"], text=True
+          ).splitlines())
+          unexpected = sorted(changed - allowed)
+          if unexpected:
+              raise SystemExit(f"unexpected changed files: {unexpected}")
+          if changed != allowed:
+              raise SystemExit(f"missing expected changed files: {sorted(allowed - changed)}")
+
+          adr = Path("docs/adr/0020-enterprise-omnichannel-channel-manager.md").read_text()
+          contract = Path("docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md").read_text()
+          required_contract_headings = [
+              "Provider capability matrix",
+              "QR provider evaluation and selection gate",
+              "Threat model",
+              "Security architecture",
+              "Session lifecycle contract",
+              "Customer identity resolution contract",
+              "API contract",
+              "Database migration strategy",
+              "Rollback strategy",
+              "Feature flag strategy",
+              "Production rollout plan",
+              "Disaster recovery considerations",
+              "Monitoring and observability",
+              "Performance objectives",
+              "Testing strategy",
+              "Acceptance criteria",
+              "Gap analysis",
+              "Known risks",
+              "External dependencies",
+          ]
+          missing = [h for h in required_contract_headings if h not in contract]
+          if missing:
+              raise SystemExit(f"missing contract headings: {missing}")
+          for label in ("Required", "Recommended", "Future Enhancement"):
+              if label not in contract:
+                  raise SystemExit(f"missing gap classification {label}")
+          for invariant in (
+              "One existing channel seam",
+              "One Contact authority",
+              "No automatic cross-provider failover",
+              "No implementation without gates",
+          ):
+              if invariant not in adr:
+                  raise SystemExit(f"missing ADR invariant: {invariant}")
+          for path in (
+              "PROJECT_STATE.md",
+              "MODULE_STATUS.md",
+              "IMPLEMENTATION_TRACKER.md",
+              "ROADMAP.md",
+              "VALIDATION_RESULTS.md",
+              "CHANGELOG.md",
+          ):
+              text = Path(path).read_text()
+              if "M13-00" not in text:
+                  raise SystemExit(f"{path} missing M13-00")
+          if "M13-01 and all implementation milestones remain unstarted" not in Path("VALIDATION_RESULTS.md").read_text():
+              raise SystemExit("milestone stop boundary missing")
+          print("M13-00 documentation contract validation PASS")
+          PY
+
+      - name: Commit synchronized M13-00 governance
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md
+          git commit -m "docs(omnichannel): synchronize M13-00 governance"
+          git push origin HEAD:work/m13-00-implementation-contract
