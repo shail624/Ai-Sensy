@@ -1,1 +1,2 @@
 Trigger the temporary M13-02 diagnostic using the proven builder workflow shape. This file is never merged.
+Rerun after the verified connector_type fixture correction.
