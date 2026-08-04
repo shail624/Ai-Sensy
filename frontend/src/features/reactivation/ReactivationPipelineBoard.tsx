@@ -669,7 +669,7 @@ function PipelineList({
         <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-text-secondary">
             <tr>
-              {canSelect ? <th className="w-12 px-4 py-3"><input aria-label="Select all cases on this page" type="checkbox" checked={allPageSelected} onChange={onTogglePage} className="h-4 w-4 rounded border-border text-accent focus:ring-focus" /></th> : null}
+              {canSelect ? <th className="w-12 px-4 py-3"><input aria-label="Select all cases on this page" type="checkbox" checked={allPageSelected} onChange={() => onTogglePage()} className="h-4 w-4 rounded border-border text-accent focus:ring-focus" /></th> : null}
               <th className="px-4 py-3">Customer</th><th className="px-4 py-3">Priority</th><th className="px-4 py-3">Next action</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Owner</th><th className="px-4 py-3">Evidence</th><th className="px-4 py-3">Move</th>
             </tr>
           </thead>
@@ -691,7 +691,7 @@ function PipelineList({
         </table>
       </div>
       <div className="divide-y divide-border md:hidden">
-        {canSelect ? <label className="flex min-h-11 items-center gap-2 bg-surface-2 px-4 text-xs font-semibold text-text-secondary"><input type="checkbox" checked={allPageSelected} onChange={onTogglePage} className="h-4 w-4 rounded border-border text-accent focus:ring-focus" />Select this page</label> : null}
+        {canSelect ? <label className="flex min-h-11 items-center gap-2 bg-surface-2 px-4 text-xs font-semibold text-text-secondary"><input type="checkbox" checked={allPageSelected} onChange={() => onTogglePage()} className="h-4 w-4 rounded border-border text-accent focus:ring-focus" />Select this page</label> : null}
         {cards.map((card) => {
           const signal = toAttentionSignal(card);
           return <article key={card.id} className={`p-4 ${selectedIds.has(card.id) ? "bg-accent-soft/50" : ""}`}>

@@ -17,6 +17,8 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import { Badge, Button, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import type { BadgeTone } from "@/components/ui/Badge";
+import type { LucideIcon } from "lucide-react";
 import { apiErrorMessage as kycErrorMessage, useKycOperations } from "@/features/kyc/api";
 import {
   blockerReasons,
@@ -236,7 +238,7 @@ function ReasonBadges({ signal }: { signal: ReactivationAttentionSignal }): JSX.
 }
 
 function SeverityBadge({ severity }: { severity: AttentionSeverity }): JSX.Element {
-  const tone = severity === "critical" ? "danger" : severity === "high" ? "warning" : severity === "medium" ? "info" : "neutral";
+  const tone: BadgeTone = severity === "critical" ? "danger" : severity === "high" ? "warning" : severity === "medium" ? "info" : "neutral";
   return <Badge tone={tone}>{severity}</Badge>;
 }
 
@@ -249,7 +251,7 @@ function QueueLink({
   to,
   tone,
 }: {
-  icon: typeof AlertTriangle;
+  icon: LucideIcon;
   label: string;
   value: number;
   detail: string;

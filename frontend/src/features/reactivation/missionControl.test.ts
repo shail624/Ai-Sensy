@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { KycOperationsCard } from "@/features/kyc/types";
+import type { KycOperationsResponse } from "@/features/kyc/types";
 import {
   blockerReasons,
   buildMissionSnapshot,
@@ -111,7 +111,7 @@ describe("Reactivation Mission Control decision model", () => {
     const kycRows = [
       { status: "under_review", checklist_complete: false },
       { status: "approved", checklist_complete: true },
-    ] as KycOperationsCard[];
+    ] as unknown as KycOperationsResponse["data"];
 
     const snapshot = buildMissionSnapshot(cards, kycRows, NOW);
     expect(snapshot.active).toBe(4);

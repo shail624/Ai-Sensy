@@ -1,4 +1,4 @@
-import type { KycOperationsCard } from "@/features/kyc/types";
+import type { KycOperationsResponse } from "@/features/kyc/types";
 import type { ReactivationCard, ReactivationStage } from "@/features/reactivation/types";
 
 export type ReactivationOperationalView =
@@ -125,7 +125,7 @@ export function urgencyScore(card: ReactivationCard, now = new Date()): number {
   score += Math.min(card.overdue_task_count, 5) * 12;
   const releaseRisk = releaseRiskLabel(card, now);
   if (releaseRisk === "Release date overdue") score += 110;
-  else if (releaseRisk === "Release due within 24 hours") score += 90;
+  else if (releaseRisk?.includes("24 hours")) score += 90;
   else if (releaseRisk) score += 70;
   if (card.labels.includes("priority")) score += 60;
   if (card.labels.includes("customer_not_reachable")) score += 55;
@@ -189,7 +189,7 @@ export function matchesOperationalView(
 
 export function buildMissionSnapshot(
   cards: ReactivationCard[],
-  kycRows: KycOperationsCard[],
+  kycRows: KycOperationsResponse["data"],
   now = new Date(),
 ): ReactivationMissionSnapshot {
   const activeCards = cards.filter(isActiveReactivation);
