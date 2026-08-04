@@ -43,4 +43,4 @@ jobs:
           cache-dependency-path: work/frontend/package-lock.json
 
       - name: Build, validate and commit M13-02
-        run: bash builder/.github/m13-02-run.sh
+        run: bash builder/.github/m13-02-run-patched.sh
