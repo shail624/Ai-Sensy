@@ -1,0 +1,186 @@
+name: M13-02 Mapper Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-diagnostic-runner
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout diagnostic authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-diagnostic-runner
+          path: builder
+          clean: false
+
+      - name: Checkout latest approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          path: source
+          clean: false
+
+      - name: Checkout report branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-diagnostic-output
+          path: output
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Apply temporary source
+        run: |
+          python builder/.github/m13-02-build.py source
+          python builder/.github/m13-02-fixes.py source
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: source/backend/pyproject.toml
+
+      - name: Install backend
+        run: python -m pip install -e './source/backend[dev]'
+
+      - name: Capture mapper variants
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import shutil
+          import subprocess
+          import textwrap
+          from pathlib import Path
+
+          source = Path('source').resolve()
+          report: list[str] = []
+
+          def heading(value: str) -> None:
+              report.extend(['', f'=== {value} ==='])
+
+          heading('GENERATED MODELS INIT')
+          report.append((source / 'backend/app/models/__init__.py').read_text())
+
+          heading('RELATIONSHIP / BACKREF SOURCE INVENTORY')
+          needles = ('relationship(', 'backref=', 'back_populates=', 'mapper_configured', 'configure_mappers')
+          for path in sorted((source / 'backend/app').rglob('*.py')):
+              lines = path.read_text(errors='replace').splitlines()
+              hits = [(index, line) for index, line in enumerate(lines, 1) if any(n in line for n in needles)]
+              if hits:
+                  report.append(f'-- {path.relative_to(source)} --')
+                  report.extend(f'{index}: {line}' for index, line in hits)
+
+          import_block = '''from app.models.contact_identity import (
+              ContactIdentity,
+              IdentityConflict,
+              IdentityMergeRecommendation,
+          )
+          '''
+          export_block = '''    "ContactIdentity",
+              "IdentityConflict",
+              "IdentityMergeRecommendation",
+          '''
+
+          probe = textwrap.dedent('''
+              import traceback
+              try:
+                  import app.models
+                  {extra_import}
+                  from sqlalchemy.orm import configure_mappers
+                  from app.db.base import Base
+                  from app.models.contact import Contact
+                  from app.models.vi_domain import ReactivationCase
+                  print('CONTACT_PRE', sorted(key for key in vars(Contact) if 'reactivation' in key))
+                  print('CASE_PRE', sorted(key for key in vars(ReactivationCase) if 'reactivation' in key or 'contact' in key))
+                  print('MAPPERS', sorted(mapper.class_.__name__ for mapper in Base.registry.mappers))
+                  configure_mappers()
+                  print('CONTACT_REL', sorted(Contact.__mapper__.relationships.keys()))
+                  print('CASE_REL', sorted(ReactivationCase.__mapper__.relationships.keys()))
+                  print('PASS')
+              except Exception:
+                  traceback.print_exc()
+                  raise
+          ''')
+
+          def run_variant(name: str, *, transform: str, extra_import: str = '') -> None:
+              variant = Path('/tmp') / f'm13_02_{name}'
+              if variant.exists():
+                  shutil.rmtree(variant)
+              shutil.copytree(source, variant)
+              init_path = variant / 'backend/app/models/__init__.py'
+              init_source = init_path.read_text()
+              if transform == 'remove':
+                  init_source = init_source.replace(import_block, '').replace(export_block, '')
+              elif transform == 'move_end':
+                  init_source = init_source.replace(import_block, '')
+                  marker = '__all__ = ['
+                  init_source = init_source.replace(marker, import_block + '\n' + marker, 1)
+              init_path.write_text(init_source)
+              command = probe.format(extra_import=extra_import)
+              env = os.environ.copy()
+              env.update({
+                  'PYTHONPATH': str(variant / 'backend'),
+                  'ENVIRONMENT': 'test',
+                  'DATABASE_URL': 'sqlite+aiosqlite://',
+                  'SECRET_KEY': 'test-secret-key-not-for-production-use-only',
+              })
+              completed = subprocess.run(
+                  ['python', '-c', command],
+                  cwd=variant / 'backend',
+                  env=env,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT,
+                  check=False,
+              )
+              heading(f'VARIANT {name} EXIT {completed.returncode}')
+              report.append(completed.stdout)
+
+          run_variant('generated_as_is', transform='none')
+          run_variant('without_registry_import', transform='remove')
+          run_variant(
+              'delayed_contact_identity_import',
+              transform='remove',
+              extra_import='import app.models.contact_identity',
+          )
+          run_variant('contact_identity_import_moved_to_end', transform='move_end')
+
+          heading('OPENAPI TRACE')
+          env = os.environ.copy()
+          env.update({
+              'PYTHONPATH': str(source / 'backend'),
+              'ENVIRONMENT': 'test',
+              'DATABASE_URL': 'sqlite+aiosqlite://',
+              'SECRET_KEY': 'test-secret-key-not-for-production-use-only',
+          })
+          completed = subprocess.run(
+              ['python', '-c', 'from app.main import create_app; print(len(create_app().openapi()["paths"]))'],
+              cwd=source / 'backend',
+              env=env,
+              text=True,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+              check=False,
+          )
+          report.append(f'EXIT={completed.returncode}\n{completed.stdout}')
+
+          Path('output/M13_02_MAPPER_DIAGNOSTIC.txt').write_text('\n'.join(report), encoding='utf-8')
+          PY
+
+      - name: Commit diagnostic report
+        working-directory: output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add M13_02_MAPPER_DIAGNOSTIC.txt
+          git commit -m 'ci(validation): capture M13-02 mapper diagnostic'
+          git push origin HEAD:validation/m13-02-diagnostic-output
