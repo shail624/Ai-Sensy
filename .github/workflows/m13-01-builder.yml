@@ -1,0 +1,923 @@
+name: M13-01 Generic Channel Foundation Builder
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-builder
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write provider-neutral foundation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          files = {
+              "backend/app/channels/foundation.py": '''"""Provider-neutral omnichannel control-plane domain contracts.
+
+          M13-01 deliberately defines immutable in-process contracts only. Persistence remains with the
+          existing owning modules and provider execution remains behind :class:`ChannelAdapter`.
+          """
+
+          from __future__ import annotations
+
+          from dataclasses import dataclass, field
+          from datetime import datetime
+          from enum import StrEnum
+
+          from app.channels.capabilities import Capability, ChannelType
+          from app.channels.validation import (
+              normalize_capabilities,
+              validate_aware_datetime,
+              validate_connector_type,
+              validate_non_negative,
+              validate_organization_id,
+              validate_score,
+              validate_text,
+          )
+
+
+          class CommunicationPurpose(StrEnum):
+              """Business purpose of a provider-independent communication request."""
+
+              SERVICE = "service"
+              TRANSACTIONAL = "transactional"
+              MARKETING = "marketing"
+              AUTHENTICATION = "authentication"
+
+
+          class CommunicationOrigin(StrEnum):
+              """Repository authority that created a communication intent."""
+
+              MANUAL = "manual"
+              API = "api"
+              CAMPAIGN = "campaign"
+              AUTOMATION = "automation"
+              SYSTEM = "system"
+
+
+          class ProviderHealthState(StrEnum):
+              """Provider-independent observed health state."""
+
+              UNKNOWN = "unknown"
+              HEALTHY = "healthy"
+              DEGRADED = "degraded"
+              UNHEALTHY = "unhealthy"
+
+
+          class ProviderDesiredState(StrEnum):
+              """Operator/configuration intent for a future channel connection."""
+
+              ENABLED = "enabled"
+              PAUSED = "paused"
+              DISABLED = "disabled"
+
+
+          class ProviderObservedState(StrEnum):
+              """Provider-independent state observed by the control plane."""
+
+              UNKNOWN = "unknown"
+              UNCONFIGURED = "unconfigured"
+              READY = "ready"
+              DEGRADED = "degraded"
+              UNAVAILABLE = "unavailable"
+              AUTHENTICATION_REQUIRED = "authentication_required"
+              DISABLED = "disabled"
+
+
+          @dataclass(frozen=True, slots=True)
+          class ChannelMetadata:
+              """Static, factual metadata declared by a provider adapter."""
+
+              connector_type: str
+              channel_type: ChannelType
+              display_name: str
+              capabilities: frozenset[Capability] = field(default_factory=frozenset)
+              lifecycle_managed: bool = False
+              health_managed: bool = False
+
+              def __post_init__(self) -> None:
+                  object.__setattr__(
+                      self, "connector_type", validate_connector_type(self.connector_type)
+                  )
+                  object.__setattr__(
+                      self,
+                      "display_name",
+                      validate_text(self.display_name, field_name="display_name", max_length=100),
+                  )
+                  object.__setattr__(
+                      self, "capabilities", normalize_capabilities(self.capabilities)
+                  )
+
+
+          @dataclass(frozen=True, slots=True)
+          class CommunicationIntent:
+              """Provider-independent request description; it does not send a message."""
+
+              organization_id: int
+              intent_key: str
+              channel_type: ChannelType
+              purpose: CommunicationPurpose
+              origin: CommunicationOrigin
+              required_capabilities: frozenset[Capability] = field(default_factory=frozenset)
+              bulk: bool = False
+
+              def __post_init__(self) -> None:
+                  validate_organization_id(self.organization_id)
+                  object.__setattr__(
+                      self,
+                      "intent_key",
+                      validate_text(self.intent_key, field_name="intent_key", max_length=120),
+                  )
+                  object.__setattr__(
+                      self,
+                      "required_capabilities",
+                      normalize_capabilities(self.required_capabilities),
+                  )
+
+
+          @dataclass(frozen=True, slots=True)
+          class CommunicationPolicy:
+              """Organization-aware constraints evaluated before future provider selection."""
+
+              policy_key: str
+              organization_id: int | None = None
+              allowed_channel_types: frozenset[ChannelType] = field(
+                  default_factory=lambda: frozenset(ChannelType)
+              )
+              allowed_purposes: frozenset[CommunicationPurpose] = field(
+                  default_factory=lambda: frozenset(CommunicationPurpose)
+              )
+              allowed_origins: frozenset[CommunicationOrigin] = field(
+                  default_factory=lambda: frozenset(CommunicationOrigin)
+              )
+              required_capabilities: frozenset[Capability] = field(default_factory=frozenset)
+              allow_bulk: bool = False
+              enabled: bool = True
+
+              def __post_init__(self) -> None:
+                  object.__setattr__(
+                      self,
+                      "policy_key",
+                      validate_text(self.policy_key, field_name="policy_key", max_length=120),
+                  )
+                  if self.organization_id is not None:
+                      validate_organization_id(self.organization_id)
+                  if not self.allowed_channel_types:
+                      raise ValueError("allowed_channel_types must not be empty")
+                  if not self.allowed_purposes:
+                      raise ValueError("allowed_purposes must not be empty")
+                  if not self.allowed_origins:
+                      raise ValueError("allowed_origins must not be empty")
+                  object.__setattr__(
+                      self,
+                      "allowed_channel_types",
+                      frozenset(ChannelType(value) for value in self.allowed_channel_types),
+                  )
+                  object.__setattr__(
+                      self,
+                      "allowed_purposes",
+                      frozenset(CommunicationPurpose(value) for value in self.allowed_purposes),
+                  )
+                  object.__setattr__(
+                      self,
+                      "allowed_origins",
+                      frozenset(CommunicationOrigin(value) for value in self.allowed_origins),
+                  )
+                  object.__setattr__(
+                      self, "required_capabilities", normalize_capabilities(self.required_capabilities)
+                  )
+
+
+          @dataclass(frozen=True, slots=True)
+          class PolicyEvaluation:
+              """Factual policy result; callers decide how to present or enforce it."""
+
+              allowed: bool
+              reasons: tuple[str, ...] = ()
+              missing_capabilities: frozenset[Capability] = field(default_factory=frozenset)
+
+
+          @dataclass(frozen=True, slots=True)
+          class ProviderHealth:
+              """Provider-neutral health snapshot; no synthetic score is inferred."""
+
+              connector_type: str
+              state: ProviderHealthState
+              observed_at: datetime
+              detail: str | None = None
+              score: int | None = None
+              retry_after_seconds: int | None = None
+
+              def __post_init__(self) -> None:
+                  object.__setattr__(
+                      self, "connector_type", validate_connector_type(self.connector_type)
+                  )
+                  validate_aware_datetime(self.observed_at, field_name="observed_at")
+                  if self.detail is not None:
+                      object.__setattr__(
+                          self,
+                          "detail",
+                          validate_text(self.detail, field_name="detail", max_length=500),
+                      )
+                  if self.score is not None:
+                      validate_score(self.score)
+                  if self.retry_after_seconds is not None:
+                      validate_non_negative(
+                          self.retry_after_seconds, field_name="retry_after_seconds"
+                      )
+
+
+          @dataclass(frozen=True, slots=True)
+          class ProviderLifecycle:
+              """Desired and observed provider lifecycle state without executing a runtime."""
+
+              connector_type: str
+              desired_state: ProviderDesiredState
+              observed_state: ProviderObservedState
+              observed_at: datetime
+              detail: str | None = None
+
+              def __post_init__(self) -> None:
+                  object.__setattr__(
+                      self, "connector_type", validate_connector_type(self.connector_type)
+                  )
+                  validate_aware_datetime(self.observed_at, field_name="observed_at")
+                  if self.detail is not None:
+                      object.__setattr__(
+                          self,
+                          "detail",
+                          validate_text(self.detail, field_name="detail", max_length=500),
+                      )
+          ''',
+              "backend/app/channels/validation.py": '''"""Shared validation for provider-neutral channel contracts."""
+
+          from __future__ import annotations
+
+          import re
+          from collections.abc import Iterable
+          from datetime import datetime
+          from typing import TYPE_CHECKING
+
+          from app.channels.capabilities import Capability
+          from app.channels.errors import ChannelConfigError
+
+          if TYPE_CHECKING:
+              from app.channels.foundation import (
+                  CommunicationIntent,
+                  CommunicationPolicy,
+                  PolicyEvaluation,
+              )
+
+          _CONNECTOR_TYPE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
+
+
+          def validate_connector_type(value: str) -> str:
+              normalized = value.strip().lower()
+              if not _CONNECTOR_TYPE.fullmatch(normalized):
+                  raise ChannelConfigError(
+                      "connector_type must be 2-64 lowercase letters, digits or underscores"
+                  )
+              return normalized
+
+
+          def validate_text(value: str, *, field_name: str, max_length: int) -> str:
+              normalized = value.strip()
+              if not normalized:
+                  raise ChannelConfigError(f"{field_name} must not be empty")
+              if len(normalized) > max_length:
+                  raise ChannelConfigError(
+                      f"{field_name} must be at most {max_length} characters"
+                  )
+              return normalized
+
+
+          def validate_organization_id(value: int) -> None:
+              if value <= 0:
+                  raise ChannelConfigError("organization_id must be a positive integer")
+
+
+          def validate_aware_datetime(value: datetime, *, field_name: str) -> None:
+              if value.tzinfo is None or value.utcoffset() is None:
+                  raise ChannelConfigError(f"{field_name} must be timezone-aware")
+
+
+          def validate_score(value: int) -> None:
+              if value < 0 or value > 100:
+                  raise ChannelConfigError("score must be between 0 and 100")
+
+
+          def validate_non_negative(value: int, *, field_name: str) -> None:
+              if value < 0:
+                  raise ChannelConfigError(f"{field_name} must be zero or greater")
+
+
+          def normalize_capabilities(values: Iterable[Capability | str]) -> frozenset[Capability]:
+              try:
+                  return frozenset(Capability(value) for value in values)
+              except ValueError as exc:
+                  raise ChannelConfigError(f"Unknown channel capability: {exc}") from exc
+
+
+          def evaluate_communication_policy(
+              intent: CommunicationIntent,
+              policy: CommunicationPolicy,
+              provider_capabilities: Iterable[Capability | str],
+          ) -> PolicyEvaluation:
+              """Evaluate intent and provider metadata without dispatching any communication."""
+              from app.channels.foundation import PolicyEvaluation
+
+              reasons: list[str] = []
+              available = normalize_capabilities(provider_capabilities)
+              required = intent.required_capabilities | policy.required_capabilities
+
+              if not policy.enabled:
+                  reasons.append("policy_disabled")
+              if (
+                  policy.organization_id is not None
+                  and policy.organization_id != intent.organization_id
+              ):
+                  reasons.append("organization_scope_mismatch")
+              if intent.channel_type not in policy.allowed_channel_types:
+                  reasons.append("channel_not_allowed")
+              if intent.purpose not in policy.allowed_purposes:
+                  reasons.append("purpose_not_allowed")
+              if intent.origin not in policy.allowed_origins:
+                  reasons.append("origin_not_allowed")
+              if intent.bulk and not policy.allow_bulk:
+                  reasons.append("bulk_not_allowed")
+
+              missing = required - available
+              if missing:
+                  reasons.append("missing_capabilities")
+
+              return PolicyEvaluation(
+                  allowed=not reasons,
+                  reasons=tuple(reasons),
+                  missing_capabilities=frozenset(missing),
+              )
+          ''',
+              "backend/app/channels/registry.py": '''"""Provider and capability catalogues over the existing ChannelAdapter registry.
+
+          This module owns control-plane metadata only. Adapter factories remain exclusively owned by
+          :mod:`app.channels.base`; resolving an adapter delegates to that existing registry.
+          """
+
+          from __future__ import annotations
+
+          from threading import RLock
+          from typing import Any
+
+          from app.channels.base import ChannelAdapter, get_adapter
+          from app.channels.capabilities import Capability
+          from app.channels.errors import ChannelConfigError
+          from app.channels.foundation import ChannelMetadata
+          from app.channels.validation import normalize_capabilities, validate_connector_type
+
+
+          class CapabilityRegistry:
+              """Thread-safe capability metadata keyed by connector type."""
+
+              def __init__(self) -> None:
+                  self._lock = RLock()
+                  self._capabilities: dict[str, frozenset[Capability]] = {}
+
+              def register(
+                  self,
+                  connector_type: str,
+                  capabilities: frozenset[Capability],
+                  *,
+                  replace: bool = False,
+              ) -> None:
+                  key = validate_connector_type(connector_type)
+                  normalized = normalize_capabilities(capabilities)
+                  with self._lock:
+                      existing = self._capabilities.get(key)
+                      if existing is not None and existing != normalized and not replace:
+                          raise ChannelConfigError(
+                              f"Capability metadata already registered for {key!r}"
+                          )
+                      self._capabilities[key] = normalized
+
+              def get(self, connector_type: str) -> frozenset[Capability]:
+                  key = validate_connector_type(connector_type)
+                  with self._lock:
+                      return self._capabilities.get(key, frozenset())
+
+              def require(self, connector_type: str) -> frozenset[Capability]:
+                  key = validate_connector_type(connector_type)
+                  with self._lock:
+                      if key not in self._capabilities:
+                          raise ChannelConfigError(
+                              f"No capability metadata registered for {key!r}"
+                          )
+                      return self._capabilities[key]
+
+              def supports(self, connector_type: str, capability: Capability) -> bool:
+                  return capability in self.get(connector_type)
+
+              def available(self) -> tuple[str, ...]:
+                  with self._lock:
+                      return tuple(sorted(self._capabilities))
+
+
+          class ProviderRegistry:
+              """Provider metadata catalogue integrated with the existing adapter factory seam."""
+
+              def __init__(self, capabilities: CapabilityRegistry) -> None:
+                  self._lock = RLock()
+                  self._providers: dict[str, ChannelMetadata] = {}
+                  self._capabilities = capabilities
+
+              def register(self, metadata: ChannelMetadata, *, replace: bool = False) -> None:
+                  with self._lock:
+                      existing = self._providers.get(metadata.connector_type)
+                      if existing is not None and existing != metadata and not replace:
+                          raise ChannelConfigError(
+                              f"Provider metadata already registered for {metadata.connector_type!r}"
+                          )
+                      self._capabilities.register(
+                          metadata.connector_type,
+                          metadata.capabilities,
+                          replace=replace,
+                      )
+                      self._providers[metadata.connector_type] = metadata
+
+              def get(self, connector_type: str) -> ChannelMetadata | None:
+                  key = validate_connector_type(connector_type)
+                  with self._lock:
+                      return self._providers.get(key)
+
+              def require(self, connector_type: str) -> ChannelMetadata:
+                  key = validate_connector_type(connector_type)
+                  with self._lock:
+                      metadata = self._providers.get(key)
+                      if metadata is None:
+                          raise ChannelConfigError(
+                              f"No provider metadata registered for {key!r}"
+                          )
+                      return metadata
+
+              def available(self) -> tuple[str, ...]:
+                  with self._lock:
+                      return tuple(sorted(self._providers))
+
+              def resolve_adapter(self, connector_type: str, **kwargs: Any) -> ChannelAdapter:
+                  """Resolve through the existing registry and verify declared metadata parity."""
+                  metadata = self.require(connector_type)
+                  adapter = get_adapter(metadata.connector_type, **kwargs)
+                  if adapter.connector_type != metadata.connector_type:
+                      raise ChannelConfigError("Resolved adapter connector_type does not match metadata")
+                  if adapter.channel_type != metadata.channel_type:
+                      raise ChannelConfigError("Resolved adapter channel_type does not match metadata")
+                  if adapter.capabilities != metadata.capabilities:
+                      raise ChannelConfigError("Resolved adapter capabilities do not match metadata")
+                  return adapter
+          ''',
+              "backend/app/channels/flags.py": '''"""Server-owned feature-flag scaffolding for the generic channel foundation."""
+
+          from __future__ import annotations
+
+          from dataclasses import dataclass, field
+          from datetime import datetime
+          from enum import StrEnum
+
+          from sqlalchemy import or_, select
+          from sqlalchemy.ext.asyncio import AsyncSession
+
+          from app.db.mixins import utcnow
+          from app.models.settings import FeatureFlag
+
+
+          class OmnichannelFeatureFlag(StrEnum):
+              """Provider-neutral M13-01 flags frozen by Design Document 33 §15."""
+
+              CONNECTIONS_READ = "omnichannel_connections_read"
+              CONNECTIONS_WRITE = "omnichannel_connections_write"
+
+
+          @dataclass(frozen=True, slots=True)
+          class ChannelFeatureFlagSnapshot:
+              organization_id: int
+              enabled: frozenset[OmnichannelFeatureFlag] = field(default_factory=frozenset)
+              evaluated_at: datetime = field(default_factory=utcnow)
+
+              def is_enabled(self, flag: OmnichannelFeatureFlag) -> bool:
+                  return flag in self.enabled
+
+
+          class ChannelFeatureFlagResolver:
+              """Resolve global defaults with organization-specific overrides; absent flags are off."""
+
+              def __init__(self, session: AsyncSession) -> None:
+                  self._session = session
+
+              async def resolve(self, organization_id: int) -> ChannelFeatureFlagSnapshot:
+                  keys = tuple(flag.value for flag in OmnichannelFeatureFlag)
+                  rows = list(
+                      (
+                          await self._session.scalars(
+                              select(FeatureFlag).where(
+                                  FeatureFlag.key_name.in_(keys),
+                                  or_(
+                                      FeatureFlag.organization_id.is_(None),
+                                      FeatureFlag.organization_id == organization_id,
+                                  ),
+                              )
+                          )
+                      ).all()
+                  )
+
+                  values = {flag: False for flag in OmnichannelFeatureFlag}
+                  for row in rows:
+                      if row.organization_id is None:
+                          values[OmnichannelFeatureFlag(row.key_name)] = row.is_enabled
+                  for row in rows:
+                      if row.organization_id == organization_id:
+                          values[OmnichannelFeatureFlag(row.key_name)] = row.is_enabled
+
+                  return ChannelFeatureFlagSnapshot(
+                      organization_id=organization_id,
+                      enabled=frozenset(flag for flag, enabled in values.items() if enabled),
+                  )
+          ''',
+              "backend/app/channels/dependencies.py": '''"""Dependency-injection composition for the generic channel foundation."""
+
+          from __future__ import annotations
+
+          from dataclasses import dataclass
+          from functools import lru_cache
+
+          from sqlalchemy.ext.asyncio import AsyncSession
+
+          from app.channels.flags import ChannelFeatureFlagResolver
+          from app.channels.registry import CapabilityRegistry, ProviderRegistry
+
+
+          @dataclass(frozen=True, slots=True)
+          class ChannelFoundation:
+              """Provider-neutral control-plane dependencies; contains no provider implementation."""
+
+              providers: ProviderRegistry
+              capabilities: CapabilityRegistry
+
+
+          @lru_cache(maxsize=1)
+          def get_channel_foundation() -> ChannelFoundation:
+              capabilities = CapabilityRegistry()
+              providers = ProviderRegistry(capabilities)
+              return ChannelFoundation(providers=providers, capabilities=capabilities)
+
+
+          def build_channel_feature_flag_resolver(
+              session: AsyncSession,
+          ) -> ChannelFeatureFlagResolver:
+              return ChannelFeatureFlagResolver(session)
+          ''',
+              "backend/tests/test_channel_foundation.py": '''"""M13-01 provider-neutral channel foundation regressions."""
+
+          from __future__ import annotations
+
+          from datetime import UTC, datetime
+
+          import pytest
+
+          from app.channels import base as channel_base
+          from app.channels.base import ChannelAdapter
+          from app.channels.capabilities import Capability, ChannelType
+          from app.channels.dependencies import get_channel_foundation
+          from app.channels.errors import ChannelConfigError
+          from app.channels.flags import (
+              ChannelFeatureFlagResolver,
+              OmnichannelFeatureFlag,
+          )
+          from app.channels.foundation import (
+              ChannelMetadata,
+              CommunicationIntent,
+              CommunicationOrigin,
+              CommunicationPolicy,
+              CommunicationPurpose,
+              ProviderDesiredState,
+              ProviderHealth,
+              ProviderHealthState,
+              ProviderLifecycle,
+              ProviderObservedState,
+          )
+          from app.channels.models import ChannelStatus, OutboundMessage, SendResult
+          from app.channels.registry import CapabilityRegistry, ProviderRegistry
+          from app.channels.validation import evaluate_communication_policy
+          from app.models.settings import FeatureFlag
+
+
+          class _FoundationAdapter(ChannelAdapter):
+              channel_type = ChannelType.WHATSAPP
+              connector_type = "foundation_test"
+              capabilities = frozenset({Capability.TEXT, Capability.HEALTH})
+
+              async def authenticate(self) -> None:
+                  return None
+
+              async def status(self) -> ChannelStatus:
+                  return ChannelStatus(connected=True, identity="foundation")
+
+              async def _dispatch(self, message: OutboundMessage) -> SendResult:
+                  return SendResult(message_id=message.idempotency_key)
+
+
+          def test_provider_registry_uses_existing_adapter_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+              capabilities = CapabilityRegistry()
+              providers = ProviderRegistry(capabilities)
+              metadata = ChannelMetadata(
+                  connector_type="foundation_test",
+                  channel_type=ChannelType.WHATSAPP,
+                  display_name="Foundation Test",
+                  capabilities=_FoundationAdapter.capabilities,
+                  lifecycle_managed=True,
+                  health_managed=True,
+              )
+              providers.register(metadata)
+              monkeypatch.setitem(
+                  channel_base._ADAPTERS,
+                  "foundation_test",
+                  lambda **_: _FoundationAdapter(),
+              )
+
+              adapter = providers.resolve_adapter("foundation_test")
+
+              assert isinstance(adapter, _FoundationAdapter)
+              assert providers.available() == ("foundation_test",)
+              assert capabilities.require("foundation_test") == _FoundationAdapter.capabilities
+              assert capabilities.supports("foundation_test", Capability.TEXT)
+
+
+          def test_registry_rejects_conflicting_provider_metadata() -> None:
+              capabilities = CapabilityRegistry()
+              providers = ProviderRegistry(capabilities)
+              providers.register(
+                  ChannelMetadata(
+                      connector_type="generic_provider",
+                      channel_type=ChannelType.WHATSAPP,
+                      display_name="Generic Provider",
+                      capabilities=frozenset({Capability.TEXT}),
+                  )
+              )
+
+              with pytest.raises(ChannelConfigError):
+                  providers.register(
+                      ChannelMetadata(
+                          connector_type="generic_provider",
+                          channel_type=ChannelType.WHATSAPP,
+                          display_name="Changed Provider",
+                          capabilities=frozenset({Capability.MEDIA}),
+                      )
+                  )
+
+
+          def test_communication_policy_is_provider_independent_and_fail_closed() -> None:
+              intent = CommunicationIntent(
+                  organization_id=7,
+                  intent_key="customer-service-reply",
+                  channel_type=ChannelType.WHATSAPP,
+                  purpose=CommunicationPurpose.SERVICE,
+                  origin=CommunicationOrigin.MANUAL,
+                  required_capabilities=frozenset({Capability.TEXT}),
+              )
+              policy = CommunicationPolicy(
+                  policy_key="manual-service",
+                  organization_id=7,
+                  allowed_purposes=frozenset({CommunicationPurpose.SERVICE}),
+                  allowed_origins=frozenset({CommunicationOrigin.MANUAL}),
+              )
+
+              allowed = evaluate_communication_policy(intent, policy, {Capability.TEXT})
+              denied = evaluate_communication_policy(intent, policy, set())
+
+              assert allowed.allowed is True
+              assert allowed.reasons == ()
+              assert denied.allowed is False
+              assert denied.reasons == ("missing_capabilities",)
+              assert denied.missing_capabilities == frozenset({Capability.TEXT})
+
+
+          def test_policy_blocks_bulk_and_cross_organization_use() -> None:
+              intent = CommunicationIntent(
+                  organization_id=8,
+                  intent_key="campaign-attempt",
+                  channel_type=ChannelType.WHATSAPP,
+                  purpose=CommunicationPurpose.MARKETING,
+                  origin=CommunicationOrigin.CAMPAIGN,
+                  required_capabilities=frozenset({Capability.BULK}),
+                  bulk=True,
+              )
+              policy = CommunicationPolicy(
+                  policy_key="restricted",
+                  organization_id=9,
+                  allowed_purposes=frozenset({CommunicationPurpose.SERVICE}),
+                  allowed_origins=frozenset({CommunicationOrigin.MANUAL}),
+                  allow_bulk=False,
+              )
+
+              result = evaluate_communication_policy(intent, policy, {Capability.BULK})
+
+              assert result.allowed is False
+              assert result.reasons == (
+                  "organization_scope_mismatch",
+                  "purpose_not_allowed",
+                  "origin_not_allowed",
+                  "bulk_not_allowed",
+              )
+
+
+          def test_health_and_lifecycle_contracts_require_factual_aware_state() -> None:
+              now = datetime.now(UTC)
+              health = ProviderHealth(
+                  connector_type="generic_provider",
+                  state=ProviderHealthState.HEALTHY,
+                  observed_at=now,
+                  score=100,
+              )
+              lifecycle = ProviderLifecycle(
+                  connector_type="generic_provider",
+                  desired_state=ProviderDesiredState.ENABLED,
+                  observed_state=ProviderObservedState.READY,
+                  observed_at=now,
+              )
+
+              assert health.score == 100
+              assert lifecycle.observed_state is ProviderObservedState.READY
+              with pytest.raises(ChannelConfigError):
+                  ProviderHealth(
+                      connector_type="generic_provider",
+                      state=ProviderHealthState.HEALTHY,
+                      observed_at=now,
+                      score=101,
+                  )
+              with pytest.raises(ChannelConfigError):
+                  ProviderLifecycle(
+                      connector_type="generic_provider",
+                      desired_state=ProviderDesiredState.ENABLED,
+                      observed_state=ProviderObservedState.READY,
+                      observed_at=datetime.now(),
+                  )
+
+
+          @pytest.mark.asyncio
+          async def test_feature_flags_use_existing_global_and_organization_authority(
+              db_session, organization
+          ) -> None:
+              db_session.add_all(
+                  [
+                      FeatureFlag(
+                          key_name=OmnichannelFeatureFlag.CONNECTIONS_READ.value,
+                          is_enabled=True,
+                          organization_id=None,
+                      ),
+                      FeatureFlag(
+                          key_name=OmnichannelFeatureFlag.CONNECTIONS_WRITE.value,
+                          is_enabled=True,
+                          organization_id=None,
+                      ),
+                      FeatureFlag(
+                          key_name=OmnichannelFeatureFlag.CONNECTIONS_WRITE.value,
+                          is_enabled=False,
+                          organization_id=organization.id,
+                      ),
+                  ]
+              )
+              await db_session.commit()
+
+              snapshot = await ChannelFeatureFlagResolver(db_session).resolve(organization.id)
+
+              assert snapshot.is_enabled(OmnichannelFeatureFlag.CONNECTIONS_READ)
+              assert not snapshot.is_enabled(OmnichannelFeatureFlag.CONNECTIONS_WRITE)
+
+
+          def test_dependency_container_is_stable_and_provider_empty_by_default() -> None:
+              get_channel_foundation.cache_clear()
+              first = get_channel_foundation()
+              second = get_channel_foundation()
+
+              assert first is second
+              assert first.providers.available() == ()
+              assert first.capabilities.available() == ()
+              get_channel_foundation.cache_clear()
+          ''',
+          }
+
+          for relative, content in files.items():
+              path = Path(relative)
+              if path.exists():
+                  raise SystemExit(f"Refusing to overwrite existing file: {relative}")
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(content.replace("\n          ", "\n").lstrip(), encoding="utf-8")
+
+          deps_path = Path("backend/app/api/deps.py")
+          deps = deps_path.read_text(encoding="utf-8")
+          import_marker = "from app.core.config import Settings, get_settings\n"
+          import_replacement = (
+              "from app.channels.dependencies import (\n"
+              "    ChannelFoundation,\n"
+              "    build_channel_feature_flag_resolver,\n"
+              "    get_channel_foundation,\n"
+              ")\n"
+              "from app.channels.flags import ChannelFeatureFlagResolver\n"
+              + import_marker
+          )
+          if deps.count(import_marker) != 1:
+              raise SystemExit("api/deps.py import marker mismatch")
+          deps = deps.replace(import_marker, import_replacement, 1)
+
+          dep_marker = (
+              "SessionDep = Annotated[AsyncSession, Depends(get_session)]\n"
+              "SettingsDep = Annotated[Settings, Depends(get_settings)]\n"
+          )
+          dep_replacement = dep_marker + (
+              "ChannelFoundationDep = Annotated[ChannelFoundation, Depends(get_channel_foundation)]\n\n\n"
+              "def get_channel_feature_flag_resolver(\n"
+              "    session: SessionDep,\n"
+              ") -> ChannelFeatureFlagResolver:\n"
+              "    return build_channel_feature_flag_resolver(session)\n\n\n"
+              "ChannelFeatureFlagResolverDep = Annotated[\n"
+              "    ChannelFeatureFlagResolver, Depends(get_channel_feature_flag_resolver)\n"
+              "]\n"
+          )
+          if deps.count(dep_marker) != 1:
+              raise SystemExit("api/deps.py dependency marker mismatch")
+          deps_path.write_text(deps.replace(dep_marker, dep_replacement, 1), encoding="utf-8")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e './backend[dev]'
+
+      - name: Format and focused validation
+        working-directory: backend
+        run: |
+          ruff format app/channels/foundation.py app/channels/validation.py app/channels/registry.py app/channels/flags.py app/channels/dependencies.py app/api/deps.py tests/test_channel_foundation.py
+          ruff check app tests
+          mypy app
+          pytest tests/test_channel_foundation.py tests/test_channels.py tests/test_config.py
+
+      - name: Full backend test suite
+        working-directory: backend
+        run: pytest
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Full frontend repository gate
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Verify milestone boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only -- backend/alembic | wc -l)" -eq 0
+          test "$(git diff --name-only -- frontend/openapi.json frontend/src/lib/api/schema.d.ts | wc -l)" -eq 0
+          test "$(git diff --name-only -- frontend | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/channels/meta | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/models | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/api/v1 | wc -l)" -eq 0
+          git diff --name-only
+
+      - name: Commit validated implementation to work branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/channels/foundation.py backend/app/channels/validation.py backend/app/channels/registry.py backend/app/channels/flags.py backend/app/channels/dependencies.py backend/app/api/deps.py backend/tests/test_channel_foundation.py
+          git commit -m 'feat(omnichannel): add generic channel foundation'
+          git push origin HEAD:work/m13-01-generic-channel-foundation
