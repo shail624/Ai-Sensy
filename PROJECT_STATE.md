@@ -7,9 +7,9 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | Priority 2 starting baseline | `7d826987c272d28038663ba9cb15c832c37e2b02` (`feat(ui): modernize shared enterprise design system`) |
-| Current Git HEAD | `HEAD` (Dashboard closeout commit; resolve after push) |
+| Current Git HEAD | `HEAD` (governance-only Module 13 owner-approval freeze; resolve after push) |
 | Current milestone | `UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED; HOST VISUAL REVIEW PENDING` |
-| Current phase | `UI Taste Modernization — Dashboard complete; Reactivation redesign blocked pending owner approval` |
+| Current phase | `UI Taste Modernization — continue the existing roadmap; Module 13 implementation is gated and has not started` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
 | OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
@@ -19,9 +19,27 @@
 | Bundle evidence | Main chunk `733.62 kB` / `178.16 kB` gzip; operational Dashboard split to `31.96 kB` / `8.61 kB` gzip |
 | Visual acceptance | `PENDING – Host Machine Validation` for authenticated representative-data desktop/tablet/mobile, keyboard, screen-reader and approved-reference review |
 | Last completed milestone | `UI-TASTE-03A — Operator-first Dashboard` (repository engineering gates complete) |
-| Next milestone | `UI-TASTE-03B — Reactivation operational hierarchy`, blocked pending owner approval |
-| Worktree expectation | One Dashboard milestone commit; no backend, migration, OpenAPI, generated-client, dependency, route-catalogue or navigation change |
-| Last update | `2026-08-04T03:00:00+05:30` (Asia/Kolkata) |
+| Next implementation milestone | `UI-TASTE-03B — Reactivation operational hierarchy`; approved previously, not started on the target branch |
+| Module 13 planning | `Enterprise Omnichannel Channel Manager — OWNER APPROVED`; architecture frozen as the implementation contract |
+| Module 13 implementation gate | `BLOCKED` until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`, and the owner explicitly instructs implementation |
+| Worktree expectation | Governance-only approval record; no backend, frontend, migration, OpenAPI, generated-client, dependency, route, milestone-order or architecture change |
+| Last update | `2026-08-04T10:52:00+05:30` (Asia/Kolkata) |
+
+## Module 13 owner-approved planning freeze
+
+- The approved Module 13 Architecture Review, including its approved additive refinements, is now
+  the implementation contract for the Enterprise Omnichannel Channel Manager.
+- Planning status is **Owner Approved**. Implementation has not started and no implementation claim is
+  made by this governance update.
+- The approved architecture, scope and milestone order are frozen. Do not add abstractions, expand
+  scope, reorder milestones or redesign approved decisions.
+- A verified implementation blocker may be documented, but any deviation from the approved contract
+  requires explicit owner approval before code changes proceed.
+- Module 13 cannot begin until Reactivation Mission Control, Customer 360, Unified Inbox and
+  Notification Center are all `Production Ready` according to `ENGINEERING_STANDARDS.md`.
+- Even after those prerequisites pass, Module 13 still requires a separate explicit owner instruction
+  before implementation starts.
+- Continue the existing roadmap only. Do not create additional Module 13 planning documents.
 
 ## Delivered operator intelligence
 
@@ -70,5 +88,7 @@ quality with authenticated representative records. Those remain `PENDING – Hos
 
 ## Maintenance rule
 
-Do not begin Reactivation redesign until the owner approves this closeout. Preserve the operator-first
-information order and never turn bounded source reads into unlabelled enterprise totals.
+Continue the existing approved roadmap from the latest Git HEAD. Preserve the operator-first
+information order and never turn bounded source reads into unlabelled enterprise totals. Keep Module
+13 frozen and unimplemented until all recorded prerequisites and the separate owner-instruction gate
+are satisfied.
