@@ -22,6 +22,7 @@ jobs:
         run: |
           cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
           cp .validation/m13-05-fix.b64 /tmp/m13-05-fix.b64
+          cp .validation/m13-05-quality-fix.b64 /tmp/m13-05-quality-fix.b64
 
       - name: Restore approved baseline and overlays
         run: |
@@ -30,6 +31,8 @@ jobs:
           tar -xzf /tmp/m13-05-overlay.tar.gz
           base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
           tar -xzf /tmp/m13-05-fix.tar.gz
+          base64 --decode /tmp/m13-05-quality-fix.b64 > /tmp/m13-05-quality-fix.tar.gz
+          tar -xzf /tmp/m13-05-quality-fix.tar.gz
           python - <<'PY'
           from pathlib import Path
           path = Path('backend/app/services/pairing_manager.py')
@@ -46,9 +49,10 @@ jobs:
               '    RuntimeEventType,\n'
               '    RuntimeMetadata,\n'
           )
-          if wrong not in text:
-              raise SystemExit('expected transferred pairing import order not found')
-          path.write_text(text.replace(wrong, correct, 1))
+          if wrong in text:
+              path.write_text(text.replace(wrong, correct, 1))
+          elif correct not in text:
+              raise SystemExit('pairing import block not found')
           PY
 
       - name: Verify exact implementation boundary
