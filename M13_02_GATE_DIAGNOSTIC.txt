@@ -1,5 +1,5 @@
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30893562537
+RUN=30893859200
 
 === APPLY_SOURCE ===
 /home/runner/work/Ai-Sensy/Ai-Sensy/builder/.github/m13-02-build.py:66: SyntaxWarning: invalid escape sequence '\+'
@@ -8,6 +8,10 @@ RUN=30893562537
 EXIT=0
 
 === APPLY_VERIFIED_FIXES ===
+
+EXIT=0
+
+=== APPLY_VERIFIED_FIXES_2 ===
 
 EXIT=0
 
@@ -313,8 +317,8 @@ Using cached tzlocal-5.4.4-py3-none-any.whl (18 kB)
 Building wheels for collected packages: wa-platform-backend
   Building editable for wa-platform-backend (pyproject.toml): started
   Building editable for wa-platform-backend (pyproject.toml): finished with status 'done'
-  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=2ff2267b661030a0be08963da06beba502f4286fbe42dbe3f438d90821e987f7
-  Stored in directory: /tmp/pip-ephem-wheel-cache-tnstbptj/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
+  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=2b8e97a5f9d85ffef3dbb158170efacef6a0058e2138c52efb2daf8f16cfeafe
+  Stored in directory: /tmp/pip-ephem-wheel-cache-4esigpxz/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
 Successfully built wa-platform-backend
 Installing collected packages: sortedcontainers, boolean.py, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing_extensions, tomli-w, tomli, stevedore, six, ruff, redis, PyYAML, python-multipart, python-dotenv, pyparsing, PyMySQL, pyjwt, pygments, pycparser, pluggy, platformdirs, pip-api, pathspec, packaging, packageurl-python, mypy_extensions, msgpack, mdurl, MarkupSafe, license-expression, librt, iniconfig, idna, httptools, h11, greenlet, filelock, et-xmlfile, dnspython, defusedxml, coverage, click, charset_normalizer, certifi, billiard, ast-serialize, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, py-serializable, prompt-toolkit, pip-requirements-parser, openpyxl, mypy, markdown-it-py, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, aiomysql, watchfiles, starlette, rich, pytest-cov, pytest-asyncio, pydantic, kombu, httpx, cyclonedx-python-lib, cryptography, click-repl, CacheControl, argon2-cffi-bindings, alembic, pydantic-settings, fastapi, celery, bandit, argon2-cffi, wa-platform-backend, pip-audit
 
@@ -338,7 +342,7 @@ EXIT=0
 === NPM_CI ===
 npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
-added 533 packages, and audited 534 packages in 8s
+added 533 packages, and audited 534 packages in 6s
 
 170 packages are looking for funding
   run `npm fund` for details
@@ -361,7 +365,7 @@ EXIT=0
 > openapi-typescript openapi.json -o src/lib/api/schema.d.ts
 
 ✨ openapi-typescript 7.13.0
-🚀 openapi.json → src/lib/api/schema.d.ts [534.4ms]
+🚀 openapi.json → src/lib/api/schema.d.ts [521.9ms]
 
 EXIT=0
 
@@ -371,33 +375,28 @@ EXIT=0
 EXIT=0
 
 === RUFF_CHECK ===
-I001 [*] Import block is un-sorted or un-formatted
-  --> app/repositories/contact_identity.py:3:1
-   |
- 1 |   """Tenant-scoped persistence queries for M13-02 identity records."""
- 2 |
- 3 | / from __future__ import annotations
- 4 | |
- 5 | | import uuid as uuidlib
- 6 | |
- 7 | | from sqlalchemy import func, select
- 8 | | from app.models.contact_identity import (
- 9 | |     ContactIdentity,
-10 | |     IdentityConflict,
-11 | |     IdentityMergeRecommendation,
-12 | | )
-13 | | from app.repositories.base import BaseRepository
-   | |________________________________________________^
-help: Organize imports
-  |
-7 | from sqlalchemy import func, select
-8 +
-9 | from app.models.contact_identity import (
-  |
+All checks passed!
 
-Found 1 error.
-[*] 1 fixable with the `--fix` option.
+EXIT=0
 
-EXIT=1
+=== MYPY ===
+Success: no issues found in 271 source files
 
-FIRST_FAILURE=RUFF_CHECK
+EXIT=0
+
+=== FOCUSED_TESTS ===
+ERROR: file or directory not found: tests/test_contact_events.py
+
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/runner/work/Ai-Sensy/Ai-Sensy/source/backend
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
+
+============================ no tests ran in 0.00s =============================
+
+EXIT=4
+
+FIRST_FAILURE=FOCUSED_TESTS
