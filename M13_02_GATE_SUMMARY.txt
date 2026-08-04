@@ -1,7 +1,7 @@
 === STATUS ===
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30892832269
-FIRST_FAILURE=RUFF_FORMAT_CHECK
+RUN=30893253784
+FIRST_FAILURE=RUFF_CHECK
 
 === STAGE RESULTS ===
 === APPLY_SOURCE ===
@@ -19,326 +19,328 @@ EXIT=0
 === GENERATE_CLIENT ===
 EXIT=0
 === RUFF_FORMAT_CHECK ===
+EXIT=0
+=== RUFF_CHECK ===
 EXIT=1
 
 === REPORT TAIL ===
-510 +         organization_id=organization.id,
-511 +         actor=actor,
-512 +         public_id=task_id,
-513 +         expected_row_version=view.row_version,
-514 +         due_at=utcnow() + timedelta(days=2),
-515 +         has_time=True,
-516 +         reminder_at=None,
-517 |     )
-518 |
-519 |     with pytest.raises(VersionConflictError) as exc:
-520 |         await _svc(db_session).complete(
-    -             organization_id=organization.id, actor=actor, public_id=task_id,
-521 +             organization_id=organization.id,
-522 +             actor=actor,
-523 +             public_id=task_id,
-524 |             expected_row_version=view.row_version,  # now stale
-    -             completion_notes=None, create_timeline_note=False,
-525 +             completion_notes=None,
-526 +             create_timeline_note=False,
-527 |         )
---------------------------------------------------------------------------------
-535 |     bumped = await _svc(db_session).update(
-    -         organization_id=organization.id, actor=actor, public_id=task_id,
-    -         expected_row_version=0, title="Renamed", description=None, task_type=None,
-    -         priority=None, due_at=None, has_time=None, reminder_at=None,
-536 +         organization_id=organization.id,
-537 +         actor=actor,
-538 +         public_id=task_id,
-539 +         expected_row_version=0,
-540 +         title="Renamed",
-541 +         description=None,
-542 +         task_type=None,
-543 +         priority=None,
-544 +         due_at=None,
-545 +         has_time=None,
-546 +         reminder_at=None,
-547 |     )
---------------------------------------------------------------------------------
-556 |     done = await _svc(db_session).complete(
-    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(view.public_id),
-    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
-557 +         organization_id=organization.id,
-558 +         actor=actor,
-559 +         public_id=uuidlib.UUID(view.public_id),
-560 +         expected_row_version=None,
-561 +         completion_notes=None,
-562 +         create_timeline_note=False,
-563 |     )
---------------------------------------------------------------------------------
-584 | @pytest.mark.parametrize("view_name", ["overdue", "today", "upcoming"])
-    - async def test_bucket_selects_only_its_window(
-    -     db_session, organization, actor, contact, view_name
-    - ):
-585 + async def test_bucket_selects_only_its_window(db_session, organization, actor, contact, view_name):
-586 |     seeded = await _seeded_buckets(db_session, organization, actor, contact)
---------------------------------------------------------------------------------
-598 |     await _svc(db_session).complete(
-    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
-    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
-599 +         organization_id=organization.id,
-600 +         actor=actor,
-601 +         public_id=uuidlib.UUID(done.public_id),
-602 +         expected_row_version=None,
-603 +         completion_notes=None,
-604 +         create_timeline_note=False,
-605 |     )
---------------------------------------------------------------------------------
-617 |     await _svc(db_session).complete(
-    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
-    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
-618 +         organization_id=organization.id,
-619 +         actor=actor,
-620 +         public_id=uuidlib.UUID(done.public_id),
-621 +         expected_row_version=None,
-622 +         completion_notes=None,
-623 +         create_timeline_note=False,
-624 |     )
---------------------------------------------------------------------------------
-669 |
-    - async def test_due_at_pagination_is_stable_and_complete(
-    -     db_session, organization, actor, contact
-    - ):
-670 + async def test_due_at_pagination_is_stable_and_complete(db_session, organization, actor, contact):
-671 |     base = utcnow() + timedelta(days=1)
-672 |     for i in range(7):
-673 |         await _create(
-    -             db_session, organization, actor, contact,
-    -             title=f"t{i}", due_at=base + timedelta(hours=i),
-674 +             db_session,
-675 +             organization,
-676 +             actor,
-677 +             contact,
-678 +             title=f"t{i}",
-679 +             due_at=base + timedelta(hours=i),
-680 |         )
---------------------------------------------------------------------------------
-695 |         await _create(
-    -             db_session, organization, actor, contact,
-    -             title=f"p{i}", priority=prio, due_at=base + timedelta(minutes=i),
-696 +             db_session,
-697 +             organization,
-698 +             actor,
-699 +             contact,
-700 +             title=f"p{i}",
-701 +             priority=prio,
-702 +             due_at=base + timedelta(minutes=i),
-703 |         )
---------------------------------------------------------------------------------
-720 |     await _svc(db_session).complete(
-    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
-    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
-721 +         organization_id=organization.id,
-722 +         actor=actor,
-723 +         public_id=uuidlib.UUID(done.public_id),
-724 +         expected_row_version=None,
-725 +         completion_notes=None,
-726 +         create_timeline_note=False,
-727 |     )
---------------------------------------------------------------------------------
-738 |         await _svc(db_session).list(
-    -             organization_id=organization.id, actor=actor, sort="priority",
-    -             cursor="not-a-cursor", limit=10,
-739 +             organization_id=organization.id,
-740 +             actor=actor,
-741 +             sort="priority",
-742 +             cursor="not-a-cursor",
-743 +             limit=10,
-744 |         )
---------------------------------------------------------------------------------
-751 |     theirs = await _create(
-    -         db_session, organization, actor, contact, title="theirs",
-752 +         db_session,
-753 +         organization,
-754 +         actor,
-755 +         contact,
-756 +         title="theirs",
-757 |         assigned_agent_id=uuidlib.UUID(other.public_id),
-758 |     )
-759 |
-760 |     to_me = await _svc(db_session).list(
-    -         organization_id=organization.id, actor=actor,
-    -         assignee_id=uuidlib.UUID(actor.public_id), limit=50,
-761 +         organization_id=organization.id,
-762 +         actor=actor,
-763 +         assignee_id=uuidlib.UUID(actor.public_id),
-764 +         limit=50,
-765 |     )
-766 |     by_me = await _svc(db_session).list(
-    -         organization_id=organization.id, actor=actor,
-    -         assigned_by_id=uuidlib.UUID(actor.public_id), limit=50,
-767 +         organization_id=organization.id,
-768 +         actor=actor,
-769 +         assigned_by_id=uuidlib.UUID(actor.public_id),
-770 +         limit=50,
-771 |     )
---------------------------------------------------------------------------------
-794 |
-    -     result = await _svc(db_session).list(
-    -         organization_id=organization.id, actor=actor, limit=50
-    -     )
-795 +     result = await _svc(db_session).list(organization_id=organization.id, actor=actor, limit=50)
-796 |
---------------------------------------------------------------------------------
-804 |     ids = [
-    -         uuidlib.UUID((await _create(db_session, organization, actor, contact, title=f"b{i}")).public_id)
-805 +         uuidlib.UUID(
-806 +             (await _create(db_session, organization, actor, contact, title=f"b{i}")).public_id
-807 +         )
-808 |         for i in range(3)
-809 |     ]
-810 |
-811 |     outcome = await _svc(db_session).bulk_update(
-    -         organization_id=organization.id, actor=actor, public_ids=ids,
-    -         status=None, priority=TASK_PRIORITY_CRITICAL, due_at=None, assigned_agent_id=None,
-812 +         organization_id=organization.id,
-813 +         actor=actor,
-814 +         public_ids=ids,
-815 +         status=None,
-816 +         priority=TASK_PRIORITY_CRITICAL,
-817 +         due_at=None,
-818 +         assigned_agent_id=None,
-819 |     )
---------------------------------------------------------------------------------
-832 |     await _svc(db_session).cancel(
-    -         organization_id=organization.id, actor=actor,
-    -         public_id=uuidlib.UUID(blocked.public_id), expected_row_version=None, reason=None,
-833 +         organization_id=organization.id,
-834 +         actor=actor,
-835 +         public_id=uuidlib.UUID(blocked.public_id),
-836 +         expected_row_version=None,
-837 +         reason=None,
-838 |     )
-839 |
-840 |     outcome = await _svc(db_session).bulk_update(
-    -         organization_id=organization.id, actor=actor,
-841 +         organization_id=organization.id,
-842 +         actor=actor,
-843 |         public_ids=[uuidlib.UUID(ok.public_id), uuidlib.UUID(blocked.public_id)],
-    -         status=TASK_STATUS_COMPLETED, priority=None, due_at=None, assigned_agent_id=None,
-844 +         status=TASK_STATUS_COMPLETED,
-845 +         priority=None,
-846 +         due_at=None,
-847 +         assigned_agent_id=None,
-848 |     )
-849 |
-850 |     assert (outcome.succeeded, outcome.failed) == (1, 1)
-    -     rows = {
-    -         r.title: r
-    -         for r in (await db_session.scalars(select(Task))).all()
-    -     }
-851 +     rows = {r.title: r for r in (await db_session.scalars(select(Task))).all()}
-852 |     await db_session.refresh(rows["ok"])
---------------------------------------------------------------------------------
-865 |     await _svc(db_session).cancel(
-    -         organization_id=organization.id, actor=actor,
-    -         public_id=uuidlib.UUID(blocked.public_id), expected_row_version=None, reason=None,
-866 +         organization_id=organization.id,
-867 +         actor=actor,
-868 +         public_id=uuidlib.UUID(blocked.public_id),
-869 +         expected_row_version=None,
-870 +         reason=None,
-871 |     )
-872 |
-873 |     outcome = await _svc(db_session).bulk_update(
-    -         organization_id=organization.id, actor=actor,
-874 +         organization_id=organization.id,
-875 +         actor=actor,
-876 |         public_ids=[uuidlib.UUID(blocked.public_id)],
-    -         status=TASK_STATUS_COMPLETED, priority=TASK_PRIORITY_CRITICAL,
-    -         due_at=None, assigned_agent_id=None,
-877 +         status=TASK_STATUS_COMPLETED,
-878 +         priority=TASK_PRIORITY_CRITICAL,
-879 +         due_at=None,
-880 +         assigned_agent_id=None,
-881 |     )
---------------------------------------------------------------------------------
-892 |
-    - async def test_bulk_update_counts_unknown_ids_as_skipped(
-    -     db_session, organization, actor, contact
-    - ):
-893 + async def test_bulk_update_counts_unknown_ids_as_skipped(db_session, organization, actor, contact):
-894 |     known = await _create(db_session, organization, actor, contact)
-895 |
-896 |     outcome = await _svc(db_session).bulk_update(
-    -         organization_id=organization.id, actor=actor,
-897 +         organization_id=organization.id,
-898 +         actor=actor,
-899 |         public_ids=[uuidlib.UUID(known.public_id), uuidlib.uuid4()],
-    -         status=None, priority=TASK_PRIORITY_HIGH, due_at=None, assigned_agent_id=None,
-900 +         status=None,
-901 +         priority=TASK_PRIORITY_HIGH,
-902 +         due_at=None,
-903 +         assigned_agent_id=None,
-904 |     )
---------------------------------------------------------------------------------
-913 |     await _svc(db_session).bulk_update(
-    -         organization_id=organization.id, actor=actor,
-    -         public_ids=[uuidlib.UUID(task.public_id)], status=None, priority=None, due_at=None,
-914 +         organization_id=organization.id,
-915 +         actor=actor,
-916 +         public_ids=[uuidlib.UUID(task.public_id)],
-917 +         status=None,
-918 +         priority=None,
-919 +         due_at=None,
-920 |         assigned_agent_id=uuidlib.UUID(other.public_id),
---------------------------------------------------------------------------------
-929 |     ids = [
-    -         uuidlib.UUID((await _create(db_session, organization, actor, contact, title=f"d{i}")).public_id)
-930 +         uuidlib.UUID(
-931 +             (await _create(db_session, organization, actor, contact, title=f"d{i}")).public_id
-932 +         )
-933 |         for i in range(2)
---------------------------------------------------------------------------------
-940 |     assert (outcome.total, outcome.succeeded, outcome.skipped) == (3, 2, 1)
-    -     result = await _svc(db_session).list(
-    -         organization_id=organization.id, actor=actor, limit=50
-    -     )
-941 +     result = await _svc(db_session).list(organization_id=organization.id, actor=actor, limit=50)
-942 |     assert result.tasks == []
---------------------------------------------------------------------------------
-949 |     await _svc(db_session).complete(
-    -         organization_id=organization.id, actor=actor, public_id=task_id,
-    -         expected_row_version=None, completion_notes="ok", create_timeline_note=False,
-950 +         organization_id=organization.id,
-951 +         actor=actor,
-952 +         public_id=task_id,
-953 +         expected_row_version=None,
-954 +         completion_notes="ok",
-955 +         create_timeline_note=False,
-956 |     )
---------------------------------------------------------------------------------
-967 |     with pytest.raises(NotFoundError):
-    -         await _svc(db_session).history(
-    -             organization_id=organization.id, public_id=uuidlib.uuid4()
-    -         )
-968 +         await _svc(db_session).history(organization_id=organization.id, public_id=uuidlib.uuid4())
-969 |
---------------------------------------------------------------------------------
-977 |     await _svc(db_session).reassign(
-    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(view.public_id),
-    -         expected_row_version=None, assigned_agent_id=uuidlib.UUID(other.public_id),
-978 +         organization_id=organization.id,
-979 +         actor=actor,
-980 +         public_id=uuidlib.UUID(view.public_id),
-981 +         expected_row_version=None,
-982 +         assigned_agent_id=uuidlib.UUID(other.public_id),
-983 |     )
-984 |
-985 |     event = [
-    -         e for e in await _events_of(db_session, view.public_id)
-986 +         e
-987 +         for e in await _events_of(db_session, view.public_id)
-988 |         if e.event_type == TASK_EVENT_REASSIGNED
-    |
+  Using cached uvloop-0.22.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+Collecting watchfiles>=0.20 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached watchfiles-1.2.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting websockets>=13.0 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached websockets-17.0.1-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+Collecting MarkupSafe>=0.9.2 (from Mako->alembic>=1.13->wa-platform-backend==1.0.0rc1)
+  Using cached markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Using cached aiomysql-0.3.2-py3-none-any.whl (71 kB)
+Using cached bandit-1.9.4-py3-none-any.whl (134 kB)
+Using cached mypy-2.3.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (15.2 MB)
+Using cached pip_audit-2.10.1-py3-none-any.whl (62 kB)
+Using cached pymysql-1.2.0-py3-none-any.whl (45 kB)
+Using cached ast_serialize-0.6.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.3 MB)
+Using cached cyclonedx_python_lib-11.11.0-py3-none-any.whl (528 kB)
+Using cached license_expression-30.4.4-py3-none-any.whl (120 kB)
+Using cached packageurl_python-0.17.6-py3-none-any.whl (36 kB)
+Using cached py_serializable-2.1.0-py3-none-any.whl (23 kB)
+Using cached defusedxml-0.7.1-py2.py3-none-any.whl (25 kB)
+Using cached sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Using cached aiosqlite-0.22.1-py3-none-any.whl (17 kB)
+Using cached alembic-1.18.5-py3-none-any.whl (264 kB)
+Using cached argon2_cffi-25.1.0-py3-none-any.whl (14 kB)
+Using cached boolean_py-5.0-py3-none-any.whl (26 kB)
+Using cached cachecontrol-0.14.4-py3-none-any.whl (22 kB)
+Using cached msgpack-1.2.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (416 kB)
+Using cached celery-5.6.3-py3-none-any.whl (451 kB)
+Using cached billiard-4.2.4-py3-none-any.whl (87 kB)
+Using cached click-8.4.2-py3-none-any.whl (119 kB)
+Using cached vine-5.1.0-py3-none-any.whl (9.6 kB)
+Using cached click_didyoumean-0.3.1-py3-none-any.whl (3.6 kB)
+Using cached click_plugins-1.1.1.2-py2.py3-none-any.whl (11 kB)
+Using cached click_repl-0.3.0-py3-none-any.whl (10 kB)
+Using cached cryptography-50.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)
+Using cached cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+Using cached email_validator-2.3.0-py3-none-any.whl (35 kB)
+Using cached dnspython-2.8.0-py3-none-any.whl (331 kB)
+Using cached fastapi-0.141.1-py3-none-any.whl (131 kB)
+Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+Using cached filelock-3.32.2-py3-none-any.whl (98 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached idna-3.18-py3-none-any.whl (65 kB)
+Using cached kombu-5.6.2-py3-none-any.whl (214 kB)
+Using cached amqp-5.3.1-py3-none-any.whl (50 kB)
+Using cached librt-0.13.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (531 kB)
+Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+Using cached openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+Using cached packaging-26.2-py3-none-any.whl (100 kB)
+Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+Using cached pip_api-0.0.34-py3-none-any.whl (120 kB)
+Using cached pip_requirements_parser-32.0.1-py3-none-any.whl (35 kB)
+Using cached platformdirs-4.11.0-py3-none-any.whl (23 kB)
+Using cached prompt_toolkit-3.0.53-py3-none-any.whl (392 kB)
+Using cached pydantic-2.13.4-py3-none-any.whl (472 kB)
+Using cached pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Using cached pydantic_settings-2.14.2-py3-none-any.whl (61 kB)
+Using cached pyjwt-2.13.0-py3-none-any.whl (31 kB)
+Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)
+Using cached pytest_asyncio-1.4.0-py3-none-any.whl (16 kB)
+Using cached pytest_cov-7.1.0-py3-none-any.whl (22 kB)
+Using cached coverage-7.15.3-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (256 kB)
+Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Using cached python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Using cached pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)
+Using cached redis-8.1.0-py3-none-any.whl (560 kB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached charset_normalizer-3.4.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (223 kB)
+Using cached urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached certifi-2026.7.22-py3-none-any.whl (136 kB)
+Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Using cached ruff-0.16.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.5 MB)
+Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
+Using cached sqlalchemy-2.0.51-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.3 MB)
+Using cached greenlet-3.5.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (624 kB)
+Using cached starlette-1.3.1-py3-none-any.whl (73 kB)
+Using cached anyio-4.14.2-py3-none-any.whl (125 kB)
+Using cached stevedore-5.9.0-py3-none-any.whl (54 kB)
+Using cached tomli-2.4.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (251 kB)
+Using cached tomli_w-1.2.0-py3-none-any.whl (6.7 kB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Using cached tzdata-2026.3-py2.py3-none-any.whl (348 kB)
+Using cached uvicorn-0.52.1-py3-none-any.whl (79 kB)
+Using cached httptools-0.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (486 kB)
+Using cached uvloop-0.22.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.4 MB)
+Using cached watchfiles-1.2.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (454 kB)
+Using cached wcwidth-0.8.2-py3-none-any.whl (323 kB)
+Using cached websockets-17.0.1-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (220 kB)
+Using cached argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (87 kB)
+Using cached et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+Using cached mako-1.3.12-py3-none-any.whl (78 kB)
+Using cached markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+Using cached pyparsing-3.3.2-py3-none-any.whl (122 kB)
+Using cached tzlocal-5.4.4-py3-none-any.whl (18 kB)
+Building wheels for collected packages: wa-platform-backend
+  Building editable for wa-platform-backend (pyproject.toml): started
+  Building editable for wa-platform-backend (pyproject.toml): finished with status 'done'
+  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=e3c201639c8d01d6e033e460494095fc315c0d58d3eddc016857260c9b8b5775
+  Stored in directory: /tmp/pip-ephem-wheel-cache-2_ctquvy/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
+Successfully built wa-platform-backend
+Installing collected packages: sortedcontainers, boolean.py, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing_extensions, tomli-w, tomli, stevedore, six, ruff, redis, PyYAML, python-multipart, python-dotenv, pyparsing, PyMySQL, pyjwt, pygments, pycparser, pluggy, platformdirs, pip-api, pathspec, packaging, packageurl-python, mypy_extensions, msgpack, mdurl, MarkupSafe, license-expression, librt, iniconfig, idna, httptools, h11, greenlet, filelock, et-xmlfile, dnspython, defusedxml, coverage, click, charset_normalizer, certifi, billiard, ast-serialize, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, py-serializable, prompt-toolkit, pip-requirements-parser, openpyxl, mypy, markdown-it-py, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, aiomysql, watchfiles, starlette, rich, pytest-cov, pytest-asyncio, pydantic, kombu, httpx, cyclonedx-python-lib, cryptography, click-repl, CacheControl, argon2-cffi-bindings, alembic, pydantic-settings, fastapi, celery, bandit, argon2-cffi, wa-platform-backend, pip-audit
 
-142 files would be reformatted, 204 files already formatted
+Successfully installed CacheControl-0.14.4 Mako-1.3.12 MarkupSafe-3.0.3 PyMySQL-1.2.0 PyYAML-6.0.3 aiomysql-0.3.2 aiosqlite-0.22.1 alembic-1.18.5 amqp-5.3.1 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.14.2 argon2-cffi-25.1.0 argon2-cffi-bindings-25.1.0 ast-serialize-0.6.0 bandit-1.9.4 billiard-4.2.4 boolean.py-5.0 celery-5.6.3 certifi-2026.7.22 cffi-2.1.1 charset_normalizer-3.4.9 click-8.4.2 click-didyoumean-0.3.1 click-plugins-1.1.1.2 click-repl-0.3.0 coverage-7.15.3 cryptography-50.0.0 cyclonedx-python-lib-11.11.0 defusedxml-0.7.1 dnspython-2.8.0 email-validator-2.3.0 et-xmlfile-2.0.0 fastapi-0.141.1 filelock-3.32.2 greenlet-3.5.4 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.18 iniconfig-2.3.0 kombu-5.6.2 librt-0.13.0 license-expression-30.4.4 markdown-it-py-4.2.0 mdurl-0.1.2 msgpack-1.2.1 mypy-2.3.0 mypy_extensions-1.1.0 openpyxl-3.1.5 packageurl-python-0.17.6 packaging-26.2 pathspec-1.1.1 pip-api-0.0.34 pip-audit-2.10.1 pip-requirements-parser-32.0.1 platformdirs-4.11.0 pluggy-1.6.0 prompt-toolkit-3.0.53 py-serializable-2.1.0 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.2 pygments-2.20.0 pyjwt-2.13.0 pyparsing-3.3.2 pytest-9.1.1 pytest-asyncio-1.4.0 pytest-cov-7.1.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 python-multipart-0.0.32 redis-8.1.0 requests-2.34.2 rich-15.0.0 ruff-0.16.1 six-1.17.0 sortedcontainers-2.4.0 sqlalchemy-2.0.51 starlette-1.3.1 stevedore-5.9.0 tomli-2.4.1 tomli-w-1.2.0 typing-inspection-0.4.2 typing_extensions-4.16.0 tzdata-2026.3 tzlocal-5.4.4 urllib3-2.7.0 uvicorn-0.52.1 uvloop-0.22.1 vine-5.1.0 wa-platform-backend-1.0.0rc1 watchfiles-1.2.0 wcwidth-0.8.2 websockets-17.0.1
+
+[notice] A new release of pip is available: 26.1.2 -> 26.2
+[notice] To update, run: pip install --upgrade pip
+
+EXIT=0
+
+=== FORMAT ===
+8 files reformatted, 6 files left unchanged
+
+EXIT=0
+
+=== OPENAPI ===
+OPENAPI_PATHS= 200
+
+EXIT=0
+
+=== NPM_CI ===
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+
+added 533 packages, and audited 534 packages in 8s
+
+170 packages are looking for funding
+  run `npm fund` for details
+
+11 vulnerabilities (6 moderate, 4 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+EXIT=0
+
+=== GENERATE_CLIENT ===
+
+> wa-platform-frontend@1.0.0-rc1 gen:api
+> openapi-typescript openapi.json -o src/lib/api/schema.d.ts
+
+✨ openapi-typescript 7.13.0
+🚀 openapi.json → src/lib/api/schema.d.ts [571.2ms]
+
+EXIT=0
+
+=== RUFF_FORMAT_CHECK ===
+14 files already formatted
+
+EXIT=0
+
+=== RUFF_CHECK ===
+B008 Do not perform function call `Query` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+  --> app/api/v1/endpoints/contact_identity.py:77:54
+   |
+75 |     session: SessionDep,
+76 |     actor: IdentityReadActor,
+77 |     conflict_status: IdentityConflictStatus | None = Query(default=None, alias="status"),
+   |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+78 |     limit: int = Query(default=50, ge=1, le=100),
+79 |     offset: int = Query(default=0, ge=0),
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app/models/__init__.py:9:1
+   |
+ 7 |   """
+ 8 |
+ 9 | / from __future__ import annotations
+10 | |
+11 | | from app.models.analytics import (
+12 | |     AnalyticsCampaignRollup,
+13 | |     AnalyticsContactRollup,
+14 | |     AnalyticsConversationRollup,
+15 | |     AnalyticsFailureRollup,
+16 | |     AnalyticsMessageRollup,
+17 | |     AnalyticsRollupRun,
+18 | |     AnalyticsTaskRollup,
+19 | | )
+20 | | from app.models.api_key import ApiKey
+21 | | from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
+22 | | from app.models.audit import AuditLog
+23 | | from app.models.automation import (
+24 | |     AutomationFlow,
+25 | |     AutomationFlowVersion,
+26 | |     AutomationRun,
+27 | |     AutomationStepAttempt,
+28 | |     AutomationTriggerReceipt,
+29 | | )
+30 | | from app.models.business_event import BusinessEvent, BusinessEventType
+31 | | from app.models.campaign import (
+32 | |     Campaign,
+33 | |     CampaignBatch,
+34 | |     CampaignRecipient,
+35 | |     CampaignRetry,
+36 | |     CampaignSchedule,
+37 | | )
+38 | | from app.models.contact import Contact
+39 | | from app.models.contact_identity import (
+40 | |     ContactIdentity,
+41 | |     IdentityConflict,
+42 | |     IdentityMergeRecommendation,
+43 | | )
+44 | | from app.models.contact_document import (
+45 | |     ContactDocument,
+46 | |     ContactDocumentEvent,
+47 | |     ContactDocumentVersion,
+48 | | )
+49 | | from app.models.contact_event import ContactEvent
+50 | | from app.models.conversation import Conversation
+51 | | from app.models.conversation_tag import conversation_tags
+52 | | from app.models.internal_note import InternalNote
+53 | | from app.models.job import DeadLetter, JobMetadata
+54 | | from app.models.job_records import BulkJob, ExportJob, ImportJob
+55 | | from app.models.lead import LeadPipeline, LeadStage
+56 | | from app.models.media import MediaAsset
+57 | | from app.models.message import Message, MessageStatusHistory
+58 | | from app.models.notification import Notification
+59 | | from app.models.organization import Organization
+60 | | from app.models.quick_reply import QuickReply
+61 | | from app.models.rate_card import RateCard
+62 | | from app.models.role import Permission, Role, UserRole, role_permissions
+63 | | from app.models.segment import Segment, SegmentRule
+64 | | from app.models.settings import FeatureFlag, Setting
+65 | | from app.models.tag import Tag, contact_tags
+66 | | from app.models.task import Task
+67 | | from app.models.task_event import TaskEvent
+68 | | from app.models.template import MessageTemplate, TemplateVersion
+69 | | from app.models.token import RefreshToken, UserSession
+70 | | from app.models.user import User
+71 | | from app.models.vi_domain import (
+72 | |     ActivationRecord,
+73 | |     EligibilityCheck,
+74 | |     KycCase,
+75 | |     KycDecision,
+76 | |     KycDocumentReference,
+77 | |     ReactivationCase,
+78 | |     ReactivationCaseLabel,
+79 | |     ReactivationStageEvent,
+80 | |     SimOrder,
+81 | |     SimOrderEvent,
+82 | |     SlaEvent,
+83 | |     SlaPolicy,
+84 | | )
+85 | | from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
+86 | | from app.models.webhook import WebhookDeadLetter, WebhookEvent
+   | |______________________________________________________________^
+87 |
+88 |   __all__ = [
+   |
+help: Organize imports
+   |
+38 | from app.models.contact import Contact
+   - from app.models.contact_identity import (
+   -     ContactIdentity,
+   -     IdentityConflict,
+   -     IdentityMergeRecommendation,
+   - )
+39 | from app.models.contact_document import (
+--------------------------------------------------------------------------------
+44 | from app.models.contact_event import ContactEvent
+45 + from app.models.contact_identity import (
+46 +     ContactIdentity,
+47 +     IdentityConflict,
+48 +     IdentityMergeRecommendation,
+49 + )
+50 | from app.models.conversation import Conversation
+   |
+
+F401 [*] `sqlalchemy.ext.asyncio.AsyncSession` imported but unused
+  --> app/repositories/contact_identity.py:8:36
+   |
+ 7 | from sqlalchemy import func, select
+ 8 | from sqlalchemy.ext.asyncio import AsyncSession
+   |                                    ^^^^^^^^^^^^
+ 9 |
+10 | from app.models.contact_identity import (
+   |
+help: Remove unused import: `sqlalchemy.ext.asyncio.AsyncSession`
+  |
+7 | from sqlalchemy import func, select
+  - from sqlalchemy.ext.asyncio import AsyncSession
+8 |
+  |
+
+F401 [*] `app.identity.domain.IdentityConflictStatus` imported but unused
+  --> app/schemas/contact_identity.py:14:5
+   |
+12 |     IdentityAssertion,
+13 |     IdentityConfidence,
+14 |     IdentityConflictStatus,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+15 |     IdentityKind,
+16 |     IdentitySource,
+   |
+help: Remove unused import: `app.identity.domain.IdentityConflictStatus`
+   |
+13 |     IdentityConfidence,
+   -     IdentityConflictStatus,
+14 |     IdentityKind,
+   |
+
+Found 4 errors.
+[*] 3 fixable with the `--fix` option.
 
 EXIT=1
 
-FIRST_FAILURE=RUFF_FORMAT_CHECK
+FIRST_FAILURE=RUFF_CHECK
