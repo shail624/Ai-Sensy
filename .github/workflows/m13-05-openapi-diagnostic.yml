@@ -38,47 +38,41 @@ jobs:
           print('Pydantic:', pydantic.__version__)
           PY
 
-      - name: Generate untouched baseline OpenAPI
+      - name: Prove canonical serialization matches committed contract
         run: |
           cp frontend/openapi.json /tmp/openapi.committed.json
-          (cd backend && python scripts/export_openapi.py)
-          cp frontend/openapi.json /tmp/openapi.baseline.generated.json
-          git diff --no-ext-diff -- frontend/openapi.json > /tmp/openapi.baseline.diff || true
-          sha256sum /tmp/openapi.committed.json /tmp/openapi.baseline.generated.json /tmp/openapi.baseline.diff
-          python - <<'PY'
+          (cd backend && python - <<'PY'
           import json
           from pathlib import Path
-          before = json.loads(Path('/tmp/openapi.committed.json').read_text())
-          after = json.loads(Path('/tmp/openapi.baseline.generated.json').read_text())
-          print('baseline committed paths:', len(before['paths']))
-          print('baseline generated paths:', len(after['paths']))
-          print('baseline generated differs:', before != after)
+          from app.main import create_app
+          target = Path('../frontend/openapi.canonical.json')
+          target.write_text(
+              json.dumps(create_app().openapi(), indent=2, ensure_ascii=False, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
           PY
+          )
+          cmp frontend/openapi.json frontend/openapi.canonical.json
+          sha256sum frontend/openapi.json frontend/openapi.canonical.json
+          rm frontend/openapi.canonical.json
+          echo 'Canonical sort_keys serialization exactly matches committed OpenAPI.'
 
-      - name: Generate M13-05 OpenAPI in identical environment
+      - name: Compare baseline and M13-05 generation
         run: |
+          (cd backend && python scripts/export_openapi.py)
+          cp frontend/openapi.json /tmp/openapi.baseline.generated.json
           git checkout --force 5d7ea154588418410611de4f568e978c2e3caba9
           base64 --decode /tmp/m13-05-overlay.b64 > /tmp/m13-05-overlay.tar.gz
           tar -xzf /tmp/m13-05-overlay.tar.gz
           base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
           tar -xzf /tmp/m13-05-fix.tar.gz
           (cd backend && python scripts/export_openapi.py)
-          cp frontend/openapi.json /tmp/openapi.m13-05.generated.json
-          git diff --no-ext-diff -- frontend/openapi.json > /tmp/openapi.m13-05.diff || true
-          sha256sum /tmp/openapi.m13-05.generated.json /tmp/openapi.m13-05.diff
-          cmp /tmp/openapi.baseline.generated.json /tmp/openapi.m13-05.generated.json
-          cmp /tmp/openapi.baseline.diff /tmp/openapi.m13-05.diff
-          echo 'Baseline and M13-05 generated OpenAPI are byte-identical.'
+          cmp /tmp/openapi.baseline.generated.json frontend/openapi.json
           python - <<'PY'
           import json
           from pathlib import Path
-          baseline = json.loads(Path('/tmp/openapi.baseline.generated.json').read_text())
-          milestone = json.loads(Path('/tmp/openapi.m13-05.generated.json').read_text())
-          assert baseline == milestone
-          print('M13-05 generated paths:', len(milestone['paths']))
+          committed = json.loads(Path('/tmp/openapi.committed.json').read_text())
+          generated = json.loads(Path('frontend/openapi.json').read_text())
+          assert committed == generated
+          print('Semantically identical paths:', len(generated['paths']))
           PY
-
-      - name: Summarize baseline drift
-        run: |
-          git diff --no-ext-diff --stat -- frontend/openapi.json
-          sed -n '1,220p' /tmp/openapi.baseline.diff
