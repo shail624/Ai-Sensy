@@ -1,84 +1,63 @@
 # Implementation Tracker (canonical)
 
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
-> engineering evidence separate from authenticated host visual acceptance.
+> engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-04 · M13-00 Architecture & Provider Lock is documentation-complete and
-repository-validated. Module 13 implementation has not started._
+_Last updated: 2026-08-04 · M13-01 Generic Channel Foundation is Repository Validated. No
+provider, persisted channel connection or executable omnichannel workflow has started._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **M13-00 baseline:** `7e503a3f2e1d35d54548d9d8fe95e82591e26be1`
+- **Baseline:** `8b878bdbd21877cf3f77eac5e9bb209d6b6022be`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged
-- **Product source:** unchanged; no backend, frontend, API, migration, generated client,
-  dependency, route, queue, runtime or deployment implementation
-- **Current milestone:** `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED`
-- **Contract:** ADR-0020 + Design Document 33 — accepted and frozen
-- **Provider selection:** Required external gate pending; no candidate is claimed
-- **Module 13 implementation:** `0%`
-- **Next Module 13 milestone:** `M13-01` — not authorized
-- **Existing roadmap next implementation:** `UI-TASTE-03B` — previously approved, not started
-- **Host validation:** not applicable to documentation-only M13-00; no higher status claimed
+- **Current milestone:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`
+- **Module 13 completion:** `8%` evidence-based foundation estimate
+- **Provider selection:** pending; no provider is registered
+- **Next milestone:** `M13-02` — not authorized
+- **Last synchronized:** `2026-08-04T12:56:16+05:30`
 
-## M13-00 implementation contract
+## Delivered
 
-| Contract area | Frozen result |
+| Area | Repository result |
 |---|---|
-| Architecture decision | One existing capability-based ChannelAdapter; one CRM/Contact/ledger; separate endpoint conversations under one Customer 360 |
-| Provider behavior | Meta official capabilities remain official; QR is restricted to approved declared human/session/history/media capabilities |
-| Provider selection | Required pass/fail criteria frozen; legal, stable IDs, replay, ambiguous-send reconciliation, session security/recovery, history, media, health and support must pass |
-| Security | Separate encrypted secret types, write-only APIs, short-lived QR, RBAC/object authorization, organization isolation, lease/fencing and redacted evidence |
-| Session lifecycle | Durable desired/observed state, legal transition matrix, one active holder, bounded reconnect and explicit re-authentication |
-| Identity | Exact organization/namespace/scope/value resolution; no fuzzy auto-merge; one provider identity belongs to one active Contact |
-| API | Additive `/api/v1` connection, endpoint, auth-session, device, health, history and conversation-send resources; current Meta APIs remain compatible |
-| Database | Eight approved generic records plus additive links/backfills; expand/backfill/dual-write/verify/switch/contract; migration head unchanged in M13-00 |
-| Operations | Disabled-by-default flags, staged Meta parity then QR pilots, explicit rollback, DR, metrics, alerts and runbook evidence |
-| Quality | Repository, security, performance, browser, accessibility, UX, operator and production gates mapped to future implementation milestones |
+| Existing abstraction | `ChannelAdapter` remains the sole adapter/factory seam |
+| Shared domain | Communication Intent, Communication Policy, Channel Metadata, Provider Health and Provider Lifecycle immutable contracts |
+| Enums | Provider-independent purpose, origin, desired/observed state and health vocabularies |
+| Registries | Thread-safe provider metadata and capability registries; adapter resolution delegates to existing `get_adapter` |
+| Validation | Connector/text/time/score/capability validation and fail-closed policy evaluation |
+| Feature flags | Two frozen generic connection flags resolved through existing global/organization `FeatureFlag` rows; absent means disabled |
+| Dependency injection | Cached empty foundation container and request-scoped flag resolver wiring |
+| Regression coverage | Seven new foundation tests plus existing channel/config regression suite |
 
-## Verified gaps
+## Validation
 
-### Required
+- Ruff PASS.
+- Strict mypy PASS across 263 source files.
+- Focused channel/config suite: 46 PASS.
+- Full backend suite: 955 PASS in 260.89 seconds in validation run `30886853478`.
+- Frontend production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and
+  production build PASS with unchanged source.
+- Bundle output is unchanged: CSS 49.90/9.90 kB gzip, main 733.62/178.16 kB gzip and
+  Operational Dashboard 31.96/8.61 kB gzip.
+- Exact seven-file provider-neutral boundary PASS.
 
-- Select and approve a concrete QR provider using the frozen evidence matrix.
-- Complete legal/policy/data-processing review.
-- Select production key management and session-runtime deployment topology.
-- Verify Meta backfill cardinality, high-volume migration/query plans and provider-scoped
-  idempotency before the affected implementation milestone.
-- Define the restricted identity-conflict workflow and ratify target RPO/RTO.
-- Satisfy recorded prerequisite workflows and obtain a separate owner instruction.
+## Explicitly absent
 
-### Recommended
+QR pairing, sessions, provider runtimes, provider adapters, history synchronization, live
+messaging, database records/migrations, API routes, generated contracts, UI, Contact/Inbox/
+Customer 360/Timeline/Notification/Analytics changes and new dependencies are absent.
 
-- Step-up authentication for pairing/credential rotation.
-- Formal provider support SLA, conformance harness, per-connection capacity model and operator runbook.
+## Remaining work
 
-### Future Enhancement
+- Persistent channel connection, endpoint and secret records plus Meta backfill remain a
+  Required frozen-contract gap and need explicit owner sequencing.
+- M13-02 identity convergence is not authorized.
+- Provider evaluation, runtime, pairing, inbound/history, outbound and unified operator
+  experience remain later gated work.
 
-- Calls, presence, typing, edit/delete synchronization, advanced interactions, additional
-  providers and expanded device administration. None are current Module 13 requirements.
+## Stop rule
 
-## Consistency decisions
-
-- Existing `ChannelAdapter` remains the only adapter abstraction; optional provider operations
-  use the existing capability mechanism.
-- ADR-0020 is the later owner decision that permits Instagram only as future evaluation scope;
-  it does not authorize implementation and does not reopen excluded SaaS/ads/payments/commerce scope.
-- The current private deployment remains organization-scoped and self-hosted; organization
-  predicates remain mandatory even though public multi-tenant SaaS is excluded.
-
-## Validation boundary
-
-- PASS: required headings, contract areas, governance links and gap classifications exist.
-- PASS: documentation agrees with existing schema/API/channel/CRM authorities and records
-  intentional additive migrations without modifying them.
-- PASS: changed-file boundary is documentation only.
-- Existing application test and bundle evidence remains unchanged because product source is unchanged.
-- Browser, screenshots, operator journey, runtime performance, provider certification and DR
-  evidence belong to later executable milestones and are not claimed by M13-00.
-
-## Next-step rule
-
-Stop after M13-00. Do not begin M13-01. Any architecture/scope/abstraction/milestone-order
-deviation requires owner approval and an additive ADR.
+Do not begin M13-02 or any unassigned persistence/provider work. Any architecture, scope,
+abstraction or milestone-order deviation requires owner approval and an additive ADR.

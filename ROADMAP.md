@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-04T11:20:00+05:30`.
+Last synchronized: `2026-08-04T12:56:16+05:30`.
 
 ## Authority and baseline
 
@@ -46,34 +46,34 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED**
+**Current status: M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED**
 
-ADR-0020 and Design Document 33 are the frozen implementation contract. They finalize the existing
-single-ChannelAdapter architecture, provider capability matrix, QR evaluation gate, threat/security
-model, session/identity contracts, additive API/database evolution, rollback, feature flags, staged
-rollout, disaster recovery, observability, performance, testing, acceptance, risks and dependencies.
-No Module 13 product implementation has started and completion remains `0%`.
+ADR-0020 and Design Document 33 remain frozen. M13-01 implements only the owner-approved,
+provider-neutral in-process foundation: shared communication intent/policy/metadata/health/
+lifecycle contracts, validation, metadata registries over the existing `ChannelAdapter`,
+two disabled-by-default generic feature flags and typed DI. No provider or executable channel
+workflow exists.
 
-A concrete QR provider is intentionally not invented. Selection is a Required external gate and must
-pass the frozen legal, identity, idempotency, session, history, media, health, error and support
-criteria. The recorded prerequisite workflows and a separate owner instruction also remain mandatory.
+The original frozen contract also requires persistent channel connection, endpoint and secret
+records plus Meta backfill. Those items are explicitly **not complete**, are not silently moved
+into M13-02, and require a separately approved sequencing decision before provider/runtime work.
 
 | Milestone | Objective | Status / start gate |
 |---|---|---|
-| M13-00 — Architecture & Provider Lock | Freeze ADR, provider criteria, threat/security/session/identity/API/DB/rollback/flag/rollout/DR/monitoring/performance/testing contract and classified gaps | **REPOSITORY VALIDATED**; documentation only |
-| M13-01 — Channel connection foundation | Add generic connection/endpoint/secret records and Meta backfill without changing Meta behavior | Not authorized; requires prerequisites, provider plan where relevant and explicit owner instruction |
-| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | Blocked by M13-01 |
-| M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Blocked by approved provider and M13-02 |
+| M13-00 — Architecture & Provider Lock | Freeze architecture, provider, security, session, identity, API/database, rollback, rollout and validation contracts | **REPOSITORY VALIDATED** |
+| M13-01 — Generic Channel Foundation | Add provider-independent domain contracts, registries, validation, generic flags and DI while reusing `ChannelAdapter` | **REPOSITORY VALIDATED**; no provider/runtime/persistence workflow |
+| Required connection persistence/backfill gate | Add frozen connection/endpoint/secret persistence and Meta backfill | Unassigned; separate owner sequencing required; not M13-02 |
+| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | Not authorized; blocked by explicit owner instruction and required foundation gates |
+| M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Blocked by provider approval, persistence and M13-02 |
 | M13-04 — QR pairing and health | Pairing, devices, reconnect, re-authentication and diagnostics | Blocked by M13-03 security/runtime evidence |
 | M13-05 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | Blocked by provider certification |
 | M13-06 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
-| M13-07 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by source milestones |
-| M13-08 — Notifications, analytics and diagnostics | Reuse existing authorities with provider dimensions and factual availability | Blocked by stable unified sources |
+| M13-07 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by stable source milestones |
+| M13-08 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
 | M13-09 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
 
-Do not begin M13-01 automatically. Do not expand scope, create a second adapter hierarchy, duplicate
-CRM authorities or implement future providers. Any deviation requires explicit owner approval and an
-additive ADR.
+Stop after M13-01. No M13-02, persistence/backfill, provider selection or runtime work begins
+automatically.
 
 ## Phase 0 — Governance and scope lock
 

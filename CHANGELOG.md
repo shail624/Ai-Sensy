@@ -11,6 +11,31 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Generic Channel Foundation (M13-01)
+
+**Added**
+- Added provider-independent Communication Intent, Communication Policy, Channel Metadata,
+  Provider Health and Provider Lifecycle contracts with shared enums and validation.
+- Added provider metadata and capability registries that delegate adapter creation to the
+  existing `ChannelAdapter` registry rather than creating a parallel provider system.
+- Added two disabled-by-default generic connection flags over the existing organization-scoped
+  `FeatureFlag` table and typed dependency-injection composition.
+- Added seven focused tests for registry parity/conflict handling, policy decisions, factual
+  health/lifecycle validation, feature-flag precedence and DI stability.
+
+**Preserved**
+- No provider implementation, QR pairing, session/runtime, history, live messaging, database
+  migration, API route, OpenAPI/client, dependency, frontend or shared CRM-authority change.
+- Contact, Customer 360, Timeline, Inbox, Notification Center, Analytics and the existing
+  `ChannelAdapter` remain authoritative and unchanged.
+
+**Validated**
+- Ruff and strict mypy pass across 263 source files; 46 focused and 955 full backend tests pass.
+- The unchanged frontend passes production audit high threshold, ESLint, TypeScript, 661 tests
+  and build with no bundle change.
+- M13-01 reaches `Repository Validated`; persistent channel records/Meta backfill remain a
+  Required unimplemented contract gap, and M13-02 is not authorized.
+
 ### 2026-08-04 — Module 13 implementation contract (M13-00)
 
 **Added**

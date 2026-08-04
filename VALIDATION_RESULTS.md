@@ -4,8 +4,32 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-04T11:20:00+05:30`.
+Last synchronized: `2026-08-04T12:56:16+05:30`.
 
+
+## M13-01 Generic Channel Foundation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `8b878bdbd21877cf3f77eac5e9bb209d6b6022be` on `ui/taste-modernization`. |
+| Existing adapter reuse | PASS | Provider metadata resolution delegates to the existing `get_adapter`; no second adapter factory or provider-specific service exists. |
+| Provider/capability registries | PASS | Thread-safe registries reject conflicting metadata, expose factual capabilities and remain empty by default. |
+| Communication intent and policy | PASS | Immutable organization-aware contracts cover channel, purpose, origin, bulk and required capabilities; policy evaluation fails closed with explicit reasons. |
+| Health, lifecycle, metadata and enums | PASS | Immutable provider-independent states validate connector identity, timezone-aware observation, score and retry facts without inventing provider health. |
+| Shared validation | PASS | Connector, text, organization, timestamp, score and capability validation use the existing channel error boundary. |
+| Feature flags | PASS | `omnichannel_connections_read/write` use existing `feature_flags`; absent is off and organization rows override global rows. |
+| Dependency injection | PASS | Cached empty foundation and request-scoped flag resolver are wired through existing API dependency conventions without startup/provider side effects. |
+| Focused validation | PASS | Ruff, strict mypy and 46 channel/config tests pass, including seven new foundation regressions. |
+| Full backend suite | PASS | 955 pytest tests pass in 260.89 seconds; strict mypy reports no issues across 263 source files. |
+| Frontend repository gate | PASS | Unchanged frontend passes production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and production build. |
+| Bundle impact | PASS | No frontend source changed; main remains 733.62/178.16 kB gzip and Operational Dashboard remains 31.96/8.61 kB gzip. |
+| Migration/API/dependency boundary | PASS | Migration remains `0035_notification_center`, OpenAPI remains 193 paths, generated client and packages are unchanged. |
+| Provider/runtime boundary | PASS | No QR/Meta runtime, pairing, session, history, live messaging, provider adapter or provider dependency exists. |
+| Shared-authority boundary | PASS | Contact, Inbox, Customer 360, Timeline, Notification Center, Analytics, media, message and audit authorities are unchanged. |
+| Exact changed-file boundary | PASS | Seven backend/test files only before governance; no migration, API v1, provider package, model table or frontend file. |
+| Host/production evidence | PASS | Correctly limited to Repository Validated; no provider, host workflow, runtime performance, DR, Production Ready or Released claim. |
+| Remaining contract gap | PASS | Persistent connection/endpoint/secret records and Meta backfill are explicitly recorded as Required and unimplemented. |
+| Milestone boundary | PASS | M13-02 and all provider/runtime work remain unstarted. |
 
 ## M13-00 Architecture & Provider Lock
 
