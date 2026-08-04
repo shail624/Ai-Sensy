@@ -1,0 +1,31 @@
+name: M13-04 repository package
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+      - name: Verify baseline and package
+        run: |
+          test "$(git rev-parse HEAD)" = "9d8f379f09719820c847be2b7c7df301e1617977"
+          test -z "$(git status --porcelain)"
+          git archive --format=zip --output=m13-04-baseline.zip HEAD
+          sha256sum m13-04-baseline.zip
+      - name: Upload repository package
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-04-baseline
+          path: m13-04-baseline.zip
+          if-no-files-found: error
+          retention-days: 1
