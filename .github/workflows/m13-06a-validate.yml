@@ -28,10 +28,9 @@ jobs:
           cache-dependency-path: |
             frontend/package-lock.json
             e2e/package-lock.json
-      - name: Reconstruct and run isolated validation
+      - name: Run isolated validation
         run: |
-          cat .validation/m13-06a/payload.part* | base64 --decode > /tmp/m13-06a-payload.tar.gz
           mkdir -p /tmp/m13-06a-payload
-          tar -xzf /tmp/m13-06a-payload.tar.gz -C /tmp/m13-06a-payload
+          tar -xzf .validation/m13-06a/payload.tar.gz -C /tmp/m13-06a-payload
           chmod +x /tmp/m13-06a-payload/run_m13_06a.sh
           /tmp/m13-06a-payload/run_m13_06a.sh
