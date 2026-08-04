@@ -22,7 +22,6 @@ jobs:
         run: |
           cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
           cp .validation/m13-05-fix.b64 /tmp/m13-05-fix.b64
-          cp .validation/m13-05-quality-fix.b64 /tmp/m13-05-quality-fix.b64
 
       - name: Restore approved baseline and overlays
         run: |
@@ -31,28 +30,61 @@ jobs:
           tar -xzf /tmp/m13-05-overlay.tar.gz
           base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
           tar -xzf /tmp/m13-05-fix.tar.gz
-          base64 --decode /tmp/m13-05-quality-fix.b64 > /tmp/m13-05-quality-fix.tar.gz
-          tar -xzf /tmp/m13-05-quality-fix.tar.gz
           python - <<'PY'
           from pathlib import Path
-          path = Path('backend/app/services/pairing_manager.py')
-          text = path.read_text()
-          wrong = (
+
+          pairing = Path('backend/app/services/pairing_manager.py')
+          text = pairing.read_text()
+          wrong_imports = (
               '    PairingState,\n'
               '    RuntimeMetadata,\n'
               '    RuntimeEvent,\n'
               '    RuntimeEventType,\n'
           )
-          correct = (
+          correct_imports = (
               '    PairingState,\n'
               '    RuntimeEvent,\n'
               '    RuntimeEventType,\n'
               '    RuntimeMetadata,\n'
           )
-          if wrong in text:
-              path.write_text(text.replace(wrong, correct, 1))
-          elif correct not in text:
+          if wrong_imports in text:
+              text = text.replace(wrong_imports, correct_imports, 1)
+          elif correct_imports not in text:
               raise SystemExit('pairing import block not found')
+
+          old_method = '''    async def expire_due_pairings(\n        self,\n        *,\n        organization_id: int,\n        actor: User,\n        at: datetime | None = None,\n    ) -> list[ChannelSession]:\n        """Expire due pairing availability without requiring a now-dead runtime lease."""\n\n        await self._require_authenticate(organization_id, actor)\n        now = at or utcnow()\n        rows = await self._sessions.list_due_pairings(organization_id, now)\n'''
+          new_method = '''    async def expire_due_pairings(\n        self,\n        *,\n        organization_id: int,\n        actor: User,\n        at: datetime | None = None,\n        limit: int = 100,\n    ) -> list[ChannelSession]:\n        """Expire due pairing availability without requiring a now-dead runtime lease."""\n\n        await self._require_authenticate(organization_id, actor)\n        if limit < 1 or limit > 1000:\n            raise ValidationError("limit must be between 1 and 1000.")\n        now = at or utcnow()\n        rows = await self._sessions.list_due_pairings(organization_id, now, limit=limit)\n'''
+          if old_method in text:
+              text = text.replace(old_method, new_method, 1)
+          elif new_method not in text:
+              raise SystemExit('expire_due_pairings block not found')
+          pairing.write_text(text)
+
+          repository = Path('backend/app/repositories/channel_session.py')
+          text = repository.read_text()
+          old_repo = '''    async def list_due_pairings(\n        self, organization_id: int, at: datetime\n    ) -> list[ChannelSession]:\n'''
+          new_repo = '''    async def list_due_pairings(\n        self, organization_id: int, at: datetime, *, limit: int = 100\n    ) -> list[ChannelSession]:\n'''
+          if old_repo in text:
+              text = text.replace(old_repo, new_repo, 1)
+          elif new_repo not in text:
+              raise SystemExit('list_due_pairings signature not found')
+          old_order = '''            .order_by(ChannelSession.pairing_expires_at.asc(), ChannelSession.id.asc())\n            .with_for_update()\n'''
+          new_order = '''            .order_by(ChannelSession.pairing_expires_at.asc(), ChannelSession.id.asc())\n            .limit(limit)\n            .with_for_update()\n'''
+          if old_order in text:
+              text = text.replace(old_order, new_order, 1)
+          elif new_order not in text:
+              raise SystemExit('list_due_pairings query not found')
+          repository.write_text(text)
+
+          tests = Path('backend/tests/test_provider_runtime.py')
+          text = tests.read_text()
+          invalid_limit = '''    with pytest.raises(ValidationError, match="limit"):\n        await pairing.expire_due_pairings(\n            organization_id=organization.id,\n            actor=actor,\n            at=now + timedelta(seconds=21),\n            limit=0,\n        )\n\n'''
+          anchor = '''    expired = await pairing.expire_due_pairings(\n        organization_id=organization.id,\n        actor=actor,\n        at=now + timedelta(seconds=21),\n    )\n'''
+          if invalid_limit not in text:
+              if anchor not in text:
+                  raise SystemExit('pairing expiry test anchor not found')
+              text = text.replace(anchor, invalid_limit + anchor, 1)
+          tests.write_text(text)
           PY
 
       - name: Verify exact implementation boundary
