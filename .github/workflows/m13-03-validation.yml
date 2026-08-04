@@ -1,0 +1,170 @@
+name: M13-03 persistence validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-03-builder
+          path: builder
+          clean: false
+      - name: Checkout approved baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+          path: work
+          clean: false
+      - name: Apply exact M13-03 patch
+        run: |
+          test "$(git -C work rev-parse HEAD)" = "283ebe83b53a510ce671f150bfe14fe38a5292f6"
+          base64 --decode builder/.github/m13-03.patch.gz.b64 | gzip --decompress > /tmp/m13-03.patch
+          git -C work apply --index /tmp/m13-03.patch
+          git -C work diff --cached --check
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: work/backend/pyproject.toml
+      - name: Install backend
+        run: python -m pip install -e './work/backend[dev]'
+      - name: Format changed Python
+        working-directory: work/backend
+        run: |
+          ruff format \
+            app/channels/secrets.py \
+            app/models/channel_connection.py \
+            app/repositories/channel_connection.py \
+            app/services/channel_connection_service.py \
+            app/services/audit_service.py \
+            app/models/__init__.py \
+            alembic/versions/0037_persistent_channel_connections.py \
+            tests/test_channel_persistence.py \
+            tests/test_migrations.py
+          git add -A
+          git diff --cached --check
+      - name: Ruff
+        working-directory: work/backend
+        run: ruff check app tests alembic/versions
+      - name: mypy
+        working-directory: work/backend
+        run: mypy app
+      - name: Backend tests
+        working-directory: work/backend
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite+aiosqlite://
+          SECRET_KEY: test-secret-key-not-for-production-use-only
+        run: pytest -q
+      - name: Migration validation
+        working-directory: work/backend
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite+aiosqlite://
+          SECRET_KEY: test-secret-key-not-for-production-use-only
+        run: pytest -q tests/test_migrations.py
+      - name: OpenAPI generation
+        working-directory: work/backend
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite+aiosqlite://
+          SECRET_KEY: test-secret-key-not-for-production-use-only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from app.main import create_app
+          schema = create_app().openapi()
+          assert len(schema["paths"]) == 200
+          Path("../frontend/openapi.json").write_text(
+              json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          print(f"OPENAPI_PATHS={len(schema['paths'])}")
+          PY
+      - name: Security and Python dependency audit
+        working-directory: work/backend
+        run: |
+          pip-audit
+          bandit -q -lll -r app
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: work/frontend/package-lock.json
+      - name: Install frontend
+        working-directory: work/frontend
+        run: npm ci
+      - name: Generated client
+        working-directory: work/frontend
+        run: npm run gen:api
+      - name: Verify generated authorities unchanged
+        working-directory: work
+        run: git diff --exit-code -- frontend/openapi.json frontend/src/lib/api/schema.d.ts
+      - name: Frontend dependency audit
+        working-directory: work/frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Frontend ESLint
+        working-directory: work/frontend
+        run: npm run lint
+      - name: Frontend TypeScript
+        working-directory: work/frontend
+        run: npm run typecheck
+      - name: Vitest
+        working-directory: work/frontend
+        run: npm test
+      - name: Production build
+        working-directory: work/frontend
+        run: npm run build
+      - name: Verify milestone boundary
+        working-directory: work
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'backend/alembic/versions/0037_persistent_channel_connections.py',
+              'backend/app/channels/secrets.py',
+              'backend/app/models/__init__.py',
+              'backend/app/models/channel_connection.py',
+              'backend/app/repositories/channel_connection.py',
+              'backend/app/services/audit_service.py',
+              'backend/app/services/channel_connection_service.py',
+              'backend/tests/test_channel_persistence.py',
+              'backend/tests/test_migrations.py',
+          }
+          actual = set(subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-only'], text=True
+          ).splitlines())
+          assert actual == expected, sorted(actual ^ expected)
+          forbidden = subprocess.check_output([
+              'git', 'diff', '--cached', '--name-only', '--',
+              'backend/app/api', 'frontend/src',
+              'backend/app/channels/meta', 'backend/app/channels/tasks.py',
+              'backend/app/models/contact_identity.py',
+              'backend/app/services/identity_resolution_service.py'
+          ], text=True).strip()
+          assert not forbidden, forbidden
+          PY
+          git diff --cached --check
+      - name: Export formatted implementation patch
+        if: always()
+        working-directory: work
+        run: git diff --cached --binary > ../m13-03-formatted.patch
+      - name: Upload formatted implementation patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-03-formatted-patch
+          path: m13-03-formatted.patch
+          if-no-files-found: error
+          retention-days: 1
