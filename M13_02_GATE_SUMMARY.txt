@@ -1,7 +1,7 @@
 === STATUS ===
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30895154675
-FIRST_FAILURE=APPLY_VERIFIED_FIXES_3
+RUN=30895322763
+FIRST_FAILURE=FULL_PYTEST
 
 === STAGE RESULTS ===
 === APPLY_SOURCE ===
@@ -11,12 +11,222 @@ EXIT=0
 === APPLY_VERIFIED_FIXES_2 ===
 EXIT=0
 === APPLY_VERIFIED_FIXES_3 ===
+EXIT=0
+=== INSTALL_BACKEND ===
+EXIT=0
+=== FORMAT ===
+EXIT=0
+=== OPENAPI ===
+EXIT=0
+=== NPM_CI ===
+EXIT=0
+=== GENERATE_CLIENT ===
+EXIT=0
+=== RUFF_FORMAT_CHECK ===
+EXIT=0
+=== RUFF_CHECK ===
+EXIT=0
+=== MYPY ===
+EXIT=0
+=== FOCUSED_TESTS ===
+EXIT=0
+=== MIGRATION ===
+EXIT=0
+=== FULL_PYTEST ===
 EXIT=1
 
 === ROOT CAUSE LINES ===
+E       AssertionError: assert 200 == 193
+E        +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+tests/test_api_vi_domain.py:204: AssertionError
+E           AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+E             
+E             - 0035_notification_center
+E             + 0036_customer_identity_resolution
+tests/test_migrations.py:141: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_api_vi_domain.py::test_vi_openapi_exposes_typed_permission_scoped_foundation - AssertionError: assert 200 == 193
+FAILED tests/test_migrations.py::test_migrations_upgrade_downgrade_roundtrip - AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+================== 2 failed, 959 passed in 253.01s (0:04:13) ===================
 
 === FAILURE TAIL ===
-=== APPLY_VERIFIED_FIXES_3 ===
-verified connector fixture count changed: 0
+tests/test_api_attributes.py .......                                     [ 14%]
+tests/test_api_audit.py .....                                            [ 15%]
+tests/test_api_auth.py ...........                                       [ 16%]
+tests/test_api_automation_runtime.py .......                             [ 17%]
+tests/test_api_automation_triggers.py ....                               [ 17%]
+tests/test_api_automations.py .........                                  [ 18%]
+tests/test_api_bulk.py .................                                 [ 20%]
+tests/test_api_campaign_cost.py ...........                              [ 21%]
+tests/test_api_campaign_dispatch.py ....................                 [ 23%]
+tests/test_api_campaign_lifecycle.py ....................                [ 25%]
+tests/test_api_campaign_scheduling.py ..........................         [ 28%]
+tests/test_api_campaigns.py ...................                          [ 30%]
+tests/test_api_contact_documents.py ..........                           [ 31%]
+tests/test_api_contacts.py .........                                     [ 32%]
+tests/test_api_conversation_tags.py .................                    [ 34%]
+tests/test_api_conversations.py .....................                    [ 36%]
+tests/test_api_export.py ...........                                     [ 37%]
+tests/test_api_import.py ..................                              [ 39%]
+tests/test_api_inbox.py ....................                             [ 41%]
+tests/test_api_inbox_read_state.py ......                                [ 41%]
+tests/test_api_inbox_reads.py ...................                        [ 43%]
+tests/test_api_jobs.py ..........                                        [ 44%]
+tests/test_api_leads.py .....                                            [ 45%]
+tests/test_api_media.py ........                                         [ 46%]
+tests/test_api_media_flow.py ................                            [ 47%]
+tests/test_api_message_reactions.py ............                         [ 49%]
+tests/test_api_messages.py .......................                       [ 51%]
+tests/test_api_organization.py .....                                     [ 52%]
+tests/test_api_preferences.py ....                                       [ 52%]
+tests/test_api_quick_replies.py ...................                      [ 54%]
+tests/test_api_rbac.py ........                                          [ 55%]
+tests/test_api_search.py .....                                           [ 55%]
+tests/test_api_segments.py ........                                      [ 56%]
+tests/test_api_settings.py ......                                        [ 57%]
+tests/test_api_tags.py ......                                            [ 57%]
+tests/test_api_tasks.py .............................................    [ 62%]
+tests/test_api_templates.py .............................                [ 65%]
+tests/test_api_timeline.py ...                                           [ 65%]
+tests/test_api_users.py .........                                        [ 66%]
+tests/test_api_vi_domain.py .F                                           [ 67%]
+tests/test_api_waba.py .......................                           [ 69%]
+tests/test_api_webhooks.py .........................                     [ 72%]
+tests/test_bootstrap.py ...                                              [ 72%]
+tests/test_channel_foundation.py .......                                 [ 73%]
+tests/test_channels.py ......................................            [ 77%]
+tests/test_config.py .                                                   [ 77%]
+tests/test_crm_formats.py ................                               [ 78%]
+tests/test_health.py .........                                           [ 79%]
+tests/test_identity_resolution.py ......                                 [ 80%]
+tests/test_integration_module1.py .                                      [ 80%]
+tests/test_kyc_operations.py ..                                          [ 80%]
+tests/test_logging.py ..                                                 [ 80%]
+tests/test_migrations.py F.                                              [ 81%]
+tests/test_notification_center.py ..                                     [ 81%]
+tests/test_notification_center_task_lifecycle.py .                       [ 81%]
+tests/test_quality_gate_tools.py ..............                          [ 82%]
+tests/test_queue_engine.py .................                             [ 84%]
+tests/test_rate_gate.py ..................                               [ 86%]
+tests/test_rate_limit.py ...                                             [ 86%]
+tests/test_reactivation_crm_workflow.py ...                              [ 87%]
+tests/test_repositories.py ..............                                [ 88%]
+tests/test_security.py ...............                                   [ 90%]
+tests/test_service_typing_invariants.py ....                             [ 90%]
+tests/test_services.py ...............                                   [ 92%]
+tests/test_smoke_release.py .....                                        [ 92%]
+tests/test_storage.py ..................                                 [ 94%]
+tests/test_task_service.py ............................................. [ 99%]
+...                                                                      [ 99%]
+tests/test_vi_domain_service.py ....                                     [100%]
+
+=================================== FAILURES ===================================
+__________ test_vi_openapi_exposes_typed_permission_scoped_foundation __________
+
+client = <httpx.AsyncClient object at 0x7f841376f4d0>
+
+    @pytest.mark.asyncio
+    async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> None:
+        schema = (await client.get("/api/v1/openapi.json")).json()
+        expected = {
+            "/api/v1/reactivation-cases/{case_id}/transition",
+            "/api/v1/reactivation-cases/{case_id}/notes",
+            "/api/v1/reactivation-pipeline",
+            "/api/v1/kyc-cases/{kyc_id}/approvals",
+            "/api/v1/kyc-operations",
+            "/api/v1/kyc-cases/{kyc_id}/document-references",
+            "/api/v1/kyc-cases/{kyc_id}/appointments",
+            "/api/v1/sim-orders/{order_id}/transition",
+            "/api/v1/activation-records/{activation_id}/approval",
+            "/api/v1/sla/events",
+            "/api/v1/notifications",
+            "/api/v1/notifications/unread-count",
+            "/api/v1/notifications/{notification_id}/read",
+            "/api/v1/notifications/read-all",
+        }
+        assert expected <= set(schema["paths"])
+>       assert len(schema["paths"]) == 193
+E       AssertionError: assert 200 == 193
+E        +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+
+tests/test_api_vi_domain.py:204: AssertionError
+_________________ test_migrations_upgrade_downgrade_roundtrip __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_migrations_upgrade_downgr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f8416d4baf0>
+
+    def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> None:
+        """upgrade head → full schema + seed; downgrade base → clean; re-upgrade → works."""
+        db_path = tmp_path / "migration_test.db"
+        # Point the Alembic env (which reads app settings) at the throwaway file DB.
+        monkeypatch.setattr(settings, "database_url", f"sqlite+aiosqlite:///{db_path.as_posix()}")
+        cfg = _alembic_config()
+    
+        command.upgrade(cfg, "head")
+    
+        tables = _table_names(db_path)
+        assert tables >= _EXPECTED_TABLES
+        assert "alembic_version" in tables
+    
+        con = sqlite3.connect(db_path)
+        try:
+            # The full catalog is seeded (Doc 04 §4.3).
+            count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
+            assert count == len(PERMISSION_CATALOG)
+            version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+>           assert version == "0035_notification_center"
+E           AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+E             
+E             - 0035_notification_center
+E             + 0036_customer_identity_resolution
+
+tests/test_migrations.py:141: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_identity_and_audit, Identity & Access + Audit schema (Module 1 — Doc 03 §4, §11.2).
+INFO  [alembic.runtime.migration] Running upgrade 0001_identity_and_audit -> 0002_seed_permissions, Seed the permission catalog (Module 1 — Doc 04 §4.3).
+INFO  [alembic.runtime.migration] Running upgrade 0002_seed_permissions -> 0003_settings_feature_flags, System settings & feature flags (Module 1 — Doc 03 §11.5, §11.7).
+INFO  [alembic.runtime.migration] Running upgrade 0003_settings_feature_flags -> 0004_api_keys, API keys (Module 1 — Doc 03 §4.4).
+INFO  [alembic.runtime.migration] Running upgrade 0004_api_keys -> 0005_contacts, Contacts (Module 2 — Doc 03 §6.1).
+INFO  [alembic.runtime.migration] Running upgrade 0005_contacts -> 0006_tags_events_leads, Tags, contact events & lead pipelines (Module 2 — Doc 03 §6.2/§6.5, Doc 07 §23.2).
+INFO  [alembic.runtime.migration] Running upgrade 0006_tags_events_leads -> 0007_segments, Segments & segment rules (Module 2 — Doc 03 §6.4).
+INFO  [alembic.runtime.migration] Running upgrade 0007_segments -> 0008_custom_attributes, Custom attributes (Module 2 — Doc 03 §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0008_custom_attributes -> 0009_queue_engine, Queue engine: job metadata & dead letter (Module 6 — Doc 03 §11.7, Doc 06 §7).
+INFO  [alembic.runtime.migration] Running upgrade 0009_queue_engine -> 0010_media_assets, Media assets (Storage foundation — Doc 03 §7.2).
+INFO  [alembic.runtime.migration] Running upgrade 0010_media_assets -> 0011_imports, Contact import job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0011_imports -> 0012_exports, Contact export job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0012_exports -> 0013_bulk_jobs, Bulk contact operation job records (Module 2 Step 5C — Doc 03 §11.6 family).
+INFO  [alembic.runtime.migration] Running upgrade 0013_bulk_jobs -> 0014_waba_phone_numbers, WhatsApp infrastructure: WABAs & phone numbers (Module 4 Step 2 — Doc 03 §5.1/§5.2).
+INFO  [alembic.runtime.migration] Running upgrade 0014_waba_phone_numbers -> 0015_webhook_events, Inbound webhook storage: events & dead letter (Module 4 Step 3 — Doc 03 §9.4).
+INFO  [alembic.runtime.migration] Running upgrade 0015_webhook_events -> 0016_conversations_messages, Conversations & the message ledger (Module 4 Step 4 — Doc 03 §9.1/§9.2/§9.3).
+INFO  [alembic.runtime.migration] Running upgrade 0016_conversations_messages -> 0017_message_templates, Template registry: templates & versions (Module 5 — Doc 03 §7.1).
+INFO  [alembic.runtime.migration] Running upgrade 0017_message_templates -> 0018_campaigns, Campaign registry: campaigns & recipients (Phase 6 Step 1 — Doc 03 §8.1/§8.3).
+INFO  [alembic.runtime.migration] Running upgrade 0018_campaigns -> 0019_campaign_batches, Campaign batches: dispatch checkpoints (Phase 6 Step 2 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0019_campaign_batches -> 0020_campaign_retry_queue, Campaign retry queue (Phase 6 Step 3 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0020_campaign_retry_queue -> 0021_campaign_schedules, Campaign schedules (Phase 6 Step 4 — Doc 03 §8.2).
+INFO  [alembic.runtime.migration] Running upgrade 0021_campaign_schedules -> 0022_rate_cards, Rate cards (Phase 6 Step 5 — Doc 03 §8.5).
+INFO  [alembic.runtime.migration] Running upgrade 0022_rate_cards -> 0023_internal_notes, Internal notes (Phase 7 Step 1 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0023_internal_notes -> 0024_quick_replies, Quick replies (Phase 7 Step 4 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0024_quick_replies -> 0025_conversation_tags, Conversation tags (Phase 7 Step 5 — Doc 03 §9.7, v1.3).
+INFO  [alembic.runtime.migration] Running upgrade 0025_conversation_tags -> 0026_tasks, Task & Activity Management (Doc 14 — CRM Follow-up Engine).
+INFO  [alembic.runtime.migration] Running upgrade 0026_tasks -> 0027_analytics, Analytics & Reporting foundation (Doc 15 — Phase 8).
+INFO  [alembic.runtime.migration] Running upgrade 0027_analytics -> 0028_contact_documents, Governed customer documents (Design Book 19, Phase 4A).
+INFO  [alembic.runtime.migration] Running upgrade 0028_contact_documents -> 0029_automation_definitions, Versioned automation definitions (Design Book 22, MD5 Phase 2A).
+INFO  [alembic.runtime.migration] Running upgrade 0029_automation_definitions -> 0030_automation_test_runtime, Deterministic automation test-run ledger (Design Book 23, MD5 Phase 2B).
+INFO  [alembic.runtime.migration] Running upgrade 0030_automation_test_runtime -> 0031_automation_trigger_receipts, Durable business events and automation trigger receipts (Design Book 24).
+INFO  [alembic.runtime.migration] Running upgrade 0031_automation_trigger_receipts -> 0032_vi_domain_foundation, CORE-02 tenant-scoped Vi domain foundation.
+INFO  [alembic.runtime.migration] Running upgrade 0032_vi_domain_foundation -> 0033_kyc_operations, CORE-04 governed KYC operations persistence gaps.
+INFO  [alembic.runtime.migration] Running upgrade 0033_kyc_operations -> 0034_reactivation_crm, Owner-approved lightweight Reactivation CRM workflow.
+INFO  [alembic.runtime.migration] Running upgrade 0034_reactivation_crm -> 0035_notification_center, Durable tenant-scoped Notification Center projection.
+INFO  [alembic.runtime.migration] Running upgrade 0035_notification_center -> 0036_customer_identity_resolution, Provider-independent Customer identity resolution records.
+=========================== short test summary info ============================
+FAILED tests/test_api_vi_domain.py::test_vi_openapi_exposes_typed_permission_scoped_foundation - AssertionError: assert 200 == 193
+ +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+FAILED tests/test_migrations.py::test_migrations_upgrade_downgrade_roundtrip - AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+  
+  - 0035_notification_center
+  + 0036_customer_identity_resolution
+================== 2 failed, 959 passed in 253.01s (0:04:13) ===================
 
 EXIT=1
