@@ -25,13 +25,14 @@ run_stage APPLY_SOURCE python builder/.github/m13-02-build.py "$source_dir" || e
 run_stage APPLY_VERIFIED_FIXES python builder/.github/m13-02-fixes.py "$source_dir" || exit 0
 run_stage INSTALL_BACKEND python -m pip install -e "./$source_dir/backend[dev]" || exit 0
 
-run_stage FORMAT bash -lc "cd '$source_dir/backend' && ruff format app/identity app/models/contact_identity.py app/models/__init__.py app/models/contact_event.py app/repositories/contact_identity.py app/services/identity_resolution_service.py app/services/audit_service.py app/schemas/contact_identity.py app/api/v1/endpoints/contact_identity.py app/api/v1/router.py alembic/versions/0036_customer_identity_resolution.py tests/test_identity_resolution.py" || exit 0
+changed_python="app/identity app/models/contact_identity.py app/models/__init__.py app/models/contact_event.py app/repositories/contact_identity.py app/services/identity_resolution_service.py app/services/audit_service.py app/schemas/contact_identity.py app/api/v1/endpoints/contact_identity.py app/api/v1/router.py alembic/versions/0036_customer_identity_resolution.py tests/test_identity_resolution.py"
+run_stage FORMAT bash -lc "cd '$source_dir/backend' && ruff format $changed_python" || exit 0
 
 run_stage OPENAPI bash -lc "cd '$source_dir/backend' && ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:// SECRET_KEY=test-secret-key-not-for-production-use-only python -c 'import json; from pathlib import Path; from app.main import create_app; schema=create_app().openapi(); Path(\"../frontend/openapi.json\").write_text(json.dumps(schema, indent=2, sort_keys=True)+\"\\n\", encoding=\"utf-8\"); print(\"OPENAPI_PATHS=\", len(schema[\"paths\"]))'" || exit 0
 
 run_stage NPM_CI bash -lc "cd '$source_dir/frontend' && npm ci" || exit 0
 run_stage GENERATE_CLIENT bash -lc "cd '$source_dir/frontend' && npm run gen:api" || exit 0
-run_stage RUFF_FORMAT_CHECK bash -lc "cd '$source_dir/backend' && ruff format --check app tests alembic/versions/0036_customer_identity_resolution.py" || exit 0
+run_stage RUFF_FORMAT_CHECK bash -lc "cd '$source_dir/backend' && ruff format --check $changed_python" || exit 0
 run_stage RUFF_CHECK bash -lc "cd '$source_dir/backend' && ruff check app tests alembic/versions/0036_customer_identity_resolution.py" || exit 0
 run_stage MYPY bash -lc "cd '$source_dir/backend' && mypy app" || exit 0
 run_stage FOCUSED_TESTS bash -lc "cd '$source_dir/backend' && pytest tests/test_identity_resolution.py tests/test_api_contacts.py tests/test_contact_events.py tests/test_audit.py tests/test_channel_foundation.py" || exit 0
