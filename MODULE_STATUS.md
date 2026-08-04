@@ -17,9 +17,16 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T15:24:00+05:30`.
+Last synchronized: `2026-08-04T17:45:00+05:30`.
 
-## Module 13 — M13-01 generic channel foundation
+## Module 13 — M13-03 persistent channel connections and endpoint records
+
+- **Milestone status:** `M13-03 — Persistent Channel Connections & Endpoint Records — REPOSITORY VALIDATED`.
+- **Completion:** `24%` evidence-based estimate.
+- **Delivered:** provider-neutral connection/endpoint/encrypted-secret persistence, immutable provider identifiers, lifecycle/health/configuration/metadata facts, soft delete, optimistic locking, tenant repositories, feature gates, Audit references and migration `0037`.
+- **Security:** AES-GCM cipher abstraction, secret/key versioning, rotation lineage and revocation; no plaintext API, metadata or Audit exposure.
+- **Preserved:** no provider adapter/runtime, QR, synchronization, messaging, webhook, routing, Inbox/Customer 360 UI, API path or frontend change.
+- **Next:** M13-04 is not started. Host MySQL/KMS/rollout commissioning remains pending.
 
 ## Module 13 — M13-02 customer identity resolution
 
@@ -92,7 +99,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 16% | M13-00/M13-01 plus M13-02 exact Contact identity convergence, immutable aliases, conflict review, recommendations, RBAC, Audit/Timeline, migration `0036` and 200-path API are Repository Validated | Persistent connection/endpoint/secret records and Meta backfill remain Required; provider/runtime/UI absent; M13-03 not started | Existing Contact/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
+| Enterprise Omnichannel Channel Manager | 24% | M13-00–M13-03 are Repository Validated: provider-neutral channel contracts, exact Contact identity convergence, persistent connection/endpoint/encrypted-secret records, tenant isolation, flags, Audit, migrations `0036`–`0037` and unchanged 200-path API | Target-host MySQL/KMS commissioning, provider-specific backfill/selection, session/runtime, QR, messaging and UI remain pending; M13-04 not started | Existing Contact/Organization/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |

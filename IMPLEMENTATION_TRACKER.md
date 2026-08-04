@@ -3,68 +3,62 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-04 · M13-02 Customer Identity Resolution is Repository Validated. M13-03 has not started._
+_Last updated: 2026-08-04 · M13-03 Persistent Channel Connections & Endpoint Records is Repository Validated. M13-04 has not started._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Baseline:** `8b878bdbd21877cf3f77eac5e9bb209d6b6022be`
+- **Starting HEAD:** `283ebe83b53a510ce671f150bfe14fe38a5292f6`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0036_customer_identity_resolution` · 200 paths
-- **Current milestone:** `M13-02 — Customer Identity Resolution — REPOSITORY VALIDATED`
-- **Module 13 completion:** `16%` evidence-based estimate
+- **Migration/OpenAPI:** `0037_persistent_channel_connections` · 200 paths
+- **Current milestone:** `M13-03 — Persistent Channel Connections & Endpoint Records — REPOSITORY VALIDATED`
+- **Module 13 completion:** `24%` evidence-based estimate
 - **Provider selection:** pending; no provider is registered
-- **Next milestone:** `M13-03` — not started
-- **Last synchronized:** `2026-08-04T15:24:00+05:30`
+- **Next milestone:** `M13-04` — not started
+- **Last synchronized:** `2026-08-04T17:45:00+05:30`
 
 ## Delivered
 
-### M13-02 Customer Identity Resolution
+### M13-03 Persistent Channel Connections & Endpoint Records
 
-- Canonical Contact-based exact identity resolution with immutable provider/endpoint aliases.
-- Tenant-scoped conflict/review queue and non-destructive recommendations with explicit decisions.
-- RBAC, disabled-by-default feature flag, Audit/Timeline integration, migration `0036`, 200-path OpenAPI and generated TypeScript authority.
-- Repository gates: Ruff PASS, mypy PASS (271 files), 22 focused and 961 full backend tests PASS; frontend lint/type/Vitest/build and migration/client generation PASS.
+- Provider-neutral persistent connection, endpoint and encrypted-secret entities owned by the existing Organization authority.
+- Immutable provider identifiers, configuration/provider/endpoint metadata, desired/observed lifecycle, factual health, Audit references, soft delete and optimistic locking.
+- AES-GCM secret-cipher abstraction with key version, secret version, rotation lineage, revocation, expiry/access evidence and redacted representations; plaintext never enters metadata or Audit.
+- Tenant-scoped repositories and disabled-by-default read/write feature gates; no public secret or connection API was introduced.
+- Additive migration `0037_persistent_channel_connections`; OpenAPI/client authority remains unchanged at 200 paths.
 
+### Preserved M13-01 and M13-02 authorities
 
-| Area | Repository result |
-|---|---|
-| Existing abstraction | `ChannelAdapter` remains the sole adapter/factory seam |
-| Shared domain | Communication Intent, Communication Policy, Channel Metadata, Provider Health and Provider Lifecycle immutable contracts |
-| Enums | Provider-independent purpose, origin, desired/observed state and health vocabularies |
-| Registries | Thread-safe provider metadata and capability registries; adapter resolution delegates to existing `get_adapter` |
-| Validation | Connector/text/time/score/capability validation and fail-closed policy evaluation |
-| Feature flags | Two frozen generic connection flags resolved through existing global/organization `FeatureFlag` rows; absent means disabled |
-| Dependency injection | Cached empty foundation container and request-scoped flag resolver wiring |
-| Regression coverage | Seven new foundation tests plus existing channel/config regression suite |
+- `ChannelAdapter` remains the sole adapter/factory seam and no provider implementation is registered.
+- Canonical Contact identity, immutable identity aliases, conflict review, recommendations, Audit/Timeline and all completed CRM/UI authorities remain unchanged.
 
 ## Validation
 
 - Ruff PASS.
-- Strict mypy PASS across 263 source files.
-- Focused channel/config suite: 46 PASS.
-- Full backend suite: 955 PASS in 260.89 seconds in validation run `30886853478`.
-- Frontend production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and
-  production build PASS with unchanged source.
-- Bundle output is unchanged: CSS 49.90/9.90 kB gzip, main 733.62/178.16 kB gzip and
-  Operational Dashboard 31.96/8.61 kB gzip.
-- Exact seven-file provider-neutral boundary PASS.
+- Strict mypy PASS across 275 source files.
+- Focused persistence suite: 4 PASS.
+- Full backend suite: 965 PASS in validation run `30907651227`.
+- Migration upgrade/downgrade/upgrade PASS at `0037_persistent_channel_connections`.
+- OpenAPI generation and generated client PASS with 200 paths and no generated-authority drift.
+- Python dependency audit and Bandit high-severity gate PASS.
+- Frontend production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and production build PASS with unchanged source.
+- Bundle output remains unchanged: CSS 49.90/9.90 kB gzip, main 733.62/178.16 kB gzip and Operational Dashboard 31.96/8.61 kB gzip.
+- Exact nine-file persistence boundary PASS before governance; no API, frontend, provider runtime or M13-04 file changed.
 
 ## Explicitly absent
 
-QR pairing, sessions, provider runtimes, provider adapters, history synchronization, live
-messaging, database records/migrations, API routes, generated contracts, UI, Contact/Inbox/
-Customer 360/Timeline/Notification/Analytics changes and new dependencies are absent.
+QR login/pairing/session runtime, provider adapters, provider-specific backfill, history/message sync,
+live messaging, webhooks, routing, Inbox/Customer 360 UI, public connection/secret APIs, frontend
+source changes and generated-contract changes are absent.
 
 ## Remaining work
 
-- Persistent channel connection, endpoint and secret records plus Meta backfill remain a
-  Required frozen-contract gap and need explicit owner sequencing.
-- M13-03 session and connection control plane is not started.
-- Provider evaluation, runtime, pairing, inbound/history, outbound and unified operator
-  experience remain later gated work.
+- Target-host MySQL migration and rollback evidence.
+- Production encryption-key/KMS custody, rotation and revocation commissioning.
+- Representative multi-tenant persistence, soft-delete/restore-policy and feature-flag rollout review.
+- Provider selection/certification and all M13-04+ runtime/operator milestones.
 
 ## Stop rule
 
-Do not begin M13-03 or any unassigned persistence/provider work. Any architecture, scope,
-abstraction or milestone-order deviation requires owner approval and an additive ADR.
+Do not begin M13-04 or any provider/runtime/QR/messaging/synchronization/webhook/routing/UI work.
+Any architecture, scope, abstraction or milestone-order deviation requires owner approval and an additive ADR.

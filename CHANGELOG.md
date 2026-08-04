@@ -11,6 +11,22 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Persistent Channel Connections & Endpoint Records (M13-03)
+
+**Added**
+- Added provider-neutral, organization-owned persistent Channel Connection, Channel Endpoint and encrypted Channel Secret records with immutable provider identifiers, lifecycle/health/configuration/metadata facts, Audit references, soft delete and optimistic locking.
+- Added tenant-scoped repositories and a disabled-by-default feature-gated persistence service, including logical cascade deletion and credential rotation/version/revocation/expiry/access evidence.
+- Added an AES-GCM secret-cipher abstraction and migration `0037_persistent_channel_connections`; plaintext credentials are rejected from metadata and never exposed through APIs, OpenAPI, generated clients, logs or Audit payloads.
+
+**Preserved**
+- M13-01 channel foundations, M13-02 identity resolution, existing `ChannelAdapter`, Contact/Inbox/Customer 360/Timeline/Notification/Analytics authorities and the 200-path public API remain unchanged.
+- No provider adapter/runtime, QR login/pairing/session, history or message synchronization, live messaging, webhook, routing engine, Inbox/Customer 360 UI or M13-04 work is included.
+
+**Validated**
+- Ruff and strict mypy across 275 source files pass; 4 focused persistence tests and all 965 backend tests pass.
+- Migration upgrade/downgrade/upgrade, OpenAPI/client regeneration, Bandit high-severity and dependency audits pass; OpenAPI remains 200 paths.
+- Unchanged frontend passes ESLint, TypeScript, 34 Vitest files / 661 tests and production build with no bundle change. M13-03 reaches `Repository Validated`; target-host MySQL/KMS/rollout commissioning remains pending.
+
 ### 2026-08-04 — Customer Identity Resolution (M13-02)
 
 **Added**

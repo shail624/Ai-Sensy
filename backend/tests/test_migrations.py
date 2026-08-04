@@ -99,6 +99,9 @@ _EXPECTED_TABLES = {
     "sla_policies",
     "sla_events",
     "notifications",
+    "channel_connections",
+    "channel_endpoints",
+    "channel_secrets",
 }
 
 
@@ -138,7 +141,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0036_customer_identity_resolution"
+        assert version == "0037_persistent_channel_connections"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -151,6 +154,45 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "due_notified_at",
         } <= task_columns
         assert "reason_code" in decision_columns
+        connection_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_connections)").fetchall()
+        }
+        endpoint_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_endpoints)").fetchall()
+        }
+        secret_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_secrets)").fetchall()
+        }
+        assert {
+            "connector_type",
+            "provider_connection_id",
+            "provider_configuration_json",
+            "provider_metadata_json",
+            "desired_state",
+            "observed_state",
+            "health_state",
+            "row_version",
+            "deleted_at",
+        } <= connection_columns
+        assert {
+            "connection_id",
+            "provider_endpoint_id",
+            "endpoint_metadata_json",
+            "provider_metadata_json",
+            "row_version",
+            "deleted_at",
+        } <= endpoint_columns
+        assert {
+            "encrypted_payload",
+            "key_version",
+            "secret_version",
+            "rotated_from_id",
+            "revoked_at",
+            "revoked_by",
+            "row_version",
+            "deleted_at",
+        } <= secret_columns
+        assert not {"plaintext", "secret_value", "token"} & secret_columns
         con.execute("PRAGMA foreign_keys=OFF")
         case_key = bytes.fromhex("10" * 16)
         event_key = bytes.fromhex("20" * 16)

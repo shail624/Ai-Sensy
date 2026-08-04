@@ -4,7 +4,30 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-04T15:24:00+05:30`.
+Last synchronized: `2026-08-04T17:45:00+05:30`.
+
+## M13-03 Persistent Channel Connections & Endpoint Records
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `283ebe83b53a510ce671f150bfe14fe38a5292f6` on `ui/taste-modernization`. |
+| Provider-neutral persistence | PASS | Organization-owned connection, endpoint and credential records contain no Meta, QR or provider-specific schema/branch. |
+| Tenant and organization isolation | PASS | Repository/service reads and writes require the actor organization and foreign identifiers disclose no record. |
+| Immutable provider identifiers | PASS | Persisted connection and endpoint provider identifiers reject mutation; provider-neutral internal UUID ownership remains stable. |
+| Lifecycle, health and metadata | PASS | Desired/observed state, factual health, provider/configuration/endpoint metadata, Audit references and timestamps persist without runtime/provider claims. |
+| Soft delete and optimistic locking | PASS | Connections/endpoints/secrets carry deletion evidence and row versions; stale commands fail and logical connection deletion cascades endpoint deletion and credential revocation. |
+| Encrypted credentials | PASS | AES-GCM sealed storage keeps ciphertext/nonce/tag only, rejects secret-shaped metadata, redacts representations and supports key/secret versions, rotation lineage, expiry, access evidence and revocation. |
+| Secret exposure boundary | PASS | No public API route/schema was added; plaintext is absent from database metadata, Audit payloads, OpenAPI and generated client. |
+| Feature flags | PASS | Existing disabled-by-default `omnichannel_connections_read/write` gates fail closed and preserve organization precedence. |
+| Ruff / mypy | PASS | Ruff passes; strict mypy reports no issues across 275 source files. |
+| Backend tests | PASS | 4 focused persistence regressions and all 965 backend tests pass in workflow `30907651227`. |
+| Frontend gates | PASS | Production audit high threshold, ESLint, TypeScript, 34 Vitest files / 661 tests and production build pass; frontend source is unchanged. |
+| OpenAPI / generated client | PASS | OpenAPI 3.1 remains 200 paths; generated TypeScript authority regenerates without drift. |
+| Migration | PASS | Additive `0037_persistent_channel_connections` upgrades, downgrades to `0036`, and upgrades again with the three new tables and no destructive existing-schema change. |
+| Bandit / dependency audit | PASS | Bandit high-severity gate and Python dependency audit pass; frontend production audit has no high/critical failure and retains two pre-existing moderate React Router advisories. |
+| Bundle impact | PASS | No frontend source changed; main remains 733.62/178.16 kB gzip, CSS 49.90/9.90 kB gzip and Operational Dashboard 31.96/8.61 kB gzip; existing >500 kB warning remains. |
+| Host validation | PENDING – Host Machine Validation | Target-host MySQL migration/rollback, production KMS/key custody, representative multi-tenant persistence, restore/retention policy and staged flag rollout remain unproven. |
+| Milestone boundary | PASS | Exact nine-file implementation boundary before governance; M13-01/M13-02 behavior is preserved and M13-04, provider adapters/runtime, QR, sync, messaging, webhooks, routing and UI are absent. |
 
 ## M13-02 Customer Identity Resolution
 

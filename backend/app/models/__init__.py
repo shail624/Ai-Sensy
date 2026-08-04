@@ -35,6 +35,11 @@ from app.models.campaign import (
     CampaignRetry,
     CampaignSchedule,
 )
+from app.models.channel_connection import (
+    ChannelConnection,
+    ChannelEndpoint,
+    ChannelSecret,
+)
 from app.models.contact import Contact
 from app.models.contact_document import (
     ContactDocument,
@@ -101,6 +106,9 @@ __all__ = [
     "CampaignRecipient",
     "CampaignRetry",
     "CampaignSchedule",
+    "ChannelConnection",
+    "ChannelEndpoint",
+    "ChannelSecret",
     "Contact",
     "ContactIdentity",
     "IdentityConflict",
