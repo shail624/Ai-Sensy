@@ -1,0 +1,42 @@
+name: M13-02 Gate Report Summary
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-report-summary
+
+permissions:
+  contents: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout report branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-gate-output
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Build concise report
+        shell: bash
+        run: |
+          {
+            echo '=== STATUS ==='
+            grep -E '^(FIRST_FAILURE|ALL_DIAGNOSTIC_GATES_PASS|BASELINE|RUN)=' M13_02_GATE_DIAGNOSTIC.txt || true
+            echo
+            echo '=== STAGE RESULTS ==='
+            grep -E '^=== |^EXIT=' M13_02_GATE_DIAGNOSTIC.txt || true
+            echo
+            echo '=== REPORT TAIL ==='
+            tail -n 320 M13_02_GATE_DIAGNOSTIC.txt
+          } > M13_02_GATE_SUMMARY.txt
+
+      - name: Commit concise report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add M13_02_GATE_SUMMARY.txt
+          git commit -m 'ci(validation): summarize M13-02 gate report'
+          git push origin HEAD:validation/m13-02-gate-output
