@@ -1,12 +1,14 @@
 === STATUS ===
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30893562537
-FIRST_FAILURE=RUFF_CHECK
+RUN=30893859200
+FIRST_FAILURE=FOCUSED_TESTS
 
 === STAGE RESULTS ===
 === APPLY_SOURCE ===
 EXIT=0
 === APPLY_VERIFIED_FIXES ===
+EXIT=0
+=== APPLY_VERIFIED_FIXES_2 ===
 EXIT=0
 === INSTALL_BACKEND ===
 EXIT=0
@@ -21,35 +23,24 @@ EXIT=0
 === RUFF_FORMAT_CHECK ===
 EXIT=0
 === RUFF_CHECK ===
-EXIT=1
+EXIT=0
+=== MYPY ===
+EXIT=0
+=== FOCUSED_TESTS ===
+EXIT=4
 
 === FAILING STAGE OUTPUT ===
-=== RUFF_CHECK ===
-I001 [*] Import block is un-sorted or un-formatted
-  --> app/repositories/contact_identity.py:3:1
-   |
- 1 |   """Tenant-scoped persistence queries for M13-02 identity records."""
- 2 |
- 3 | / from __future__ import annotations
- 4 | |
- 5 | | import uuid as uuidlib
- 6 | |
- 7 | | from sqlalchemy import func, select
- 8 | | from app.models.contact_identity import (
- 9 | |     ContactIdentity,
-10 | |     IdentityConflict,
-11 | |     IdentityMergeRecommendation,
-12 | | )
-13 | | from app.repositories.base import BaseRepository
-   | |________________________________________________^
-help: Organize imports
-  |
-7 | from sqlalchemy import func, select
-8 +
-9 | from app.models.contact_identity import (
-  |
+=== FOCUSED_TESTS ===
+ERROR: file or directory not found: tests/test_contact_events.py
 
-Found 1 error.
-[*] 1 fixable with the `--fix` option.
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/runner/work/Ai-Sensy/Ai-Sensy/source/backend
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
 
-EXIT=1
+============================ no tests ran in 0.00s =============================
+
+EXIT=4
