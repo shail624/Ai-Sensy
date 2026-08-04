@@ -11,35 +11,16 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Preserve overlays
+      - name: Preserve M13-05 overlays
         run: |
           cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
           cp .validation/m13-05-fix.b64 /tmp/m13-05-fix.b64
-
-      - name: Restore exact product tree
-        run: |
-          git checkout --force 5d7ea154588418410611de4f568e978c2e3caba9
-          base64 --decode /tmp/m13-05-overlay.b64 > /tmp/m13-05-overlay.tar.gz
-          tar -xzf /tmp/m13-05-overlay.tar.gz
-          base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
-          tar -xzf /tmp/m13-05-fix.tar.gz
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('backend/app/services/pairing_manager.py')
-          text = path.read_text()
-          wrong = '    PairingState,\n    RuntimeMetadata,\n    RuntimeEvent,\n    RuntimeEventType,\n'
-          correct = '    PairingState,\n    RuntimeEvent,\n    RuntimeEventType,\n    RuntimeMetadata,\n'
-          if wrong in text:
-              path.write_text(text.replace(wrong, correct, 1))
-          elif correct not in text:
-              raise SystemExit('pairing import block not found')
-          PY
 
       - uses: actions/setup-python@v5
         with:
@@ -47,21 +28,57 @@ jobs:
           cache: pip
           cache-dependency-path: backend/pyproject.toml
 
-      - name: Install backend
-        run: python -m pip install -e './backend[dev]'
+      - name: Install baseline backend dependencies
+        run: |
+          git checkout --force 5d7ea154588418410611de4f568e978c2e3caba9
+          python -m pip install -e './backend[dev]'
+          python - <<'PY'
+          import fastapi, pydantic
+          print('FastAPI:', fastapi.__version__)
+          print('Pydantic:', pydantic.__version__)
+          PY
 
-      - name: Show exact OpenAPI drift
+      - name: Generate untouched baseline OpenAPI
         run: |
           cp frontend/openapi.json /tmp/openapi.committed.json
           (cd backend && python scripts/export_openapi.py)
+          cp frontend/openapi.json /tmp/openapi.baseline.generated.json
+          git diff --no-ext-diff -- frontend/openapi.json > /tmp/openapi.baseline.diff || true
+          sha256sum /tmp/openapi.committed.json /tmp/openapi.baseline.generated.json /tmp/openapi.baseline.diff
           python - <<'PY'
           import json
           from pathlib import Path
           before = json.loads(Path('/tmp/openapi.committed.json').read_text())
-          after = json.loads(Path('frontend/openapi.json').read_text())
-          print('before paths:', len(before['paths']))
-          print('after paths:', len(after['paths']))
-          print('before version:', before.get('openapi'))
-          print('after version:', after.get('openapi'))
+          after = json.loads(Path('/tmp/openapi.baseline.generated.json').read_text())
+          print('baseline committed paths:', len(before['paths']))
+          print('baseline generated paths:', len(after['paths']))
+          print('baseline generated differs:', before != after)
           PY
-          git diff --no-ext-diff --unified=5 -- frontend/openapi.json
+
+      - name: Generate M13-05 OpenAPI in identical environment
+        run: |
+          git checkout --force 5d7ea154588418410611de4f568e978c2e3caba9
+          base64 --decode /tmp/m13-05-overlay.b64 > /tmp/m13-05-overlay.tar.gz
+          tar -xzf /tmp/m13-05-overlay.tar.gz
+          base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
+          tar -xzf /tmp/m13-05-fix.tar.gz
+          (cd backend && python scripts/export_openapi.py)
+          cp frontend/openapi.json /tmp/openapi.m13-05.generated.json
+          git diff --no-ext-diff -- frontend/openapi.json > /tmp/openapi.m13-05.diff || true
+          sha256sum /tmp/openapi.m13-05.generated.json /tmp/openapi.m13-05.diff
+          cmp /tmp/openapi.baseline.generated.json /tmp/openapi.m13-05.generated.json
+          cmp /tmp/openapi.baseline.diff /tmp/openapi.m13-05.diff
+          echo 'Baseline and M13-05 generated OpenAPI are byte-identical.'
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          baseline = json.loads(Path('/tmp/openapi.baseline.generated.json').read_text())
+          milestone = json.loads(Path('/tmp/openapi.m13-05.generated.json').read_text())
+          assert baseline == milestone
+          print('M13-05 generated paths:', len(milestone['paths']))
+          PY
+
+      - name: Summarize baseline drift
+        run: |
+          git diff --no-ext-diff --stat -- frontend/openapi.json
+          sed -n '1,220p' /tmp/openapi.baseline.diff
