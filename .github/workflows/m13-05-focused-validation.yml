@@ -34,11 +34,12 @@ jobs:
           from pathlib import Path
           path = Path('backend/app/services/pairing_manager.py')
           text = path.read_text()
-          old = '    RuntimeEvent,\n    RuntimeMetadata,\n    RuntimeEventType,\n'
-          new = '    RuntimeEvent,\n    RuntimeEventType,\n    RuntimeMetadata,\n'
-          if old not in text:
-              raise SystemExit('expected pairing import block not found')
-          path.write_text(text.replace(old, new, 1))
+          wrong = '    RuntimeEvent,\n    RuntimeMetadata,\n    RuntimeEventType,\n'
+          correct = '    RuntimeEvent,\n    RuntimeEventType,\n    RuntimeMetadata,\n'
+          if wrong in text:
+              path.write_text(text.replace(wrong, correct, 1))
+          elif correct not in text:
+              raise SystemExit('pairing import block not found')
           PY
           git status --short
 
