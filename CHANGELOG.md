@@ -11,6 +11,36 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — Module 13 implementation contract (M13-00)
+
+**Added**
+- Added accepted ADR-0020 and frozen Design Document 33 for the Enterprise Omnichannel Channel
+  Manager, preserving the existing capability-based channel seam and shared CRM authorities.
+- Added the provider capability matrix, objective QR provider evaluation gate, threat model, security
+  architecture, session lifecycle, exact customer identity contract, additive API/database plan,
+  rollback, feature flags, staged rollout, disaster recovery, observability, performance objectives,
+  testing strategy, acceptance criteria, risk register and external dependencies.
+- Added a classified gap analysis with Required, Recommended and Future Enhancement findings.
+
+**Clarified**
+- Confirmed that Module 13 extends the existing `ChannelAdapter` rather than introducing a parallel
+  adapter hierarchy or duplicate Contact, Inbox, message, media, notification, analytics or audit authority.
+- Recorded ADR-0020 as the later owner decision permitting Instagram only as a future separately
+  approved adapter possibility despite the older Doc 07 exclusion; no future-provider implementation
+  is authorized by M13-00.
+- Kept QR provider selection honest: no vendor is claimed until every Required criterion passes.
+
+**Preserved**
+- No QR login, session runtime, Channel Manager, backend, frontend, migration, API, generated contract,
+  dependency, route, queue or deployment implementation was added.
+- Repository remains `1.0.0-rc1`, migration `0035_notification_center`, OpenAPI 193 paths and Module 13
+  implementation completion `0%`.
+
+**Validated**
+- M13-00 reaches `Repository Validated` through documentation structure, consistency, changed-file,
+  gap-classification and governance checks. Host/runtime/provider/production evidence is intentionally
+  not claimed, and M13-01 remains unstarted pending its explicit gates and owner instruction.
+
 ### 2026-08-04 — Operator-first operational Dashboard (UI-TASTE-03A)
 
 **Added**

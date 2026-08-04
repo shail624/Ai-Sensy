@@ -6,89 +6,61 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Priority 2 starting baseline | `7d826987c272d28038663ba9cb15c832c37e2b02` (`feat(ui): modernize shared enterprise design system`) |
-| Current Git HEAD | `HEAD` (governance-only Module 13 owner-approval freeze; resolve after push) |
-| Current milestone | `UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED; HOST VISUAL REVIEW PENDING` |
-| Current phase | `UI Taste Modernization — continue the existing roadmap; Module 13 implementation is gated and has not started` |
+| M13-00 starting baseline | `7e503a3f2e1d35d54548d9d8fe95e82591e26be1` (`docs(governance): freeze approved Module 13 architecture`) |
+| Current Git HEAD | `HEAD` (M13-00 documentation-only closeout; resolve after push) |
+| Current milestone | `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED` |
+| Current phase | `Module 13 implementation contract frozen; implementation remains unstarted and gated` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
 | OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
-| Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests; backend not changed or re-run |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
-| Dependency evidence | Production audit has two moderate React Router advisories and no high/critical finding |
-| Bundle evidence | Main chunk `733.62 kB` / `178.16 kB` gzip; operational Dashboard split to `31.96 kB` / `8.61 kB` gzip |
-| Visual acceptance | `PENDING – Host Machine Validation` for authenticated representative-data desktop/tablet/mobile, keyboard, screen-reader and approved-reference review |
-| Last completed milestone | `UI-TASTE-03A — Operator-first Dashboard` (repository engineering gates complete) |
-| Next implementation milestone | `UI-TASTE-03B — Reactivation operational hierarchy`; approved previously, not started on the target branch |
-| Module 13 planning | `Enterprise Omnichannel Channel Manager — OWNER APPROVED`; architecture frozen as the implementation contract |
-| Module 13 implementation gate | `BLOCKED` until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`, and the owner explicitly instructs implementation |
-| Worktree expectation | Governance-only approval record; no backend, frontend, migration, OpenAPI, generated-client, dependency, route, milestone-order or architecture change |
-| Last update | `2026-08-04T10:52:00+05:30` (Asia/Kolkata) |
+| Backend evidence | Existing CORE-09 baseline: Ruff clean, strict mypy clean across 258 files, 948 pytest tests; backend unchanged and not re-run for documentation-only M13-00 |
+| Frontend evidence | Existing UI-TASTE-03A baseline: ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS; frontend unchanged and not re-run |
+| Dependency evidence | Dependencies unchanged; existing production audit boundary remains two moderate React Router advisories and no high/critical production finding |
+| M13-00 contract | ADR-0020 and Design Document 33 are accepted, frozen and repository-validated |
+| Module 13 implementation | `0%` — no product source, API, migration, generated contract, route, runtime or deployment implementation exists |
+| QR provider | Not selected; Required provider evaluation is an explicit external gate, not a fabricated decision |
+| Next existing-roadmap implementation | `UI-TASTE-03B — Reactivation operational hierarchy`; previously approved and not started on the target branch |
+| Next Module 13 milestone | `M13-01`; not authorized and blocked by recorded prerequisite, provider and separate owner-instruction gates |
+| Host evidence | Not applicable to this documentation-only milestone; no Host Validated or Production Ready claim |
+| Worktree expectation | ADR/design/governance Markdown only; no application, migration, API, dependency, generated-client, route or architecture implementation change |
+| Last update | `2026-08-04T11:20:00+05:30` (Asia/Kolkata) |
 
-## Module 13 owner-approved planning freeze
+## M13-00 delivered contract
 
-- The approved Module 13 Architecture Review, including its approved additive refinements, is now
-  the implementation contract for the Enterprise Omnichannel Channel Manager.
-- Planning status is **Owner Approved**. Implementation has not started and no implementation claim is
-  made by this governance update.
-- The approved architecture, scope and milestone order are frozen. Do not add abstractions, expand
-  scope, reorder milestones or redesign approved decisions.
-- A verified implementation blocker may be documented, but any deviation from the approved contract
-  requires explicit owner approval before code changes proceed.
-- Module 13 cannot begin until Reactivation Mission Control, Customer 360, Unified Inbox and
-  Notification Center are all `Production Ready` according to `ENGINEERING_STANDARDS.md`.
-- Even after those prerequisites pass, Module 13 still requires a separate explicit owner instruction
-  before implementation starts.
-- Continue the existing roadmap only. Do not create additional Module 13 planning documents.
+- Accepted and froze ADR-0020 for the Enterprise Omnichannel Channel Manager.
+- Added Design Document 33 as the complete implementation contract covering the provider
+  capability matrix, QR provider evaluation, threat model, security, session lifecycle,
+  identity resolution, API/database evolution, rollback, feature flags, rollout, disaster
+  recovery, monitoring, performance, testing, acceptance, risks and dependencies.
+- Confirmed that the existing capability-based `ChannelAdapter`, canonical message/event
+  model, Contact, Conversation/Message, Inbox, Customer 360, media, Notification Center,
+  Analytics, RBAC, tenant and Audit authorities are extended rather than duplicated.
+- Resolved two documentation inconsistencies additively: Module 13 retains the single existing
+  adapter seam, and ADR-0020 permits Instagram only as a future separately approved adapter
+  possibility despite the older Doc 07 exclusion. No future-provider implementation is authorized.
+- Classified all discovered gaps as Required, Recommended or Future Enhancement.
+- Froze objective provider pass/fail criteria without inventing a provider selection.
 
-## Delivered operator intelligence
+## Implementation boundary
 
-The first authenticated screen now answers the approved operating questions through existing,
-permission-scoped source authorities:
+- No QR login, QR provider dependency, session runtime, Channel Manager, schema migration,
+  API endpoint, backend service, frontend route, Inbox change or Customer 360 change was made.
+- M13-00 reaches `Repository Validated` only. It cannot be Host Validated, Production Ready or
+  Released because it intentionally contains no executable workflow.
+- M13-01 does not start automatically. The existing prerequisite workflows must reach their
+  recorded status, a QR provider must pass Required evaluation, and the owner must issue a
+  separate implementation instruction.
+- Any deviation from ADR-0020 or Design Document 33 requires explicit owner approval and an
+  additive ADR before engineering continues.
 
-- prioritized cross-domain attention queue for blocked customers, KYC, SIM, Activation, campaigns,
-  conversations and templates;
-- blocked-customer reasons, current stage and assignee;
-- reviewer-pending KYC and evidence/SLA state;
-- SIM Required and Activation Pending cases whose persisted SLA is breached;
-- failed, paused or recipient-failing campaigns;
-- unread open/pending conversations ordered by waiting age, explicitly labelled as a derived age and
-  not a configured SLA;
-- rejected, paused or disabled templates;
-- agent attention derived from assigned blocked, overdue, breached-SLA and KYC work without invented
-  productivity scores;
-- today-versus-previous-period KPI changes with metric-aware direction;
-- signed-in operator task snapshot and governed source deep links.
+## Existing UI modernization state
 
-## Architecture and truth boundaries
-
-- Dashboard composes existing Reactivation, KYC, Task, Campaign, Inbox, Template and Analytics APIs;
-  it adds no dashboard backend, duplicate projection, fake KPI, local persistence or parallel domain.
-- Source errors remain visible as partial-data warnings and are never converted to zero.
-- Reactivation/KYC/Inbox signals are bounded by existing source-query limits; source queues remain the
-  authority for complete pagination and production-scale exact totals.
-- Permission-gated queries do not issue unauthorized requests.
-- Existing primary action links, route catalogue, navigation, source workflows and business rules are
-  preserved.
-
-## Verified fixes and performance work
-
-- Fixed KPI sentiment literal widening caught by strict TypeScript.
-- Fixed the Dashboard header regression that changed navigable Live Chat/New Campaign links into
-  buttons; the established semantic and test contract is restored.
-- Lazy-loaded the operational intelligence workspace behind an accessible skeleton. The main chunk
-  falls from the Priority 1 measurement of `747.91 kB` to `733.62 kB`; the new workspace is a separate
-  `31.96 kB` chunk.
-
-## Validation boundary
-
-Repository validation proves contracts, selectors, semantics, compilation and build integrity. It
-does not prove final density, long-content overflow, contrast, browser behavior or screen-reader
-quality with authenticated representative records. Those remain `PENDING – Host Machine Validation`.
+UI-TASTE-03A remains implemented and repository-validated with authenticated representative-
+data host review pending. UI-TASTE-03B remains the next previously approved implementation
+milestone on the existing roadmap and was not started or changed by M13-00.
 
 ## Maintenance rule
 
-Continue the existing approved roadmap from the latest Git HEAD. Preserve the operator-first
-information order and never turn bounded source reads into unlabelled enterprise totals. Keep Module
-13 frozen and unimplemented until all recorded prerequisites and the separate owner-instruction gate
-are satisfied.
+Continue from the latest approved Git HEAD. Preserve the frozen Module 13 contract, existing
+architecture and one-milestone boundary. Do not begin M13-01 or any later Module 13 milestone
+without a separate explicit owner instruction.
