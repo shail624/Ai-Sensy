@@ -1,0 +1,103 @@
+name: UI Taste Reactivation Fixes
+
+on:
+  pull_request:
+    branches:
+      - work/ui-taste-reactivation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout fix tools
+        uses: actions/checkout@v4
+        with:
+          ref: validation/ui-taste-reactivation-fixes
+          path: tools
+      - name: Checkout work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/ui-taste-reactivation
+          fetch-depth: 0
+          path: repo
+      - name: Apply compile fixes
+        working-directory: repo
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, count: int | None = None) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              matches = text.count(old)
+              expected = count if count is not None else 1
+              if matches != expected:
+                  raise RuntimeError(f"{path}: expected {expected} matches, found {matches}: {old!r}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace(
+              "frontend/src/features/reactivation/missionControl.ts",
+              'import type { KycOperationsCard } from "@/features/kyc/types";',
+              'import type { KycOperationsResponse } from "@/features/kyc/types";',
+          )
+          replace(
+              "frontend/src/features/reactivation/missionControl.ts",
+              '  else if (releaseRisk === "Release due within 24 hours") score += 90;\n  else if (releaseRisk) score += 70;',
+              '  else if (releaseRisk?.includes("24 hours")) score += 90;\n  else if (releaseRisk) score += 70;',
+          )
+          replace(
+              "frontend/src/features/reactivation/missionControl.ts",
+              '  kycRows: KycOperationsCard[],',
+              '  kycRows: KycOperationsResponse["data"],',
+          )
+
+          replace(
+              "frontend/src/features/reactivation/missionControl.test.ts",
+              'import type { KycOperationsCard } from "@/features/kyc/types";',
+              'import type { KycOperationsResponse } from "@/features/kyc/types";',
+          )
+          replace(
+              "frontend/src/features/reactivation/missionControl.test.ts",
+              '    ] as KycOperationsCard[];',
+              '    ] as unknown as KycOperationsResponse["data"];',
+          )
+
+          replace(
+              "frontend/src/features/reactivation/ReactivationPipelineBoard.tsx",
+              'onChange={onTogglePage}',
+              'onChange={() => onTogglePage()}',
+              count=2,
+          )
+
+          mission = Path("frontend/src/features/reactivation/ReactivationMissionControl.tsx")
+          text = mission.read_text(encoding="utf-8")
+          old = 'import { Badge, Button, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";'
+          new = old + '\nimport type { BadgeTone } from "@/components/ui/Badge";\nimport type { LucideIcon } from "lucide-react";'
+          if text.count(old) != 1:
+              raise RuntimeError("Mission Control UI import not found exactly once")
+          text = text.replace(old, new)
+          old = '  const tone = severity === "critical" ? "danger" : severity === "high" ? "warning" : severity === "medium" ? "info" : "neutral";'
+          new = '  const tone: BadgeTone = severity === "critical" ? "danger" : severity === "high" ? "warning" : severity === "medium" ? "info" : "neutral";'
+          if text.count(old) != 1:
+              raise RuntimeError("Severity tone declaration not found exactly once")
+          text = text.replace(old, new)
+          old = '  icon: typeof AlertTriangle;'
+          new = '  icon: LucideIcon;'
+          if text.count(old) != 1:
+              raise RuntimeError("Queue icon type not found exactly once")
+          text = text.replace(old, new)
+          mission.write_text(text, encoding="utf-8")
+          PY
+      - name: Commit fixes
+        working-directory: repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/features/reactivation
+          git diff --cached --check
+          git commit -m "fix(reactivation): align mission-control types"
+          git push origin HEAD:work/ui-taste-reactivation
