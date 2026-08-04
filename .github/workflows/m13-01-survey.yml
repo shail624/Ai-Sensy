@@ -1,0 +1,46 @@
+name: M13-01 Repository Survey
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-survey
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+
+      - name: Inspect generic channel architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== CHANNEL TREE ==='
+          find backend/app/channels -maxdepth 3 -type f -print | sort
+          echo '=== CHANNEL FILES ==='
+          for file in $(find backend/app/channels -maxdepth 2 -type f -name '*.py' | sort); do
+            echo "--- $file ---"
+            sed -n '1,260p' "$file"
+          done
+          echo '=== CONFIG / DI / FLAGS ==='
+          for file in backend/app/core/config.py backend/app/core/dependencies.py backend/app/api/deps.py backend/app/main.py backend/app/models/__init__.py backend/app/db/base.py; do
+            if [ -f "$file" ]; then echo "--- $file ---"; sed -n '1,260p' "$file"; fi
+          done
+          echo '=== RELATED TESTS ==='
+          find backend/tests -maxdepth 2 -type f \( -iname '*channel*' -o -iname '*adapter*' -o -iname '*config*' -o -iname '*feature*flag*' \) -print | sort
+          for file in $(find backend/tests -maxdepth 2 -type f \( -iname '*channel*' -o -iname '*adapter*' \) | sort); do
+            echo "--- $file ---"
+            sed -n '1,320p' "$file"
+          done
+          echo '=== M13-01 CONTRACT REFERENCES ==='
+          grep -n -A35 -B10 'M13-01\|Communication Intent\|Communication Policy\|channel metadata\|Provider lifecycle\|Provider health' docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md || true
+          echo '=== PYPROJECT / FRONTEND BUILD COMMANDS ==='
+          sed -n '1,260p' backend/pyproject.toml
+          cat frontend/package.json
