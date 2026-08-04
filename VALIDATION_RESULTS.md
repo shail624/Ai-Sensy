@@ -4,8 +4,31 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-05T01:17:00+05:30`.
+Last synchronized: `2026-08-05T03:21:50+05:30`.
 
+
+## UI-TASTE-03B Reactivation Operational Hierarchy
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `5c3414bed1802276e99a9b02605dbde8e1cdcc36` on `ui/taste-modernization`. |
+| Architecture and reuse | PASS | Existing Reactivation/Task/KYC/Document/Audit/Timeline and shared UI authorities are recomposed; no duplicate aggregate, reminder, saved-view, SIM, Activation or design-system authority exists. |
+| CRM-first hierarchy | PASS | Reactivation root and historical operational links resolve to the real CRM or existing Contact import workflow; foundation placeholder tabs/panels are absent. |
+| Permission truth | PASS | KYC, Document and Report navigation uses the same existing permissions as route guards; no RBAC policy changed. |
+| Tenant-safe pagination | PASS | Additive non-negative offset uses the existing organization predicates, stable ordering, count query and bounded evidence projection; focused pagination regression passes. |
+| URL-backed work context | PASS | Search/status/label/owner/reminder/date/view/page and factual due/overdue/completed work views survive refresh/share without claiming server-shared saved views. |
+| Mutation and audit preservation | PASS | Transition, case edit, assignment, Task reminder, Audit, Customer Timeline and optimistic-concurrency paths are unchanged and existing workflow regressions pass. |
+| Verified defects | PASS | Placeholder hierarchy, permission disclosure, 200-card render, lost filter context, duplicate filter controls, terminal drag, malformed separator and stale gating copy are corrected. |
+| Ruff / mypy | PASS | Ruff and strict mypy pass. |
+| Backend tests | PASS | 4 focused Reactivation tests and all 980 backend tests pass in workflow `30953600784`. |
+| OpenAPI / generated client | PASS | OpenAPI remains 200 paths with additive `offset`; generated TypeScript and drift checks pass. |
+| Frontend gates | PASS | Production audit high threshold, ESLint, TypeScript, 35 Vitest files / 668 tests and production build pass. |
+| Security gates | PASS | E2E TypeScript, Bandit, Python dependency audit and tracked-source vulnerability/secret/IaC scan pass. |
+| Migration | PASS | No migration is applicable; migration head remains `0040_channel_sync_media_foundation` and existing roundtrip tests pass. |
+| Performance | PASS | Pipeline page is bounded to 25 cards; main is 733.97/178.29 kB gzip and Reactivation route is 82.25/19.37 kB gzip. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual/reference, screen-reader/device/browser matrix and production-scale query timing remain unproven. |
+| Provider boundary | PASS | No provider evaluation/certification, WAHA/Evolution, QR runtime/session, live ingestion/history/media, provider dependency or production credential work exists. |
+| Milestone boundary | PASS | Exact nineteen-file product/tracking boundary; Module 13 remains 44% and provider-dependent work remains blocked. |
 
 ## M13-06A Provider-neutral Sync & Media Persistence Foundation
 

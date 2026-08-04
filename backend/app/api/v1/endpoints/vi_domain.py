@@ -84,6 +84,7 @@ ActivationApprover = Annotated[User, Depends(require_permissions("activation:app
 SlaReader = Annotated[User, Depends(require_permissions("sla:read"))]
 SlaManager = Annotated[User, Depends(require_permissions("sla:manage"))]
 Limit = Annotated[int, Query(ge=1, le=200)]
+Offset = Annotated[int, Query(ge=0)]
 PipelineQuery = Annotated[str | None, Query(max_length=160)]
 PipelineStages = Annotated[list[ReactivationStage] | None, Query()]
 PipelineLabels = Annotated[list[ReactivationLabel] | None, Query()]
@@ -101,6 +102,7 @@ async def get_reactivation_pipeline(
     owner_user_id: uuidlib.UUID | None = None,
     reminder_view: ReminderView | None = None,
     reminder_date: date | None = None,
+    offset: Offset = 0,
     limit: Limit = 200,
 ) -> ReactivationPipelineResponse:
     return ReactivationPipelineResponse(
@@ -113,6 +115,7 @@ async def get_reactivation_pipeline(
             owner_user_id=owner_user_id,
             reminder_view=reminder_view,
             reminder_date=reminder_date,
+            offset=offset,
             limit=limit,
         )
     )

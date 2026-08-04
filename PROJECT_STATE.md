@@ -7,22 +7,33 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (M13-06A closeout; resolve after push) |
-| Current milestone | `M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED` |
-| Current phase | `Provider-neutral sync checkpoint/media-reference persistence delivered; all live M13-06 behavior remains certification-blocked` |
+| Current Git HEAD | `HEAD` (UI-TASTE-03B closeout; resolve after push) |
+| Current milestone | `UI-TASTE-03B — Reactivation Operational Hierarchy — REPOSITORY VALIDATED` |
+| Current phase | `Provider-neutral product continuation; Reactivation CRM hierarchy/pagination delivered while all live M13-06 behavior remains blocked` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0040_channel_sync_media_foundation` (40 linear revisions) |
-| OpenAPI | `3.1.0` · `200` paths · no public runtime/pairing route or generated TypeScript change |
-| Backend evidence | Ruff PASS · strict mypy PASS · 18 focused channel/sync/media/migration tests PASS · 979 full pytest tests PASS |
-| Frontend evidence | Unchanged source; production audit high threshold PASS · ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
-| Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; CSS `49.90 kB` / `9.90 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
+| OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
+| Backend evidence | Ruff PASS · strict mypy PASS · 4 focused Reactivation tests PASS · 980 full pytest tests PASS |
+| Frontend evidence | Production audit high threshold PASS · ESLint PASS · TypeScript PASS · 35 Vitest files / 668 tests PASS · production build PASS |
+| Bundle evidence | Main `733.97 kB` / `178.29 kB` gzip; Reactivation route `82.25 kB` / `19.37 kB` gzip; existing >500 kB main warning remains |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `44%` evidence-based estimate: M13-01–M13-05 plus provider-neutral sync checkpoint and media-reference persistence |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | Provider certification host evidence; live provider-dependent M13-06 remains blocked |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Provider-neutral sync/media contracts, two models, tenant repositories, migration/tests and synchronized status records only; no API, frontend, dependency, provider adapter or live execution |
-| Last update | `2026-08-05T01:17:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Reactivation API pagination, existing UI hierarchy/controls/tests, one design record and synchronized tracking only; no migration, dependency, provider adapter or live execution |
+| Last update | `2026-08-05T03:21:50+05:30` (Asia/Kolkata) |
+
+## UI-TASTE-03B delivered Reactivation operational hierarchy
+
+- `/reactivation` now resolves to the real CRM; primary section navigation exposes only connected
+  destinations allowed by existing route permissions.
+- Pipeline filters/work views/display/page are URL-backed, use shared controls, and request 25
+  tenant-scoped records through an additive offset query under the existing stable ordering.
+- Historical foundation routes redirect to factual filtered CRM or Contact import authorities.
+- Existing transitions, assignment, reminders, KYC, Documents, Audit, Customer Timeline and
+  optimistic concurrency are unchanged.
+- Reactivation is `94%`; Module 13 remains `44%` and all provider-dependent behavior remains blocked.
 
 ## M13-06A delivered provider-neutral sync and media persistence foundation
 
@@ -69,11 +80,11 @@ later gated milestones. M13-06A is persistence-only and does not satisfy certifi
 
 ## Existing UI modernization state
 
-UI-TASTE-03A remains implemented and repository-validated with authenticated host review pending.
-M13-05 changes no frontend source or UI modernization sequence.
+UI-TASTE-03A and UI-TASTE-03B are repository-validated. Authenticated representative-data
+visual/reference, screen-reader/device, and production-scale performance review remains pending.
 
 ## Maintenance rule
 
-Stop after M13-06A. Do not begin live QR image/login, provider adapters, event ingestion, history
-execution, media transfer/processing, messaging, webhook, routing or UI work until provider
-certification and a separate explicit owner instruction.
+Stop after UI-TASTE-03B. Provider certification continues to block only Module 13 live/provider
+runtime, ingestion, history, media, messaging, routing, and provider UI. The next provider-neutral
+roadmap milestone is UI-TASTE-04.

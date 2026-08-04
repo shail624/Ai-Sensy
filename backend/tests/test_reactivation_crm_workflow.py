@@ -135,6 +135,61 @@ async def test_status_labels_and_task_backed_dates_are_one_governed_workflow(
         )
 
 
+@pytest.mark.asyncio
+async def test_pipeline_offset_pagination_is_stable_bounded_and_tenant_scoped(
+    db_session, organization, make_user
+) -> None:
+    actor = (await make_user(email="crm-pagination@vi.test", is_superuser=True)).user
+    service = ViDomainService(db_session)
+    case_ids: set[str] = set()
+
+    for index in range(3):
+        contact = Contact(
+            organization_id=organization.id,
+            wa_id=f"9199002200{index}",
+            phone_e164=f"+9199002200{index}",
+            full_name=f"Paged Customer {index}",
+        )
+        db_session.add(contact)
+        await db_session.commit()
+        created = await service.create_reactivation(
+            organization_id=organization.id,
+            actor=actor,
+            contact_id=uuid.UUID(contact.public_id),
+            payload={
+                "idempotency_key": uuid.uuid4(),
+                "owner_user_id": uuid.UUID(actor.public_id),
+                "previous_vi_number": None,
+                "active_delhi_number": None,
+                "source": "manual",
+            },
+        )
+        case_ids.add(created["id"])
+
+    first = await service.reactivation_pipeline(
+        organization.id,
+        q=None,
+        stages=None,
+        offset=0,
+        limit=2,
+    )
+    second = await service.reactivation_pipeline(
+        organization.id,
+        q=None,
+        stages=None,
+        offset=2,
+        limit=2,
+    )
+
+    first_ids = {row["id"] for row in first["data"]}
+    second_ids = {row["id"] for row in second["data"]}
+    assert first["total"] == second["total"] == 3
+    assert first["visible"] == 2
+    assert second["visible"] == 1
+    assert not first_ids.intersection(second_ids)
+    assert first_ids | second_ids == case_ids
+
+
 def test_label_date_contract_and_status_vocabulary() -> None:
     assert REACTIVATION_STAGES == (
         "new_lead",

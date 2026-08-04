@@ -17,7 +17,7 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-05T01:17:00+05:30`.
+Last synchronized: `2026-08-05T03:21:50+05:30`.
 
 ## Module 13 — M13-06A Provider-neutral Sync & Media Persistence Foundation
 
@@ -77,6 +77,24 @@ Last synchronized: `2026-08-05T01:17:00+05:30`.
 - **Next:** M13-02 is not authorized and has not started.
 - **Last synchronized:** `2026-08-04T12:56:16+05:30`.
 
+## UI Taste Modernization — Reactivation Operational Hierarchy
+
+- **Status:** `UI-TASTE-03B — REPOSITORY VALIDATED`.
+- **Completion impact:** Reactivation increases from `91%` to `94%` because this milestone adds a
+  real bounded API query contract, URL-restorable operational views, permission-truthful connected
+  navigation, and tested pagination—not visual polish alone.
+- **Delivered:** CRM-first route hierarchy; due/overdue/completed prioritization; status, owner,
+  label, reminder and date filters through shared controls; 25-case pagination; factual redirects;
+  terminal drag correction; responsive board/list and existing drawer preservation.
+- **Security:** existing RBAC visibility, tenant query predicates, audit/timeline mutation paths,
+  optimistic concurrency, and sensitive-data boundaries remain authoritative.
+- **Preserved:** Module 13 remains `44%`; no provider evaluation/certification/runtime/session,
+  ingestion, history, media, dependency, migration, or production credential work.
+- **Validation:** 4 focused backend tests, 980 total backend tests,
+  35 frontend files / 668 tests, production build and security gates pass;
+  authenticated host visual/WCAG/device/performance review remains pending.
+- **Next:** `UI-TASTE-04 — Responsive, accessibility, and performance regression`.
+
 ## UI Taste Modernization — operator-first Dashboard
 
 - **Starting baseline:** `7d826987c272d28038663ba9cb15c832c37e2b02`.
@@ -108,7 +126,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 | Automation | 65% | Definitions, safe test runtime, trigger receipts and existing authorization concepts complete | Governed live receipt consumption, conditions/actions, delays, reminders, module-specific handoff, idempotent effects and operational UI. | Notifications, domain services |
 | Analytics | 55% | Messaging rollups and exports complete | Add reactivation funnel/drop-off, lead source, KYC turnaround, case outcomes, SLA, agent comparison, and date exports. | Domain events and reporting projections |
 | Executive Reports | 25% | Analytics-backed report shell | Revenue/ROI/productivity/workload/SLA/case-outcome reports, schedules, CSV/PDF delivery. | Analytics, Download Center, Notifications |
-| Reactivation | 91% | CORE-05 real CRM, CORE-07 factual Customer 360 projection, and CORE-09 actionable notification deep links | UI-TASTE maturity hierarchy, server-shared saved views/pagination, analytics, and representative-data visual/WCAG/performance evidence. | Tasks, Notifications, Analytics, shared design system |
+| Reactivation | 94% | CORE-05/07/09 authorities plus UI-TASTE-03B CRM-first hierarchy, URL-backed work views, shared filters, permission-truthful connected navigation, bounded 25-case pagination and 668-test frontend validation | Server-shared saved views, reactivation analytics, authenticated representative-data visual/WCAG/device review and production-scale performance commissioning. | Tasks, Notifications, Analytics, shared design system |
 | KYC | 85% | CORE-04 persisted queue/detail workspace, three governed checks, protected Aadhaar/PAN checklist references, Task-backed appointment lifecycle, separated reviewer/manager decisions, structured rejection, immutable audit/Timeline, SLA, Customer 360 and Reactivation handoff complete | Server pagination/saved views, production protected-media commissioning, high-volume performance, and target-browser/device WCAG regression. | Documents, Tasks, Reactivation, Customer 360 |
 | Documents | 87% | Phase 4A governed documents plus CORE-04 verified Aadhaar/PAN purpose references without plaintext identity numbers | Download policies, generated-document links and final encryption/retention commissioning; no generic approval authority is required. | Download Center |
 | SIM Orders | 35% | CORE-02 order/event lifecycle, address/service area, owner, serial, delivery/failure/customer confirmation, SLA and APIs are preserved; CORE-05 exposes the lightweight `SIM Required` case status | No standalone heavy UI is planned; future exceptional operations require an explicit owner instruction. | Reactivation status, KYC evidence, SLA |

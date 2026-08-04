@@ -118,6 +118,7 @@ class ViDomainService:
         owner_user_id: uuidlib.UUID | None = None,
         reminder_view: str | None = None,
         reminder_date: date | None = None,
+        offset: int = 0,
         limit: int = 200,
     ) -> dict[str, Any]:
         """One bounded, factual projection for Kanban/list consumers."""
@@ -134,6 +135,7 @@ class ViDomainService:
             owner_user_id=owner_id,
             reminder_view=reminder_view,
             reminder_date=reminder_date,
+            offset=offset,
             limit=limit,
         )
         cases = [row[0] for row in rows]

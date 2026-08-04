@@ -20,6 +20,7 @@ export interface ReactivationFilters {
   owner_user_id?: PipelineQuery["owner_user_id"];
   reminder_view?: PipelineQuery["reminder_view"];
   reminder_date?: PipelineQuery["reminder_date"];
+  offset?: PipelineQuery["offset"];
   limit?: PipelineQuery["limit"];
 }
 

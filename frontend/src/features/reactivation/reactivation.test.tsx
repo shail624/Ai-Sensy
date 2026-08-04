@@ -3,11 +3,22 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReactivationPipelineBoard } from "@/features/reactivation/ReactivationPipelineBoard";
-import type { ReactivationCard } from "@/features/reactivation/types";
+import type { ReactivationCard, ReactivationFilters } from "@/features/reactivation/types";
 
 const mocks = vi.hoisted(() => ({
-  permissions: { value: ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read"] },
+  permissions: {
+    value: [
+      "reactivation:read",
+      "reactivation:write",
+      "reactivation:transition",
+      "users:read",
+      "tasks:read",
+      "tasks:write",
+      "documents:read",
+    ],
+  },
   pipelineState: { value: {} as Record<string, unknown> },
+  filters: { value: {} as ReactivationFilters },
   refetch: vi.fn(),
   transition: vi.fn(),
   update: vi.fn(),
@@ -56,8 +67,15 @@ const card: ReactivationCard = {
 };
 
 const stageCounts = [
-  "new_lead", "lead_confirmed", "documents_pending", "documents_received", "kyc_verification",
-  "sim_required", "activation_pending", "completed", "not_required",
+  "new_lead",
+  "lead_confirmed",
+  "documents_pending",
+  "documents_received",
+  "kyc_verification",
+  "sim_required",
+  "activation_pending",
+  "completed",
+  "not_required",
 ].map((stage) => ({ stage, count: stage === "new_lead" ? 1 : 0 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -66,7 +84,14 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/features/admin/api", () => ({
-  useUsers: () => ({ data: { data: [{ id: "user-1", full_name: "Priya Shah", is_active: true }, { id: "user-2", full_name: "Arjun Rao", is_active: true }] } }),
+  useUsers: () => ({
+    data: {
+      data: [
+        { id: "user-1", full_name: "Priya Shah", is_active: true },
+        { id: "user-2", full_name: "Arjun Rao", is_active: true },
+      ],
+    },
+  }),
 }));
 
 vi.mock("@/features/documents", () => ({
@@ -78,26 +103,102 @@ vi.mock("@/features/tasks/TasksSectionForProfile", () => ({
 }));
 
 vi.mock("@/features/kyc/api", () => ({
-  apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
-  useContactKycCases: () => ({ data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
+  apiErrorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : "Request failed",
+  useContactKycCases: () => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useCreateKycCase: () => ({ mutate: mocks.createKyc, isPending: false, error: null }),
 }));
 
 vi.mock("@/features/reactivation/api", () => ({
-  apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
-  useReactivationPipeline: () => mocks.pipelineState.value,
-  useTransitionReactivation: () => ({ mutate: mocks.transition, isPending: false, error: null }),
+  apiErrorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : "Request failed",
+  useReactivationPipeline: (filters: ReactivationFilters) => {
+    mocks.filters.value = filters;
+    return mocks.pipelineState.value;
+  },
+  useTransitionReactivation: () => ({
+    mutate: mocks.transition,
+    isPending: false,
+    error: null,
+  }),
   useUpdateReactivation: () => ({ mutate: mocks.update, isPending: false, error: null }),
-  useReactivationEvents: () => ({ data: [{ id: "event-1", case_id: "case-1", from_stage: null, to_stage: "new_lead", actor_user_id: "user-1", reason: null, created_at: "2026-08-01T08:00:00Z" }], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
-  useReactivationNotes: () => ({ data: [{ id: 1, case_id: "case-1", actor_user_id: "user-1", body: "Customer prefers a weekday callback", created_at: "2026-08-02T09:00:00Z" }], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
-  useAddReactivationNote: () => ({ mutate: mocks.addNote, isPending: false, error: null }),
-  useEligibilityChecks: () => ({ data: [{ id: "check-1", case_id: "case-1", status: "review_required", source: "manual", reason: "Manual document review", approval_reference: null, checked_by: "user-1", checked_at: "2026-08-02T08:30:00Z" }], isLoading: false, isError: false, error: null, refetch: vi.fn() }),
-  useRecordEligibility: () => ({ mutate: mocks.recordEligibility, isPending: false, error: null }),
+  useReactivationEvents: () => ({
+    data: [
+      {
+        id: "event-1",
+        case_id: "case-1",
+        from_stage: null,
+        to_stage: "new_lead",
+        actor_user_id: "user-1",
+        reason: null,
+        created_at: "2026-08-01T08:00:00Z",
+      },
+    ],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useReactivationNotes: () => ({
+    data: [
+      {
+        id: 1,
+        case_id: "case-1",
+        actor_user_id: "user-1",
+        body: "Customer prefers a weekday callback",
+        created_at: "2026-08-02T09:00:00Z",
+      },
+    ],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useAddReactivationNote: () => ({
+    mutate: mocks.addNote,
+    isPending: false,
+    error: null,
+  }),
+  useEligibilityChecks: () => ({
+    data: [
+      {
+        id: "check-1",
+        case_id: "case-1",
+        status: "review_required",
+        source: "manual",
+        reason: "Manual document review",
+        approval_reference: null,
+        checked_by: "user-1",
+        checked_at: "2026-08-02T08:30:00Z",
+      },
+    ],
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+  useRecordEligibility: () => ({
+    mutate: mocks.recordEligibility,
+    isPending: false,
+    error: null,
+  }),
 }));
 
-function readyState(data = [card]) {
+function readyState(data = [card], total = data.length) {
   return {
-    data: { data, total: data.length, visible: data.length, stage_counts: stageCounts, reminder_counts: { upcoming: data.length, due_today: 0, overdue: 0 } },
+    data: {
+      data,
+      total,
+      visible: data.length,
+      stage_counts: stageCounts,
+      reminder_counts: { upcoming: data.length, due_today: 0, overdue: 0 },
+    },
     isLoading: false,
     isError: false,
     isFetching: false,
@@ -106,13 +207,26 @@ function readyState(data = [card]) {
   };
 }
 
-function renderBoard() {
-  return render(<MemoryRouter><ReactivationPipelineBoard /></MemoryRouter>);
+function renderBoard(initialEntry = "/reactivation/pipeline") {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <ReactivationPipelineBoard />
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
-  mocks.permissions.value = ["reactivation:read", "reactivation:write", "reactivation:transition", "users:read", "tasks:read", "tasks:write", "documents:read"];
+  mocks.permissions.value = [
+    "reactivation:read",
+    "reactivation:write",
+    "reactivation:transition",
+    "users:read",
+    "tasks:read",
+    "tasks:write",
+    "documents:read",
+  ];
   mocks.pipelineState.value = readyState();
+  mocks.filters.value = {};
   mocks.refetch.mockReset();
   mocks.transition.mockReset();
   mocks.update.mockReset();
@@ -127,7 +241,19 @@ describe("governed Reactivation pipeline", () => {
     expect(screen.getByText("Asha Mehra")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "New Lead" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Not Required" })).toBeInTheDocument();
-    expect(screen.getAllByRole("region")).toHaveLength(10);
+    for (const stage of [
+      "New Lead",
+      "Lead Confirmed",
+      "Documents Pending",
+      "Documents Received",
+      "KYC / Verification",
+      "SIM Required",
+      "Activation Pending",
+      "Completed",
+      "Not Required",
+    ]) {
+      expect(screen.getByRole("region", { name: stage })).toBeInTheDocument();
+    }
     expect(screen.queryByText(/No verified cards/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Reference only/i)).not.toBeInTheDocument();
   });
@@ -139,7 +265,10 @@ describe("governed Reactivation pipeline", () => {
     expect(screen.getByRole("dialog", { name: "Move to Lead Confirmed" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm move" }));
     expect(mocks.transition).toHaveBeenCalledWith(
-      expect.objectContaining({ card: expect.objectContaining({ id: "case-1", row_version: 2 }), toStage: "lead_confirmed" }),
+      expect.objectContaining({
+        card: expect.objectContaining({ id: "case-1", row_version: 2 }),
+        toStage: "lead_confirmed",
+      }),
       expect.any(Object),
     );
 
@@ -159,6 +288,44 @@ describe("governed Reactivation pipeline", () => {
     expect(container.querySelector(".md\\:hidden")).not.toBeNull();
   });
 
+  it("persists operational filters and pagination in the URL-backed query contract", () => {
+    mocks.pipelineState.value = readyState([card], 60);
+    renderBoard(
+      "/reactivation/pipeline?q=Asha&stage=new_lead&reminder=overdue&view=list&page=2",
+    );
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Asha")).toBeInTheDocument();
+    expect(mocks.filters.value).toEqual(
+      expect.objectContaining({
+        q: "Asha",
+        stage: ["new_lead"],
+        reminder_view: "overdue",
+        offset: 25,
+        limit: 25,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(mocks.filters.value.offset).toBe(50);
+    fireEvent.change(screen.getByLabelText("Filter by status"), {
+      target: { value: "completed" },
+    });
+    expect(mocks.filters.value.offset).toBe(0);
+    expect(mocks.filters.value.stage).toEqual(["completed"]);
+  });
+
+  it("uses factual work views without claiming server-shared saved views", () => {
+    renderBoard();
+    fireEvent.click(screen.getAllByRole("button", { name: "Overdue" })[0]!);
+    expect(mocks.filters.value.reminder_view).toBe("overdue");
+    expect(
+      screen.getByText(/Team-shared saved views remain a later milestone/i),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Completed" })[0]!);
+    expect(mocks.filters.value.stage).toEqual(["completed"]);
+    expect(mocks.filters.value.reminder_view).toBeUndefined();
+  });
+
   it("opens accessible case details with assignment, evidence, notes, tasks and documents", async () => {
     renderBoard();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
@@ -168,11 +335,20 @@ describe("governed Reactivation pipeline", () => {
     expect(screen.getAllByText("Priority").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Manual document review")).toHaveLength(2);
     expect(screen.getByText("+919822222221")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Assigned owner"), { target: { value: "user-2" } });
+    fireEvent.change(screen.getByLabelText("Assigned owner"), {
+      target: { value: "user-2" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Follow-up" }));
     expect(screen.queryByLabelText("Next follow-up date")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save case" }));
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: "user-2", labels: ["priority"], followUpAt: null, card: expect.objectContaining({ row_version: 2 }) }));
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: "user-2",
+        labels: ["priority"],
+        followUpAt: null,
+        card: expect.objectContaining({ row_version: 2 }),
+      }),
+    );
 
     fireEvent.click(screen.getByRole("tab", { name: /History/ }));
     expect(screen.getByText("Immutable stage history")).toBeInTheDocument();
@@ -180,7 +356,9 @@ describe("governed Reactivation pipeline", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Tasks/ }));
     expect(screen.getByText("Persisted task workspace")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Documents/ }));
-    await waitFor(() => expect(screen.getByText("Persisted document workspace")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Persisted document workspace")).toBeInTheDocument(),
+    );
   });
 
   it("renders truthful loading, empty, error and permission-aware states", () => {
@@ -194,7 +372,12 @@ describe("governed Reactivation pipeline", () => {
     expect(screen.getByText("No reactivation cases yet")).toBeInTheDocument();
     empty.unmount();
 
-    mocks.pipelineState.value = { ...readyState(), data: undefined, isError: true, error: new Error("Pipeline unavailable") };
+    mocks.pipelineState.value = {
+      ...readyState(),
+      data: undefined,
+      isError: true,
+      error: new Error("Pipeline unavailable"),
+    };
     const failed = renderBoard();
     expect(screen.getByText("Pipeline unavailable")).toBeInTheDocument();
     failed.unmount();
@@ -202,20 +385,50 @@ describe("governed Reactivation pipeline", () => {
     mocks.pipelineState.value = readyState();
     mocks.permissions.value = ["reactivation:read"];
     const restricted = renderBoard();
-    expect(screen.getByLabelText("Asha Mehra, New Lead")).toHaveAttribute("draggable", "false");
+    expect(screen.getByLabelText("Asha Mehra, New Lead")).toHaveAttribute(
+      "draggable",
+      "false",
+    );
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
-    expect(screen.getByText("Your role can review this case but cannot move it.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Your role can review this case but cannot move it."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save case" })).not.toBeInTheDocument();
     restricted.unmount();
   });
 
+  it("does not advertise terminal cards as draggable work", () => {
+    mocks.pipelineState.value = readyState([
+      {
+        ...card,
+        stage: "completed",
+        available_transitions: [],
+        conversion_indicator: "converted",
+      },
+    ]);
+    renderBoard();
+    expect(screen.getByLabelText("Asha Mehra, Completed")).toHaveAttribute(
+      "draggable",
+      "false",
+    );
+  });
+
   it("opens KYC from a document-ready persisted Reactivation case", () => {
     mocks.permissions.value.push("kyc:read", "kyc:write");
-    mocks.pipelineState.value = readyState([{ ...card, stage: "documents_received" as const, available_transitions: ["kyc_verification" as const] }]);
+    mocks.pipelineState.value = readyState([
+      {
+        ...card,
+        stage: "documents_received" as const,
+        available_transitions: ["kyc_verification" as const],
+      },
+    ]);
     renderBoard();
     fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));
     fireEvent.click(screen.getByRole("tab", { name: /KYC/ }));
     fireEvent.click(screen.getByRole("button", { name: "Create KYC case" }));
-    expect(mocks.createKyc).toHaveBeenCalledWith({ caseId: "case-1", ownerUserId: "user-1" });
+    expect(mocks.createKyc).toHaveBeenCalledWith({
+      caseId: "case-1",
+      ownerUserId: "user-1",
+    });
   });
 });

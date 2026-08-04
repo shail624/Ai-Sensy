@@ -11,6 +11,47 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-05 — Reactivation operational hierarchy (UI-TASTE-03B)
+
+**Added**
+- Added bounded offset pagination to the existing tenant-scoped Reactivation pipeline query and
+  shared previous/next controls at 25 cases per page.
+- Added URL-backed search, status, label, owner, reminder, date, display, page, and factual work-view
+  state without claiming server-shared saved views.
+- Added Design Document 34 and focused backend/frontend regressions for hierarchy, permission truth,
+  redirects, pagination, terminal movement, and existing case workflows.
+
+**Changed**
+- Made the real Reactivation CRM the default Reactivation destination and limited primary
+  sub-navigation to connected, permission-available CRM, KYC, Document, and Report surfaces.
+- Redirected historical SIM, Activation, Completed, Interested, and bulk-eligibility routes to the
+  existing filtered CRM or Contact import authorities.
+- Reused shared filter, form, toolbar, pagination, loading, empty, error, and modal components;
+  strengthened visible due/SLA/owner/document/next-task hierarchy.
+
+**Fixed**
+- Removed foundation-only executable-looking placeholder navigation and outdated KYC gating copy.
+- Hid KYC, Document, and Report tabs when the existing route permission is absent.
+- Stopped terminal cases from advertising drag behavior, fixed malformed result-summary encoding,
+  and removed the 200-card unpaginated render path.
+- Corrected governance stop wording so provider certification blocks Module 13 live/provider UI,
+  not unrelated provider-neutral product milestones.
+
+**Preserved**
+- No provider evaluation, certification, WAHA, Evolution API, QR runtime, live session, ingestion,
+  history synchronization, media transfer, provider dependency, migration, permission, audit, or
+  tenant-authority change.
+- Module 13 remains 44% and all provider-dependent work remains blocked.
+
+**Validated**
+- Ruff, strict mypy, OpenAPI/client drift, 4 focused backend tests, all
+  980 backend tests, ESLint, TypeScript, 35 frontend files /
+  668 tests, production build, E2E TypeScript, dependency audits, Bandit, and tracked
+  source vulnerability/secret/IaC scan passed in workflow `30953600784`.
+- Migration head remains `0040_channel_sync_media_foundation`; OpenAPI remains 200 paths.
+- Authenticated representative-data visual/WCAG/device/performance acceptance remains
+  `PENDING – Host Machine Validation`.
+
 ### 2026-08-05 — Provider-neutral Sync & Media Persistence Foundation (M13-06A)
 
 **Added**

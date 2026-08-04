@@ -43,6 +43,7 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
         owner_user_id: int | None,
         reminder_view: str | None,
         reminder_date: date | None,
+        offset: int,
         limit: int,
     ) -> tuple[list[tuple[ReactivationCase, Contact, User | None]], int]:
         """Bounded joined cards for the governed Reactivation workspace."""
@@ -113,7 +114,9 @@ class ViDomainRepository(BaseRepository[ReactivationCase]):
                 await self.session.execute(
                     base.order_by(
                         ReactivationCase.updated_at.desc(), ReactivationCase.id.desc()
-                    ).limit(limit)
+                    )
+                    .offset(offset)
+                    .limit(limit)
                 )
             )
             .tuples()

@@ -3,21 +3,35 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-05 · M13-06A Provider-neutral Sync & Media Persistence Foundation is Repository Validated. Live provider-dependent M13-06 behavior remains blocked._
+_Last updated: 2026-08-05 · UI-TASTE-03B Reactivation Operational Hierarchy is Repository Validated. Provider-dependent Module 13 work remains blocked._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `2386b50bc1110e88f346ddff028cf1e017ad2503`
+- **Starting HEAD:** `5c3414bed1802276e99a9b02605dbde8e1cdcc36`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0040_channel_sync_media_foundation` · 200 paths
-- **Current milestone:** `M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED`
-- **Module 13 completion:** `44%` evidence-based estimate
+- **Current milestone:** `UI-TASTE-03B — Reactivation Operational Hierarchy — REPOSITORY VALIDATED`
+- **Reactivation completion:** `94%` evidence-based estimate · **Module 13:** `44%` unchanged
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
-- **Next milestone:** Provider certification host evidence; live M13-06 remains blocked
-- **Last synchronized:** `2026-08-05T01:17:00+05:30`
+- **Next milestone:** `UI-TASTE-04 — Responsive, accessibility, and performance regression`; live M13-06 remains blocked
+- **Last synchronized:** `2026-08-05T03:21:50+05:30`
 
 ## Delivered
+
+### UI-TASTE-03B Reactivation Operational Hierarchy
+
+- Real Reactivation CRM is the default route; only connected and permission-available KYC,
+  Document, and Report destinations remain in primary Reactivation navigation.
+- Existing pipeline search/filters are URL-backed and use shared controls; factual All active,
+  Due today, Overdue, and Completed work views preserve refresh/share context.
+- Existing tenant-scoped stable ordering now supports additive non-negative offset pagination at
+  25 cases per page without a new table, service, route, permission, or authority.
+- Historical SIM/Activation/Completed/Interested/bulk links resolve to existing filtered CRM or
+  Contact import workflows instead of placeholder operational shells.
+- Design Document 34 records reuse, originality, responsive/accessibility, security, validation, and
+  host-evidence boundaries.
+
 
 ### M13-06A Provider-neutral Sync & Media Persistence Foundation
 
@@ -44,15 +58,17 @@ _Last updated: 2026-08-05 · M13-06A Provider-neutral Sync & Media Persistence F
 
 - Ruff PASS.
 - Strict mypy PASS.
-- Focused channel/sync/media/migration suite: 18 PASS.
-- Full backend suite: 979 PASS in workflow `30946554198`.
-- Migration validation PASS at `0040_channel_sync_media_foundation`.
-- OpenAPI semantic equality PASS with 200 paths and no M13-05 route/schema/client change; the untouched baseline retains a pre-existing key-order-only exporter mismatch under the current dependency resolver.
-- Generated TypeScript client PASS with no drift.
-- Python dependency audit, Bandit high-severity and tracked-source vulnerability/secret/IaC scan PASS.
-- Frontend production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and production build PASS with unchanged source.
-- Bundle output remains unchanged: CSS 49.90/9.90 kB gzip, main 733.62/178.16 kB gzip and Operational Dashboard 31.96/8.61 kB gzip.
-- Exact sixteen-file implementation boundary PASS before governance; no API, frontend, provider adapter, messaging, synchronization or M13-06 file changed.
+- Focused Reactivation pagination/workflow suite: 4 PASS.
+- Full backend suite: 980 PASS in workflow `30953600784`.
+- OpenAPI/client drift PASS at 200 paths; migration head remains `0040_channel_sync_media_foundation`.
+- Frontend production audit high threshold, ESLint, TypeScript, 35 files /
+  668 tests and production build PASS.
+- E2E TypeScript, Bandit, Python dependency audit, and tracked-source vulnerability/secret/IaC scan PASS.
+- Main bundle: 733.97/178.29 kB gzip; Reactivation route:
+  82.25/19.37 kB gzip.
+- Authenticated representative-data visual/reference, screen-reader/device, and production-scale
+  performance evidence: PENDING – Host Machine Validation.
+- Exact nineteen-file product/tracking boundary PASS; no provider-specific or live Module 13 file changed.
 
 ## Explicitly absent
 
@@ -71,6 +87,6 @@ history execution, media transfer/processing, sending, incoming webhooks, routin
 
 ## Stop rule
 
-Do not begin any live M13-06 QR image/login, provider adapter, event ingestion, history execution,
-media transfer, messaging, webhook, routing, Inbox, Customer 360 or Analytics work until provider
-certification and separate owner authorization. M13-06A adds persistence only.
+Do not begin live/provider-dependent M13-06 QR image/login, adapter, ingestion, history, media,
+messaging, webhook, routing, or provider UI work until certification and separate owner
+authorization. Provider-neutral roadmap milestones may proceed in their approved sequence.
