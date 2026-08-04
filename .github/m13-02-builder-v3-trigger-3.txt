@@ -1,0 +1,1 @@
+Trigger the diagnostic after the four verified Ruff fixes. This file is never merged.
