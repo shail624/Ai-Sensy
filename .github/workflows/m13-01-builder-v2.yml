@@ -1,0 +1,158 @@
+name: M13-01 Generic Channel Foundation Builder v2
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-builder-v2
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout builder authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-01-builder
+          path: builder
+
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+          path: work
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract corrected provider-neutral foundation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path("builder/.github/workflows/m13-01-builder.yml").read_text()
+          marker = "          python - <<'PY'\n"
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index("\n          PY\n\n      - name: Set up Python", start)
+          code = textwrap.dedent(workflow[start:end])
+
+          replacements = [
+              (
+                  "from pathlib import Path\n",
+                  "from pathlib import Path\nimport textwrap\n",
+              ),
+              (
+                  'path.write_text(content.replace("\\n          ", "\\n").lstrip(), encoding="utf-8")',
+                  'path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")',
+              ),
+              (
+                  "from app.channels.capabilities import Capability, ChannelType\\n",
+                  "from app.channels.capabilities import Capability, ChannelType\\nfrom app.channels.errors import ChannelConfigError\\n",
+              ),
+              (
+                  'raise ValueError("allowed_channel_types must not be empty")',
+                  'raise ChannelConfigError("allowed_channel_types must not be empty")',
+              ),
+              (
+                  'raise ValueError("allowed_purposes must not be empty")',
+                  'raise ChannelConfigError("allowed_purposes must not be empty")',
+              ),
+              (
+                  'raise ValueError("allowed_origins must not be empty")',
+                  'raise ChannelConfigError("allowed_origins must not be empty")',
+              ),
+          ]
+          for old, new in replacements:
+              if code.count(old) != 1:
+                  raise SystemExit(f"builder correction marker mismatch: {old!r}")
+              code = code.replace(old, new, 1)
+
+          Path("work/.m13_01_build.py").write_text(code)
+          PY
+          cd work
+          python .m13_01_build.py
+          rm .m13_01_build.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: work/backend/pyproject.toml
+
+      - name: Install backend dependencies
+        working-directory: work
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e './backend[dev]'
+
+      - name: Format and focused validation
+        working-directory: work/backend
+        run: |
+          ruff format app/channels/foundation.py app/channels/validation.py app/channels/registry.py app/channels/flags.py app/channels/dependencies.py app/api/deps.py tests/test_channel_foundation.py
+          ruff check app tests
+          mypy app
+          pytest tests/test_channel_foundation.py tests/test_channels.py tests/test_config.py
+
+      - name: Full backend test suite
+        working-directory: work/backend
+        run: pytest
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: work/frontend/package-lock.json
+
+      - name: Full frontend repository gate
+        working-directory: work/frontend
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Verify milestone boundary
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only -- backend/alembic | wc -l)" -eq 0
+          test "$(git diff --name-only -- frontend/openapi.json frontend/src/lib/api/schema.d.ts | wc -l)" -eq 0
+          test "$(git diff --name-only -- frontend | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/channels/meta | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/models | wc -l)" -eq 0
+          test "$(git diff --name-only -- backend/app/api/v1 | wc -l)" -eq 0
+          python - <<'PY'
+          import subprocess
+
+          expected = {
+              "backend/app/api/deps.py",
+              "backend/app/channels/dependencies.py",
+              "backend/app/channels/flags.py",
+              "backend/app/channels/foundation.py",
+              "backend/app/channels/registry.py",
+              "backend/app/channels/validation.py",
+              "backend/tests/test_channel_foundation.py",
+          }
+          changed = set(subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f"M13-01 boundary mismatch: expected={sorted(expected)} actual={sorted(changed)}")
+          PY
+
+      - name: Commit validated implementation to work branch
+        working-directory: work
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/channels/foundation.py backend/app/channels/validation.py backend/app/channels/registry.py backend/app/channels/flags.py backend/app/channels/dependencies.py backend/app/api/deps.py backend/tests/test_channel_foundation.py
+          git commit -m 'feat(omnichannel): add generic channel foundation'
+          git push origin HEAD:work/m13-01-generic-channel-foundation
