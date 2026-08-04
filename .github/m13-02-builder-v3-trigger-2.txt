@@ -1,0 +1,1 @@
+Trigger the scoped Ruff format diagnostic. This file is never merged.
