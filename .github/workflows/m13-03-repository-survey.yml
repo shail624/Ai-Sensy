@@ -1,0 +1,29 @@
+name: M13-03 repository survey
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout target baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+      - name: Package repository
+        run: |
+          git rev-parse HEAD > M13_03_BASELINE_SHA.txt
+          tar --exclude=.git --exclude=frontend/node_modules --exclude=frontend/dist -czf ../ai-sensy-m13-03-baseline.tar.gz .
+      - name: Upload repository snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-sensy-m13-03-baseline
+          path: ../ai-sensy-m13-03-baseline.tar.gz
+          if-no-files-found: error
+          retention-days: 1
