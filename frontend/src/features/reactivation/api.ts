@@ -37,17 +37,19 @@ export function useReactivationPipeline(filters: ReactivationFilters, enabled = 
   });
 }
 
+function invalidateReactivationQueries(queryClient: ReturnType<typeof useQueryClient>): void {
+  void queryClient.invalidateQueries({ queryKey: reactivationKeys.all });
+  void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  void queryClient.invalidateQueries({ queryKey: ["customer-profile"] });
+}
+
 function useReactivationMutation<TVariables, TData>(
   mutationFn: (variables: TVariables) => Promise<TData>,
 ) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: reactivationKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      void queryClient.invalidateQueries({ queryKey: ["customer-profile"] });
-    },
+    onSuccess: () => invalidateReactivationQueries(queryClient),
   });
 }
 
@@ -76,6 +78,35 @@ export function useTransitionReactivation() {
   );
 }
 
+interface ReactivationUpdateValues {
+  ownerUserId: string | null;
+  previousViNumber: string | null;
+  activeDelhiNumber: string | null;
+  labels: ReactivationLabel[];
+  followUpAt: string | null;
+  releaseAt: string | null;
+}
+
+async function updateReactivationCard(
+  card: ReactivationCard,
+  values: ReactivationUpdateValues,
+) {
+  return unwrap(
+    await api.PATCH("/api/v1/reactivation-cases/{case_id}", {
+      params: { path: { case_id: card.id } },
+      body: {
+        expected_row_version: card.row_version,
+        owner_user_id: values.ownerUserId,
+        previous_vi_number: values.previousViNumber,
+        active_delhi_number: values.activeDelhiNumber,
+        labels: values.labels,
+        follow_up_at: values.followUpAt,
+        release_at: values.releaseAt,
+      },
+    }),
+  );
+}
+
 export function useUpdateReactivation() {
   return useReactivationMutation(
     async ({
@@ -86,30 +117,70 @@ export function useUpdateReactivation() {
       labels,
       followUpAt,
       releaseAt,
-    }: {
-      card: ReactivationCard;
-      ownerUserId: string | null;
-      previousViNumber: string | null;
-      activeDelhiNumber: string | null;
-      labels: ReactivationLabel[];
-      followUpAt: string | null;
-      releaseAt: string | null;
-    }) =>
-      unwrap(
-        await api.PATCH("/api/v1/reactivation-cases/{case_id}", {
-          params: { path: { case_id: card.id } },
-          body: {
-            expected_row_version: card.row_version,
-            owner_user_id: ownerUserId,
-            previous_vi_number: previousViNumber,
-            active_delhi_number: activeDelhiNumber,
-            labels,
-            follow_up_at: followUpAt,
-            release_at: releaseAt,
-          },
-        }),
-      ),
+    }: { card: ReactivationCard } & ReactivationUpdateValues) =>
+      updateReactivationCard(card, {
+        ownerUserId,
+        previousViNumber,
+        activeDelhiNumber,
+        labels,
+        followUpAt,
+        releaseAt,
+      }),
   );
+}
+
+export interface ReactivationBulkUpdateRequest {
+  cards: ReactivationCard[];
+  ownerUserId?: string | null;
+  addLabel?: ReactivationLabel;
+  removeLabel?: ReactivationLabel;
+}
+
+export interface ReactivationBulkUpdateResult {
+  updated: number;
+  failed: number;
+  failedCaseIds: string[];
+}
+
+/**
+ * Applies one authorized PATCH per selected case. The backend remains the only authority for
+ * object-level authorization, tenant isolation, row-version concurrency and audit evidence.
+ */
+export function useBulkUpdateReactivation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      cards,
+      ownerUserId,
+      addLabel,
+      removeLabel,
+    }: ReactivationBulkUpdateRequest): Promise<ReactivationBulkUpdateResult> => {
+      const results = await Promise.allSettled(
+        cards.map((card) => {
+          const labels = card.labels
+            .filter((label) => label !== removeLabel)
+            .concat(addLabel && !card.labels.includes(addLabel) ? [addLabel] : []);
+          return updateReactivationCard(card, {
+            ownerUserId: ownerUserId === undefined ? card.owner_user_id : ownerUserId,
+            previousViNumber: card.previous_vi_number,
+            activeDelhiNumber: card.active_delhi_number,
+            labels,
+            followUpAt: card.follow_up_at,
+            releaseAt: card.release_at,
+          });
+        }),
+      );
+      const failedCaseIds = results.flatMap((result, index) =>
+        result.status === "rejected" ? [cards[index]?.id ?? "unknown"] : [],
+      );
+      return {
+        updated: results.length - failedCaseIds.length,
+        failed: failedCaseIds.length,
+        failedCaseIds,
+      };
+    },
+    onSettled: () => invalidateReactivationQueries(queryClient),
+  });
 }
 
 export function useReactivationEvents(caseId: string) {
