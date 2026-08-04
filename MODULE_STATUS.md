@@ -17,25 +17,25 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T10:52:00+05:30`.
+Last synchronized: `2026-08-04T11:20:00+05:30`.
 
-## Module 13 — owner-approved architecture freeze
+## Module 13 — M13-00 repository-validated implementation contract
 
 - **Module:** Enterprise Omnichannel Channel Manager.
-- **Planning status:** **Owner Approved**.
-- **Implementation status:** not started; implementation completion remains `0%` because planning
-  approval is not product implementation evidence.
-- **Contract:** the approved Module 13 Architecture Review and its approved additive refinements are
-  frozen as the implementation contract.
-- **Change control:** no scope expansion, new abstraction, milestone reordering or redesign is allowed.
-  A verified implementation blocker may be recorded, but any deviation requires explicit owner
-  approval before implementation continues.
-- **Prerequisite gate:** Reactivation Mission Control, Customer 360, Unified Inbox and Notification
-  Center must each be `Production Ready` under `ENGINEERING_STANDARDS.md`.
-- **Start gate:** satisfying the prerequisites does not start Module 13; a separate explicit owner
-  instruction is still required.
-- **Current direction:** continue the existing roadmap only and do not create further Module 13
-  planning documents.
+- **Milestone status:** `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED`.
+- **Implementation status:** not started; implementation completion remains `0%` because documentation
+  validation is not product implementation evidence.
+- **Contract:** ADR-0020 and Design Document 33 are accepted and frozen. They specify capability,
+  provider, security, session, identity, API, database, rollback, rollout, DR, observability,
+  performance, testing and acceptance boundaries without adding implementation.
+- **Provider status:** no QR provider is selected. Every Required provider criterion must pass before a
+  dependency or adapter implementation is approved.
+- **Change control:** no scope expansion, new adapter hierarchy, milestone reordering or redesign is
+  allowed. A verified blocker may be recorded, but deviation requires explicit owner approval and an
+  additive ADR.
+- **Prerequisite/start gate:** recorded prerequisite workflows, provider approval and a separate owner
+  instruction are all required before M13-01.
+- **Current direction:** stop after M13-00 and continue only the separately approved existing roadmap.
 
 ## UI Taste Modernization — operator-first Dashboard
 
@@ -86,7 +86,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 0% | Module 13 architecture planning is **Owner Approved** and frozen as the implementation contract; no product code, API, migration, UI or runtime implementation has started | Blocked until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready`, followed by a separate explicit owner instruction; any architectural deviation requires owner approval | Existing ChannelAdapter/capability registry, Conversation/Message services, Customer 360, Inbox, Tasks, KYC, SIM, Activation, SLA, Notes, Timeline, Notifications, Analytics, RBAC, Audit |
+| Enterprise Omnichannel Channel Manager | 0% | M13-00 is **Repository Validated**: ADR-0020 and Design Document 33 freeze the complete implementation contract and classified gap register; no product code, API, migration, UI, dependency or runtime implementation has started | Select/approve a QR provider; satisfy recorded prerequisite workflows; obtain separate owner authorization for M13-01; later milestones must produce repository/host/security/performance/deployment evidence | Existing ChannelAdapter/capability registry, Meta adapter, Conversation/Message/Event/Media services, Contact/Customer 360/Inbox/Timeline, Notifications, Analytics, RBAC, Audit, queues and deployment infrastructure |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
