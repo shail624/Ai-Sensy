@@ -58,6 +58,11 @@ replace_expected(
     "                IdentityMergeRecommendationResponse.from_view(item, row.public_id)\n",
     "                IdentityMergeRecommendationResponse.from_view(item)\n",
 )
+replace_expected(
+    "backend/app/schemas/contact_identity.py",
+    "    IdentityConflictStatus,\n",
+    "",
+)
 
 replace_expected(
     "backend/app/api/v1/endpoints/contact_identity.py",
@@ -69,6 +74,43 @@ replace_expected(
     "    conflict = await service.get_conflict(actor.organization_id, uuidlib.UUID(int=0))\n    return IdentityMergeRecommendationResponse.from_view(view, conflict.conflict.public_id)",
     "    return IdentityMergeRecommendationResponse.from_view(view)",
     count=2,
+)
+replace_expected(
+    "backend/app/api/v1/endpoints/contact_identity.py",
+    '    conflict_status: IdentityConflictStatus | None = Query(default=None, alias="status"),\n'
+    '    limit: int = Query(default=50, ge=1, le=100),\n'
+    '    offset: int = Query(default=0, ge=0),\n',
+    '    conflict_status: Annotated[\n'
+    '        IdentityConflictStatus | None, Query(alias="status")\n'
+    '    ] = None,\n'
+    '    limit: Annotated[int, Query(ge=1, le=100)] = 50,\n'
+    '    offset: Annotated[int, Query(ge=0)] = 0,\n',
+)
+
+replace_expected(
+    "backend/app/models/__init__.py",
+    "from app.models.contact_identity import (\n"
+    "    ContactIdentity,\n"
+    "    IdentityConflict,\n"
+    "    IdentityMergeRecommendation,\n"
+    ")\n",
+    "",
+)
+replace_expected(
+    "backend/app/models/__init__.py",
+    "from app.models.contact_event import ContactEvent\n",
+    "from app.models.contact_event import ContactEvent\n"
+    "from app.models.contact_identity import (\n"
+    "    ContactIdentity,\n"
+    "    IdentityConflict,\n"
+    "    IdentityMergeRecommendation,\n"
+    ")\n",
+)
+
+replace_expected(
+    "backend/app/repositories/contact_identity.py",
+    "from sqlalchemy.ext.asyncio import AsyncSession\n\n",
+    "",
 )
 
 replace_expected(
