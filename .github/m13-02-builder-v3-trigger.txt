@@ -1,0 +1,1 @@
+Trigger the temporary M13-02 diagnostic using the proven builder workflow shape. This file is never merged.
