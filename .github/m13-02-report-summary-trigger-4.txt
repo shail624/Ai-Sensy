@@ -1,0 +1,1 @@
+Refresh the concise report after the verified Ruff fixes. This file is never merged.
