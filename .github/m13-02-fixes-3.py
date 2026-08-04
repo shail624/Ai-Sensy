@@ -8,6 +8,14 @@ path = root / "backend/tests/test_identity_resolution.py"
 source = path.read_text(encoding="utf-8")
 old = '"future-provider"'
 new = '"future_provider"'
-if source.count(old) != 6:
-    raise SystemExit(f"verified connector fixture count changed: {source.count(old)}")
-path.write_text(source.replace(old, new), encoding="utf-8")
+old_count = source.count(old)
+new_count = source.count(new)
+if old_count == 6 and new_count == 0:
+    source = source.replace(old, new)
+elif old_count == 0 and new_count == 6:
+    pass
+else:
+    raise SystemExit(
+        f"verified connector fixture counts changed: old={old_count} new={new_count}"
+    )
+path.write_text(source, encoding="utf-8")
