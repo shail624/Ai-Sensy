@@ -4,7 +4,7 @@
 > engineering evidence separate from authenticated host visual acceptance.
 
 _Last updated: 2026-08-04 · UI-TASTE-03A operator-first Dashboard is implemented and repository-
-validated. Reactivation redesign has not started._
+validated. Module 13 planning is Owner Approved and frozen; Module 13 implementation has not started._
 
 ## Current state
 
@@ -17,7 +17,25 @@ validated. Reactivation redesign has not started._
 - **Production dependency boundary:** no high/critical finding; two moderate React Router advisories
 - **Current milestone:** `UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED`
 - **Host validation:** `PENDING – Host Machine Validation`
-- **Next milestone:** `UI-TASTE-03B — Reactivation operational hierarchy — BLOCKED PENDING APPROVAL`
+- **Next implementation milestone:** `UI-TASTE-03B — Reactivation operational hierarchy`; approved previously and not started on the target branch
+- **Module 13 planning:** `OWNER APPROVED — FROZEN IMPLEMENTATION CONTRACT`
+- **Module 13 implementation:** `BLOCKED` until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`, followed by a separate explicit owner instruction
+
+## Module 13 planning freeze
+
+- The approved Enterprise Omnichannel Channel Manager Architecture Review, including every approved
+  additive refinement, is the binding implementation contract.
+- Planning status is **Owner Approved**. No Module 13 application code, API, migration, UI, provider
+  runtime or deployment implementation has started.
+- Do not expand scope, add abstractions, reorder milestones or redesign approved decisions.
+- A verified implementation blocker may be recorded, but any deviation from the approved contract
+  requires explicit owner approval before implementation continues.
+- Module 13 cannot begin until Reactivation Mission Control, Customer 360, Unified Inbox and
+  Notification Center each reach `Production Ready` under the permanent acceptance standards.
+- Passing those prerequisites does not authorize implementation. A separate explicit owner instruction
+  is still required.
+- Continue implementing the existing roadmap only. Do not create additional Module 13 planning
+  documents.
 
 ## Dashboard decisions now supported
 
@@ -64,14 +82,15 @@ validated. Reactivation redesign has not started._
 
 ## Remaining UI sequence
 
-1. Owner reviews UI-TASTE-03A Dashboard evidence.
-2. UI-TASTE-03B modernizes Reactivation hierarchy only, reusing the shared system and existing domain.
-3. Later reviewed screen milestones cover Inbox, Contacts, Customer 360 and Notification Center.
-4. UI-TASTE-04 performs final responsive/accessibility/performance regression.
-5. UI-TASTE-05 records owner acceptance and merge evidence.
+1. Resume `UI-TASTE-03B` from the latest approved Git HEAD when explicitly instructed; it modernizes Reactivation hierarchy only and has not started on the target branch.
+2. Later reviewed screen milestones cover Inbox, Contacts, Customer 360 and Notification Center.
+3. `UI-TASTE-04` performs final responsive/accessibility/performance regression.
+4. `UI-TASTE-05` records owner acceptance and merge evidence.
 
 ## Product sequence after UI review
 
 Resume `CORE-10` Dedicated Chat History and `CORE-11` settings/team/tags/SLA controls, then the
-approved growth, analytics, integration, enterprise and release roadmap. Payments, ads, commerce,
-SaaS billing, marketplace, public signup, reseller and multi-project surfaces remain excluded.
+approved growth, analytics, integration, enterprise and release roadmap. Module 13 remains gated by
+its recorded Production Ready prerequisites and a separate owner instruction. Payments, ads,
+commerce, SaaS billing, marketplace, public signup, reseller and multi-project surfaces remain
+excluded.

@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-04T03:00:00+05:30`.
+Last synchronized: `2026-08-04T10:52:00+05:30`.
 
 ## Authority and baseline
 
@@ -42,7 +42,25 @@ It deliberately does not claim SSE, browser push, email, or internal WhatsApp de
 Skipped: Not required by product owner.** No generic approval authority or Approval Center will be
 built; existing KYC-specific approval logic and completed authorization safeguards remain preserved.
 
-`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy is blocked pending owner approval.
+`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy was owner-approved previously and has not started on the target branch.
+
+## Module 13 — Enterprise Omnichannel Channel Manager planning freeze
+
+**Status: Owner Approved**
+
+The approved Module 13 Architecture Review and every approved additive refinement are frozen as the
+implementation contract. Planning is complete; no Module 13 product code, API, migration, UI,
+provider runtime or deployment implementation has started.
+
+- Do not expand scope, introduce new abstractions, change milestone ordering or redesign approved
+  decisions.
+- A verified implementation blocker may be recorded, but any deviation requires explicit owner
+  approval before implementation continues.
+- Module 13 cannot start until Reactivation Mission Control, Customer 360, Unified Inbox and
+  Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`.
+- Passing those prerequisites does not authorize implementation; a separate explicit owner
+  instruction is still required.
+- Continue the existing roadmap only and do not create additional Module 13 planning documents.
 
 ## Phase 0 — Governance and scope lock
 
@@ -93,7 +111,7 @@ remain authoritative.
 | UI-TASTE-01 — Documentation and audit baseline — COMPLETE | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Governance records only; design variance `4/10`, motion `3/10`, density `8/10`. | COMPLETE at `9043fe03`; documentation-only boundary and remote HEAD were verified. |
 | UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. | Repository gates pass: lint, typecheck, 657 tests, build and production audit. Host visual/reference comparison remains pending; no parallel component system or navigation redesign exists. |
 | UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED | Replace the messaging-led first screen with factual operational intelligence. | Cross-domain attention, blocked customers, KYC, SIM/Activation SLA risk, Campaigns, unread conversations, Templates, agent workload, today KPI changes, task snapshot and source actions. | Repository gates pass with 661 tests and split build; no fake metric/backend duplication; authenticated representative-data visual/reference review remains pending. |
-| UI-TASTE-03B — Reactivation operational hierarchy — BLOCKED PENDING APPROVAL | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Owner approves Dashboard closeout first; real persisted behavior, permissions, source contracts and representative-data review pass. |
+| UI-TASTE-03B — Reactivation operational hierarchy — OWNER-APPROVED; NOT STARTED | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Resume only from the latest approved Git HEAD when explicitly instructed; real persisted behavior, permissions, source contracts and representative-data review pass. |
 | UI-TASTE-04 — Responsive, accessibility, and performance regression | Prove the modernization under real operating conditions. | Keyboard/focus, WCAG-oriented semantics/contrast, reduced motion, overflow and long-content handling, browser/device widths, bundle and route performance. | No critical accessibility/regression issue; full frontend gates pass; performance changes are measured and documented. |
 | UI-TASTE-05 — Owner review and merge | Close only after evidence-backed owner review. | Focused corrections, governance/validation updates, final branch review and merge. | Owner approves; changed-file boundary is truthful; all required evidence is recorded; merge occurs without bypassing product or quality gates. |
 

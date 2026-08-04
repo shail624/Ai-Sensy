@@ -17,7 +17,25 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T03:00:00+05:30`.
+Last synchronized: `2026-08-04T10:52:00+05:30`.
+
+## Module 13 — owner-approved architecture freeze
+
+- **Module:** Enterprise Omnichannel Channel Manager.
+- **Planning status:** **Owner Approved**.
+- **Implementation status:** not started; implementation completion remains `0%` because planning
+  approval is not product implementation evidence.
+- **Contract:** the approved Module 13 Architecture Review and its approved additive refinements are
+  frozen as the implementation contract.
+- **Change control:** no scope expansion, new abstraction, milestone reordering or redesign is allowed.
+  A verified implementation blocker may be recorded, but any deviation requires explicit owner
+  approval before implementation continues.
+- **Prerequisite gate:** Reactivation Mission Control, Customer 360, Unified Inbox and Notification
+  Center must each be `Production Ready` under `ENGINEERING_STANDARDS.md`.
+- **Start gate:** satisfying the prerequisites does not start Module 13; a separate explicit owner
+  instruction is still required.
+- **Current direction:** continue the existing roadmap only and do not create further Module 13
+  planning documents.
 
 ## UI Taste Modernization — operator-first Dashboard
 
@@ -31,7 +49,8 @@ Last synchronized: `2026-08-04T03:00:00+05:30`.
   workflows, sidebar/navigation, primary action links and existing shared design system.
 - **Performance:** operational workspace is lazy-split at 31.96 kB / 8.61 kB gzip; main chunk is
   733.62 kB / 178.16 kB gzip, down from the Priority 1 measurement of 747.91 kB.
-- **Next:** Reactivation operational hierarchy only, blocked pending owner approval.
+- **Next:** Reactivation operational hierarchy only; approved previously and not started on the target
+  branch.
 
 Completion percentages remain evidence-based domain/product estimates. Host visual acceptance and
 production-scale exact aggregate totals are not claimed by repository-only validation.
@@ -67,6 +86,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
+| Enterprise Omnichannel Channel Manager | 0% | Module 13 architecture planning is **Owner Approved** and frozen as the implementation contract; no product code, API, migration, UI or runtime implementation has started | Blocked until Reactivation Mission Control, Customer 360, Unified Inbox and Notification Center are each `Production Ready`, followed by a separate explicit owner instruction; any architectural deviation requires owner approval | Existing ChannelAdapter/capability registry, Conversation/Message services, Customer 360, Inbox, Tasks, KYC, SIM, Activation, SLA, Notes, Timeline, Notifications, Analytics, RBAC, Audit |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
