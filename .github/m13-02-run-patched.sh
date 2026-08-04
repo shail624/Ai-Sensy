@@ -21,7 +21,8 @@ format_new = '''ruff format --check \\
   tests/test_identity_resolution.py'''
 fix_old = 'python builder/.github/m13-02-fixes.py work'
 fix_new = '''python builder/.github/m13-02-fixes.py work
-python builder/.github/m13-02-fixes-2.py work'''
+python builder/.github/m13-02-fixes-2.py work
+python builder/.github/m13-02-fixes-3.py work'''
 test_markers = (
     '  tests/test_contact_events.py \\\n',
     '  tests/test_audit.py \\\n',
