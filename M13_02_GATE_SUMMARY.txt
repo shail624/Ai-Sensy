@@ -1,0 +1,344 @@
+=== STATUS ===
+BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
+RUN=30892832269
+FIRST_FAILURE=RUFF_FORMAT_CHECK
+
+=== STAGE RESULTS ===
+=== APPLY_SOURCE ===
+EXIT=0
+=== APPLY_VERIFIED_FIXES ===
+EXIT=0
+=== INSTALL_BACKEND ===
+EXIT=0
+=== FORMAT ===
+EXIT=0
+=== OPENAPI ===
+EXIT=0
+=== NPM_CI ===
+EXIT=0
+=== GENERATE_CLIENT ===
+EXIT=0
+=== RUFF_FORMAT_CHECK ===
+EXIT=1
+
+=== REPORT TAIL ===
+510 +         organization_id=organization.id,
+511 +         actor=actor,
+512 +         public_id=task_id,
+513 +         expected_row_version=view.row_version,
+514 +         due_at=utcnow() + timedelta(days=2),
+515 +         has_time=True,
+516 +         reminder_at=None,
+517 |     )
+518 |
+519 |     with pytest.raises(VersionConflictError) as exc:
+520 |         await _svc(db_session).complete(
+    -             organization_id=organization.id, actor=actor, public_id=task_id,
+521 +             organization_id=organization.id,
+522 +             actor=actor,
+523 +             public_id=task_id,
+524 |             expected_row_version=view.row_version,  # now stale
+    -             completion_notes=None, create_timeline_note=False,
+525 +             completion_notes=None,
+526 +             create_timeline_note=False,
+527 |         )
+--------------------------------------------------------------------------------
+535 |     bumped = await _svc(db_session).update(
+    -         organization_id=organization.id, actor=actor, public_id=task_id,
+    -         expected_row_version=0, title="Renamed", description=None, task_type=None,
+    -         priority=None, due_at=None, has_time=None, reminder_at=None,
+536 +         organization_id=organization.id,
+537 +         actor=actor,
+538 +         public_id=task_id,
+539 +         expected_row_version=0,
+540 +         title="Renamed",
+541 +         description=None,
+542 +         task_type=None,
+543 +         priority=None,
+544 +         due_at=None,
+545 +         has_time=None,
+546 +         reminder_at=None,
+547 |     )
+--------------------------------------------------------------------------------
+556 |     done = await _svc(db_session).complete(
+    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(view.public_id),
+    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
+557 +         organization_id=organization.id,
+558 +         actor=actor,
+559 +         public_id=uuidlib.UUID(view.public_id),
+560 +         expected_row_version=None,
+561 +         completion_notes=None,
+562 +         create_timeline_note=False,
+563 |     )
+--------------------------------------------------------------------------------
+584 | @pytest.mark.parametrize("view_name", ["overdue", "today", "upcoming"])
+    - async def test_bucket_selects_only_its_window(
+    -     db_session, organization, actor, contact, view_name
+    - ):
+585 + async def test_bucket_selects_only_its_window(db_session, organization, actor, contact, view_name):
+586 |     seeded = await _seeded_buckets(db_session, organization, actor, contact)
+--------------------------------------------------------------------------------
+598 |     await _svc(db_session).complete(
+    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
+    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
+599 +         organization_id=organization.id,
+600 +         actor=actor,
+601 +         public_id=uuidlib.UUID(done.public_id),
+602 +         expected_row_version=None,
+603 +         completion_notes=None,
+604 +         create_timeline_note=False,
+605 |     )
+--------------------------------------------------------------------------------
+617 |     await _svc(db_session).complete(
+    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
+    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
+618 +         organization_id=organization.id,
+619 +         actor=actor,
+620 +         public_id=uuidlib.UUID(done.public_id),
+621 +         expected_row_version=None,
+622 +         completion_notes=None,
+623 +         create_timeline_note=False,
+624 |     )
+--------------------------------------------------------------------------------
+669 |
+    - async def test_due_at_pagination_is_stable_and_complete(
+    -     db_session, organization, actor, contact
+    - ):
+670 + async def test_due_at_pagination_is_stable_and_complete(db_session, organization, actor, contact):
+671 |     base = utcnow() + timedelta(days=1)
+672 |     for i in range(7):
+673 |         await _create(
+    -             db_session, organization, actor, contact,
+    -             title=f"t{i}", due_at=base + timedelta(hours=i),
+674 +             db_session,
+675 +             organization,
+676 +             actor,
+677 +             contact,
+678 +             title=f"t{i}",
+679 +             due_at=base + timedelta(hours=i),
+680 |         )
+--------------------------------------------------------------------------------
+695 |         await _create(
+    -             db_session, organization, actor, contact,
+    -             title=f"p{i}", priority=prio, due_at=base + timedelta(minutes=i),
+696 +             db_session,
+697 +             organization,
+698 +             actor,
+699 +             contact,
+700 +             title=f"p{i}",
+701 +             priority=prio,
+702 +             due_at=base + timedelta(minutes=i),
+703 |         )
+--------------------------------------------------------------------------------
+720 |     await _svc(db_session).complete(
+    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(done.public_id),
+    -         expected_row_version=None, completion_notes=None, create_timeline_note=False,
+721 +         organization_id=organization.id,
+722 +         actor=actor,
+723 +         public_id=uuidlib.UUID(done.public_id),
+724 +         expected_row_version=None,
+725 +         completion_notes=None,
+726 +         create_timeline_note=False,
+727 |     )
+--------------------------------------------------------------------------------
+738 |         await _svc(db_session).list(
+    -             organization_id=organization.id, actor=actor, sort="priority",
+    -             cursor="not-a-cursor", limit=10,
+739 +             organization_id=organization.id,
+740 +             actor=actor,
+741 +             sort="priority",
+742 +             cursor="not-a-cursor",
+743 +             limit=10,
+744 |         )
+--------------------------------------------------------------------------------
+751 |     theirs = await _create(
+    -         db_session, organization, actor, contact, title="theirs",
+752 +         db_session,
+753 +         organization,
+754 +         actor,
+755 +         contact,
+756 +         title="theirs",
+757 |         assigned_agent_id=uuidlib.UUID(other.public_id),
+758 |     )
+759 |
+760 |     to_me = await _svc(db_session).list(
+    -         organization_id=organization.id, actor=actor,
+    -         assignee_id=uuidlib.UUID(actor.public_id), limit=50,
+761 +         organization_id=organization.id,
+762 +         actor=actor,
+763 +         assignee_id=uuidlib.UUID(actor.public_id),
+764 +         limit=50,
+765 |     )
+766 |     by_me = await _svc(db_session).list(
+    -         organization_id=organization.id, actor=actor,
+    -         assigned_by_id=uuidlib.UUID(actor.public_id), limit=50,
+767 +         organization_id=organization.id,
+768 +         actor=actor,
+769 +         assigned_by_id=uuidlib.UUID(actor.public_id),
+770 +         limit=50,
+771 |     )
+--------------------------------------------------------------------------------
+794 |
+    -     result = await _svc(db_session).list(
+    -         organization_id=organization.id, actor=actor, limit=50
+    -     )
+795 +     result = await _svc(db_session).list(organization_id=organization.id, actor=actor, limit=50)
+796 |
+--------------------------------------------------------------------------------
+804 |     ids = [
+    -         uuidlib.UUID((await _create(db_session, organization, actor, contact, title=f"b{i}")).public_id)
+805 +         uuidlib.UUID(
+806 +             (await _create(db_session, organization, actor, contact, title=f"b{i}")).public_id
+807 +         )
+808 |         for i in range(3)
+809 |     ]
+810 |
+811 |     outcome = await _svc(db_session).bulk_update(
+    -         organization_id=organization.id, actor=actor, public_ids=ids,
+    -         status=None, priority=TASK_PRIORITY_CRITICAL, due_at=None, assigned_agent_id=None,
+812 +         organization_id=organization.id,
+813 +         actor=actor,
+814 +         public_ids=ids,
+815 +         status=None,
+816 +         priority=TASK_PRIORITY_CRITICAL,
+817 +         due_at=None,
+818 +         assigned_agent_id=None,
+819 |     )
+--------------------------------------------------------------------------------
+832 |     await _svc(db_session).cancel(
+    -         organization_id=organization.id, actor=actor,
+    -         public_id=uuidlib.UUID(blocked.public_id), expected_row_version=None, reason=None,
+833 +         organization_id=organization.id,
+834 +         actor=actor,
+835 +         public_id=uuidlib.UUID(blocked.public_id),
+836 +         expected_row_version=None,
+837 +         reason=None,
+838 |     )
+839 |
+840 |     outcome = await _svc(db_session).bulk_update(
+    -         organization_id=organization.id, actor=actor,
+841 +         organization_id=organization.id,
+842 +         actor=actor,
+843 |         public_ids=[uuidlib.UUID(ok.public_id), uuidlib.UUID(blocked.public_id)],
+    -         status=TASK_STATUS_COMPLETED, priority=None, due_at=None, assigned_agent_id=None,
+844 +         status=TASK_STATUS_COMPLETED,
+845 +         priority=None,
+846 +         due_at=None,
+847 +         assigned_agent_id=None,
+848 |     )
+849 |
+850 |     assert (outcome.succeeded, outcome.failed) == (1, 1)
+    -     rows = {
+    -         r.title: r
+    -         for r in (await db_session.scalars(select(Task))).all()
+    -     }
+851 +     rows = {r.title: r for r in (await db_session.scalars(select(Task))).all()}
+852 |     await db_session.refresh(rows["ok"])
+--------------------------------------------------------------------------------
+865 |     await _svc(db_session).cancel(
+    -         organization_id=organization.id, actor=actor,
+    -         public_id=uuidlib.UUID(blocked.public_id), expected_row_version=None, reason=None,
+866 +         organization_id=organization.id,
+867 +         actor=actor,
+868 +         public_id=uuidlib.UUID(blocked.public_id),
+869 +         expected_row_version=None,
+870 +         reason=None,
+871 |     )
+872 |
+873 |     outcome = await _svc(db_session).bulk_update(
+    -         organization_id=organization.id, actor=actor,
+874 +         organization_id=organization.id,
+875 +         actor=actor,
+876 |         public_ids=[uuidlib.UUID(blocked.public_id)],
+    -         status=TASK_STATUS_COMPLETED, priority=TASK_PRIORITY_CRITICAL,
+    -         due_at=None, assigned_agent_id=None,
+877 +         status=TASK_STATUS_COMPLETED,
+878 +         priority=TASK_PRIORITY_CRITICAL,
+879 +         due_at=None,
+880 +         assigned_agent_id=None,
+881 |     )
+--------------------------------------------------------------------------------
+892 |
+    - async def test_bulk_update_counts_unknown_ids_as_skipped(
+    -     db_session, organization, actor, contact
+    - ):
+893 + async def test_bulk_update_counts_unknown_ids_as_skipped(db_session, organization, actor, contact):
+894 |     known = await _create(db_session, organization, actor, contact)
+895 |
+896 |     outcome = await _svc(db_session).bulk_update(
+    -         organization_id=organization.id, actor=actor,
+897 +         organization_id=organization.id,
+898 +         actor=actor,
+899 |         public_ids=[uuidlib.UUID(known.public_id), uuidlib.uuid4()],
+    -         status=None, priority=TASK_PRIORITY_HIGH, due_at=None, assigned_agent_id=None,
+900 +         status=None,
+901 +         priority=TASK_PRIORITY_HIGH,
+902 +         due_at=None,
+903 +         assigned_agent_id=None,
+904 |     )
+--------------------------------------------------------------------------------
+913 |     await _svc(db_session).bulk_update(
+    -         organization_id=organization.id, actor=actor,
+    -         public_ids=[uuidlib.UUID(task.public_id)], status=None, priority=None, due_at=None,
+914 +         organization_id=organization.id,
+915 +         actor=actor,
+916 +         public_ids=[uuidlib.UUID(task.public_id)],
+917 +         status=None,
+918 +         priority=None,
+919 +         due_at=None,
+920 |         assigned_agent_id=uuidlib.UUID(other.public_id),
+--------------------------------------------------------------------------------
+929 |     ids = [
+    -         uuidlib.UUID((await _create(db_session, organization, actor, contact, title=f"d{i}")).public_id)
+930 +         uuidlib.UUID(
+931 +             (await _create(db_session, organization, actor, contact, title=f"d{i}")).public_id
+932 +         )
+933 |         for i in range(2)
+--------------------------------------------------------------------------------
+940 |     assert (outcome.total, outcome.succeeded, outcome.skipped) == (3, 2, 1)
+    -     result = await _svc(db_session).list(
+    -         organization_id=organization.id, actor=actor, limit=50
+    -     )
+941 +     result = await _svc(db_session).list(organization_id=organization.id, actor=actor, limit=50)
+942 |     assert result.tasks == []
+--------------------------------------------------------------------------------
+949 |     await _svc(db_session).complete(
+    -         organization_id=organization.id, actor=actor, public_id=task_id,
+    -         expected_row_version=None, completion_notes="ok", create_timeline_note=False,
+950 +         organization_id=organization.id,
+951 +         actor=actor,
+952 +         public_id=task_id,
+953 +         expected_row_version=None,
+954 +         completion_notes="ok",
+955 +         create_timeline_note=False,
+956 |     )
+--------------------------------------------------------------------------------
+967 |     with pytest.raises(NotFoundError):
+    -         await _svc(db_session).history(
+    -             organization_id=organization.id, public_id=uuidlib.uuid4()
+    -         )
+968 +         await _svc(db_session).history(organization_id=organization.id, public_id=uuidlib.uuid4())
+969 |
+--------------------------------------------------------------------------------
+977 |     await _svc(db_session).reassign(
+    -         organization_id=organization.id, actor=actor, public_id=uuidlib.UUID(view.public_id),
+    -         expected_row_version=None, assigned_agent_id=uuidlib.UUID(other.public_id),
+978 +         organization_id=organization.id,
+979 +         actor=actor,
+980 +         public_id=uuidlib.UUID(view.public_id),
+981 +         expected_row_version=None,
+982 +         assigned_agent_id=uuidlib.UUID(other.public_id),
+983 |     )
+984 |
+985 |     event = [
+    -         e for e in await _events_of(db_session, view.public_id)
+986 +         e
+987 +         for e in await _events_of(db_session, view.public_id)
+988 |         if e.event_type == TASK_EVENT_REASSIGNED
+    |
+
+142 files would be reformatted, 204 files already formatted
+
+EXIT=1
+
+FIRST_FAILURE=RUFF_FORMAT_CHECK
