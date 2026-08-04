@@ -1,0 +1,1 @@
+Refresh the concise report after correcting connector fixture values. This file is never merged.
