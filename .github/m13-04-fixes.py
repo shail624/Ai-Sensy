@@ -20,6 +20,21 @@ replace_once(
     """        if (\n            row.holder_runtime_id is not None\n            and row.lease_expires_at is not None\n            and row.lease_expires_at > now\n        ):\n            raise ConflictError(\"The session lease is held by another active runtime.\")\n""",
 )
 replace_once(
+    "backend/app/services/session_manager.py",
+    '                "lease_expires_at": row.lease_expires_at,\n',
+    '                "lease_expires_at": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n',
+)
+replace_once(
+    "backend/app/services/session_manager.py",
+    '                "last_heartbeat_at": row.last_heartbeat_at,\n                "lease_expires_at": row.lease_expires_at,\n',
+    '                "last_heartbeat_at": (\n                    row.last_heartbeat_at.isoformat()\n                    if row.last_heartbeat_at is not None\n                    else None\n                ),\n                "lease_expires_at": (\n                    row.lease_expires_at.isoformat()\n                    if row.lease_expires_at is not None\n                    else None\n                ),\n',
+)
+replace_once(
+    "backend/app/services/session_manager.py",
+    """    def _validate_metadata(value: dict[str, Any] | None, field_name: str) -> None:\n        if value is not None:\n            assert_no_secret_material(value, field_name=field_name)\n""",
+    """    def _validate_metadata(value: dict[str, Any] | None, field_name: str) -> None:\n        if value is None:\n            return\n        try:\n            assert_no_secret_material(value, field_name=field_name)\n        except ValueError as exc:\n            raise ValidationError(str(exc)) from exc\n""",
+)
+replace_once(
     "backend/tests/test_session_manager.py",
     """from app.channels.foundation import ProviderDesiredState, ProviderHealthState, ProviderObservedState\nfrom app.channels.foundation import ChannelMetadata\n""",
     """from app.channels.foundation import (\n    ChannelMetadata,\n    ProviderDesiredState,\n    ProviderHealthState,\n    ProviderObservedState,\n)\n""",
