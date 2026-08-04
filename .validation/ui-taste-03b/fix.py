@@ -171,7 +171,31 @@ text = text.replace(
     'fireEvent.click(screen.getAllByRole("button", { name: "Completed" })[0]);',
     'fireEvent.click(screen.getAllByRole("button", { name: "Completed" })[0]!);',
 )
+text = text.replace(
+    '    expect(screen.getAllByRole("region")).toHaveLength(10);',
+    '''    for (const stage of [
+      "New Lead",
+      "Lead Confirmed",
+      "Documents Pending",
+      "Documents Received",
+      "KYC / Verification",
+      "SIM Required",
+      "Activation Pending",
+      "Completed",
+      "Not Required",
+    ]) {
+      expect(screen.getByRole("region", { name: stage })).toBeInTheDocument();
+    }''',
+)
 tests.write_text(text, encoding="utf-8")
+
+page_tests = root / "ReactivationPage.test.tsx"
+text = page_tests.read_text(encoding="utf-8")
+text = text.replace(
+    'screen.queryByRole("link", { name: /Activation/i })',
+    'screen.queryByRole("link", { name: "Activation" })',
+)
+page_tests.write_text(text, encoding="utf-8")
 
 apply_script = root / "apply_ui_taste_03b.py"
 text = apply_script.read_text(encoding="utf-8")
