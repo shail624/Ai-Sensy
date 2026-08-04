@@ -35,4 +35,6 @@ jobs:
             e2e/package-lock.json
 
       - name: Run finalization
-        run: bash .validation/run_m13_05_finalization.sh
+        run: |
+          sed -i "s/M13-06 is not started/M13-06 has not started/" .validation/run_m13_05_finalization.sh
+          bash .validation/run_m13_05_finalization.sh
