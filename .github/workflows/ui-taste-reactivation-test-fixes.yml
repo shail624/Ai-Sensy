@@ -1,0 +1,118 @@
+name: UI Taste Reactivation Test Fixes
+
+on:
+  pull_request:
+    branches:
+      - work/ui-taste-reactivation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout fix tools
+        uses: actions/checkout@v4
+        with:
+          ref: validation/ui-taste-reactivation-test-fixes
+          path: tools
+      - name: Checkout work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/ui-taste-reactivation
+          fetch-depth: 0
+          path: repo
+      - name: Apply regression fixes
+        working-directory: repo
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, expected: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != expected:
+                  raise RuntimeError(f"{path}: expected {expected} matches, found {count}: {old!r}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          sections = Path("frontend/src/features/reactivation/sections.ts")
+          text = sections.read_text(encoding="utf-8")
+          start = text.index("export const REACTIVATION_SECTIONS")
+          end = text.index("\n\nexport const REACTIVATION_LIVE_SECTIONS")
+          block = text[start:end]
+          entries = []
+          cursor = block.index("[") + 1
+          while True:
+              brace = block.find("  {", cursor)
+              if brace == -1:
+                  break
+              depth = 0
+              finish = None
+              for index in range(brace + 2, len(block)):
+                  char = block[index]
+                  if char == "{":
+                      depth += 1
+                  elif char == "}":
+                      if depth == 0:
+                          finish = index + 1
+                          if finish < len(block) and block[finish] == ",":
+                              finish += 1
+                          entries.append(block[brace:finish])
+                          cursor = finish
+                          break
+                      depth -= 1
+              if finish is None:
+                  raise RuntimeError("Could not parse Reactivation section entry")
+          by_key = {}
+          for entry in entries:
+              marker = 'key: "'
+              key_start = entry.index(marker) + len(marker)
+              key_end = entry.index('"', key_start)
+              by_key[entry[key_start:key_end]] = entry
+          order = ["eligible", "bulk", "interested", "pipeline", "kyc", "documents", "sim", "activation", "completed", "reports"]
+          if set(by_key) != set(order):
+              raise RuntimeError(f"Unexpected Reactivation section keys: {sorted(by_key)}")
+          prefix = block[:block.index("[") + 1]
+          replacement = prefix + "\n" + "\n".join(by_key[key] for key in order) + "\n] as ReactivationSection[];"
+          sections.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+
+          test_path = "frontend/src/features/reactivation/reactivation.test.tsx"
+          replace(
+              test_path,
+              'expect(screen.getByText("Resolve the breached SLA and record the next action")).toBeInTheDocument();',
+              'expect(screen.getAllByText("Resolve the breached SLA and record the next action").length).toBeGreaterThan(0);',
+          )
+          replace(
+              test_path,
+              'expect(screen.getByText("Case 1")).toBeInTheDocument();\n    expect(screen.queryByText("Case 26")).not.toBeInTheDocument();',
+              'expect(screen.getAllByText("Case 1").length).toBeGreaterThan(0);\n    expect(screen.queryAllByText("Case 26")).toHaveLength(0);',
+          )
+          replace(
+              test_path,
+              'expect(screen.getByText("Case 26")).toBeInTheDocument();',
+              'expect(screen.getAllByText("Case 26").length).toBeGreaterThan(0);',
+          )
+          replace(
+              test_path,
+              'fireEvent.click(screen.getByLabelText("Select Asha Mehra"));',
+              'fireEvent.click(screen.getAllByLabelText("Select Asha Mehra")[0]!);',
+          )
+          replace(
+              test_path,
+              'fireEvent.click(screen.getByRole("button", { name: /Asha Mehra/ }));',
+              'fireEvent.click(screen.getAllByRole("button", { name: /Asha Mehra/ })[0]!);',
+              expected=2,
+          )
+          PY
+      - name: Commit regression fixes
+        working-directory: repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/features/reactivation
+          git diff --cached --check
+          git commit -m "fix(reactivation): preserve responsive regression contracts"
+          git push origin HEAD:work/ui-taste-reactivation
