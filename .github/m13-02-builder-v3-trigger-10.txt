@@ -1,0 +1,1 @@
+Trigger the diagnostic after updating the verified OpenAPI path-count and migration-head authorities. This file is never merged.
