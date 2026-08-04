@@ -1,0 +1,235 @@
+
+=== GENERATED MODELS INIT ===
+"""ORM model registry.
+
+Importing this package registers every table on :data:`app.db.base.Base.metadata`.
+The Alembic environment and the test schema builder import it so migrations and
+``create_all`` see the full schema. Import models from here (or their modules); never
+rely on import side effects elsewhere.
+"""
+
+from __future__ import annotations
+
+from app.models.analytics import (
+    AnalyticsCampaignRollup,
+    AnalyticsContactRollup,
+    AnalyticsConversationRollup,
+    AnalyticsFailureRollup,
+    AnalyticsMessageRollup,
+    AnalyticsRollupRun,
+    AnalyticsTaskRollup,
+)
+from app.models.api_key import ApiKey
+from app.models.attribute import ContactAttributeValue, CustomAttributeDefinition
+from app.models.audit import AuditLog
+from app.models.automation import (
+    AutomationFlow,
+    AutomationFlowVersion,
+    AutomationRun,
+    AutomationStepAttempt,
+    AutomationTriggerReceipt,
+)
+from app.models.business_event import BusinessEvent, BusinessEventType
+from app.models.campaign import (
+    Campaign,
+    CampaignBatch,
+    CampaignRecipient,
+    CampaignRetry,
+    CampaignSchedule,
+)
+from app.models.contact import Contact
+from app.models.contact_identity import (
+    ContactIdentity,
+    IdentityConflict,
+    IdentityMergeRecommendation,
+)
+from app.models.contact_document import (
+    ContactDocument,
+    ContactDocumentEvent,
+    ContactDocumentVersion,
+)
+from app.models.contact_event import ContactEvent
+from app.models.conversation import Conversation
+from app.models.conversation_tag import conversation_tags
+from app.models.internal_note import InternalNote
+from app.models.job import DeadLetter, JobMetadata
+from app.models.job_records import BulkJob, ExportJob, ImportJob
+from app.models.lead import LeadPipeline, LeadStage
+from app.models.media import MediaAsset
+from app.models.message import Message, MessageStatusHistory
+from app.models.notification import Notification
+from app.models.organization import Organization
+from app.models.quick_reply import QuickReply
+from app.models.rate_card import RateCard
+from app.models.role import Permission, Role, UserRole, role_permissions
+from app.models.segment import Segment, SegmentRule
+from app.models.settings import FeatureFlag, Setting
+from app.models.tag import Tag, contact_tags
+from app.models.task import Task
+from app.models.task_event import TaskEvent
+from app.models.template import MessageTemplate, TemplateVersion
+from app.models.token import RefreshToken, UserSession
+from app.models.user import User
+from app.models.vi_domain import (
+    ActivationRecord,
+    EligibilityCheck,
+    KycCase,
+    KycDecision,
+    KycDocumentReference,
+    ReactivationCase,
+    ReactivationCaseLabel,
+    ReactivationStageEvent,
+    SimOrder,
+    SimOrderEvent,
+    SlaEvent,
+    SlaPolicy,
+)
+from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
+from app.models.webhook import WebhookDeadLetter, WebhookEvent
+
+__all__ = [
+    "ApiKey",
+    "AuditLog",
+    "AutomationFlow",
+    "AutomationFlowVersion",
+    "AutomationRun",
+    "AutomationStepAttempt",
+    "AutomationTriggerReceipt",
+    "BusinessEvent",
+    "BusinessEventType",
+    "BulkJob",
+    "Campaign",
+    "CampaignBatch",
+    "CampaignRecipient",
+    "CampaignRetry",
+    "CampaignSchedule",
+    "Contact",
+    "ContactIdentity",
+    "IdentityConflict",
+    "IdentityMergeRecommendation",
+    "ContactDocument",
+    "ContactDocumentEvent",
+    "ContactDocumentVersion",
+    "ContactAttributeValue",
+    "ContactEvent",
+    "Conversation",
+    "CustomAttributeDefinition",
+    "conversation_tags",
+    "DeadLetter",
+    "ExportJob",
+    "FeatureFlag",
+    "ImportJob",
+    "InternalNote",
+    "JobMetadata",
+    "LeadPipeline",
+    "LeadStage",
+    "MediaAsset",
+    "Message",
+    "MessageTemplate",
+    "MessageStatusHistory",
+    "Notification",
+    "Organization",
+    "Permission",
+    "QuickReply",
+    "RateCard",
+    "PhoneNumber",
+    "RefreshToken",
+    "Role",
+    "Segment",
+    "SegmentRule",
+    "Setting",
+    "Tag",
+    "AnalyticsCampaignRollup",
+    "AnalyticsContactRollup",
+    "AnalyticsConversationRollup",
+    "AnalyticsFailureRollup",
+    "AnalyticsMessageRollup",
+    "AnalyticsRollupRun",
+    "AnalyticsTaskRollup",
+    "Task",
+    "TaskEvent",
+    "TemplateVersion",
+    "User",
+    "UserRole",
+    "UserSession",
+    "WebhookDeadLetter",
+    "WebhookEvent",
+    "WhatsAppBusinessAccount",
+    "contact_tags",
+    "role_permissions",
+    "ActivationRecord",
+    "EligibilityCheck",
+    "KycCase",
+    "KycDecision",
+    "KycDocumentReference",
+    "ReactivationCase",
+    "ReactivationCaseLabel",
+    "ReactivationStageEvent",
+    "SimOrder",
+    "SimOrderEvent",
+    "SlaEvent",
+    "SlaPolicy",
+]
+
+
+=== RELATIONSHIP / BACKREF SOURCE INVENTORY ===
+-- backend/app/models/attribute.py --
+95:     definition: Mapped[CustomAttributeDefinition] = relationship(
+-- backend/app/models/contact.py --
+89:     tags: Mapped[list[Tag]] = relationship(
+99:     attribute_values: Mapped[list[ContactAttributeValue]] = relationship(
+-- backend/app/models/lead.py --
+56:     stages: Mapped[list[LeadStage]] = relationship(
+-- backend/app/models/role.py --
+91:     permissions: Mapped[list[Permission]] = relationship(
+-- backend/app/models/segment.py --
+58:     rules: Mapped[list[SegmentRule]] = relationship(
+-- backend/app/models/vi_domain.py --
+154:     labels: Mapped[list[ReactivationCaseLabel]] = relationship(
+155:         back_populates="case", cascade="all, delete-orphan", lazy="selectin"
+178:     case: Mapped[ReactivationCase] = relationship(back_populates="labels")
+-- backend/app/models/waba.py --
+73:     phone_numbers: Mapped[list[PhoneNumber]] = relationship(
+74:         "PhoneNumber", back_populates="waba", lazy="selectin", viewonly=True
+125:     waba: Mapped[WhatsAppBusinessAccount] = relationship(
+126:         "WhatsAppBusinessAccount", back_populates="phone_numbers"
+
+=== VARIANT generated_as_is EXIT 0 ===
+CONTACT_PRE []
+CASE_PRE ['contact_id']
+MAPPERS ['ActivationRecord', 'AnalyticsCampaignRollup', 'AnalyticsContactRollup', 'AnalyticsConversationRollup', 'AnalyticsFailureRollup', 'AnalyticsMessageRollup', 'AnalyticsRollupRun', 'AnalyticsTaskRollup', 'ApiKey', 'AuditLog', 'AutomationFlow', 'AutomationFlowVersion', 'AutomationRun', 'AutomationStepAttempt', 'AutomationTriggerReceipt', 'BulkJob', 'BusinessEvent', 'BusinessEventType', 'Campaign', 'CampaignBatch', 'CampaignRecipient', 'CampaignRetry', 'CampaignSchedule', 'Contact', 'ContactAttributeValue', 'ContactDocument', 'ContactDocumentEvent', 'ContactDocumentVersion', 'ContactEvent', 'ContactIdentity', 'Conversation', 'CustomAttributeDefinition', 'DeadLetter', 'EligibilityCheck', 'ExportJob', 'FeatureFlag', 'IdentityConflict', 'IdentityMergeRecommendation', 'ImportJob', 'InternalNote', 'JobMetadata', 'KycCase', 'KycDecision', 'KycDocumentReference', 'LeadPipeline', 'LeadStage', 'MediaAsset', 'Message', 'MessageStatusHistory', 'MessageTemplate', 'Notification', 'Organization', 'Permission', 'PhoneNumber', 'QuickReply', 'RateCard', 'ReactivationCase', 'ReactivationCaseLabel', 'ReactivationStageEvent', 'RefreshToken', 'Role', 'Segment', 'SegmentRule', 'Setting', 'SimOrder', 'SimOrderEvent', 'SlaEvent', 'SlaPolicy', 'Tag', 'Task', 'TaskEvent', 'TemplateVersion', 'User', 'UserRole', 'UserSession', 'WebhookDeadLetter', 'WebhookEvent', 'WhatsAppBusinessAccount']
+CONTACT_REL ['attribute_values', 'tags']
+CASE_REL ['labels']
+PASS
+
+
+=== VARIANT without_registry_import EXIT 0 ===
+CONTACT_PRE []
+CASE_PRE ['contact_id']
+MAPPERS ['ActivationRecord', 'AnalyticsCampaignRollup', 'AnalyticsContactRollup', 'AnalyticsConversationRollup', 'AnalyticsFailureRollup', 'AnalyticsMessageRollup', 'AnalyticsRollupRun', 'AnalyticsTaskRollup', 'ApiKey', 'AuditLog', 'AutomationFlow', 'AutomationFlowVersion', 'AutomationRun', 'AutomationStepAttempt', 'AutomationTriggerReceipt', 'BulkJob', 'BusinessEvent', 'BusinessEventType', 'Campaign', 'CampaignBatch', 'CampaignRecipient', 'CampaignRetry', 'CampaignSchedule', 'Contact', 'ContactAttributeValue', 'ContactDocument', 'ContactDocumentEvent', 'ContactDocumentVersion', 'ContactEvent', 'Conversation', 'CustomAttributeDefinition', 'DeadLetter', 'EligibilityCheck', 'ExportJob', 'FeatureFlag', 'ImportJob', 'InternalNote', 'JobMetadata', 'KycCase', 'KycDecision', 'KycDocumentReference', 'LeadPipeline', 'LeadStage', 'MediaAsset', 'Message', 'MessageStatusHistory', 'MessageTemplate', 'Notification', 'Organization', 'Permission', 'PhoneNumber', 'QuickReply', 'RateCard', 'ReactivationCase', 'ReactivationCaseLabel', 'ReactivationStageEvent', 'RefreshToken', 'Role', 'Segment', 'SegmentRule', 'Setting', 'SimOrder', 'SimOrderEvent', 'SlaEvent', 'SlaPolicy', 'Tag', 'Task', 'TaskEvent', 'TemplateVersion', 'User', 'UserRole', 'UserSession', 'WebhookDeadLetter', 'WebhookEvent', 'WhatsAppBusinessAccount']
+CONTACT_REL ['attribute_values', 'tags']
+CASE_REL ['labels']
+PASS
+
+
+=== VARIANT delayed_contact_identity_import EXIT 0 ===
+CONTACT_PRE []
+CASE_PRE ['contact_id']
+MAPPERS ['ActivationRecord', 'AnalyticsCampaignRollup', 'AnalyticsContactRollup', 'AnalyticsConversationRollup', 'AnalyticsFailureRollup', 'AnalyticsMessageRollup', 'AnalyticsRollupRun', 'AnalyticsTaskRollup', 'ApiKey', 'AuditLog', 'AutomationFlow', 'AutomationFlowVersion', 'AutomationRun', 'AutomationStepAttempt', 'AutomationTriggerReceipt', 'BulkJob', 'BusinessEvent', 'BusinessEventType', 'Campaign', 'CampaignBatch', 'CampaignRecipient', 'CampaignRetry', 'CampaignSchedule', 'Contact', 'ContactAttributeValue', 'ContactDocument', 'ContactDocumentEvent', 'ContactDocumentVersion', 'ContactEvent', 'ContactIdentity', 'Conversation', 'CustomAttributeDefinition', 'DeadLetter', 'EligibilityCheck', 'ExportJob', 'FeatureFlag', 'IdentityConflict', 'IdentityMergeRecommendation', 'ImportJob', 'InternalNote', 'JobMetadata', 'KycCase', 'KycDecision', 'KycDocumentReference', 'LeadPipeline', 'LeadStage', 'MediaAsset', 'Message', 'MessageStatusHistory', 'MessageTemplate', 'Notification', 'Organization', 'Permission', 'PhoneNumber', 'QuickReply', 'RateCard', 'ReactivationCase', 'ReactivationCaseLabel', 'ReactivationStageEvent', 'RefreshToken', 'Role', 'Segment', 'SegmentRule', 'Setting', 'SimOrder', 'SimOrderEvent', 'SlaEvent', 'SlaPolicy', 'Tag', 'Task', 'TaskEvent', 'TemplateVersion', 'User', 'UserRole', 'UserSession', 'WebhookDeadLetter', 'WebhookEvent', 'WhatsAppBusinessAccount']
+CONTACT_REL ['attribute_values', 'tags']
+CASE_REL ['labels']
+PASS
+
+
+=== VARIANT contact_identity_import_moved_to_end EXIT 0 ===
+CONTACT_PRE []
+CASE_PRE ['contact_id']
+MAPPERS ['ActivationRecord', 'AnalyticsCampaignRollup', 'AnalyticsContactRollup', 'AnalyticsConversationRollup', 'AnalyticsFailureRollup', 'AnalyticsMessageRollup', 'AnalyticsRollupRun', 'AnalyticsTaskRollup', 'ApiKey', 'AuditLog', 'AutomationFlow', 'AutomationFlowVersion', 'AutomationRun', 'AutomationStepAttempt', 'AutomationTriggerReceipt', 'BulkJob', 'BusinessEvent', 'BusinessEventType', 'Campaign', 'CampaignBatch', 'CampaignRecipient', 'CampaignRetry', 'CampaignSchedule', 'Contact', 'ContactAttributeValue', 'ContactDocument', 'ContactDocumentEvent', 'ContactDocumentVersion', 'ContactEvent', 'ContactIdentity', 'Conversation', 'CustomAttributeDefinition', 'DeadLetter', 'EligibilityCheck', 'ExportJob', 'FeatureFlag', 'IdentityConflict', 'IdentityMergeRecommendation', 'ImportJob', 'InternalNote', 'JobMetadata', 'KycCase', 'KycDecision', 'KycDocumentReference', 'LeadPipeline', 'LeadStage', 'MediaAsset', 'Message', 'MessageStatusHistory', 'MessageTemplate', 'Notification', 'Organization', 'Permission', 'PhoneNumber', 'QuickReply', 'RateCard', 'ReactivationCase', 'ReactivationCaseLabel', 'ReactivationStageEvent', 'RefreshToken', 'Role', 'Segment', 'SegmentRule', 'Setting', 'SimOrder', 'SimOrderEvent', 'SlaEvent', 'SlaPolicy', 'Tag', 'Task', 'TaskEvent', 'TemplateVersion', 'User', 'UserRole', 'UserSession', 'WebhookDeadLetter', 'WebhookEvent', 'WhatsAppBusinessAccount']
+CONTACT_REL ['attribute_values', 'tags']
+CASE_REL ['labels']
+PASS
+
+
+=== OPENAPI TRACE ===
+EXIT=0
+200
