@@ -1,0 +1,61 @@
+name: M13-02 Customer Identity Resolution Diagnostic v3
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-builder-v3
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-builder-v3
+          path: builder
+          clean: false
+
+      - name: Checkout latest approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          path: source
+          clean: false
+
+      - name: Checkout report branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-gate-output
+          path: output
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: source/backend/pyproject.toml
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/frontend/package-lock.json
+
+      - name: Capture first failing gate
+        run: bash builder/.github/m13-02-gate-diagnostic.sh source "$GITHUB_WORKSPACE/output/M13_02_GATE_DIAGNOSTIC.txt"
+
+      - name: Commit diagnostic report
+        working-directory: output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add M13_02_GATE_DIAGNOSTIC.txt
+          git commit -m 'ci(validation): capture M13-02 gate diagnostic'
+          git push origin HEAD:validation/m13-02-gate-output
