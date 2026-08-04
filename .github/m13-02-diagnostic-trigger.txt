@@ -1,0 +1,1 @@
+Trigger the temporary mapper diagnostic. This file is never merged.
