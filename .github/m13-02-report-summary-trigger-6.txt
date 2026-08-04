@@ -1,0 +1,1 @@
+Refresh the concise report after correcting the focused test path. This file is never merged.
