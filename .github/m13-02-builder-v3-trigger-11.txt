@@ -1,0 +1,1 @@
+Trigger the diagnostic with the idempotent connector fixture correction. This file is never merged.
