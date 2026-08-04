@@ -1,0 +1,1 @@
+Refresh the concise report after using only confirmed focused tests. This file is never merged.
