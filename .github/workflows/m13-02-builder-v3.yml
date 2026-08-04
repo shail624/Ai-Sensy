@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: source/frontend/package-lock.json
 
       - name: Capture first failing gate
-        run: bash builder/.github/m13-02-gate-diagnostic.sh source "$GITHUB_WORKSPACE/output/M13_02_GATE_DIAGNOSTIC.txt"
+        run: bash builder/.github/m13-02-gate-diagnostic-v2.sh source "$GITHUB_WORKSPACE/output/M13_02_GATE_DIAGNOSTIC.txt"
 
       - name: Commit diagnostic report
         working-directory: output
