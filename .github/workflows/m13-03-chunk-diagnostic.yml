@@ -1,0 +1,29 @@
+name: M13-03 patch chunk diagnostic
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-03-builder
+      - name: Verify chunks
+        run: |
+          sha256sum .github/m13-03-patch/part*
+          wc -c .github/m13-03-patch/part*
+          cat .github/m13-03-patch/part* > /tmp/m13-03.patch.gz.b64
+          sha256sum /tmp/m13-03.patch.gz.b64
+          wc -c /tmp/m13-03.patch.gz.b64
+          base64 --decode /tmp/m13-03.patch.gz.b64 > /tmp/m13-03.patch.gz
+          gzip --test /tmp/m13-03.patch.gz
+          gzip --decompress --stdout /tmp/m13-03.patch.gz > /tmp/m13-03.patch
+          sha256sum /tmp/m13-03.patch
+          wc -c /tmp/m13-03.patch
