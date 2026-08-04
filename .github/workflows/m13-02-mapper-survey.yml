@@ -16,12 +16,32 @@ jobs:
         with:
           ref: ui/taste-modernization
           clean: false
-      - name: Locate duplicate reactivation relationship
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend
+        run: python -m pip install -e './backend[dev]'
+      - name: Inspect mapping setup and untouched baseline
         shell: bash
         run: |
-          echo '=== active_reactivation_case ==='
-          grep -R -n -C 12 --exclude-dir=.git 'active_reactivation_case' backend/app backend/tests || true
-          echo '=== ReactivationCase relationships/backrefs ==='
-          grep -R -n -C 8 --exclude-dir=.git -E 'class ReactivationCase|backref=|back_populates=|relationship\(' backend/app/models backend/app/services backend/app/repositories | grep -E -C 8 'Reactivation|reactivation|active_reactivation|Contact' || true
-          echo '=== relevant model files ==='
-          find backend/app/models -maxdepth 2 -type f -name '*.py' -print | sort | grep -E 'react|case|contact' || true
+          echo '=== all relationship helpers and backrefs ==='
+          grep -R -n -C 5 --exclude-dir=.git -E 'backref|back_populates|relationship\(|mapper_configured|configure_mappers|setattr\([^,]+,[^,]+relationship' backend/app || true
+          echo '=== all reactivation-contact references ==='
+          grep -R -n -C 8 --exclude-dir=.git -E 'ReactivationCase|reactivation_case|reactivation_cases|Contact' backend/app | grep -E -C 8 'relationship|backref|mapper|active|ReactivationCase' || true
+          echo '=== untouched baseline configure_mappers ==='
+          cd backend
+          ENVIRONMENT=test DATABASE_URL=sqlite+aiosqlite:// SECRET_KEY=test-secret-key-not-for-production-use-only python - <<'PY'
+          from sqlalchemy.orm import configure_mappers
+          import app.models
+          from app.models.contact import Contact
+          from app.models.vi_domain import ReactivationCase
+
+          print('CONTACT_DICT_KEYS', sorted(key for key in vars(Contact) if 'reactivation' in key))
+          print('CASE_DICT_KEYS', sorted(key for key in vars(ReactivationCase) if 'reactivation' in key or 'contact' in key))
+          configure_mappers()
+          print('CONTACT_RELATIONSHIPS', sorted(Contact.__mapper__.relationships.keys()))
+          print('CASE_RELATIONSHIPS', sorted(ReactivationCase.__mapper__.relationships.keys()))
+          print('BASELINE_CONFIGURE_MAPPERS_PASS')
+          PY
