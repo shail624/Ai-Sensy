@@ -21,7 +21,6 @@ jobs:
         run: |
           cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
           cp .validation/m13-05-fix.b64 /tmp/m13-05-fix.b64
-          cp .validation/m13-05-quality-fix.b64 /tmp/m13-05-quality-fix.b64
 
       - name: Restore exact product tree
         run: |
@@ -30,8 +29,6 @@ jobs:
           tar -xzf /tmp/m13-05-overlay.tar.gz
           base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
           tar -xzf /tmp/m13-05-fix.tar.gz
-          base64 --decode /tmp/m13-05-quality-fix.b64 > /tmp/m13-05-quality-fix.tar.gz
-          tar -xzf /tmp/m13-05-quality-fix.tar.gz
           python - <<'PY'
           from pathlib import Path
           path = Path('backend/app/services/pairing_manager.py')
