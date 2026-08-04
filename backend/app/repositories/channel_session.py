@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sqlalchemy import Select, select
 
+from app.channels.runtime import PairingState
 from app.channels.session import SESSION_TERMINAL_STATES, SessionState
 from app.models.channel_session import ChannelSession
 from app.repositories.base import BaseRepository
@@ -97,6 +98,26 @@ class ChannelSessionRepository(BaseRepository[ChannelSession]):
             .limit(1)
         )
         return (await self.session.scalars(stmt)).first()
+
+    async def list_due_pairings(
+        self, organization_id: int, at: datetime, *, limit: int = 100
+    ) -> list[ChannelSession]:
+        """Lock non-terminal pairing revisions whose published availability has expired."""
+
+        stmt = (
+            self._active(
+                select(ChannelSession).where(
+                    ChannelSession.organization_id == organization_id,
+                    ChannelSession.pairing_state == PairingState.PAIRING_AVAILABLE.value,
+                    ChannelSession.pairing_expires_at.is_not(None),
+                    ChannelSession.pairing_expires_at <= at,
+                )
+            )
+            .order_by(ChannelSession.pairing_expires_at.asc(), ChannelSession.id.asc())
+            .limit(limit)
+            .with_for_update()
+        )
+        return list((await self.session.scalars(stmt)).all())
 
     async def list_due_for_expiration(
         self, organization_id: int, at: datetime

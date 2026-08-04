@@ -11,6 +11,25 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-04 — QR Pairing & Provider Runtime Foundation (M13-05)
+
+**Added**
+- Added provider-neutral runtime metadata/lifecycle/event/health contracts and a runtime registry over the existing `ChannelAdapter` seam.
+- Added tenant-scoped runtime registration/discovery/ownership, capability publication, health/lifecycle reporting, heartbeat, restart/recovery metadata and durable session integration.
+- Added a no-store pairing lifecycle with governed request/available/expired/cancelled/paired/active transitions, dedicated feature flags/RBAC/Audit and migration `0039_qr_pairing_provider_runtime_foundation`.
+
+**Security**
+- Runtime reports require valid lease fencing, pairing TTL and expiry are enforced, expiry sweeps are bounded, reason codes are constrained, and no QR payload, token, protocol credential or provider secret is stored or audited.
+
+**Preserved**
+- M13-01 through M13-04 channel, identity, persistence and session authorities remain intact; no duplicate provider/runtime/connection/message authority was introduced.
+- No QR image generation/scanning, WhatsApp login/protocol, provider adapter, message/history synchronization, incoming/outgoing messaging, webhook, routing, Inbox/Customer 360/Analytics, API or frontend work is included.
+
+**Validated**
+- Ruff, strict mypy, 20 focused tests and all 976 backend tests pass in workflow `30933007710`.
+- Migration round-trip, generated-client invariance, Bandit, dependency audits and tracked-source security scan pass; OpenAPI remains semantically unchanged at 200 paths.
+- Unchanged frontend passes ESLint, TypeScript, 34 Vitest files / 661 tests and production build with no bundle change. M13-05 reaches `Repository Validated`; host/provider/runtime commissioning remains pending.
+
 ### 2026-08-04 — QR Session Manager Foundation (M13-04)
 
 **Added**

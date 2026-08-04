@@ -17,7 +17,16 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T19:05:00+05:30`.
+Last synchronized: `2026-08-04T22:45:00+05:30`.
+
+## Module 13 — M13-05 QR Pairing & Provider Runtime Foundation
+
+- **Milestone status:** `M13-05 — QR Pairing & Provider Runtime Foundation — REPOSITORY VALIDATED`.
+- **Completion:** `40%` evidence-based estimate.
+- **Delivered:** provider-neutral runtime contracts/registry, runtime registration/discovery/ownership, health/lifecycle/events, capability publication, heartbeat/restart/recovery integration and no-store pairing lifecycle persisted on the existing session authority.
+- **Security:** tenant/RBAC/flags fail closed; stale holders require valid fencing; pairing stores no QR/token/credential payload; reason codes are constrained and every transition is audited.
+- **Preserved:** no QR image/scanning/login, WhatsApp protocol, provider adapter, synchronization, messaging, webhook, routing, Inbox/Customer 360/Analytics, API path or frontend change.
+- **Next:** M13-06 is not started. Host MySQL, multi-node runtime, provider certification, supervisor/monitoring, KMS and rollout commissioning remain pending.
 
 ## Module 13 — M13-04 QR Session Manager Foundation
 
@@ -108,7 +117,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 32% | M13-00–M13-04 are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connection/endpoint/encrypted-secret records and durable session lifecycle/lease/fencing foundation; migrations `0036`–`0038`; unchanged 200-path API | Target-host MySQL/KMS and multi-node session commissioning, provider selection/adapters, QR pairing, messaging and UI remain pending; M13-05 not started | Existing Contact/Organization/ChannelConnection/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
+| Enterprise Omnichannel Channel Manager | 40% | M13-00–M13-05 are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session lease/fencing and runtime/pairing control-plane foundation; migrations `0036`–`0039`; unchanged 200-path API | Target-host MySQL/KMS, multi-node runtime commissioning, provider selection/adapters, live QR/login, inbound/history/media, messaging and UI remain pending; M13-06 not started | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |

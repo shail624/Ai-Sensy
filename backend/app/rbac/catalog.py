@@ -58,6 +58,7 @@ PERMISSION_CATALOG: tuple[tuple[str, str], ...] = (
     ("analytics:executive", "View cost analytics, spend and the executive dashboard"),
     ("channels:read", "View provider-neutral channel connections and sessions"),
     ("channels:manage", "Register and manage provider-neutral channel sessions"),
+    ("channels:authenticate", "Manage provider-neutral pairing lifecycle"),
     ("channels:diagnose", "Operate session leases, heartbeats and health observations"),
     ("waba:read", "View WhatsApp Business Accounts and numbers"),
     ("waba:manage", "Manage WhatsApp Business Accounts and numbers"),

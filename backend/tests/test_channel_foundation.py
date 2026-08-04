@@ -224,4 +224,5 @@ def test_dependency_container_is_stable_and_provider_empty_by_default() -> None:
     assert first is second
     assert first.providers.available() == ()
     assert first.capabilities.available() == ()
+    assert first.runtimes.available() == ()
     get_channel_foundation.cache_clear()

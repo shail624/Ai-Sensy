@@ -99,6 +99,8 @@ class AuditAction:
     CHANNEL_SESSION_RECOVERY_UPDATED = "channel_session.recovery_updated"
     CHANNEL_SESSION_RESTART_POLICY_UPDATED = "channel_session.restart_policy_updated"
     CHANNEL_SESSION_EXPIRED = "channel_session.expired"
+    CHANNEL_RUNTIME_CAPABILITIES_PUBLISHED = "channel_runtime.capabilities_published"
+    CHANNEL_PAIRING_TRANSITIONED = "channel_pairing.transitioned"
     WEBHOOK_VERIFIED = "webhook.verified"
     WEBHOOK_DEAD_LETTERED = "webhook.dead_lettered"
     MESSAGE_SENT = "message.sent"

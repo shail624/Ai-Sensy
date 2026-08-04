@@ -20,6 +20,7 @@ from app.channels.foundation import (
     ProviderObservedState,
 )
 from app.channels.registry import ProviderRegistry
+from app.channels.runtime import PairingState
 from app.channels.secrets import assert_no_secret_material
 from app.channels.session import (
     SESSION_TERMINAL_STATES,
@@ -132,6 +133,9 @@ class SessionManager:
             session_revision=revision,
             state=SessionState.REGISTERED.value,
             state_changed_at=now,
+            pairing_state=PairingState.UNPAIRED.value,
+            pairing_revision=0,
+            pairing_changed_at=now,
             health_state=ProviderHealthState.UNKNOWN.value,
             restart_policy=restart.value,
             max_reconnect_attempts=max_reconnect_attempts,
@@ -232,8 +236,14 @@ class SessionManager:
         next_restart_at: datetime | None = None,
         recovery_metadata: dict[str, Any] | None = None,
         at: datetime | None = None,
+        runtime_id: str | None = None,
+        fencing_token: int | None = None,
     ) -> ChannelSession:
-        await self._require_write(organization_id, actor)
+        runtime_owned = self._runtime_arguments(runtime_id, fencing_token)
+        if runtime_owned:
+            await self._require_diagnose(organization_id, actor)
+        else:
+            await self._require_write(organization_id, actor)
         row = await self._get_session(organization_id, public_id, for_update=True)
         self._check_version(row, expected_row_version)
         connection = await self._get_connection_by_id(organization_id, row.connection_id)
@@ -242,8 +252,14 @@ class SessionManager:
         if not can_transition(current, target):
             raise ValidationError(f"Illegal session transition: {current.value} -> {target.value}.")
         now = at or utcnow()
+        if runtime_owned:
+            assert runtime_id is not None and fencing_token is not None
+            self._assert_holder(row, runtime_id, fencing_token, now)
         self._assert_not_expired(row, now, allow_expired_target=target is SessionState.EXPIRED)
-        if target in {SessionState.PAUSED, SessionState.EXPIRED, SessionState.TERMINATED}:
+        if (
+            target in {SessionState.PAUSED, SessionState.EXPIRED, SessionState.TERMINATED}
+            and not runtime_owned
+        ):
             self._assert_no_live_holder(row, now)
         if target is SessionState.RECONNECTING:
             if row.reconnect_attempts >= row.max_reconnect_attempts:
@@ -315,6 +331,7 @@ class SessionManager:
             raise ConflictError("The session lease is held by another active runtime.")
         row.holder_runtime_id = holder
         row.fencing_token += 1
+        row.runtime_capabilities_json = None
         row.last_heartbeat_at = now
         row.lease_expires_at = now + timedelta(seconds=lease_duration)
         row.updated_by = actor.id
@@ -424,6 +441,30 @@ class SessionManager:
         await self._session.commit()
         return row
 
+    async def lock_runtime_owned_session(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        runtime_id: str,
+        fencing_token: int,
+        expected_row_version: int,
+        at: datetime | None = None,
+    ) -> ChannelSession:
+        """Lock and validate the current runtime holder without committing a transaction.
+
+        M13-05 services use this narrow helper so lease/fencing, tenant membership and the shared
+        session-write feature flag remain owned by the Session Manager. Domain-specific RBAC stays
+        with the caller. Callers must either commit their mutation or roll back the transaction.
+        """
+
+        await self._require_session_write_flag(organization_id, actor)
+        row = await self._get_session(organization_id, public_id, for_update=True)
+        self._check_version(row, expected_row_version)
+        self._assert_holder(row, runtime_id, fencing_token, at or utcnow())
+        return row
+
     async def record_health(
         self,
         *,
@@ -437,18 +478,24 @@ class SessionManager:
         error_code: str | None = None,
         error_summary: str | None = None,
         observed_at: datetime | None = None,
+        runtime_id: str | None = None,
+        fencing_token: int | None = None,
     ) -> ChannelSession:
         await self._require_diagnose(organization_id, actor)
+        runtime_owned = self._runtime_arguments(runtime_id, fencing_token)
         row = await self._get_session(organization_id, public_id, for_update=True)
         self._check_version(row, expected_row_version)
         connection = await self._get_connection_by_id(organization_id, row.connection_id)
-        now = observed_at or utcnow()
+        observed = observed_at or utcnow()
+        if runtime_owned:
+            assert runtime_id is not None and fencing_token is not None
+            self._assert_holder(row, runtime_id, fencing_token, utcnow())
         state = ProviderHealthState(health_state)
         score = self._score(health_score)
         row.health_state = state.value
         row.health_score = score
         row.health_detail = self._optional_text(detail, "detail", 500)
-        row.health_observed_at = now
+        row.health_observed_at = observed
         row.last_error_code = self._optional_text(error_code, "error_code", 120)
         row.last_error_summary = self._optional_text(error_summary, "error_summary", 500)
         row.updated_by = actor.id
@@ -456,7 +503,7 @@ class SessionManager:
         connection.health_state = state.value
         connection.health_score = score
         connection.health_detail = row.health_detail
-        connection.health_observed_at = now
+        connection.health_observed_at = observed
         connection.last_error_code = row.last_error_code
         connection.last_error_summary = row.last_error_summary
         connection.updated_by = actor.id
@@ -672,6 +719,16 @@ class SessionManager:
         assert_no_secret_material(snapshot, field_name="provider_metadata")
         return normalized, snapshot
 
+    async def _require_session_write_flag(self, organization_id: int, actor: User) -> None:
+        """Validate tenant/activity and the shared write gate; caller owns domain RBAC."""
+
+        self._assert_actor(organization_id, actor)
+        snapshot = await self._flags.resolve(organization_id)
+        if not snapshot.is_enabled(OmnichannelFeatureFlag.SESSIONS_WRITE):
+            raise ForbiddenError(
+                "Omnichannel session writes are disabled for this organization."
+            )
+
     async def _require_read(self, organization_id: int, actor: User) -> None:
         self._assert_actor(organization_id, actor)
         snapshot = await self._flags.resolve(organization_id)
@@ -750,9 +807,18 @@ class SessionManager:
             raise ConflictError("The session lease has expired.")
 
     @staticmethod
+    def _runtime_arguments(runtime_id: str | None, fencing_token: int | None) -> bool:
+        if (runtime_id is None) != (fencing_token is None):
+            raise ValidationError(
+                "runtime_id and fencing_token must be supplied together."
+            )
+        return runtime_id is not None
+
+    @staticmethod
     def _clear_holder(row: ChannelSession) -> None:
         row.holder_runtime_id = None
         row.lease_expires_at = None
+        row.runtime_capabilities_json = None
 
     @staticmethod
     def _sync_connection_state(

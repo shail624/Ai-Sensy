@@ -53,5 +53,10 @@ class Capability(StrEnum):
     MEDIA_DOWNLOAD = "media_download"
     # Calls (Business Calling API where enabled / connector call metadata)
     CALLS = "calls"
+    # Provider runtime / pairing (Module 13; capability-gated, provider-neutral)
+    QR_AUTH = "qr_auth"
+    SESSION_STREAM = "session_stream"
+    SESSION_RECONNECT = "session_reconnect"
+    SESSION_LOGOUT = "session_logout"
     # Health
     HEALTH = "health"

@@ -142,7 +142,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0038_qr_session_manager_foundation"
+        assert version == "0039_qr_pairing_provider_runtime_foundation"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -203,6 +203,11 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "secret_id",
             "session_revision",
             "state",
+            "pairing_state",
+            "pairing_revision",
+            "pairing_changed_at",
+            "pairing_expires_at",
+            "pairing_reason_code",
             "health_state",
             "restart_policy",
             "holder_runtime_id",
@@ -211,6 +216,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "last_heartbeat_at",
             "expires_at",
             "capability_references_json",
+            "runtime_capabilities_json",
             "provider_metadata_json",
             "recovery_metadata_json",
             "row_version",
@@ -226,6 +232,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         assert channel_permissions == {
             "channels:read",
             "channels:manage",
+            "channels:authenticate",
             "channels:diagnose",
         }
         con.execute("PRAGMA foreign_keys=OFF")

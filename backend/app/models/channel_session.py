@@ -13,6 +13,7 @@ from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String, UniqueC
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.channels.foundation import ProviderHealthState
+from app.channels.runtime import PairingState
 from app.channels.secrets import assert_no_secret_material
 from app.channels.session import SessionRestartPolicy, SessionState
 from app.db.base import Base
@@ -29,6 +30,7 @@ from app.db.types import MYSQL_TABLE_ARGS, big_id, datetime6, int_id, small_uint
 _SESSION_STATES = tuple(state.value for state in SessionState)
 _RESTART_POLICIES = tuple(policy.value for policy in SessionRestartPolicy)
 _HEALTH_STATES = tuple(state.value for state in ProviderHealthState)
+_PAIRING_STATES = tuple(state.value for state in PairingState)
 
 
 def _in_clause(column: str, values: tuple[str, ...]) -> str:
@@ -64,7 +66,17 @@ class ChannelSession(
             "lease_expires_at",
             "holder_runtime_id",
         ),
+        Index(
+            "ix_channel_sessions_pairing",
+            "organization_id",
+            "pairing_state",
+            "pairing_expires_at",
+        ),
         CheckConstraint(_in_clause("state", _SESSION_STATES), name="ck_channel_session_state"),
+        CheckConstraint(
+            _in_clause("pairing_state", _PAIRING_STATES),
+            name="ck_channel_session_pairing_state",
+        ),
         CheckConstraint(
             _in_clause("restart_policy", _RESTART_POLICIES),
             name="ck_channel_session_restart_policy",
@@ -78,6 +90,7 @@ class ChannelSession(
             name="ck_channel_session_health_score",
         ),
         CheckConstraint("session_revision > 0", name="ck_channel_session_revision_positive"),
+        CheckConstraint("pairing_revision >= 0", name="ck_channel_session_pairing_non_negative"),
         CheckConstraint("fencing_token >= 0", name="ck_channel_session_fencing_non_negative"),
         CheckConstraint(
             "reconnect_attempts >= 0", name="ck_channel_session_reconnect_non_negative"
@@ -106,6 +119,15 @@ class ChannelSession(
     )
     state_changed_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False)
     state_detail: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    pairing_state: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=PairingState.UNPAIRED.value
+    )
+    pairing_revision: Mapped[int] = mapped_column(int_id(), nullable=False, default=0)
+    pairing_changed_at: Mapped[datetime] = mapped_column(
+        datetime6(), nullable=False
+    )
+    pairing_expires_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    pairing_reason_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     health_state: Mapped[str] = mapped_column(
         String(24), nullable=False, default=ProviderHealthState.UNKNOWN.value
     )
@@ -126,6 +148,7 @@ class ChannelSession(
     expires_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     terminated_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     capability_references_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    runtime_capabilities_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     provider_metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     recovery_metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     last_error_code: Mapped[str | None] = mapped_column(String(120), nullable=True)

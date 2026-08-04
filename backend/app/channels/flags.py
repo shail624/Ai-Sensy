@@ -20,6 +20,8 @@ class OmnichannelFeatureFlag(StrEnum):
     CONNECTIONS_WRITE = "omnichannel_connections_write"
     SESSIONS_READ = "omnichannel_sessions_read"
     SESSIONS_WRITE = "omnichannel_sessions_write"
+    QR_PROVIDER = "omnichannel_qr_provider"
+    QR_AUTH = "omnichannel_qr_auth"
 
 
 @dataclass(frozen=True, slots=True)
