@@ -1,0 +1,1 @@
+Trigger the diagnostic after the verified import-grouping correction. This file is never merged.
