@@ -1,0 +1,35 @@
+name: M13-05 baseline package
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-05-package
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 1
+          path: repository
+      - name: Verify exact baseline
+        shell: bash
+        run: |
+          test "$(git -C repository rev-parse HEAD)" = "5d7ea154588418410611de4f568e978c2e3caba9"
+          test -z "$(git -C repository status --porcelain)"
+      - name: Package repository
+        shell: bash
+        run: tar --exclude='.git' -czf ai-sensy-m13-05-baseline.tar.gz -C repository .
+      - name: Upload repository package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-sensy-m13-05-baseline
+          path: ai-sensy-m13-05-baseline.tar.gz
+          if-no-files-found: error
+          retention-days: 1
