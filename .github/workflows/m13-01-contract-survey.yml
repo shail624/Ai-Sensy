@@ -1,0 +1,35 @@
+name: M13-01 Contract Survey
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-survey
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+      - name: Inspect exact foundation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== MODELS REMAINDER ==='
+          sed -n '240,520p' backend/app/channels/models.py
+          echo '=== SETTINGS MODEL ==='
+          sed -n '1,320p' backend/app/models/settings.py
+          echo '=== API DEPS ==='
+          sed -n '1,320p' backend/app/api/deps.py
+          echo '=== FEATURE FLAG CONTRACT ==='
+          grep -n -i -A80 -B15 'feature flag strategy' docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md
+          echo '=== COMMUNICATION CONTRACT TERMS ==='
+          grep -n -i -A45 -B15 'communication intent\|communication policy\|provider lifecycle\|provider health\|channel metadata' docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md || true
+          echo '=== CONFIG TESTS ==='
+          find backend/tests -maxdepth 1 -type f -name '*config*' -print -exec sed -n '1,300p' {} \;
