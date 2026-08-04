@@ -18,14 +18,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Preserve overlay
-        run: cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
+      - name: Preserve overlays
+        run: |
+          cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
+          cp .validation/m13-05-fix.b64 /tmp/m13-05-fix.b64
 
-      - name: Restore approved baseline and overlay
+      - name: Restore approved baseline and overlays
         run: |
           git checkout --force 5d7ea154588418410611de4f568e978c2e3caba9
           base64 --decode /tmp/m13-05-overlay.b64 > /tmp/m13-05-overlay.tar.gz
           tar -xzf /tmp/m13-05-overlay.tar.gz
+          base64 --decode /tmp/m13-05-fix.b64 > /tmp/m13-05-fix.tar.gz
+          tar -xzf /tmp/m13-05-fix.tar.gz
           git status --short
 
       - name: Set up Python
