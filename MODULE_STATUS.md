@@ -17,25 +17,22 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T11:20:00+05:30`.
+Last synchronized: `2026-08-04T12:56:16+05:30`.
 
-## Module 13 — M13-00 repository-validated implementation contract
+## Module 13 — M13-01 generic channel foundation
 
 - **Module:** Enterprise Omnichannel Channel Manager.
-- **Milestone status:** `M13-00 — Architecture & Provider Lock — REPOSITORY VALIDATED`.
-- **Implementation status:** not started; implementation completion remains `0%` because documentation
-  validation is not product implementation evidence.
-- **Contract:** ADR-0020 and Design Document 33 are accepted and frozen. They specify capability,
-  provider, security, session, identity, API, database, rollback, rollout, DR, observability,
-  performance, testing and acceptance boundaries without adding implementation.
-- **Provider status:** no QR provider is selected. Every Required provider criterion must pass before a
-  dependency or adapter implementation is approved.
-- **Change control:** no scope expansion, new adapter hierarchy, milestone reordering or redesign is
-  allowed. A verified blocker may be recorded, but deviation requires explicit owner approval and an
-  additive ADR.
-- **Prerequisite/start gate:** recorded prerequisite workflows, provider approval and a separate owner
-  instruction are all required before M13-01.
-- **Current direction:** stop after M13-00 and continue only the separately approved existing roadmap.
+- **Milestone status:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`.
+- **Completion:** `8%` evidence-based estimate for provider-neutral in-process foundations.
+- **Delivered:** immutable intent/policy/metadata/health/lifecycle contracts, shared enums and
+  validation, provider/capability metadata registries over the existing adapter registry,
+  existing-table feature-flag scaffolding and typed DI.
+- **Preserved:** no provider, runtime, persistent connection record, migration, API route,
+  generated contract, frontend or duplicate CRM authority.
+- **Required gap:** persistent connection/endpoint/secret records and Meta backfill from the
+  frozen contract remain unimplemented and require explicit sequencing.
+- **Next:** M13-02 is not authorized and has not started.
+- **Last synchronized:** `2026-08-04T12:56:16+05:30`.
 
 ## UI Taste Modernization — operator-first Dashboard
 
@@ -86,7 +83,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 0% | M13-00 is **Repository Validated**: ADR-0020 and Design Document 33 freeze the complete implementation contract and classified gap register; no product code, API, migration, UI, dependency or runtime implementation has started | Select/approve a QR provider; satisfy recorded prerequisite workflows; obtain separate owner authorization for M13-01; later milestones must produce repository/host/security/performance/deployment evidence | Existing ChannelAdapter/capability registry, Meta adapter, Conversation/Message/Event/Media services, Contact/Customer 360/Inbox/Timeline, Notifications, Analytics, RBAC, Audit, queues and deployment infrastructure |
+| Enterprise Omnichannel Channel Manager | 8% | M13-00 contract plus M13-01 provider-neutral intent/policy/metadata/health/lifecycle contracts, registries, validation, flags and DI are Repository Validated; existing ChannelAdapter is reused | Persistent connection/endpoint/secret records and Meta backfill remain Required; no provider/runtime/API/UI exists; M13-02 not authorized | Existing ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
