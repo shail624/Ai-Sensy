@@ -1,0 +1,147 @@
+name: M13-02 validated finalization
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-builder-v4
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-02-builder-v4
+          path: builder
+          clean: false
+
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+          path: work
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: false
+
+      - name: Reproduce validated M13-02 tree
+        run: |
+          test "$(git -C work rev-parse HEAD)" = "c238bfa55d050310f865771be4654b90a5a993d2"
+          test -z "$(git -C work status --porcelain)"
+          python builder/.github/m13-02-build.py work
+          python builder/.github/m13-02-fixes.py work
+          python builder/.github/m13-02-fixes-2.py work
+          python builder/.github/m13-02-fixes-3.py work
+          python builder/.github/m13-02-fixes-4.py work
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: work/backend/pyproject.toml
+
+      - name: Install and format exact Python files
+        run: |
+          python -m pip install -e './work/backend[dev]'
+          cd work/backend
+          ruff format \
+            app/identity app/models/contact_identity.py app/models/__init__.py \
+            app/models/contact_event.py app/repositories/contact_identity.py \
+            app/services/identity_resolution_service.py app/services/audit_service.py \
+            app/schemas/contact_identity.py app/api/v1/endpoints/contact_identity.py \
+            app/api/v1/router.py alembic/versions/0036_customer_identity_resolution.py \
+            tests/test_identity_resolution.py tests/test_api_vi_domain.py tests/test_migrations.py
+
+      - name: Generate OpenAPI
+        working-directory: work/backend
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite+aiosqlite://
+          SECRET_KEY: test-secret-key-not-for-production-use-only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from app.main import create_app
+          schema = create_app().openapi()
+          assert len(schema['paths']) == 200
+          Path('../frontend/openapi.json').write_text(
+              json.dumps(schema, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: work/frontend/package-lock.json
+
+      - name: Generate client
+        working-directory: work/frontend
+        run: |
+          npm ci
+          npm run gen:api
+
+      - name: Apply governance closeout
+        run: python builder/.github/m13-02-governance.py work
+
+      - name: Verify exact milestone boundary
+        working-directory: work
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'CHANGELOG.md', 'IMPLEMENTATION_TRACKER.md', 'MODULE_STATUS.md', 'PROJECT_STATE.md',
+              'ROADMAP.md', 'VALIDATION_RESULTS.md',
+              'backend/alembic/versions/0036_customer_identity_resolution.py',
+              'backend/app/api/v1/endpoints/contact_identity.py', 'backend/app/api/v1/router.py',
+              'backend/app/identity/__init__.py', 'backend/app/identity/domain.py',
+              'backend/app/identity/flags.py', 'backend/app/models/__init__.py',
+              'backend/app/models/contact_event.py', 'backend/app/models/contact_identity.py',
+              'backend/app/repositories/contact_identity.py', 'backend/app/schemas/contact_identity.py',
+              'backend/app/services/audit_service.py', 'backend/app/services/identity_resolution_service.py',
+              'backend/tests/test_api_vi_domain.py', 'backend/tests/test_identity_resolution.py',
+              'backend/tests/test_migrations.py', 'frontend/openapi.json',
+              'frontend/src/lib/api/schema.d.ts',
+          }
+          tracked = set(
+              subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          )
+          untracked = set(
+              subprocess.check_output(
+                  ['git', 'ls-files', '--others', '--exclude-standard'], text=True
+              ).splitlines()
+          )
+          actual = tracked | untracked
+          assert actual == expected, f'boundary mismatch: {sorted(actual ^ expected)}'
+          protected = subprocess.check_output([
+              'git', 'diff', '--name-only', '--',
+              'backend/app/channels/foundation.py',
+              'backend/app/channels/registry.py',
+              'backend/app/channels/validation.py',
+              'backend/app/channels/flags.py',
+              'backend/app/channels/dependencies.py',
+              'backend/app/api/deps.py',
+              'backend/tests/test_channel_foundation.py',
+              'frontend/src/features', 'frontend/src/pages'
+          ], text=True).strip()
+          assert not protected
+          PY
+
+      - name: Create and push single milestone commit
+        working-directory: work
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(identity): complete customer identity resolution'
+          git push origin HEAD:work/m13-02-customer-identity-resolution --force-with-lease
+          git fetch origin work/m13-02-customer-identity-resolution
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/work/m13-02-customer-identity-resolution)"
