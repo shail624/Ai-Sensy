@@ -32,6 +32,8 @@ jobs:
           base64 --decode /tmp/m13-03.patch.gz.b64 | gzip --decompress > /tmp/m13-03.patch
           test "$(wc -c < /tmp/m13-03.patch)" = "84921"
           git -C work apply --index /tmp/m13-03.patch
+          python builder/.github/m13-03-fixes.py work
+          git -C work add -A
           git -C work diff --cached --check
       - name: Set up Python
         uses: actions/setup-python@v5
