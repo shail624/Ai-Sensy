@@ -1,1 +1,1 @@
-Refresh the concise report after correcting the connector fixture occurrence count. This file is never merged.
+Refresh the concise report after the idempotent connector fixture correction and latest diagnostic run. This file is never merged.
