@@ -5,8 +5,8 @@ python - <<'PY'
 from pathlib import Path
 
 source = Path('builder/.github/m13-02-run.sh').read_text(encoding='utf-8')
-old = 'ruff format --check app tests alembic/versions/0036_customer_identity_resolution.py'
-new = '''ruff format --check \\
+format_old = 'ruff format --check app tests alembic/versions/0036_customer_identity_resolution.py'
+format_new = '''ruff format --check \\
   app/identity \\
   app/models/contact_identity.py \\
   app/models/__init__.py \\
@@ -19,9 +19,13 @@ new = '''ruff format --check \\
   app/api/v1/router.py \\
   alembic/versions/0036_customer_identity_resolution.py \\
   tests/test_identity_resolution.py'''
-if source.count(old) != 1:
-    raise SystemExit('verified Ruff format marker changed')
-Path('/tmp/m13-02-run.sh').write_text(source.replace(old, new), encoding='utf-8')
+fix_old = 'python builder/.github/m13-02-fixes.py work'
+fix_new = '''python builder/.github/m13-02-fixes.py work
+python builder/.github/m13-02-fixes-2.py work'''
+if source.count(format_old) != 1 or source.count(fix_old) != 1:
+    raise SystemExit('verified M13-02 runner marker changed')
+source = source.replace(format_old, format_new, 1).replace(fix_old, fix_new, 1)
+Path('/tmp/m13-02-run.sh').write_text(source, encoding='utf-8')
 PY
 
 bash /tmp/m13-02-run.sh
