@@ -1,0 +1,170 @@
+name: M13-01 Generic Channel Foundation Builder v6
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-builder-v6
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated builder authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-01-builder-v5
+          path: builder-v5
+
+      - name: Checkout source-plan authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-01-builder
+          path: builder-source
+
+      - name: Checkout approved work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+          path: work
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Recreate validated provider-neutral foundation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path("builder-source/.github/workflows/m13-01-builder.yml").read_text()
+          marker = "          python - <<'PY'\n"
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index("\n          PY\n\n      - name: Set up Python", start)
+          code = textwrap.dedent(workflow[start:end])
+          old_import = "from pathlib import Path\n"
+          old_writer = 'path.write_text(content.replace("\\n          ", "\\n").lstrip(), encoding="utf-8")'
+          if code.count(old_import) != 1 or code.count(old_writer) != 1:
+              raise SystemExit("validated builder markers changed")
+          code = code.replace(old_import, old_import + "import textwrap\n", 1)
+          code = code.replace(
+              old_writer,
+              'path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")',
+              1,
+          )
+          Path("work/.m13_01_build.py").write_text(code)
+          PY
+          cd work
+          python .m13_01_build.py
+          rm .m13_01_build.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("backend/app/channels/flags.py")
+          source = path.read_text()
+          old = "values = {flag: False for flag in OmnichannelFeatureFlag}"
+          new = "values = dict.fromkeys(OmnichannelFeatureFlag, False)"
+          if source.count(old) != 1:
+              raise SystemExit("validated C420 marker changed")
+          path.write_text(source.replace(old, new, 1))
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: work/backend/pyproject.toml
+
+      - name: Install backend dependencies
+        working-directory: work
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e './backend[dev]'
+
+      - name: Format, lint, typecheck and focused tests
+        working-directory: work/backend
+        run: |
+          ruff format app/channels/foundation.py app/channels/validation.py app/channels/registry.py app/channels/flags.py app/channels/dependencies.py app/api/deps.py tests/test_channel_foundation.py
+          ruff check app tests
+          mypy app
+          pytest tests/test_channel_foundation.py tests/test_channels.py tests/test_config.py
+
+      - name: Full backend test suite
+        working-directory: work/backend
+        run: pytest
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: work/frontend/package-lock.json
+
+      - name: Full frontend production gate
+        working-directory: work/frontend
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Verify exact provider-neutral boundary
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python - <<'PY'
+          import subprocess
+
+          expected = {
+              "backend/app/api/deps.py",
+              "backend/app/channels/dependencies.py",
+              "backend/app/channels/flags.py",
+              "backend/app/channels/foundation.py",
+              "backend/app/channels/registry.py",
+              "backend/app/channels/validation.py",
+              "backend/tests/test_channel_foundation.py",
+          }
+          tracked = set(
+              subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()
+          )
+          untracked = set(
+              subprocess.check_output(
+                  ["git", "ls-files", "--others", "--exclude-standard"], text=True
+              ).splitlines()
+          )
+          actual = tracked | untracked
+          if actual != expected:
+              raise SystemExit(
+                  f"M13-01 boundary mismatch: expected={sorted(expected)} actual={sorted(actual)}"
+              )
+          prohibited_prefixes = (
+              "backend/alembic/",
+              "backend/app/api/v1/",
+              "backend/app/channels/meta/",
+              "backend/app/models/",
+              "frontend/",
+          )
+          prohibited = sorted(
+              path for path in actual if path.startswith(prohibited_prefixes)
+          )
+          if prohibited:
+              raise SystemExit(f"prohibited M13-01 changes: {prohibited}")
+          print("M13-01 provider-neutral boundary PASS")
+          PY
+
+      - name: Commit validated implementation to work branch
+        working-directory: work
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/channels/foundation.py backend/app/channels/validation.py backend/app/channels/registry.py backend/app/channels/flags.py backend/app/channels/dependencies.py backend/app/api/deps.py backend/tests/test_channel_foundation.py
+          git commit -m 'feat(omnichannel): add generic channel foundation'
+          git push origin HEAD:work/m13-01-generic-channel-foundation
