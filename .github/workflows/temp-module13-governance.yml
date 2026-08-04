@@ -1,0 +1,79 @@
+name: Temporary Module 13 governance sync
+
+on:
+  push:
+    branches:
+      - governance/module13-owner-approval
+
+permissions:
+  contents: write
+
+jobs:
+  sync-roadmap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: governance/module13-owner-approval
+          fetch-depth: 0
+      - name: Record owner-approved Module 13 freeze
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("ROADMAP.md")
+          text = path.read_text(encoding="utf-8")
+
+          text = text.replace(
+              "Last synchronized: `2026-08-04T03:00:00+05:30`.",
+              "Last synchronized: `2026-08-04T10:52:00+05:30`.",
+              1,
+          )
+
+          old_status = "`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy is blocked pending owner approval."
+          new_status = "`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy was owner-approved previously and has not started on the target branch."
+          if old_status not in text:
+              raise SystemExit("roadmap status boundary not found")
+          text = text.replace(old_status, new_status, 1)
+
+          marker = "\n## Phase 0 — Governance and scope lock\n"
+          freeze = """
+
+## Module 13 — Enterprise Omnichannel Channel Manager planning freeze
+
+**Status: Owner Approved**
+
+The approved Module 13 Architecture Review and every approved additive refinement are frozen as the
+implementation contract. Planning is complete; no Module 13 product code, API, migration, UI,
+provider runtime or deployment implementation has started.
+
+- Do not expand scope, introduce new abstractions, change milestone ordering or redesign approved
+  decisions.
+- A verified implementation blocker may be recorded, but any deviation requires explicit owner
+  approval before implementation continues.
+- Module 13 cannot start until Reactivation Mission Control, Customer 360, Unified Inbox and
+  Notification Center are each `Production Ready` under `ENGINEERING_STANDARDS.md`.
+- Passing those prerequisites does not authorize implementation; a separate explicit owner
+  instruction is still required.
+- Continue the existing roadmap only and do not create additional Module 13 planning documents.
+"""
+          if marker not in text:
+              raise SystemExit("phase marker not found")
+          text = text.replace(marker, freeze + marker, 1)
+
+          old_row = "| UI-TASTE-03B — Reactivation operational hierarchy — BLOCKED PENDING APPROVAL | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Owner approves Dashboard closeout first; real persisted behavior, permissions, source contracts and representative-data review pass. |"
+          new_row = "| UI-TASTE-03B — Reactivation operational hierarchy — OWNER-APPROVED; NOT STARTED | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Resume only from the latest approved Git HEAD when explicitly instructed; real persisted behavior, permissions, source contracts and representative-data review pass. |"
+          if old_row not in text:
+              raise SystemExit("UI-TASTE-03B row not found")
+          text = text.replace(old_row, new_row, 1)
+
+          path.write_text(text, encoding="utf-8")
+          Path(".github/workflows/temp-module13-governance.yml").unlink()
+      - name: Commit governance-only roadmap sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ROADMAP.md .github/workflows/temp-module13-governance.yml
+          git commit -m "docs(governance): freeze approved Module 13 architecture"
+          git push origin HEAD:governance/module13-owner-approval
