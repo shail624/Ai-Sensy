@@ -1,5 +1,5 @@
 BASELINE=c238bfa55d050310f865771be4654b90a5a993d2
-RUN=30895154675
+RUN=30895322763
 
 === APPLY_SOURCE ===
 /home/runner/work/Ai-Sensy/Ai-Sensy/builder/.github/m13-02-build.py:66: SyntaxWarning: invalid escape sequence '\+'
@@ -16,8 +16,637 @@ EXIT=0
 EXIT=0
 
 === APPLY_VERIFIED_FIXES_3 ===
-verified connector fixture count changed: 0
+
+EXIT=0
+
+=== INSTALL_BACKEND ===
+Obtaining file:///home/runner/work/Ai-Sensy/Ai-Sensy/source/backend
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Collecting fastapi>=0.115 (from wa-platform-backend==1.0.0rc1)
+  Using cached fastapi-0.141.1-py3-none-any.whl.metadata (27 kB)
+Collecting uvicorn>=0.32 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached uvicorn-0.52.1-py3-none-any.whl.metadata (6.6 kB)
+Collecting pydantic>=2.9 (from wa-platform-backend==1.0.0rc1)
+  Using cached pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+Collecting pydantic-settings>=2.5 (from wa-platform-backend==1.0.0rc1)
+  Using cached pydantic_settings-2.14.2-py3-none-any.whl.metadata (3.4 kB)
+Collecting sqlalchemy>=2.0.35 (from sqlalchemy[asyncio]>=2.0.35->wa-platform-backend==1.0.0rc1)
+  Using cached sqlalchemy-2.0.51-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (9.5 kB)
+Collecting alembic>=1.13 (from wa-platform-backend==1.0.0rc1)
+  Using cached alembic-1.18.5-py3-none-any.whl.metadata (7.2 kB)
+Collecting aiomysql==0.3.2 (from wa-platform-backend==1.0.0rc1)
+  Using cached aiomysql-0.3.2-py3-none-any.whl.metadata (5.1 kB)
+Collecting PyMySQL==1.2.0 (from wa-platform-backend==1.0.0rc1)
+  Using cached pymysql-1.2.0-py3-none-any.whl.metadata (4.3 kB)
+Collecting aiosqlite>=0.20 (from wa-platform-backend==1.0.0rc1)
+  Using cached aiosqlite-0.22.1-py3-none-any.whl.metadata (4.3 kB)
+Collecting redis>=5.0 (from wa-platform-backend==1.0.0rc1)
+  Using cached redis-8.1.0-py3-none-any.whl.metadata (16 kB)
+Collecting celery>=5.4 (from wa-platform-backend==1.0.0rc1)
+  Using cached celery-5.6.3-py3-none-any.whl.metadata (23 kB)
+Collecting argon2-cffi>=23.1 (from wa-platform-backend==1.0.0rc1)
+  Using cached argon2_cffi-25.1.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting pyjwt>=2.9 (from wa-platform-backend==1.0.0rc1)
+  Using cached pyjwt-2.13.0-py3-none-any.whl.metadata (3.4 kB)
+Collecting httpx>=0.27 (from wa-platform-backend==1.0.0rc1)
+  Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting python-multipart>=0.0.12 (from wa-platform-backend==1.0.0rc1)
+  Using cached python_multipart-0.0.32-py3-none-any.whl.metadata (2.1 kB)
+Collecting email-validator>=2.2 (from wa-platform-backend==1.0.0rc1)
+  Using cached email_validator-2.3.0-py3-none-any.whl.metadata (26 kB)
+Collecting openpyxl>=3.1 (from wa-platform-backend==1.0.0rc1)
+  Using cached openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)
+Collecting cryptography>=43 (from wa-platform-backend==1.0.0rc1)
+  Using cached cryptography-50.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)
+Collecting pytest>=8.3 (from wa-platform-backend==1.0.0rc1)
+  Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting pytest-asyncio>=0.24 (from wa-platform-backend==1.0.0rc1)
+  Using cached pytest_asyncio-1.4.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting pytest-cov>=5.0 (from wa-platform-backend==1.0.0rc1)
+  Using cached pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)
+Collecting ruff>=0.6 (from wa-platform-backend==1.0.0rc1)
+  Using cached ruff-0.16.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (26 kB)
+Collecting mypy==2.3.0 (from wa-platform-backend==1.0.0rc1)
+  Using cached mypy-2.3.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting bandit==1.9.4 (from wa-platform-backend==1.0.0rc1)
+  Using cached bandit-1.9.4-py3-none-any.whl.metadata (7.1 kB)
+Collecting pip-audit==2.10.1 (from wa-platform-backend==1.0.0rc1)
+  Using cached pip_audit-2.10.1-py3-none-any.whl.metadata (28 kB)
+Collecting PyYAML>=5.3.1 (from bandit==1.9.4->wa-platform-backend==1.0.0rc1)
+  Using cached pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting stevedore>=1.20.0 (from bandit==1.9.4->wa-platform-backend==1.0.0rc1)
+  Using cached stevedore-5.9.0-py3-none-any.whl.metadata (2.3 kB)
+Collecting rich (from bandit==1.9.4->wa-platform-backend==1.0.0rc1)
+  Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting typing_extensions>=4.6.0 (from mypy==2.3.0->wa-platform-backend==1.0.0rc1)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting mypy_extensions>=1.0.0 (from mypy==2.3.0->wa-platform-backend==1.0.0rc1)
+  Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting pathspec>=1.0.0 (from mypy==2.3.0->wa-platform-backend==1.0.0rc1)
+  Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+Collecting librt>=0.13.0 (from mypy==2.3.0->wa-platform-backend==1.0.0rc1)
+  Using cached librt-0.13.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (1.3 kB)
+Collecting ast-serialize<1.0.0,>=0.6.0 (from mypy==2.3.0->wa-platform-backend==1.0.0rc1)
+  Using cached ast_serialize-0.6.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.3 kB)
+Collecting CacheControl>=0.13.0 (from CacheControl[filecache]>=0.13.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)
+Collecting cyclonedx-python-lib<12,>=5 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached cyclonedx_python_lib-11.11.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting packaging>=23.0.0 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached packaging-26.2-py3-none-any.whl.metadata (3.5 kB)
+Collecting pip-api>=0.0.28 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached pip_api-0.0.34-py3-none-any.whl.metadata (6.6 kB)
+Collecting pip-requirements-parser>=32.0.0 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached pip_requirements_parser-32.0.1-py3-none-any.whl.metadata (9.3 kB)
+Collecting requests>=2.31.0 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached requests-2.34.2-py3-none-any.whl.metadata (4.8 kB)
+Collecting tomli>=2.2.1 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached tomli-2.4.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (10 kB)
+Collecting tomli-w>=1.2.0 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached tomli_w-1.2.0-py3-none-any.whl.metadata (5.7 kB)
+Collecting platformdirs>=4.2.0 (from pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached platformdirs-4.11.0-py3-none-any.whl.metadata (5.5 kB)
+Collecting license-expression<31,>=30 (from cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached license_expression-30.4.4-py3-none-any.whl.metadata (11 kB)
+Collecting packageurl-python<2,>=0.11 (from cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached packageurl_python-0.17.6-py3-none-any.whl.metadata (5.1 kB)
+Collecting py-serializable<3.0.0,>=2.1.0 (from cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached py_serializable-2.1.0-py3-none-any.whl.metadata (4.3 kB)
+Collecting sortedcontainers<3.0.0,>=2.4.0 (from cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Collecting boolean.py>=4.0 (from license-expression<31,>=30->cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached boolean_py-5.0-py3-none-any.whl.metadata (2.3 kB)
+Collecting defusedxml<0.8.0,>=0.7.1 (from py-serializable<3.0.0,>=2.1.0->cyclonedx-python-lib<12,>=5->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached defusedxml-0.7.1-py2.py3-none-any.whl.metadata (32 kB)
+Collecting Mako (from alembic>=1.13->wa-platform-backend==1.0.0rc1)
+  Using cached mako-1.3.12-py3-none-any.whl.metadata (2.9 kB)
+Collecting argon2-cffi-bindings (from argon2-cffi>=23.1->wa-platform-backend==1.0.0rc1)
+  Using cached argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (7.4 kB)
+Collecting msgpack<2.0.0,>=0.5.2 (from CacheControl>=0.13.0->CacheControl[filecache]>=0.13.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached msgpack-1.2.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.3 kB)
+Collecting filelock>=3.8.0 (from CacheControl[filecache]>=0.13.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached filelock-3.32.2-py3-none-any.whl.metadata (2.0 kB)
+Collecting billiard<5.0,>=4.2.1 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached billiard-4.2.4-py3-none-any.whl.metadata (4.8 kB)
+Collecting kombu>=5.6.0 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached kombu-5.6.2-py3-none-any.whl.metadata (3.5 kB)
+Collecting vine<6.0,>=5.1.0 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached vine-5.1.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting click<9.0,>=8.1.2 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached click-8.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting click-didyoumean>=0.3.0 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached click_didyoumean-0.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting click-repl>=0.2.0 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached click_repl-0.3.0-py3-none-any.whl.metadata (3.6 kB)
+Collecting click-plugins>=1.1.1 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached click_plugins-1.1.1.2-py2.py3-none-any.whl.metadata (6.5 kB)
+Collecting python-dateutil>=2.8.2 (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting tzlocal (from celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached tzlocal-5.4.4-py3-none-any.whl.metadata (7.7 kB)
+Collecting prompt-toolkit>=3.0.36 (from click-repl>=0.2.0->celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached prompt_toolkit-3.0.53-py3-none-any.whl.metadata (6.4 kB)
+Collecting cffi>=2.0.0 (from cryptography>=43->wa-platform-backend==1.0.0rc1)
+  Using cached cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=43->wa-platform-backend==1.0.0rc1)
+  Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+Collecting dnspython>=2.0.0 (from email-validator>=2.2->wa-platform-backend==1.0.0rc1)
+  Using cached dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+Collecting idna>=2.0.0 (from email-validator>=2.2->wa-platform-backend==1.0.0rc1)
+  Using cached idna-3.18-py3-none-any.whl.metadata (6.1 kB)
+Collecting starlette>=0.46.0 (from fastapi>=0.115->wa-platform-backend==1.0.0rc1)
+  Using cached starlette-1.3.1-py3-none-any.whl.metadata (6.4 kB)
+Collecting typing-inspection>=0.4.2 (from fastapi>=0.115->wa-platform-backend==1.0.0rc1)
+  Using cached typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting annotated-doc>=0.0.2 (from fastapi>=0.115->wa-platform-backend==1.0.0rc1)
+  Using cached annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+Collecting anyio (from httpx>=0.27->wa-platform-backend==1.0.0rc1)
+  Using cached anyio-4.14.2-py3-none-any.whl.metadata (4.6 kB)
+Collecting certifi (from httpx>=0.27->wa-platform-backend==1.0.0rc1)
+  Using cached certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx>=0.27->wa-platform-backend==1.0.0rc1)
+  Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.27->wa-platform-backend==1.0.0rc1)
+  Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting amqp<6.0.0,>=5.1.1 (from kombu>=5.6.0->celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached amqp-5.3.1-py3-none-any.whl.metadata (8.9 kB)
+Collecting tzdata>=2025.2 (from kombu>=5.6.0->celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached tzdata-2026.3-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting et-xmlfile (from openpyxl>=3.1->wa-platform-backend==1.0.0rc1)
+  Using cached et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)
+Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.13.14/x64/lib/python3.13/site-packages (from pip-api>=0.0.28->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1) (26.1.2)
+Collecting pyparsing (from pip-requirements-parser>=32.0.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+Collecting wcwidth>=0.1.4 (from prompt-toolkit>=3.0.36->click-repl>=0.2.0->celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached wcwidth-0.8.2-py3-none-any.whl.metadata (43 kB)
+Collecting annotated-types>=0.6.0 (from pydantic>=2.9->wa-platform-backend==1.0.0rc1)
+  Using cached annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.46.4 (from pydantic>=2.9->wa-platform-backend==1.0.0rc1)
+  Using cached pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.5->wa-platform-backend==1.0.0rc1)
+  Using cached python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+Collecting iniconfig>=1.0.1 (from pytest>=8.3->wa-platform-backend==1.0.0rc1)
+  Using cached iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting pluggy<2,>=1.5 (from pytest>=8.3->wa-platform-backend==1.0.0rc1)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting pygments>=2.7.2 (from pytest>=8.3->wa-platform-backend==1.0.0rc1)
+  Using cached pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov>=5.0->wa-platform-backend==1.0.0rc1)
+  Using cached coverage-7.15.3-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.6 kB)
+Collecting six>=1.5 (from python-dateutil>=2.8.2->celery>=5.4->wa-platform-backend==1.0.0rc1)
+  Using cached six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting charset_normalizer<4,>=2 (from requests>=2.31.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached charset_normalizer-3.4.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (41 kB)
+Collecting urllib3<3,>=1.26 (from requests>=2.31.0->pip-audit==2.10.1->wa-platform-backend==1.0.0rc1)
+  Using cached urllib3-2.7.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting markdown-it-py>=2.2.0 (from rich->bandit==1.9.4->wa-platform-backend==1.0.0rc1)
+  Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich->bandit==1.9.4->wa-platform-backend==1.0.0rc1)
+  Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Collecting greenlet>=1 (from sqlalchemy>=2.0.35->sqlalchemy[asyncio]>=2.0.35->wa-platform-backend==1.0.0rc1)
+  Using cached greenlet-3.5.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.8 kB)
+Collecting httptools>=0.8.0 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached httptools-0.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+Collecting uvloop>=0.15.1 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached uvloop-0.22.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+Collecting watchfiles>=0.20 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached watchfiles-1.2.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting websockets>=13.0 (from uvicorn[standard]>=0.32->wa-platform-backend==1.0.0rc1)
+  Using cached websockets-17.0.1-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+Collecting MarkupSafe>=0.9.2 (from Mako->alembic>=1.13->wa-platform-backend==1.0.0rc1)
+  Using cached markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Using cached aiomysql-0.3.2-py3-none-any.whl (71 kB)
+Using cached bandit-1.9.4-py3-none-any.whl (134 kB)
+Using cached mypy-2.3.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (15.2 MB)
+Using cached pip_audit-2.10.1-py3-none-any.whl (62 kB)
+Using cached pymysql-1.2.0-py3-none-any.whl (45 kB)
+Using cached ast_serialize-0.6.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.3 MB)
+Using cached cyclonedx_python_lib-11.11.0-py3-none-any.whl (528 kB)
+Using cached license_expression-30.4.4-py3-none-any.whl (120 kB)
+Using cached packageurl_python-0.17.6-py3-none-any.whl (36 kB)
+Using cached py_serializable-2.1.0-py3-none-any.whl (23 kB)
+Using cached defusedxml-0.7.1-py2.py3-none-any.whl (25 kB)
+Using cached sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Using cached aiosqlite-0.22.1-py3-none-any.whl (17 kB)
+Using cached alembic-1.18.5-py3-none-any.whl (264 kB)
+Using cached argon2_cffi-25.1.0-py3-none-any.whl (14 kB)
+Using cached boolean_py-5.0-py3-none-any.whl (26 kB)
+Using cached cachecontrol-0.14.4-py3-none-any.whl (22 kB)
+Using cached msgpack-1.2.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (416 kB)
+Using cached celery-5.6.3-py3-none-any.whl (451 kB)
+Using cached billiard-4.2.4-py3-none-any.whl (87 kB)
+Using cached click-8.4.2-py3-none-any.whl (119 kB)
+Using cached vine-5.1.0-py3-none-any.whl (9.6 kB)
+Using cached click_didyoumean-0.3.1-py3-none-any.whl (3.6 kB)
+Using cached click_plugins-1.1.1.2-py2.py3-none-any.whl (11 kB)
+Using cached click_repl-0.3.0-py3-none-any.whl (10 kB)
+Using cached cryptography-50.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)
+Using cached cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+Using cached email_validator-2.3.0-py3-none-any.whl (35 kB)
+Using cached dnspython-2.8.0-py3-none-any.whl (331 kB)
+Using cached fastapi-0.141.1-py3-none-any.whl (131 kB)
+Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+Using cached filelock-3.32.2-py3-none-any.whl (98 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+Using cached idna-3.18-py3-none-any.whl (65 kB)
+Using cached kombu-5.6.2-py3-none-any.whl (214 kB)
+Using cached amqp-5.3.1-py3-none-any.whl (50 kB)
+Using cached librt-0.13.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (531 kB)
+Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+Using cached openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+Using cached packaging-26.2-py3-none-any.whl (100 kB)
+Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+Using cached pip_api-0.0.34-py3-none-any.whl (120 kB)
+Using cached pip_requirements_parser-32.0.1-py3-none-any.whl (35 kB)
+Using cached platformdirs-4.11.0-py3-none-any.whl (23 kB)
+Using cached prompt_toolkit-3.0.53-py3-none-any.whl (392 kB)
+Using cached pydantic-2.13.4-py3-none-any.whl (472 kB)
+Using cached pydantic_core-2.46.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Using cached pydantic_settings-2.14.2-py3-none-any.whl (61 kB)
+Using cached pyjwt-2.13.0-py3-none-any.whl (31 kB)
+Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)
+Using cached pytest_asyncio-1.4.0-py3-none-any.whl (16 kB)
+Using cached pytest_cov-7.1.0-py3-none-any.whl (22 kB)
+Using cached coverage-7.15.3-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (256 kB)
+Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Using cached python_multipart-0.0.32-py3-none-any.whl (30 kB)
+Using cached pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (801 kB)
+Using cached redis-8.1.0-py3-none-any.whl (560 kB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached charset_normalizer-3.4.9-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (223 kB)
+Using cached urllib3-2.7.0-py3-none-any.whl (131 kB)
+Using cached certifi-2026.7.22-py3-none-any.whl (136 kB)
+Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Using cached ruff-0.16.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.5 MB)
+Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
+Using cached sqlalchemy-2.0.51-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.3 MB)
+Using cached greenlet-3.5.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (624 kB)
+Using cached starlette-1.3.1-py3-none-any.whl (73 kB)
+Using cached anyio-4.14.2-py3-none-any.whl (125 kB)
+Using cached stevedore-5.9.0-py3-none-any.whl (54 kB)
+Using cached tomli-2.4.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (251 kB)
+Using cached tomli_w-1.2.0-py3-none-any.whl (6.7 kB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Using cached tzdata-2026.3-py2.py3-none-any.whl (348 kB)
+Using cached uvicorn-0.52.1-py3-none-any.whl (79 kB)
+Using cached httptools-0.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (486 kB)
+Using cached uvloop-0.22.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.4 MB)
+Using cached watchfiles-1.2.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (454 kB)
+Using cached wcwidth-0.8.2-py3-none-any.whl (323 kB)
+Using cached websockets-17.0.1-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (220 kB)
+Using cached argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (87 kB)
+Using cached et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+Using cached mako-1.3.12-py3-none-any.whl (78 kB)
+Using cached markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+Using cached pyparsing-3.3.2-py3-none-any.whl (122 kB)
+Using cached tzlocal-5.4.4-py3-none-any.whl (18 kB)
+Building wheels for collected packages: wa-platform-backend
+  Building editable for wa-platform-backend (pyproject.toml): started
+  Building editable for wa-platform-backend (pyproject.toml): finished with status 'done'
+  Created wheel for wa-platform-backend: filename=wa_platform_backend-1.0.0rc1-0.editable-py3-none-any.whl size=4676 sha256=80ebdff32a6b29670b9a1744e419b674107fcb4a91d966695b387b6aebe70730
+  Stored in directory: /tmp/pip-ephem-wheel-cache-lhd9nfcz/wheels/1d/47/f5/6c60551e7ec626eacafb0e63cb26e7b61f8061b74e3a032797
+Successfully built wa-platform-backend
+Installing collected packages: sortedcontainers, boolean.py, websockets, wcwidth, vine, uvloop, urllib3, tzlocal, tzdata, typing_extensions, tomli-w, tomli, stevedore, six, ruff, redis, PyYAML, python-multipart, python-dotenv, pyparsing, PyMySQL, pyjwt, pygments, pycparser, pluggy, platformdirs, pip-api, pathspec, packaging, packageurl-python, mypy_extensions, msgpack, mdurl, MarkupSafe, license-expression, librt, iniconfig, idna, httptools, h11, greenlet, filelock, et-xmlfile, dnspython, defusedxml, coverage, click, charset_normalizer, certifi, billiard, ast-serialize, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, py-serializable, prompt-toolkit, pip-requirements-parser, openpyxl, mypy, markdown-it-py, Mako, httpcore, email-validator, click-plugins, click-didyoumean, cffi, anyio, amqp, aiomysql, watchfiles, starlette, rich, pytest-cov, pytest-asyncio, pydantic, kombu, httpx, cyclonedx-python-lib, cryptography, click-repl, CacheControl, argon2-cffi-bindings, alembic, pydantic-settings, fastapi, celery, bandit, argon2-cffi, wa-platform-backend, pip-audit
+
+Successfully installed CacheControl-0.14.4 Mako-1.3.12 MarkupSafe-3.0.3 PyMySQL-1.2.0 PyYAML-6.0.3 aiomysql-0.3.2 aiosqlite-0.22.1 alembic-1.18.5 amqp-5.3.1 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.14.2 argon2-cffi-25.1.0 argon2-cffi-bindings-25.1.0 ast-serialize-0.6.0 bandit-1.9.4 billiard-4.2.4 boolean.py-5.0 celery-5.6.3 certifi-2026.7.22 cffi-2.1.1 charset_normalizer-3.4.9 click-8.4.2 click-didyoumean-0.3.1 click-plugins-1.1.1.2 click-repl-0.3.0 coverage-7.15.3 cryptography-50.0.0 cyclonedx-python-lib-11.11.0 defusedxml-0.7.1 dnspython-2.8.0 email-validator-2.3.0 et-xmlfile-2.0.0 fastapi-0.141.1 filelock-3.32.2 greenlet-3.5.4 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.18 iniconfig-2.3.0 kombu-5.6.2 librt-0.13.0 license-expression-30.4.4 markdown-it-py-4.2.0 mdurl-0.1.2 msgpack-1.2.1 mypy-2.3.0 mypy_extensions-1.1.0 openpyxl-3.1.5 packageurl-python-0.17.6 packaging-26.2 pathspec-1.1.1 pip-api-0.0.34 pip-audit-2.10.1 pip-requirements-parser-32.0.1 platformdirs-4.11.0 pluggy-1.6.0 prompt-toolkit-3.0.53 py-serializable-2.1.0 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.2 pygments-2.20.0 pyjwt-2.13.0 pyparsing-3.3.2 pytest-9.1.1 pytest-asyncio-1.4.0 pytest-cov-7.1.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 python-multipart-0.0.32 redis-8.1.0 requests-2.34.2 rich-15.0.0 ruff-0.16.1 six-1.17.0 sortedcontainers-2.4.0 sqlalchemy-2.0.51 starlette-1.3.1 stevedore-5.9.0 tomli-2.4.1 tomli-w-1.2.0 typing-inspection-0.4.2 typing_extensions-4.16.0 tzdata-2026.3 tzlocal-5.4.4 urllib3-2.7.0 uvicorn-0.52.1 uvloop-0.22.1 vine-5.1.0 wa-platform-backend-1.0.0rc1 watchfiles-1.2.0 wcwidth-0.8.2 websockets-17.0.1
+
+[notice] A new release of pip is available: 26.1.2 -> 26.2
+[notice] To update, run: pip install --upgrade pip
+
+EXIT=0
+
+=== FORMAT ===
+8 files reformatted, 6 files left unchanged
+
+EXIT=0
+
+=== OPENAPI ===
+OPENAPI_PATHS= 200
+
+EXIT=0
+
+=== NPM_CI ===
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+
+added 533 packages, and audited 534 packages in 7s
+
+170 packages are looking for funding
+  run `npm fund` for details
+
+11 vulnerabilities (6 moderate, 4 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+EXIT=0
+
+=== GENERATE_CLIENT ===
+
+> wa-platform-frontend@1.0.0-rc1 gen:api
+> openapi-typescript openapi.json -o src/lib/api/schema.d.ts
+
+✨ openapi-typescript 7.13.0
+🚀 openapi.json → src/lib/api/schema.d.ts [435.4ms]
+
+EXIT=0
+
+=== RUFF_FORMAT_CHECK ===
+14 files already formatted
+
+EXIT=0
+
+=== RUFF_CHECK ===
+All checks passed!
+
+EXIT=0
+
+=== MYPY ===
+Success: no issues found in 271 source files
+
+EXIT=0
+
+=== FOCUSED_TESTS ===
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/runner/work/Ai-Sensy/Ai-Sensy/source/backend
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 22 items
+
+tests/test_identity_resolution.py ......                                 [ 27%]
+tests/test_api_contacts.py .........                                     [ 68%]
+tests/test_channel_foundation.py .......                                 [100%]
+
+============================== 22 passed in 3.87s ==============================
+
+EXIT=0
+
+=== MIGRATION ===
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_identity_and_audit, Identity & Access + Audit schema (Module 1 — Doc 03 §4, §11.2).
+INFO  [alembic.runtime.migration] Running upgrade 0001_identity_and_audit -> 0002_seed_permissions, Seed the permission catalog (Module 1 — Doc 04 §4.3).
+INFO  [alembic.runtime.migration] Running upgrade 0002_seed_permissions -> 0003_settings_feature_flags, System settings & feature flags (Module 1 — Doc 03 §11.5, §11.7).
+INFO  [alembic.runtime.migration] Running upgrade 0003_settings_feature_flags -> 0004_api_keys, API keys (Module 1 — Doc 03 §4.4).
+INFO  [alembic.runtime.migration] Running upgrade 0004_api_keys -> 0005_contacts, Contacts (Module 2 — Doc 03 §6.1).
+INFO  [alembic.runtime.migration] Running upgrade 0005_contacts -> 0006_tags_events_leads, Tags, contact events & lead pipelines (Module 2 — Doc 03 §6.2/§6.5, Doc 07 §23.2).
+INFO  [alembic.runtime.migration] Running upgrade 0006_tags_events_leads -> 0007_segments, Segments & segment rules (Module 2 — Doc 03 §6.4).
+INFO  [alembic.runtime.migration] Running upgrade 0007_segments -> 0008_custom_attributes, Custom attributes (Module 2 — Doc 03 §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0008_custom_attributes -> 0009_queue_engine, Queue engine: job metadata & dead letter (Module 6 — Doc 03 §11.7, Doc 06 §7).
+INFO  [alembic.runtime.migration] Running upgrade 0009_queue_engine -> 0010_media_assets, Media assets (Storage foundation — Doc 03 §7.2).
+INFO  [alembic.runtime.migration] Running upgrade 0010_media_assets -> 0011_imports, Contact import job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0011_imports -> 0012_exports, Contact export job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0012_exports -> 0013_bulk_jobs, Bulk contact operation job records (Module 2 Step 5C — Doc 03 §11.6 family).
+INFO  [alembic.runtime.migration] Running upgrade 0013_bulk_jobs -> 0014_waba_phone_numbers, WhatsApp infrastructure: WABAs & phone numbers (Module 4 Step 2 — Doc 03 §5.1/§5.2).
+INFO  [alembic.runtime.migration] Running upgrade 0014_waba_phone_numbers -> 0015_webhook_events, Inbound webhook storage: events & dead letter (Module 4 Step 3 — Doc 03 §9.4).
+INFO  [alembic.runtime.migration] Running upgrade 0015_webhook_events -> 0016_conversations_messages, Conversations & the message ledger (Module 4 Step 4 — Doc 03 §9.1/§9.2/§9.3).
+INFO  [alembic.runtime.migration] Running upgrade 0016_conversations_messages -> 0017_message_templates, Template registry: templates & versions (Module 5 — Doc 03 §7.1).
+INFO  [alembic.runtime.migration] Running upgrade 0017_message_templates -> 0018_campaigns, Campaign registry: campaigns & recipients (Phase 6 Step 1 — Doc 03 §8.1/§8.3).
+INFO  [alembic.runtime.migration] Running upgrade 0018_campaigns -> 0019_campaign_batches, Campaign batches: dispatch checkpoints (Phase 6 Step 2 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0019_campaign_batches -> 0020_campaign_retry_queue, Campaign retry queue (Phase 6 Step 3 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0020_campaign_retry_queue -> 0021_campaign_schedules, Campaign schedules (Phase 6 Step 4 — Doc 03 §8.2).
+INFO  [alembic.runtime.migration] Running upgrade 0021_campaign_schedules -> 0022_rate_cards, Rate cards (Phase 6 Step 5 — Doc 03 §8.5).
+INFO  [alembic.runtime.migration] Running upgrade 0022_rate_cards -> 0023_internal_notes, Internal notes (Phase 7 Step 1 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0023_internal_notes -> 0024_quick_replies, Quick replies (Phase 7 Step 4 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0024_quick_replies -> 0025_conversation_tags, Conversation tags (Phase 7 Step 5 — Doc 03 §9.7, v1.3).
+INFO  [alembic.runtime.migration] Running upgrade 0025_conversation_tags -> 0026_tasks, Task & Activity Management (Doc 14 — CRM Follow-up Engine).
+INFO  [alembic.runtime.migration] Running upgrade 0026_tasks -> 0027_analytics, Analytics & Reporting foundation (Doc 15 — Phase 8).
+INFO  [alembic.runtime.migration] Running upgrade 0027_analytics -> 0028_contact_documents, Governed customer documents (Design Book 19, Phase 4A).
+INFO  [alembic.runtime.migration] Running upgrade 0028_contact_documents -> 0029_automation_definitions, Versioned automation definitions (Design Book 22, MD5 Phase 2A).
+INFO  [alembic.runtime.migration] Running upgrade 0029_automation_definitions -> 0030_automation_test_runtime, Deterministic automation test-run ledger (Design Book 23, MD5 Phase 2B).
+INFO  [alembic.runtime.migration] Running upgrade 0030_automation_test_runtime -> 0031_automation_trigger_receipts, Durable business events and automation trigger receipts (Design Book 24).
+INFO  [alembic.runtime.migration] Running upgrade 0031_automation_trigger_receipts -> 0032_vi_domain_foundation, CORE-02 tenant-scoped Vi domain foundation.
+INFO  [alembic.runtime.migration] Running upgrade 0032_vi_domain_foundation -> 0033_kyc_operations, CORE-04 governed KYC operations persistence gaps.
+INFO  [alembic.runtime.migration] Running upgrade 0033_kyc_operations -> 0034_reactivation_crm, Owner-approved lightweight Reactivation CRM workflow.
+INFO  [alembic.runtime.migration] Running upgrade 0034_reactivation_crm -> 0035_notification_center, Durable tenant-scoped Notification Center projection.
+INFO  [alembic.runtime.migration] Running upgrade 0035_notification_center -> 0036_customer_identity_resolution, Provider-independent Customer identity resolution records.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running downgrade 0036_customer_identity_resolution -> 0035_notification_center, Provider-independent Customer identity resolution records.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 0035_notification_center -> 0036_customer_identity_resolution, Provider-independent Customer identity resolution records.
+
+EXIT=0
+
+=== FULL_PYTEST ===
+============================= test session starts ==============================
+platform linux -- Python 3.13.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/runner/work/Ai-Sensy/Ai-Sensy/source/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.1.0, anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 961 items
+
+tests/test_analytics_query.py .......................................... [  4%]
+..................                                                       [  6%]
+tests/test_analytics_rollup.py ...............................           [  9%]
+tests/test_api_analytics.py ........................................     [ 13%]
+tests/test_api_apikeys.py ....                                           [ 14%]
+tests/test_api_attributes.py .......                                     [ 14%]
+tests/test_api_audit.py .....                                            [ 15%]
+tests/test_api_auth.py ...........                                       [ 16%]
+tests/test_api_automation_runtime.py .......                             [ 17%]
+tests/test_api_automation_triggers.py ....                               [ 17%]
+tests/test_api_automations.py .........                                  [ 18%]
+tests/test_api_bulk.py .................                                 [ 20%]
+tests/test_api_campaign_cost.py ...........                              [ 21%]
+tests/test_api_campaign_dispatch.py ....................                 [ 23%]
+tests/test_api_campaign_lifecycle.py ....................                [ 25%]
+tests/test_api_campaign_scheduling.py ..........................         [ 28%]
+tests/test_api_campaigns.py ...................                          [ 30%]
+tests/test_api_contact_documents.py ..........                           [ 31%]
+tests/test_api_contacts.py .........                                     [ 32%]
+tests/test_api_conversation_tags.py .................                    [ 34%]
+tests/test_api_conversations.py .....................                    [ 36%]
+tests/test_api_export.py ...........                                     [ 37%]
+tests/test_api_import.py ..................                              [ 39%]
+tests/test_api_inbox.py ....................                             [ 41%]
+tests/test_api_inbox_read_state.py ......                                [ 41%]
+tests/test_api_inbox_reads.py ...................                        [ 43%]
+tests/test_api_jobs.py ..........                                        [ 44%]
+tests/test_api_leads.py .....                                            [ 45%]
+tests/test_api_media.py ........                                         [ 46%]
+tests/test_api_media_flow.py ................                            [ 47%]
+tests/test_api_message_reactions.py ............                         [ 49%]
+tests/test_api_messages.py .......................                       [ 51%]
+tests/test_api_organization.py .....                                     [ 52%]
+tests/test_api_preferences.py ....                                       [ 52%]
+tests/test_api_quick_replies.py ...................                      [ 54%]
+tests/test_api_rbac.py ........                                          [ 55%]
+tests/test_api_search.py .....                                           [ 55%]
+tests/test_api_segments.py ........                                      [ 56%]
+tests/test_api_settings.py ......                                        [ 57%]
+tests/test_api_tags.py ......                                            [ 57%]
+tests/test_api_tasks.py .............................................    [ 62%]
+tests/test_api_templates.py .............................                [ 65%]
+tests/test_api_timeline.py ...                                           [ 65%]
+tests/test_api_users.py .........                                        [ 66%]
+tests/test_api_vi_domain.py .F                                           [ 67%]
+tests/test_api_waba.py .......................                           [ 69%]
+tests/test_api_webhooks.py .........................                     [ 72%]
+tests/test_bootstrap.py ...                                              [ 72%]
+tests/test_channel_foundation.py .......                                 [ 73%]
+tests/test_channels.py ......................................            [ 77%]
+tests/test_config.py .                                                   [ 77%]
+tests/test_crm_formats.py ................                               [ 78%]
+tests/test_health.py .........                                           [ 79%]
+tests/test_identity_resolution.py ......                                 [ 80%]
+tests/test_integration_module1.py .                                      [ 80%]
+tests/test_kyc_operations.py ..                                          [ 80%]
+tests/test_logging.py ..                                                 [ 80%]
+tests/test_migrations.py F.                                              [ 81%]
+tests/test_notification_center.py ..                                     [ 81%]
+tests/test_notification_center_task_lifecycle.py .                       [ 81%]
+tests/test_quality_gate_tools.py ..............                          [ 82%]
+tests/test_queue_engine.py .................                             [ 84%]
+tests/test_rate_gate.py ..................                               [ 86%]
+tests/test_rate_limit.py ...                                             [ 86%]
+tests/test_reactivation_crm_workflow.py ...                              [ 87%]
+tests/test_repositories.py ..............                                [ 88%]
+tests/test_security.py ...............                                   [ 90%]
+tests/test_service_typing_invariants.py ....                             [ 90%]
+tests/test_services.py ...............                                   [ 92%]
+tests/test_smoke_release.py .....                                        [ 92%]
+tests/test_storage.py ..................                                 [ 94%]
+tests/test_task_service.py ............................................. [ 99%]
+...                                                                      [ 99%]
+tests/test_vi_domain_service.py ....                                     [100%]
+
+=================================== FAILURES ===================================
+__________ test_vi_openapi_exposes_typed_permission_scoped_foundation __________
+
+client = <httpx.AsyncClient object at 0x7f841376f4d0>
+
+    @pytest.mark.asyncio
+    async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> None:
+        schema = (await client.get("/api/v1/openapi.json")).json()
+        expected = {
+            "/api/v1/reactivation-cases/{case_id}/transition",
+            "/api/v1/reactivation-cases/{case_id}/notes",
+            "/api/v1/reactivation-pipeline",
+            "/api/v1/kyc-cases/{kyc_id}/approvals",
+            "/api/v1/kyc-operations",
+            "/api/v1/kyc-cases/{kyc_id}/document-references",
+            "/api/v1/kyc-cases/{kyc_id}/appointments",
+            "/api/v1/sim-orders/{order_id}/transition",
+            "/api/v1/activation-records/{activation_id}/approval",
+            "/api/v1/sla/events",
+            "/api/v1/notifications",
+            "/api/v1/notifications/unread-count",
+            "/api/v1/notifications/{notification_id}/read",
+            "/api/v1/notifications/read-all",
+        }
+        assert expected <= set(schema["paths"])
+>       assert len(schema["paths"]) == 193
+E       AssertionError: assert 200 == 193
+E        +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+
+tests/test_api_vi_domain.py:204: AssertionError
+_________________ test_migrations_upgrade_downgrade_roundtrip __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_migrations_upgrade_downgr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f8416d4baf0>
+
+    def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> None:
+        """upgrade head → full schema + seed; downgrade base → clean; re-upgrade → works."""
+        db_path = tmp_path / "migration_test.db"
+        # Point the Alembic env (which reads app settings) at the throwaway file DB.
+        monkeypatch.setattr(settings, "database_url", f"sqlite+aiosqlite:///{db_path.as_posix()}")
+        cfg = _alembic_config()
+    
+        command.upgrade(cfg, "head")
+    
+        tables = _table_names(db_path)
+        assert tables >= _EXPECTED_TABLES
+        assert "alembic_version" in tables
+    
+        con = sqlite3.connect(db_path)
+        try:
+            # The full catalog is seeded (Doc 04 §4.3).
+            count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
+            assert count == len(PERMISSION_CATALOG)
+            version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+>           assert version == "0035_notification_center"
+E           AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+E             
+E             - 0035_notification_center
+E             + 0036_customer_identity_resolution
+
+tests/test_migrations.py:141: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 0001_identity_and_audit, Identity & Access + Audit schema (Module 1 — Doc 03 §4, §11.2).
+INFO  [alembic.runtime.migration] Running upgrade 0001_identity_and_audit -> 0002_seed_permissions, Seed the permission catalog (Module 1 — Doc 04 §4.3).
+INFO  [alembic.runtime.migration] Running upgrade 0002_seed_permissions -> 0003_settings_feature_flags, System settings & feature flags (Module 1 — Doc 03 §11.5, §11.7).
+INFO  [alembic.runtime.migration] Running upgrade 0003_settings_feature_flags -> 0004_api_keys, API keys (Module 1 — Doc 03 §4.4).
+INFO  [alembic.runtime.migration] Running upgrade 0004_api_keys -> 0005_contacts, Contacts (Module 2 — Doc 03 §6.1).
+INFO  [alembic.runtime.migration] Running upgrade 0005_contacts -> 0006_tags_events_leads, Tags, contact events & lead pipelines (Module 2 — Doc 03 §6.2/§6.5, Doc 07 §23.2).
+INFO  [alembic.runtime.migration] Running upgrade 0006_tags_events_leads -> 0007_segments, Segments & segment rules (Module 2 — Doc 03 §6.4).
+INFO  [alembic.runtime.migration] Running upgrade 0007_segments -> 0008_custom_attributes, Custom attributes (Module 2 — Doc 03 §6.3).
+INFO  [alembic.runtime.migration] Running upgrade 0008_custom_attributes -> 0009_queue_engine, Queue engine: job metadata & dead letter (Module 6 — Doc 03 §11.7, Doc 06 §7).
+INFO  [alembic.runtime.migration] Running upgrade 0009_queue_engine -> 0010_media_assets, Media assets (Storage foundation — Doc 03 §7.2).
+INFO  [alembic.runtime.migration] Running upgrade 0010_media_assets -> 0011_imports, Contact import job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0011_imports -> 0012_exports, Contact export job records (Module 2 async — Doc 03 §11.6).
+INFO  [alembic.runtime.migration] Running upgrade 0012_exports -> 0013_bulk_jobs, Bulk contact operation job records (Module 2 Step 5C — Doc 03 §11.6 family).
+INFO  [alembic.runtime.migration] Running upgrade 0013_bulk_jobs -> 0014_waba_phone_numbers, WhatsApp infrastructure: WABAs & phone numbers (Module 4 Step 2 — Doc 03 §5.1/§5.2).
+INFO  [alembic.runtime.migration] Running upgrade 0014_waba_phone_numbers -> 0015_webhook_events, Inbound webhook storage: events & dead letter (Module 4 Step 3 — Doc 03 §9.4).
+INFO  [alembic.runtime.migration] Running upgrade 0015_webhook_events -> 0016_conversations_messages, Conversations & the message ledger (Module 4 Step 4 — Doc 03 §9.1/§9.2/§9.3).
+INFO  [alembic.runtime.migration] Running upgrade 0016_conversations_messages -> 0017_message_templates, Template registry: templates & versions (Module 5 — Doc 03 §7.1).
+INFO  [alembic.runtime.migration] Running upgrade 0017_message_templates -> 0018_campaigns, Campaign registry: campaigns & recipients (Phase 6 Step 1 — Doc 03 §8.1/§8.3).
+INFO  [alembic.runtime.migration] Running upgrade 0018_campaigns -> 0019_campaign_batches, Campaign batches: dispatch checkpoints (Phase 6 Step 2 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0019_campaign_batches -> 0020_campaign_retry_queue, Campaign retry queue (Phase 6 Step 3 — Doc 03 §8.4).
+INFO  [alembic.runtime.migration] Running upgrade 0020_campaign_retry_queue -> 0021_campaign_schedules, Campaign schedules (Phase 6 Step 4 — Doc 03 §8.2).
+INFO  [alembic.runtime.migration] Running upgrade 0021_campaign_schedules -> 0022_rate_cards, Rate cards (Phase 6 Step 5 — Doc 03 §8.5).
+INFO  [alembic.runtime.migration] Running upgrade 0022_rate_cards -> 0023_internal_notes, Internal notes (Phase 7 Step 1 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0023_internal_notes -> 0024_quick_replies, Quick replies (Phase 7 Step 4 — Doc 03 §9.5).
+INFO  [alembic.runtime.migration] Running upgrade 0024_quick_replies -> 0025_conversation_tags, Conversation tags (Phase 7 Step 5 — Doc 03 §9.7, v1.3).
+INFO  [alembic.runtime.migration] Running upgrade 0025_conversation_tags -> 0026_tasks, Task & Activity Management (Doc 14 — CRM Follow-up Engine).
+INFO  [alembic.runtime.migration] Running upgrade 0026_tasks -> 0027_analytics, Analytics & Reporting foundation (Doc 15 — Phase 8).
+INFO  [alembic.runtime.migration] Running upgrade 0027_analytics -> 0028_contact_documents, Governed customer documents (Design Book 19, Phase 4A).
+INFO  [alembic.runtime.migration] Running upgrade 0028_contact_documents -> 0029_automation_definitions, Versioned automation definitions (Design Book 22, MD5 Phase 2A).
+INFO  [alembic.runtime.migration] Running upgrade 0029_automation_definitions -> 0030_automation_test_runtime, Deterministic automation test-run ledger (Design Book 23, MD5 Phase 2B).
+INFO  [alembic.runtime.migration] Running upgrade 0030_automation_test_runtime -> 0031_automation_trigger_receipts, Durable business events and automation trigger receipts (Design Book 24).
+INFO  [alembic.runtime.migration] Running upgrade 0031_automation_trigger_receipts -> 0032_vi_domain_foundation, CORE-02 tenant-scoped Vi domain foundation.
+INFO  [alembic.runtime.migration] Running upgrade 0032_vi_domain_foundation -> 0033_kyc_operations, CORE-04 governed KYC operations persistence gaps.
+INFO  [alembic.runtime.migration] Running upgrade 0033_kyc_operations -> 0034_reactivation_crm, Owner-approved lightweight Reactivation CRM workflow.
+INFO  [alembic.runtime.migration] Running upgrade 0034_reactivation_crm -> 0035_notification_center, Durable tenant-scoped Notification Center projection.
+INFO  [alembic.runtime.migration] Running upgrade 0035_notification_center -> 0036_customer_identity_resolution, Provider-independent Customer identity resolution records.
+=========================== short test summary info ============================
+FAILED tests/test_api_vi_domain.py::test_vi_openapi_exposes_typed_permission_scoped_foundation - AssertionError: assert 200 == 193
+ +  where 200 = len({'/health': {'get': {'tags': ['Health'], 'summary': 'Liveness probe', 'description': 'Liveness: the process is running..._auth_refresh_post', 'requestBody': {'content': {'application/json': {'schema': {...}}}, 'required': True}, ...}}, ...})
+FAILED tests/test_migrations.py::test_migrations_upgrade_downgrade_roundtrip - AssertionError: assert '0036_custome...ty_resolution' == '0035_notification_center'
+  
+  - 0035_notification_center
+  + 0036_customer_identity_resolution
+================== 2 failed, 959 passed in 253.01s (0:04:13) ===================
 
 EXIT=1
 
-FIRST_FAILURE=APPLY_VERIFIED_FIXES_3
+FIRST_FAILURE=FULL_PYTEST
