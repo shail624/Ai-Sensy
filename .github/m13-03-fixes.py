@@ -56,3 +56,30 @@ replace_once(
     "from app.models.channel_connection import ChannelConnection, ChannelEndpoint, ChannelSecret\n",
     "from app.models.channel_connection import ChannelConnection, ChannelSecret\n",
 )
+
+model_path = root / "backend/app/models/channel_connection.py"
+model_source = model_path.read_text(encoding="utf-8")
+model_replacements = (
+    ("from typing import Any\n", "from typing import Any, cast\n"),
+    (
+        "from sqlalchemy.orm import Mapped, mapped_column, relationship, validates\n"
+        "from sqlalchemy.orm.attributes import NO_VALUE\n",
+        "from sqlalchemy.orm import Mapped, mapped_column, relationship, validates\n"
+        "from sqlalchemy.orm.state import InstanceState\n",
+    ),
+    (
+        "def _immutable_when_persisted(instance: object, key: str, value: str | None) -> str | None:\n"
+        "    state = inspect(instance)\n"
+        "    loaded = state.attrs[key].loaded_value\n"
+        "    if state.persistent and loaded is not NO_VALUE and loaded is not None and loaded != value:\n",
+        "def _immutable_when_persisted(instance: object, key: str, value: str | None) -> str | None:\n"
+        "    state = cast(InstanceState[Any], inspect(instance))\n"
+        "    loaded = getattr(instance, key, None)\n"
+        "    if state.persistent and loaded is not None and loaded != value:\n",
+    ),
+)
+for old, new in model_replacements:
+    if model_source.count(old) != 1:
+        raise SystemExit(f"verified model marker changed: {old!r}")
+    model_source = model_source.replace(old, new, 1)
+model_path.write_text(model_source, encoding="utf-8")
