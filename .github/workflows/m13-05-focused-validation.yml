@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
 
       - name: Preserve overlay
-        run: cp .validation/m13-05-overlay.b64 /tmp/m13-05-overlay.b64
+        run: cat .validation/m13-05-overlay/part* > /tmp/m13-05-overlay.b64
 
       - name: Restore approved baseline and overlay
         run: |
