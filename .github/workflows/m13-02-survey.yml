@@ -1,0 +1,166 @@
+name: M13-02 Repository Survey
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-02-survey
+
+permissions:
+  contents: read
+
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+
+      - name: Inspect frozen identity contract and existing authorities
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import re
+          import subprocess
+          from pathlib import Path
+
+          root = Path('.')
+          print('=== HEAD ===')
+          print(subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
+
+          def print_section(title: str, text: str, limit: int = 260) -> None:
+              print(f'\n=== {title} ===')
+              lines = text.splitlines()
+              for line in lines[:limit]:
+                  print(line)
+              if len(lines) > limit:
+                  print(f'... [{len(lines) - limit} lines omitted]')
+
+          print('\n=== CONTRACT DOCUMENT PATHS ===')
+          contract_docs: list[Path] = []
+          for path in sorted(root.glob('docs/**/*.md')):
+              text = path.read_text(encoding='utf-8', errors='replace')
+              lowered = text.lower()
+              if (
+                  'adr-0020' in lowered
+                  or 'design document 33' in lowered
+                  or 'customer identity convergence' in lowered
+                  or 'provider identity' in lowered
+                  or 'identity resolution' in lowered
+              ):
+                  contract_docs.append(path)
+                  print(path)
+
+          heading_terms = (
+              'identity', 'm13-02', 'database', 'audit', 'tenant', 'permission',
+              'conflict', 'merge', 'endpoint', 'provider', 'acceptance',
+          )
+          heading_re = re.compile(r'^(#{1,4})\s+(.+)$')
+          for path in contract_docs:
+              text = path.read_text(encoding='utf-8', errors='replace')
+              lines = text.splitlines()
+              selected: list[str] = []
+              index = 0
+              while index < len(lines):
+                  match = heading_re.match(lines[index])
+                  if match and any(term in match.group(2).lower() for term in heading_terms):
+                      level = len(match.group(1))
+                      selected.append(lines[index])
+                      index += 1
+                      while index < len(lines):
+                          next_match = heading_re.match(lines[index])
+                          if next_match and len(next_match.group(1)) <= level:
+                              break
+                          selected.append(lines[index])
+                          index += 1
+                      selected.append('')
+                      continue
+                  index += 1
+              if selected:
+                  print_section(f'CONTRACT EXCERPTS: {path}', '\n'.join(selected), 420)
+
+          for path_name in ('ENGINEERING_STANDARDS.md', 'REPOSITORY_RULES.md'):
+              path = root / path_name
+              if not path.exists():
+                  continue
+              lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
+              selected: list[str] = []
+              for idx, line in enumerate(lines):
+                  low = line.lower()
+                  if any(term in low for term in (
+                      'ruff', 'mypy', 'pytest', 'vitest', 'typecheck', 'production build',
+                      'acceptance gate', 'repository validated', 'host validated',
+                      'migration', 'conventional commit', 'one commit', 'tenant', 'rbac',
+                  )):
+                      start = max(0, idx - 2)
+                      end = min(len(lines), idx + 5)
+                      selected.extend(lines[start:end])
+                      selected.append('---')
+              print_section(f'STANDARD EXCERPTS: {path_name}', '\n'.join(selected), 360)
+
+          patterns = [
+              re.compile(pattern, re.I)
+              for pattern in (
+                  r'class\s+Contact\b', r'class\s+Customer\b', r'AuditLog', r'class\s+Audit',
+                  r'Timeline', r'organization_id', r'permission', r'identity', r'merge',
+                  r'endpoint', r'contact_id', r'customer_id', r'ChannelAdapter', r'CapabilityRegistry',
+              )
+          ]
+          candidates: dict[Path, list[tuple[int, str]]] = {}
+          for path in sorted(root.glob('backend/app/**/*.py')):
+              lines = path.read_text(encoding='utf-8', errors='replace').splitlines()
+              hits: list[tuple[int, str]] = []
+              for line_no, line in enumerate(lines, start=1):
+                  if any(pattern.search(line) for pattern in patterns):
+                      hits.append((line_no, line.rstrip()))
+              if hits:
+                  candidates[path] = hits
+
+          print('\n=== BACKEND AUTHORITY INVENTORY ===')
+          ranked = sorted(
+              candidates.items(),
+              key=lambda item: (
+                  -sum(1 for _, line in item[1] if re.search(r'class\s+(Contact|Customer|Audit)|identity|merge|ChannelAdapter', line, re.I)),
+                  str(item[0]),
+              ),
+          )
+          for path, hits in ranked[:80]:
+              print(f'\n-- {path} --')
+              for line_no, line in hits[:28]:
+                  print(f'{line_no}: {line}')
+              if len(hits) > 28:
+                  print(f'... [{len(hits) - 28} hits omitted]')
+
+          print('\n=== MODEL / SERVICE / AUDIT FILE LISTS ===')
+          for glob_pattern in (
+              'backend/app/models/*.py',
+              'backend/app/services/*contact*.py',
+              'backend/app/services/*customer*.py',
+              'backend/app/services/*audit*.py',
+              'backend/app/services/*timeline*.py',
+              'backend/app/api/v1/*contact*.py',
+              'backend/app/api/v1/*customer*.py',
+              'backend/app/api/v1/*audit*.py',
+              'backend/app/channels/*.py',
+              'backend/tests/*contact*.py',
+              'backend/tests/*customer*.py',
+              'backend/tests/*audit*.py',
+          ):
+              for path in sorted(root.glob(glob_pattern)):
+                  print(path)
+
+          print('\n=== MIGRATION HEAD ===')
+          versions = sorted(root.glob('backend/alembic/versions/*.py'))
+          for path in versions[-8:]:
+              print(path)
+
+          print('\n=== PACKAGE / TEST COMMANDS ===')
+          for path_name in ('backend/pyproject.toml', 'frontend/package.json'):
+              path = root / path_name
+              if path.exists():
+                  print_section(path_name, path.read_text(encoding='utf-8', errors='replace'), 260)
+          PY
