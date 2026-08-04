@@ -27,7 +27,10 @@ jobs:
       - name: Apply exact M13-03 patch
         run: |
           test "$(git -C work rev-parse HEAD)" = "283ebe83b53a510ce671f150bfe14fe38a5292f6"
-          base64 --decode builder/.github/m13-03.patch.gz.b64 | gzip --decompress > /tmp/m13-03.patch
+          cat builder/.github/m13-03-patch/part* > /tmp/m13-03.patch.gz.b64
+          test "$(sha256sum /tmp/m13-03.patch.gz.b64 | cut -d' ' -f1)" = "4ab5a723e7f5127c77a60e39636f6de96cfe10e9945cee87b011d9481facdbe9"
+          base64 --decode /tmp/m13-03.patch.gz.b64 | gzip --decompress > /tmp/m13-03.patch
+          test "$(wc -c < /tmp/m13-03.patch)" = "84921"
           git -C work apply --index /tmp/m13-03.patch
           git -C work diff --cached --check
       - name: Set up Python
