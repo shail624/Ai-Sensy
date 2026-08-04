@@ -23,6 +23,12 @@ jobs:
         shell: bash
         run: |
           failure="$(grep '^FIRST_FAILURE=' M13_02_GATE_DIAGNOSTIC.txt | tail -n 1 | cut -d= -f2-)"
+          stage="$(mktemp)"
+          if [ -n "$failure" ]; then
+            sed -n "/^=== ${failure} ===$/,/^EXIT=/p" M13_02_GATE_DIAGNOSTIC.txt > "$stage"
+          else
+            tail -n 300 M13_02_GATE_DIAGNOSTIC.txt > "$stage"
+          fi
           {
             echo '=== STATUS ==='
             grep -E '^(FIRST_FAILURE|ALL_DIAGNOSTIC_GATES_PASS|BASELINE|RUN)=' M13_02_GATE_DIAGNOSTIC.txt || true
@@ -30,12 +36,11 @@ jobs:
             echo '=== STAGE RESULTS ==='
             grep -E '^=== |^EXIT=' M13_02_GATE_DIAGNOSTIC.txt || true
             echo
-            echo '=== FAILING STAGE OUTPUT ==='
-            if [ -n "$failure" ]; then
-              sed -n "/^=== ${failure} ===$/,/^EXIT=/p" M13_02_GATE_DIAGNOSTIC.txt
-            else
-              tail -n 160 M13_02_GATE_DIAGNOSTIC.txt
-            fi
+            echo '=== ROOT CAUSE LINES ==='
+            grep -E '(^FAILED |^ERROR |^E   |short test summary|failed,|passed,|AssertionError|IntegrityError|OperationalError|InvalidRequestError|TypeError|ValueError|KeyError|AttributeError|ConflictError|NotFoundError|VersionConflictError|sqlalchemy\.exc|pydantic_core|fastapi\.exceptions)' "$stage" || true
+            echo
+            echo '=== FAILURE TAIL ==='
+            tail -n 180 "$stage"
           } > M13_02_GATE_SUMMARY.txt
 
       - name: Commit concise report
