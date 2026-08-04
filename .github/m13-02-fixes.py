@@ -118,3 +118,9 @@ replace_expected(
     '        assert identity.contact_id == primary["row_version"] + 1\n',
     '        primary_row = (\n            await session.scalars(select(Contact).where(Contact.wa_id == "14155550001"))\n        ).one()\n        assert identity.contact_id == primary_row.id\n',
 )
+replace_expected(
+    "backend/tests/test_identity_resolution.py",
+    '"future-provider"',
+    '"future_provider"',
+    count=6,
+)
