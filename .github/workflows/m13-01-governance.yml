@@ -1,0 +1,409 @@
+name: M13-01 Governance Closeout
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-01-governance
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-01-generic-channel-foundation
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Synchronize M13-01 governance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import re
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          timestamp = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat(timespec="seconds")
+
+          project_state = f'''# Project State
+
+          > Current repository snapshot. GitHub is the implementation source of truth. `HEAD` is symbolic
+          > because a commit cannot embed its own final hash; resolve it after push with `git rev-parse HEAD`.
+
+          | Field | Current value |
+          |---|---|
+          | Current branch | `ui/taste-modernization` |
+          | M13-01 starting baseline | `8b878bdbd21877cf3f77eac5e9bb209d6b6022be` (`docs(omnichannel): freeze M13-00 implementation contract`) |
+          | Current Git HEAD | `HEAD` (M13-01 closeout; resolve after push) |
+          | Current milestone | `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED` |
+          | Current phase | `Provider-neutral omnichannel contracts delivered; no provider/runtime/persistence workflow started` |
+          | Repository version | `1.0.0-rc1` |
+          | Migration head | `0035_notification_center` (35 linear revisions; unchanged) |
+          | OpenAPI | `3.1.0` · `193` paths · generated TypeScript authority unchanged |
+          | Backend evidence | Ruff PASS · strict mypy PASS across 263 source files · 46 focused tests PASS · 955 full pytest tests PASS |
+          | Frontend evidence | Unchanged source; production audit high threshold PASS · ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
+          | Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
+          | M13 contract | ADR-0020 and Design Document 33 remain frozen and authoritative |
+          | Module 13 implementation | `8%` evidence-based estimate: provider-neutral in-process foundation only; no channel connection persistence or provider behavior |
+          | QR provider | Not selected; Required evaluation remains external |
+          | Next Module 13 milestone | `M13-02`; not authorized and not started |
+          | Host evidence | Not applicable to this backend-only non-executable foundation; no Host Validated or Production Ready claim |
+          | Worktree expectation | Seven foundation/test files plus required governance only; no migration, route, generated contract, dependency, provider, frontend or runtime change |
+          | Last update | `{timestamp}` (Asia/Kolkata) |
+
+          ## M13-01 delivered foundation
+
+          - Added immutable provider-independent communication intent, communication policy, channel
+            metadata, health and lifecycle contracts plus shared enums and validation.
+          - Added thread-safe provider and capability catalogues that store metadata only and delegate
+            adapter creation to the existing `ChannelAdapter` registry.
+          - Added fail-closed communication-policy evaluation over organization scope, channel family,
+            purpose, origin, bulk behavior and required capabilities.
+          - Added disabled-by-default `omnichannel_connections_read` and
+            `omnichannel_connections_write` scaffolding over the existing organization-scoped
+            `feature_flags` authority, with organization overrides taking precedence over global rows.
+          - Added typed dependency-injection composition without registering a provider or changing
+            application startup behavior.
+
+          ## Preserved boundaries
+
+          - No QR pairing, session login, WhatsApp Web runtime, Meta runtime, history synchronization,
+            live messaging, provider adapter, provider dependency or provider-specific branch exists.
+          - No Contact, Customer 360, Timeline, Inbox, Notification Center, Analytics, media, message,
+            audit or `ChannelAdapter` authority was duplicated.
+          - No model table, Alembic revision, API route, OpenAPI document, generated client, package,
+            frontend source, queue, deployment or feature exposure changed.
+          - Provider metadata catalogues are empty by default and feature flags are off when absent.
+
+          ## Validation boundary
+
+          Repository validation proves domain invariants, policy decisions, registry parity, flag
+          precedence, DI stability, lint, typing, full backend regression and unchanged frontend build.
+          It does not prove provider certification, persisted connection lifecycle, browser/operator
+          workflows, runtime health, production performance or disaster recovery.
+
+          ## Required remaining contract work
+
+          Design Document 33's persistent channel connection, endpoint, secret and Meta-backfill work
+          remains Required and unimplemented. The owner-approved M13-01 scope for this commit is the
+          generic in-process foundation only. The persistence/backfill work is not silently moved into
+          M13-02 and requires explicit sequencing before provider or runtime milestones.
+
+          ## Existing UI modernization state
+
+          UI-TASTE-03A remains implemented and repository-validated with authenticated host review
+          pending. M13-01 does not alter the UI modernization sequence.
+
+          ## Maintenance rule
+
+          Stop after M13-01. Do not begin M13-02, persistence/backfill work, provider selection or any
+          provider/runtime implementation without a separate explicit owner instruction.
+          '''
+          Path("PROJECT_STATE.md").write_text(re.sub(r"^          ", "", project_state, flags=re.M))
+
+          tracker = f'''# Implementation Tracker (canonical)
+
+          > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
+          > engineering evidence separate from host/provider/runtime acceptance.
+
+          _Last updated: 2026-08-04 · M13-01 Generic Channel Foundation is Repository Validated. No
+          provider, persisted channel connection or executable omnichannel workflow has started._
+
+          ## Current state
+
+          - **Branch:** `ui/taste-modernization`
+          - **Baseline:** `8b878bdbd21877cf3f77eac5e9bb209d6b6022be`
+          - **Release:** `1.0.0-rc1`
+          - **Migration/OpenAPI:** `0035_notification_center` · 193 paths · unchanged
+          - **Current milestone:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`
+          - **Module 13 completion:** `8%` evidence-based foundation estimate
+          - **Provider selection:** pending; no provider is registered
+          - **Next milestone:** `M13-02` — not authorized
+          - **Last synchronized:** `{timestamp}`
+
+          ## Delivered
+
+          | Area | Repository result |
+          |---|---|
+          | Existing abstraction | `ChannelAdapter` remains the sole adapter/factory seam |
+          | Shared domain | Communication Intent, Communication Policy, Channel Metadata, Provider Health and Provider Lifecycle immutable contracts |
+          | Enums | Provider-independent purpose, origin, desired/observed state and health vocabularies |
+          | Registries | Thread-safe provider metadata and capability registries; adapter resolution delegates to existing `get_adapter` |
+          | Validation | Connector/text/time/score/capability validation and fail-closed policy evaluation |
+          | Feature flags | Two frozen generic connection flags resolved through existing global/organization `FeatureFlag` rows; absent means disabled |
+          | Dependency injection | Cached empty foundation container and request-scoped flag resolver wiring |
+          | Regression coverage | Seven new foundation tests plus existing channel/config regression suite |
+
+          ## Validation
+
+          - Ruff PASS.
+          - Strict mypy PASS across 263 source files.
+          - Focused channel/config suite: 46 PASS.
+          - Full backend suite: 955 PASS in 260.89 seconds in validation run `30886853478`.
+          - Frontend production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and
+            production build PASS with unchanged source.
+          - Bundle output is unchanged: CSS 49.90/9.90 kB gzip, main 733.62/178.16 kB gzip and
+            Operational Dashboard 31.96/8.61 kB gzip.
+          - Exact seven-file provider-neutral boundary PASS.
+
+          ## Explicitly absent
+
+          QR pairing, sessions, provider runtimes, provider adapters, history synchronization, live
+          messaging, database records/migrations, API routes, generated contracts, UI, Contact/Inbox/
+          Customer 360/Timeline/Notification/Analytics changes and new dependencies are absent.
+
+          ## Remaining work
+
+          - Persistent channel connection, endpoint and secret records plus Meta backfill remain a
+            Required frozen-contract gap and need explicit owner sequencing.
+          - M13-02 identity convergence is not authorized.
+          - Provider evaluation, runtime, pairing, inbound/history, outbound and unified operator
+            experience remain later gated work.
+
+          ## Stop rule
+
+          Do not begin M13-02 or any unassigned persistence/provider work. Any architecture, scope,
+          abstraction or milestone-order deviation requires owner approval and an additive ADR.
+          '''
+          Path("IMPLEMENTATION_TRACKER.md").write_text(re.sub(r"^          ", "", tracker, flags=re.M))
+
+          def replace_section(path: str, start: str, end: str, replacement: str) -> None:
+              file_path = Path(path)
+              text = file_path.read_text()
+              start_index = text.find(start)
+              end_index = text.find(end, start_index)
+              if start_index < 0 or end_index < 0:
+                  raise SystemExit(f"section markers missing in {path}: {start!r} / {end!r}")
+              file_path.write_text(text[:start_index] + replacement.rstrip() + "\n\n" + text[end_index:])
+
+          module_section = f'''## Module 13 — M13-01 generic channel foundation
+
+          - **Module:** Enterprise Omnichannel Channel Manager.
+          - **Milestone status:** `M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED`.
+          - **Completion:** `8%` evidence-based estimate for provider-neutral in-process foundations.
+          - **Delivered:** immutable intent/policy/metadata/health/lifecycle contracts, shared enums and
+            validation, provider/capability metadata registries over the existing adapter registry,
+            existing-table feature-flag scaffolding and typed DI.
+          - **Preserved:** no provider, runtime, persistent connection record, migration, API route,
+            generated contract, frontend or duplicate CRM authority.
+          - **Required gap:** persistent connection/endpoint/secret records and Meta backfill from the
+            frozen contract remain unimplemented and require explicit sequencing.
+          - **Next:** M13-02 is not authorized and has not started.
+          - **Last synchronized:** `{timestamp}`.
+          '''
+          replace_section(
+              "MODULE_STATUS.md",
+              "## Module 13 —",
+              "## UI Taste Modernization",
+              re.sub(r"^          ", "", module_section, flags=re.M),
+          )
+          module_path = Path("MODULE_STATUS.md")
+          module_text = module_path.read_text()
+          module_text = re.sub(
+              r"Last synchronized: `[^`]+`\.",
+              f"Last synchronized: `{timestamp}`.",
+              module_text,
+              count=1,
+          )
+          replacement_row = (
+              "| Enterprise Omnichannel Channel Manager | 8% | M13-00 contract plus M13-01 provider-neutral "
+              "intent/policy/metadata/health/lifecycle contracts, registries, validation, flags and DI are "
+              "Repository Validated; existing ChannelAdapter is reused | Persistent connection/endpoint/secret "
+              "records and Meta backfill remain Required; no provider/runtime/API/UI exists; M13-02 not authorized | "
+              "Existing ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |"
+          )
+          lines = module_text.splitlines()
+          replaced = False
+          for index, line in enumerate(lines):
+              if line.startswith("| Enterprise Omnichannel Channel Manager |"):
+                  lines[index] = replacement_row
+                  replaced = True
+                  break
+          if not replaced:
+              raise SystemExit("Module 13 status row missing")
+          module_path.write_text("\n".join(lines) + "\n")
+
+          roadmap_section = f'''## Module 13 — Enterprise Omnichannel Channel Manager
+
+          **Current status: M13-01 — Generic Channel Foundation — REPOSITORY VALIDATED**
+
+          ADR-0020 and Design Document 33 remain frozen. M13-01 implements only the owner-approved,
+          provider-neutral in-process foundation: shared communication intent/policy/metadata/health/
+          lifecycle contracts, validation, metadata registries over the existing `ChannelAdapter`,
+          two disabled-by-default generic feature flags and typed DI. No provider or executable channel
+          workflow exists.
+
+          The original frozen contract also requires persistent channel connection, endpoint and secret
+          records plus Meta backfill. Those items are explicitly **not complete**, are not silently moved
+          into M13-02, and require a separately approved sequencing decision before provider/runtime work.
+
+          | Milestone | Objective | Status / start gate |
+          |---|---|---|
+          | M13-00 — Architecture & Provider Lock | Freeze architecture, provider, security, session, identity, API/database, rollback, rollout and validation contracts | **REPOSITORY VALIDATED** |
+          | M13-01 — Generic Channel Foundation | Add provider-independent domain contracts, registries, validation, generic flags and DI while reusing `ChannelAdapter` | **REPOSITORY VALIDATED**; no provider/runtime/persistence workflow |
+          | Required connection persistence/backfill gate | Add frozen connection/endpoint/secret persistence and Meta backfill | Unassigned; separate owner sequencing required; not M13-02 |
+          | M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | Not authorized; blocked by explicit owner instruction and required foundation gates |
+          | M13-03 — Session and connection control plane | Durable session state, lease/fencing and runtime foundation | Blocked by provider approval, persistence and M13-02 |
+          | M13-04 — QR pairing and health | Pairing, devices, reconnect, re-authentication and diagnostics | Blocked by M13-03 security/runtime evidence |
+          | M13-05 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | Blocked by provider certification |
+          | M13-06 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
+          | M13-07 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by stable source milestones |
+          | M13-08 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
+          | M13-09 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
+
+          Stop after M13-01. No M13-02, persistence/backfill, provider selection or runtime work begins
+          automatically.
+          '''
+          replace_section(
+              "ROADMAP.md",
+              "## Module 13 — Enterprise Omnichannel Channel Manager",
+              "## Phase 0 — Governance and scope lock",
+              re.sub(r"^          ", "", roadmap_section, flags=re.M),
+          )
+          roadmap_path = Path("ROADMAP.md")
+          roadmap_text = roadmap_path.read_text()
+          roadmap_text = re.sub(
+              r"Last synchronized: `[^`]+`\.",
+              f"Last synchronized: `{timestamp}`.",
+              roadmap_text,
+              count=1,
+          )
+          roadmap_path.write_text(roadmap_text)
+
+          validation_path = Path("VALIDATION_RESULTS.md")
+          validation_text = validation_path.read_text()
+          validation_text = re.sub(
+              r"Last synchronized: `[^`]+`\.",
+              f"Last synchronized: `{timestamp}`.",
+              validation_text,
+              count=1,
+          )
+          marker = "## M13-00 Architecture & Provider Lock"
+          if validation_text.count(marker) != 1:
+              raise SystemExit("M13-00 validation marker mismatch")
+          validation_section = '''## M13-01 Generic Channel Foundation
+
+          | Validation item | Status | Latest evidence |
+          |---|---|---|
+          | Latest Git baseline | PASS | Work starts from `8b878bdbd21877cf3f77eac5e9bb209d6b6022be` on `ui/taste-modernization`. |
+          | Existing adapter reuse | PASS | Provider metadata resolution delegates to the existing `get_adapter`; no second adapter factory or provider-specific service exists. |
+          | Provider/capability registries | PASS | Thread-safe registries reject conflicting metadata, expose factual capabilities and remain empty by default. |
+          | Communication intent and policy | PASS | Immutable organization-aware contracts cover channel, purpose, origin, bulk and required capabilities; policy evaluation fails closed with explicit reasons. |
+          | Health, lifecycle, metadata and enums | PASS | Immutable provider-independent states validate connector identity, timezone-aware observation, score and retry facts without inventing provider health. |
+          | Shared validation | PASS | Connector, text, organization, timestamp, score and capability validation use the existing channel error boundary. |
+          | Feature flags | PASS | `omnichannel_connections_read/write` use existing `feature_flags`; absent is off and organization rows override global rows. |
+          | Dependency injection | PASS | Cached empty foundation and request-scoped flag resolver are wired through existing API dependency conventions without startup/provider side effects. |
+          | Focused validation | PASS | Ruff, strict mypy and 46 channel/config tests pass, including seven new foundation regressions. |
+          | Full backend suite | PASS | 955 pytest tests pass in 260.89 seconds; strict mypy reports no issues across 263 source files. |
+          | Frontend repository gate | PASS | Unchanged frontend passes production audit high threshold, ESLint, TypeScript, 34 files / 661 tests and production build. |
+          | Bundle impact | PASS | No frontend source changed; main remains 733.62/178.16 kB gzip and Operational Dashboard remains 31.96/8.61 kB gzip. |
+          | Migration/API/dependency boundary | PASS | Migration remains `0035_notification_center`, OpenAPI remains 193 paths, generated client and packages are unchanged. |
+          | Provider/runtime boundary | PASS | No QR/Meta runtime, pairing, session, history, live messaging, provider adapter or provider dependency exists. |
+          | Shared-authority boundary | PASS | Contact, Inbox, Customer 360, Timeline, Notification Center, Analytics, media, message and audit authorities are unchanged. |
+          | Exact changed-file boundary | PASS | Seven backend/test files only before governance; no migration, API v1, provider package, model table or frontend file. |
+          | Host/production evidence | PASS | Correctly limited to Repository Validated; no provider, host workflow, runtime performance, DR, Production Ready or Released claim. |
+          | Remaining contract gap | PASS | Persistent connection/endpoint/secret records and Meta backfill are explicitly recorded as Required and unimplemented. |
+          | Milestone boundary | PASS | M13-02 and all provider/runtime work remain unstarted. |
+
+          '''
+          validation_path.write_text(
+              validation_text.replace(
+                  marker,
+                  re.sub(r"^          ", "", validation_section, flags=re.M) + marker,
+                  1,
+              )
+          )
+
+          changelog_path = Path("CHANGELOG.md")
+          changelog = changelog_path.read_text()
+          changelog_marker = "### 2026-08-04 — Module 13 implementation contract (M13-00)"
+          if changelog.count(changelog_marker) != 1:
+              raise SystemExit("M13-00 changelog marker mismatch")
+          changelog_section = '''### 2026-08-04 — Generic Channel Foundation (M13-01)
+
+          **Added**
+          - Added provider-independent Communication Intent, Communication Policy, Channel Metadata,
+            Provider Health and Provider Lifecycle contracts with shared enums and validation.
+          - Added provider metadata and capability registries that delegate adapter creation to the
+            existing `ChannelAdapter` registry rather than creating a parallel provider system.
+          - Added two disabled-by-default generic connection flags over the existing organization-scoped
+            `FeatureFlag` table and typed dependency-injection composition.
+          - Added seven focused tests for registry parity/conflict handling, policy decisions, factual
+            health/lifecycle validation, feature-flag precedence and DI stability.
+
+          **Preserved**
+          - No provider implementation, QR pairing, session/runtime, history, live messaging, database
+            migration, API route, OpenAPI/client, dependency, frontend or shared CRM-authority change.
+          - Contact, Customer 360, Timeline, Inbox, Notification Center, Analytics and the existing
+            `ChannelAdapter` remain authoritative and unchanged.
+
+          **Validated**
+          - Ruff and strict mypy pass across 263 source files; 46 focused and 955 full backend tests pass.
+          - The unchanged frontend passes production audit high threshold, ESLint, TypeScript, 661 tests
+            and build with no bundle change.
+          - M13-01 reaches `Repository Validated`; persistent channel records/Meta backfill remain a
+            Required unimplemented contract gap, and M13-02 is not authorized.
+
+          '''
+          changelog_path.write_text(
+              changelog.replace(
+                  changelog_marker,
+                  re.sub(r"^          ", "", changelog_section, flags=re.M) + changelog_marker,
+                  1,
+              )
+          )
+          PY
+
+      - name: Validate governance and changed-file boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          expected = {
+              "CHANGELOG.md",
+              "IMPLEMENTATION_TRACKER.md",
+              "MODULE_STATUS.md",
+              "PROJECT_STATE.md",
+              "ROADMAP.md",
+              "VALIDATION_RESULTS.md",
+          }
+          actual = set(
+              subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()
+          )
+          if actual != expected:
+              raise SystemExit(f"governance boundary mismatch: expected={sorted(expected)} actual={sorted(actual)}")
+          required = {
+              "PROJECT_STATE.md": ["M13-01", "REPOSITORY VALIDATED", "955", "M13-02"],
+              "MODULE_STATUS.md": ["M13-01", "8%", "Persistent connection"],
+              "IMPLEMENTATION_TRACKER.md": ["M13-01", "263", "661", "M13-02"],
+              "ROADMAP.md": ["M13-01", "Required connection persistence/backfill gate", "M13-02"],
+              "VALIDATION_RESULTS.md": ["## M13-01", "955", "733.62", "M13-02"],
+              "CHANGELOG.md": ["Generic Channel Foundation", "ChannelAdapter", "Repository Validated"],
+          }
+          for path, tokens in required.items():
+              text = Path(path).read_text()
+              missing = [token for token in tokens if token not in text]
+              if missing:
+                  raise SystemExit(f"{path} missing {missing}")
+          print("M13-01 governance validation PASS")
+          PY
+
+      - name: Commit governance to work branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md
+          git commit -m 'docs(governance): close M13-01 foundation'
+          git push origin HEAD:work/m13-01-generic-channel-foundation
