@@ -1,0 +1,97 @@
+name: M13-04 validated finalization
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout finalization authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-04-builder
+          path: builder
+          clean: false
+      - name: Checkout approved target
+        uses: actions/checkout@v4
+        with:
+          ref: ui/taste-modernization
+          fetch-depth: 0
+          path: work
+          clean: false
+      - name: Apply exact validated M13-04 tree
+        run: |
+          test "$(git -C work rev-parse HEAD)" = "9d8f379f09719820c847be2b7c7df301e1617977"
+          test -z "$(git -C work status --porcelain)"
+          cat builder/.github/m13-04-final/part* > /tmp/m13-04-final.patch.gz.b64
+          test "$(sha256sum /tmp/m13-04-final.patch.gz.b64 | cut -d' ' -f1)" = "d7b72d3cf1e0849eb92a93c6af6192f670f3ae78c0f41179a9f5fdace6d6412a"
+          test "$(wc -c < /tmp/m13-04-final.patch.gz.b64)" = "29488"
+          base64 --decode /tmp/m13-04-final.patch.gz.b64 | gzip --decompress > /tmp/m13-04-final.patch
+          test "$(sha256sum /tmp/m13-04-final.patch | cut -d' ' -f1)" = "5ade4c22cf99492331b2ba0cec0bfb87573c18a5e4a808bc875c0a575630c898"
+          test "$(wc -c < /tmp/m13-04-final.patch)" = "114093"
+          git -C work apply --index /tmp/m13-04-final.patch
+          git -C work diff --cached --check
+      - name: Verify exact milestone boundary
+        working-directory: work
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          expected = {
+              'CHANGELOG.md',
+              'IMPLEMENTATION_TRACKER.md',
+              'MODULE_STATUS.md',
+              'PROJECT_STATE.md',
+              'ROADMAP.md',
+              'VALIDATION_RESULTS.md',
+              'backend/alembic/versions/0038_qr_session_manager_foundation.py',
+              'backend/app/channels/flags.py',
+              'backend/app/channels/session.py',
+              'backend/app/models/__init__.py',
+              'backend/app/models/channel_session.py',
+              'backend/app/rbac/catalog.py',
+              'backend/app/repositories/channel_session.py',
+              'backend/app/services/audit_service.py',
+              'backend/app/services/session_manager.py',
+              'backend/tests/test_migrations.py',
+              'backend/tests/test_session_manager.py',
+          }
+          actual = set(subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-only'], text=True
+          ).splitlines())
+          assert actual == expected, f'boundary mismatch: {sorted(actual ^ expected)}'
+
+          forbidden = subprocess.check_output([
+              'git', 'diff', '--cached', '--name-only', '--',
+              'backend/app/api',
+              'frontend/src',
+              'frontend/openapi.json',
+              'frontend/src/lib/api/schema.d.ts',
+              'backend/app/channels/meta',
+              'backend/app/channels/tasks.py',
+              'backend/app/models/contact_identity.py',
+              'backend/app/repositories/contact_identity.py',
+              'backend/app/services/identity_resolution_service.py',
+              'backend/app/services/channel_connection_service.py',
+              'backend/app/channels/secrets.py',
+          ], text=True).strip()
+          assert not forbidden, forbidden
+          PY
+          test "$(git diff --cached --name-only | wc -l)" = "17"
+          git diff --cached --check
+      - name: Create and push single milestone commit
+        working-directory: work
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(channels): add session manager foundation'
+          git push origin HEAD:work/m13-04-session-manager-foundation --force-with-lease
+          git fetch origin work/m13-04-session-manager-foundation
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/work/m13-04-session-manager-foundation)"
+          test "$(git rev-list --count 9d8f379f09719820c847be2b7c7df301e1617977..HEAD)" = "1"
+          echo "M13_04_COMMIT=$(git rev-parse HEAD)"
