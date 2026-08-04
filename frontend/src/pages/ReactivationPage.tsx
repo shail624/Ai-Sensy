@@ -1,46 +1,118 @@
-import { ArrowRight, CheckCircle2, DatabaseZap, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronDown, Layers3, LockKeyhole, Radar } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Badge, Button, Card, CardHeader, EmptyState } from "@/components/ui";
-import { AiFoundationPanel } from "@/features/ai";
-import { DocumentCenter, ReactivationPipelineBoard, ReactivationReports, REACTIVATION_SECTIONS } from "@/features/reactivation";
+import { Badge, Card } from "@/components/ui";
+import {
+  DocumentCenter,
+  ReactivationMissionControl,
+  ReactivationPipelineBoard,
+  ReactivationReports,
+  REACTIVATION_FOUNDATION_SECTIONS,
+  REACTIVATION_LIVE_SECTIONS,
+  REACTIVATION_SECTIONS,
+} from "@/features/reactivation";
 import { KycOperationsWorkspace } from "@/features/kyc";
 
 export function ReactivationPage(): JSX.Element {
   const location = useLocation();
+  const isOverview = location.pathname === "/reactivation" || location.pathname === "/reactivation/";
   const active = REACTIVATION_SECTIONS.find((section) => location.pathname.startsWith(section.path));
+  const title = isOverview ? "Mission Control" : active?.label ?? "Reactivation";
+  const description = isOverview
+    ? "Prioritize customer work by urgency, SLA, release date, evidence, ownership and the next required action."
+    : active?.description ?? "One governed workspace for the complete reactivation journey.";
+  const status = isOverview || active?.operationalGroup === "live" ? "Live operations" : "Capability boundary";
+
   return (
     <PageContainer>
-      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Reactivation", to: "/reactivation" }, ...(active ? [{ label: active.label }] : [])]} />
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", to: "/" },
+          { label: "Reactivation", to: "/reactivation" },
+          ...(isOverview || !active ? [] : [{ label: active.label }]),
+        ]}
+      />
       <PageHeader
-        eyebrow="Vi customer journey"
-        title={active?.label ?? "Reactivation"}
-        description={active?.description ?? "One governed workspace for the complete reactivation journey, built over the production CRM and explicit domain integration boundaries."}
-        meta={<><Badge tone={active?.phase === "Connected" ? "success" : "info"} dot>{active?.phase ?? "Phase 3 workspace"}</Badge><span>Verified data only · no inferred customer state</span></>}
+        eyebrow="Vi Reactivation operations"
+        title={title}
+        description={description}
+        meta={
+          <>
+            <Badge tone={status === "Live operations" ? "success" : "neutral"} dot>{status}</Badge>
+            <span>Persisted tenant-scoped data · source permissions remain authoritative</span>
+          </>
+        }
+        actions={
+          !isOverview ? (
+            <Link
+              to="/reactivation"
+              className="inline-flex min-h-9 items-center gap-2 rounded-control border border-border bg-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              <Radar aria-hidden className="h-4 w-4" /> Mission Control
+            </Link>
+          ) : undefined
+        }
       />
 
-      <nav aria-label="Reactivation sections" className="mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface p-2 shadow-sm">
-        {REACTIVATION_SECTIONS.map((section) => {
-          const Icon = section.icon;
-          return <NavLink key={section.key} to={section.path} className={({isActive}) => `flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors ${isActive ? "bg-accent text-accent-fg shadow-sm" : "text-text-secondary hover:bg-hover hover:text-text-primary"}`}><Icon aria-hidden className="h-4 w-4" />{section.shortLabel}</NavLink>;
-        })}
-      </nav>
+      <div className="mb-5 space-y-2">
+        <nav
+          aria-label="Live Reactivation workspaces"
+          className="flex gap-1.5 overflow-x-auto rounded-surface border border-border bg-surface p-1.5 shadow-sm"
+        >
+          <NavLink
+            end
+            to="/reactivation"
+            className={({ isActive }) => navClass(isActive)}
+          >
+            <Radar aria-hidden className="h-4 w-4" /> Mission Control
+          </NavLink>
+          {REACTIVATION_LIVE_SECTIONS.map((section) => {
+            const Icon = section.icon;
+            return (
+              <NavLink key={section.key} to={section.path} className={({ isActive }) => navClass(isActive)}>
+                <Icon aria-hidden className="h-4 w-4" />{section.shortLabel}
+              </NavLink>
+            );
+          })}
+        </nav>
+
+        <details className="group rounded-control border border-dashed border-border bg-surface-2">
+          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 text-xs font-semibold text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2"><Layers3 aria-hidden className="h-4 w-4" /> Foundation capability routes</span>
+            <span className="flex items-center gap-2"><Badge tone="neutral">Not active queues</Badge><ChevronDown aria-hidden className="h-4 w-4 transition-transform group-open:rotate-180" /></span>
+          </summary>
+          <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-2 xl:grid-cols-3">
+            {REACTIVATION_FOUNDATION_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              return (
+                <Link
+                  key={section.key}
+                  to={section.path}
+                  className="flex min-h-12 items-center gap-3 rounded-control border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-surface-2 text-text-secondary"><Icon aria-hidden className="h-4 w-4" /></span>
+                  <span className="min-w-0"><span className="block text-xs font-semibold text-text-primary">{section.label}</span><span className="mt-0.5 block truncate text-[11px] text-text-secondary">Uses an existing source workflow</span></span>
+                </Link>
+              );
+            })}
+          </div>
+        </details>
+      </div>
 
       <Outlet />
     </PageContainer>
   );
 }
 
+function navClass(isActive: boolean): string {
+  return `flex min-h-10 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+    isActive ? "bg-accent text-accent-fg shadow-sm" : "text-text-secondary hover:bg-hover hover:text-text-primary"
+  }`;
+}
+
 export function ReactivationOverview(): JSX.Element {
-  return <div className="space-y-6">
-    <Card className="overflow-hidden" padding={false}>
-      <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="p-6 sm:p-8"><CardHeader title="One governed customer journey" description="The live pipeline uses persisted reactivation cases while later operational workspaces remain milestone-gated." icon={<Sparkles aria-hidden className="h-5 w-5" />} /><div className="mt-6 grid gap-3 sm:grid-cols-2">{REACTIVATION_SECTIONS.map((section) => {const Icon=section.icon; return <Link key={section.key} to={section.path} className="group flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 transition-colors hover:border-accent"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface text-accent"><Icon aria-hidden className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-medium text-text-primary">{section.label}</span><span className="block text-xs text-text-secondary">{section.phase}</span></span><ArrowRight aria-hidden className="h-4 w-4 text-text-disabled group-hover:text-accent" /></Link>;})}</div></div>
-        <div className="border-t border-border bg-[linear-gradient(145deg,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><h2 className="text-sm font-semibold text-text-primary">Phase 3 operating model</h2><ul className="mt-4 space-y-3">{[[CheckCircle2,"Persisted cases, tasks, documents and CRM evidence are reused"],[ShieldCheck,"Permissions, audit and server transition boundaries remain authoritative"],[DatabaseZap,"Later KYC, fulfilment and activation workspaces remain milestone-gated"]].map(([Icon,label]) => {const Glyph=Icon as typeof CheckCircle2; return <li key={label as string} className="flex gap-3 text-sm leading-relaxed text-text-secondary"><Glyph aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-success" />{label as string}</li>;})}</ul></div>
-      </div>
-    </Card>
-  </div>;
+  return <ReactivationMissionControl />;
 }
 
 export function ReactivationWorkspace(): JSX.Element {
@@ -50,21 +122,64 @@ export function ReactivationWorkspace(): JSX.Element {
   if (section?.key === "kyc") return <KycOperationsWorkspace />;
   if (section?.key === "documents") return <DocumentCenter />;
   if (section?.key === "reports") return <ReactivationReports />;
+  if (!section) return <ReactivationMissionControl />;
 
-  const actionByKey: Record<string, { label: string; path: string }> = {
-    eligible: { label: "Build an eligibility segment", path: "/segments/new" },
-    bulk: { label: "Open contact import", path: "/contacts?import=1" },
-    interested: { label: "Open customer CRM", path: "/contacts" },
-    documents: { label: "Open document library", path: "/media?type=document" },
-    sim: { label: "Open fulfilment tasks", path: "/tasks" },
-    activation: { label: "Open customer pipeline", path: "/pipelines" },
-    completed: { label: "Open customer CRM", path: "/contacts" },
+  const actionByKey: Record<string, { label: string; path: string; authority: string }> = {
+    eligible: { label: "Open prioritized pipeline", path: "/reactivation/pipeline?view=attention", authority: "Eligibility evidence on persisted cases" },
+    bulk: { label: "Open contact import", path: "/contacts?import=1", authority: "Governed contact import" },
+    interested: { label: "Open active pipeline", path: "/reactivation/pipeline?view=all", authority: "Persisted Reactivation cases" },
+    sim: { label: "Open SIM risk queue", path: "/reactivation/pipeline?view=sim", authority: "SIM Required case status and Tasks" },
+    activation: { label: "Open activation risk queue", path: "/reactivation/pipeline?view=activation", authority: "Activation Pending case status" },
+    completed: { label: "Open completed cases", path: "/reactivation/pipeline?status=completed&view=all", authority: "Persisted completed cases" },
   };
-  const action = section ? actionByKey[section.key] : undefined;
-  const Icon = section?.icon ?? Sparkles;
-  return <div className="space-y-5"><Card className="overflow-hidden" padding={false}><div className="grid min-h-[360px] lg:grid-cols-[1fr_22rem]"><div className="p-6 sm:p-8"><Badge tone={section?.phase === "Connected" ? "success" : "info"} dot>{section?.phase ?? "Foundation"}</Badge><h2 className="mt-4 text-xl font-bold text-text-primary">{section?.label ?? "Reactivation workspace"}</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{section?.description}</p><div className="mt-6 rounded-2xl border border-border bg-surface-2 p-5"><h3 className="text-sm font-semibold text-text-primary">Production capability</h3><p className="mt-2 text-sm leading-relaxed text-text-secondary">Operators continue through the existing CRM, task, segment, campaign, media, and audit systems. Dedicated eligibility, KYC, SIM, activation, and completion records remain unavailable until additive contracts are approved.</p>{action ? <Link to={action.path} className="mt-5 inline-block"><Button rightIcon={<ArrowRight className="h-4 w-4" />}>{action.label}</Button></Link> : null}</div></div><div className="flex items-center justify-center border-t border-border bg-[radial-gradient(circle_at_top,var(--color-accent-soft),var(--color-bg-surface-2))] p-6 lg:border-l lg:border-t-0"><EmptyState icon={<Icon className="h-7 w-7" />} title="Ready for governed data" description="Search, filters, bulk actions, history, and SLA views activate when this domain has a server-owned record." /></div></div></Card>{section?.key === "kyc" ? <StatusJourney title="KYC review model" statuses={["Pending", "Submitted", "Verified", "Rejected", "Approved"]} /> : null}{section?.key === "sim" ? <StatusJourney title="SIM lifecycle model" statuses={["Ordered", "Packed", "Dispatched", "Delivered", "Activated", "Completed"]} /> : null}{section?.key === "kyc" ? <AiFoundationPanel capabilities={["summary", "document"]} context="governed customer documents; analysis remains provider- and reviewer-gated" /> : null}</div>;
+  const action = actionByKey[section.key];
+  const Icon = section.icon;
+
+  return (
+    <Card className="overflow-hidden" padding={false}>
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className="p-5 sm:p-7">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-surface-2 text-text-secondary"><Icon aria-hidden className="h-5 w-5" /></span>
+            <div>
+              <Badge tone="neutral"><LockKeyhole aria-hidden className="mr-1 h-3.5 w-3.5" />Foundation boundary</Badge>
+              <h2 className="mt-3 text-lg font-semibold text-text-primary">{section.label} is not a separate operating authority</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">{section.description}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-surface border border-border bg-surface-2 p-4">
+            <h3 className="text-sm font-semibold text-text-primary">Use the connected source instead</h3>
+            <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+              <div><dt className="text-text-disabled">Current authority</dt><dd className="mt-1 font-semibold text-text-primary">{action?.authority ?? "Mission Control and source records"}</dd></div>
+              <div><dt className="text-text-disabled">Data boundary</dt><dd className="mt-1 font-semibold text-text-primary">No duplicate record, KPI or workflow is created here</dd></div>
+            </dl>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {action ? <BoundaryLink to={action.path} label={action.label} /> : null}
+              <BoundaryLink to="/reactivation" label="Return to Mission Control" secondary />
+            </div>
+          </div>
+        </div>
+        <aside className="border-t border-border bg-surface-2 p-5 lg:border-l lg:border-t-0">
+          <h3 className="text-sm font-semibold text-text-primary">Why this is separated</h3>
+          <ul className="mt-3 space-y-3 text-xs leading-relaxed text-text-secondary">
+            <li>Operators should not mistake a future capability for a live queue.</li>
+            <li>Existing permissions, APIs, audit evidence and business transitions remain authoritative.</li>
+            <li>A dedicated product is added only after an approved server-owned contract exists.</li>
+          </ul>
+        </aside>
+      </div>
+    </Card>
+  );
 }
 
-function StatusJourney({ title, statuses }: { title: string; statuses: string[] }): JSX.Element {
-  return <Card className="p-4" padding={false}><div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-text-primary">{title}</h2><p className="mt-1 text-xs text-text-secondary">Reference state model only; reviewer, notes, tracking, approval, and audit require a dedicated record.</p></div><Badge tone="neutral">Contract gated</Badge></div><div className="mt-3 flex gap-2 overflow-x-auto pb-1">{statuses.map((status,index) => <div key={status} className="flex shrink-0 items-center gap-2"><span className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-text-primary">{status}</span>{index<statuses.length-1 ? <ArrowRight aria-hidden className="h-4 w-4 text-text-disabled" /> : null}</div>)}</div></Card>;
+function BoundaryLink({ to, label, secondary = false }: { to: string; label: string; secondary?: boolean }): JSX.Element {
+  return (
+    <Link
+      to={to}
+      className={`inline-flex min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${secondary ? "border-border bg-surface text-text-primary hover:bg-hover" : "border-accent bg-accent text-accent-fg hover:bg-accent-hover"}`}
+    >
+      {label}<ArrowRight aria-hidden className="h-3.5 w-3.5" />
+    </Link>
+  );
 }
