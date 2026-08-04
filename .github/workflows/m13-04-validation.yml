@@ -33,6 +33,8 @@ jobs:
           test "$(sha256sum /tmp/m13-04.patch | cut -d' ' -f1)" = "744bbdbad17bc643ef1fb83a4be39c52656a93b97d124002a41ec2ee95c35528"
           test "$(wc -c < /tmp/m13-04.patch)" = "81762"
           git -C work apply --index /tmp/m13-04.patch
+          python builder/.github/m13-04-fixes.py work
+          git -C work add -A
           git -C work diff --cached --check
       - name: Set up Python
         uses: actions/setup-python@v5
