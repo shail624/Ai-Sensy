@@ -1,0 +1,130 @@
+name: M13-00 Governance Trigger
+
+on:
+  pull_request:
+    branches:
+      - validation/m13-00-governance-builder
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout builder authority
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-00-governance-builder
+          path: builder
+
+      - name: Checkout documentation work branch
+        uses: actions/checkout@v4
+        with:
+          ref: work/m13-00-implementation-contract
+          fetch-depth: 0
+          path: work
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and run assertion-based governance patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path("builder/.github/workflows/m13-00-governance-builder.yml").read_text()
+          marker = "          python - <<'PY'\n"
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index("\n          PY\n\n      - name: Validate documentation contract", start)
+          code = textwrap.dedent(workflow[start:end])
+          Path("work/.m13_00_patch.py").write_text(code)
+          PY
+          cd work
+          python .m13_00_patch.py
+          rm .m13_00_patch.py
+
+      - name: Validate documentation contract and boundary
+        working-directory: work
+        shell: bash
+        run: |
+          git fetch origin ui/taste-modernization --quiet
+          git diff --check origin/ui/taste-modernization
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          allowed = {
+              "CHANGELOG.md",
+              "IMPLEMENTATION_TRACKER.md",
+              "MODULE_STATUS.md",
+              "PROJECT_STATE.md",
+              "ROADMAP.md",
+              "VALIDATION_RESULTS.md",
+              "docs/adr/0020-enterprise-omnichannel-channel-manager.md",
+              "docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md",
+          }
+          changed = set(subprocess.check_output(
+              ["git", "diff", "--name-only", "origin/ui/taste-modernization"], text=True
+          ).splitlines())
+          if changed != allowed:
+              raise SystemExit(
+                  f"changed-file boundary mismatch; missing={sorted(allowed-changed)} "
+                  f"unexpected={sorted(changed-allowed)}"
+              )
+
+          adr = Path("docs/adr/0020-enterprise-omnichannel-channel-manager.md").read_text()
+          contract = Path("docs/design/33-MODULE-13-ENTERPRISE-OMNICHANNEL-IMPLEMENTATION-CONTRACT.md").read_text()
+          headings = [
+              "Provider capability matrix",
+              "QR provider evaluation and selection gate",
+              "Threat model",
+              "Security architecture",
+              "Session lifecycle contract",
+              "Customer identity resolution contract",
+              "API contract",
+              "Database migration strategy",
+              "Rollback strategy",
+              "Feature flag strategy",
+              "Production rollout plan",
+              "Disaster recovery considerations",
+              "Monitoring and observability",
+              "Performance objectives",
+              "Testing strategy",
+              "Acceptance criteria",
+              "Gap analysis",
+              "Known risks",
+              "External dependencies",
+          ]
+          missing = [heading for heading in headings if heading not in contract]
+          if missing:
+              raise SystemExit(f"missing implementation-contract sections: {missing}")
+          for label in ("Required", "Recommended", "Future Enhancement"):
+              if label not in contract:
+                  raise SystemExit(f"missing gap classification: {label}")
+          for invariant in (
+              "One existing channel seam",
+              "One Contact authority",
+              "No automatic cross-provider failover",
+              "No implementation without gates",
+          ):
+              if invariant not in adr:
+                  raise SystemExit(f"missing ADR invariant: {invariant}")
+          for path in (
+              "PROJECT_STATE.md", "MODULE_STATUS.md", "IMPLEMENTATION_TRACKER.md",
+              "ROADMAP.md", "VALIDATION_RESULTS.md", "CHANGELOG.md",
+          ):
+              if "M13-00" not in Path(path).read_text():
+                  raise SystemExit(f"{path} is not synchronized")
+          print("M13-00 documentation contract validation PASS")
+          PY
+
+      - name: Commit synchronized governance to work branch
+        working-directory: work
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md
+          git commit -m "docs(omnichannel): synchronize M13-00 governance"
+          git push origin HEAD:work/m13-00-implementation-contract
