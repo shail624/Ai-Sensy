@@ -103,6 +103,8 @@ _EXPECTED_TABLES = {
     "channel_endpoints",
     "channel_secrets",
     "channel_sessions",
+    "channel_sync_checkpoints",
+    "media_channel_references",
 }
 
 
@@ -142,7 +144,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0039_qr_pairing_provider_runtime_foundation"
+        assert version == "0040_channel_sync_media_foundation"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -223,6 +225,44 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "deleted_at",
         } <= session_columns
         assert not {"plaintext", "secret_value", "token", "encrypted_payload"} & session_columns
+        checkpoint_columns = {
+            row[1]
+            for row in con.execute("PRAGMA table_info(channel_sync_checkpoints)").fetchall()
+        }
+        media_reference_columns = {
+            row[1]
+            for row in con.execute("PRAGMA table_info(media_channel_references)").fetchall()
+        }
+        assert {
+            "organization_id",
+            "connection_id",
+            "endpoint_id",
+            "job_id",
+            "sync_type",
+            "status",
+            "cursor_json",
+            "watermark_at",
+            "cutover_at",
+            "processed_count",
+            "failed_count",
+            "total_count",
+            "row_version",
+        } <= checkpoint_columns
+        assert {
+            "organization_id",
+            "media_asset_id",
+            "endpoint_id",
+            "provider_media_id",
+            "upload_state",
+            "download_state",
+            "expires_at",
+            "last_verified_at",
+            "provider_metadata_json",
+            "row_version",
+        } <= media_reference_columns
+        assert not {"plaintext", "secret_value", "token", "encrypted_payload"} & (
+            checkpoint_columns | media_reference_columns
+        )
         channel_permissions = {
             row[0]
             for row in con.execute(

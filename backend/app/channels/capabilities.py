@@ -58,5 +58,7 @@ class Capability(StrEnum):
     SESSION_STREAM = "session_stream"
     SESSION_RECONNECT = "session_reconnect"
     SESSION_LOGOUT = "session_logout"
+    # Provider-neutral bounded synchronization
+    HISTORY_SYNC = "history_sync"
     # Health
     HEALTH = "health"

@@ -7,22 +7,29 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (M13-05 closeout; resolve after push) |
-| Current milestone | `M13-05 — QR Pairing & Provider Runtime Foundation — REPOSITORY VALIDATED` |
-| Current phase | `Provider-neutral runtime registration, pairing state and runtime/session integration delivered; M13-06 unstarted` |
+| Current Git HEAD | `HEAD` (M13-06A closeout; resolve after push) |
+| Current milestone | `M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED` |
+| Current phase | `Provider-neutral sync checkpoint/media-reference persistence delivered; all live M13-06 behavior remains certification-blocked` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0039_qr_pairing_provider_runtime_foundation` (39 linear revisions) |
+| Migration head | `0040_channel_sync_media_foundation` (40 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · no public runtime/pairing route or generated TypeScript change |
-| Backend evidence | Ruff PASS · strict mypy PASS · 20 focused channel/session/runtime/migration tests PASS · 976 full pytest tests PASS |
+| Backend evidence | Ruff PASS · strict mypy PASS · 18 focused channel/sync/media/migration tests PASS · 979 full pytest tests PASS |
 | Frontend evidence | Unchanged source; production audit high threshold PASS · ESLint PASS · TypeScript PASS · 34 Vitest files / 661 tests PASS · production build PASS |
 | Bundle evidence | Unchanged: main `733.62 kB` / `178.16 kB` gzip; CSS `49.90 kB` / `9.90 kB` gzip; Operational Dashboard `31.96 kB` / `8.61 kB` gzip; existing >500 kB warning remains |
-| M13 contract | ADR-0020 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `40%` evidence-based estimate: generic contracts, exact identity, persistent connections, session control plane, provider-neutral runtime registry and no-store pairing lifecycle |
-| QR provider | Not selected; no provider adapter, QR image, WhatsApp protocol or live provider login exists |
-| Next Module 13 milestone | `M13-06`; not started |
+| M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
+| Module 13 implementation | `44%` evidence-based estimate: M13-01–M13-05 plus provider-neutral sync checkpoint and media-reference persistence |
+| QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
+| Next Module 13 milestone | Provider certification host evidence; live provider-dependent M13-06 remains blocked |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Sixteen runtime/session/model/repository/service/permission/migration/test files plus six required governance records; no API, generated contract, frontend, provider adapter, messaging, synchronization or M13-06 change |
-| Last update | `2026-08-04T22:45:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Provider-neutral sync/media contracts, two models, tenant repositories, migration/tests and synchronized status records only; no API, frontend, dependency, provider adapter or live execution |
+| Last update | `2026-08-05T01:17:00+05:30` (Asia/Kolkata) |
+
+## M13-06A delivered provider-neutral sync and media persistence foundation
+
+- Added `channel_sync_checkpoints` for organization/connection/endpoint-scoped opaque cursor, watermark, cutover, progress, status, error and optimistic-concurrency facts.
+- Added `media_channel_references` to map existing `MediaAsset` records to endpoint-scoped provider media identifiers with expiry, verification and transfer-state facts.
+- Added tenant-scoped repositories, non-secret metadata enforcement, bounded list queries and database constraints using the existing model/repository authorities.
+- No provider runtime, adapter, queue task, history execution, media fetch/upload, event consumer or API was introduced.
 
 ## M13-05 delivered provider runtime and pairing foundation
 
@@ -56,8 +63,9 @@ disaster recovery or rollout.
 
 ## Required remaining contract work
 
-Target-host commissioning, provider selection/certification, live inbound/history/media, outbound
-messaging and unified operator experience remain later gated milestones. M13-06 is not started.
+Target-host commissioning and provider certification remain mandatory. Live inbound events, history
+execution, media transfer/processing, outbound messaging and unified operator experience remain
+later gated milestones. M13-06A is persistence-only and does not satisfy certification.
 
 ## Existing UI modernization state
 
@@ -66,5 +74,6 @@ M13-05 changes no frontend source or UI modernization sequence.
 
 ## Maintenance rule
 
-Stop after M13-05. Do not begin M13-06, provider selection/backfill, QR image/login, provider adapters,
-messaging, synchronization, webhook, routing or UI work without a separate explicit owner instruction.
+Stop after M13-06A. Do not begin live QR image/login, provider adapters, event ingestion, history
+execution, media transfer/processing, messaging, webhook, routing or UI work until provider
+certification and a separate explicit owner instruction.

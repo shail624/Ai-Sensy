@@ -41,6 +41,7 @@ from app.models.channel_connection import (
     ChannelSecret,
 )
 from app.models.channel_session import ChannelSession
+from app.models.channel_sync import ChannelSyncCheckpoint, MediaChannelReference
 from app.models.contact import Contact
 from app.models.contact_document import (
     ContactDocument,
@@ -111,6 +112,8 @@ __all__ = [
     "ChannelEndpoint",
     "ChannelSecret",
     "ChannelSession",
+    "ChannelSyncCheckpoint",
+    "MediaChannelReference",
     "Contact",
     "ContactIdentity",
     "IdentityConflict",

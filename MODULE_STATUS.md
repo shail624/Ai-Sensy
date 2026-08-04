@@ -17,7 +17,16 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-04T22:45:00+05:30`.
+Last synchronized: `2026-08-05T01:17:00+05:30`.
+
+## Module 13 — M13-06A Provider-neutral Sync & Media Persistence Foundation
+
+- **Milestone status:** `M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED`.
+- **Completion:** `44%` evidence-based estimate.
+- **Delivered:** provider-neutral history checkpoint and media-reference records, bounded progress/expiry state, tenant-scoped repositories, non-secret metadata validation and migration `0040`.
+- **Security:** organization predicates, existing foreign authorities, no secret-shaped metadata, uniqueness/check constraints and optimistic row versions fail closed.
+- **Preserved:** no provider certification, adapter, dependency, QR/login, live event ingestion, history execution, media transfer/processing, queue task, API, generated contract or frontend change.
+- **Next:** real WAHA host evidence and certification remain required before any live M13-06 behavior.
 
 ## Module 13 — M13-05 QR Pairing & Provider Runtime Foundation
 
@@ -117,7 +126,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 40% | M13-00–M13-05 are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session lease/fencing and runtime/pairing control-plane foundation; migrations `0036`–`0039`; unchanged 200-path API | Target-host MySQL/KMS, multi-node runtime commissioning, provider selection/adapters, live QR/login, inbound/history/media, messaging and UI remain pending; M13-06 not started | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020 and Design Document 33 |
+| Enterprise Omnichannel Channel Manager | 44% | M13-00–M13-06A are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session/runtime/pairing control plane, sync checkpoints and media references; migrations `0036`–`0040`; unchanged 200-path API | WAHA host certification, live QR/login, event ingestion, history execution, media transfer, messaging and UI remain pending and blocked | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/MediaAsset/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020/0021 and Design Document 33 |
 | Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |

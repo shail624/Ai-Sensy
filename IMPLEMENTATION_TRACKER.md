@@ -3,21 +3,28 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-04 · M13-05 QR Pairing & Provider Runtime Foundation is Repository Validated. M13-06 has not started._
+_Last updated: 2026-08-05 · M13-06A Provider-neutral Sync & Media Persistence Foundation is Repository Validated. Live provider-dependent M13-06 behavior remains blocked._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `5d7ea154588418410611de4f568e978c2e3caba9`
+- **Starting HEAD:** `2386b50bc1110e88f346ddff028cf1e017ad2503`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0039_qr_pairing_provider_runtime_foundation` · 200 paths
-- **Current milestone:** `M13-05 — QR Pairing & Provider Runtime Foundation — REPOSITORY VALIDATED`
-- **Module 13 completion:** `40%` evidence-based estimate
-- **Provider selection:** pending; no provider adapter or live provider is registered
-- **Next milestone:** `M13-06` — not started
-- **Last synchronized:** `2026-08-04T22:45:00+05:30`
+- **Migration/OpenAPI:** `0040_channel_sync_media_foundation` · 200 paths
+- **Current milestone:** `M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED`
+- **Module 13 completion:** `44%` evidence-based estimate
+- **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
+- **Next milestone:** Provider certification host evidence; live M13-06 remains blocked
+- **Last synchronized:** `2026-08-05T01:17:00+05:30`
 
 ## Delivered
+
+### M13-06A Provider-neutral Sync & Media Persistence Foundation
+
+- Added inert organization-scoped history checkpoints and endpoint-scoped provider media references from the frozen data model.
+- Added bounded progress/count constraints, opaque non-secret cursor metadata, expiry/verification facts, optimistic concurrency and tenant-scoped repositories.
+- Extended only the existing capability vocabulary with `history_sync`; no adapter implementation or provider branch exists.
+- Additive migration `0040_channel_sync_media_foundation`; no API, generated-contract, queue, dependency or frontend source change.
 
 ### M13-05 QR Pairing & Provider Runtime Foundation
 
@@ -37,9 +44,9 @@ _Last updated: 2026-08-04 · M13-05 QR Pairing & Provider Runtime Foundation is 
 
 - Ruff PASS.
 - Strict mypy PASS.
-- Focused channel/session/runtime/migration suite: 20 PASS.
-- Full backend suite: 976 PASS in workflow `30933007710`.
-- Migration validation PASS at `0039_qr_pairing_provider_runtime_foundation`.
+- Focused channel/sync/media/migration suite: 18 PASS.
+- Full backend suite: 979 PASS in workflow `30946554198`.
+- Migration validation PASS at `0040_channel_sync_media_foundation`.
 - OpenAPI semantic equality PASS with 200 paths and no M13-05 route/schema/client change; the untouched baseline retains a pre-existing key-order-only exporter mismatch under the current dependency resolver.
 - Generated TypeScript client PASS with no drift.
 - Python dependency audit, Bandit high-severity and tracked-source vulnerability/secret/IaC scan PASS.
@@ -49,9 +56,9 @@ _Last updated: 2026-08-04 · M13-05 QR Pairing & Provider Runtime Foundation is 
 
 ## Explicitly absent
 
-QR image generation/scanning, WhatsApp login/protocol, provider adapters, message/history
-synchronization, sending, incoming webhooks, routing, Inbox/Customer 360/Analytics changes, public
-runtime/pairing APIs and provider-specific tables are absent.
+QR image generation/scanning, WhatsApp login/protocol, provider adapters, live event ingestion,
+history execution, media transfer/processing, sending, incoming webhooks, routing, Inbox/Customer
+360/Analytics changes, public runtime/pairing/sync APIs and provider-specific tables are absent.
 
 ## Remaining work
 
@@ -60,9 +67,10 @@ runtime/pairing APIs and provider-specific tables are absent.
 - Runtime supervisor, heartbeat, reconnect/re-authentication and alerting commissioning.
 - Production KMS custody for referenced provider credentials.
 - Representative tenant/RBAC/feature-flag rollout and operator acceptance.
-- Provider selection/certification and all M13-06+ inbound/history/media/messaging/operator milestones.
+- Provider certification host evidence and all live M13-06 inbound/history/media execution plus later messaging/operator milestones.
 
 ## Stop rule
 
-Do not begin M13-06 or any live QR image/login, provider adapter, messaging, synchronization, webhook,
-routing, Inbox, Customer 360 or Analytics work. Any architecture or scope deviation requires owner approval.
+Do not begin any live M13-06 QR image/login, provider adapter, event ingestion, history execution,
+media transfer, messaging, webhook, routing, Inbox, Customer 360 or Analytics work until provider
+certification and separate owner authorization. M13-06A adds persistence only.

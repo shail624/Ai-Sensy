@@ -11,6 +11,34 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-05 — Provider-neutral Sync & Media Persistence Foundation (M13-06A)
+
+**Added**
+- Added the frozen-contract `channel_sync_checkpoints` and `media_channel_references` records with
+  organization, connection/endpoint, checkpoint/progress, expiry, transfer-state, Audit and optimistic-
+  concurrency facts.
+- Added tenant-scoped repositories and provider-neutral sync/media state vocabulary, including the
+  existing capability seam's `history_sync` value.
+- Added migration `0040_channel_sync_media_foundation` and focused repository, tenant, secret-redaction,
+  uniqueness, constraint and migration regressions.
+
+**Preserved**
+- No provider is certified. WAHA remains `Requires Additional Evidence`.
+- No provider adapter, dependency, live QR pairing, live event ingestion, history job, media transfer,
+  queue task, API route, generated contract, frontend behavior or production runtime was added.
+- Existing Contact, Conversation, Message, MediaAsset, ChannelAdapter, ChannelConnection,
+  ChannelSession, queue, RBAC, tenant, feature-flag and Audit authorities remain unchanged.
+
+**Validated**
+- Ruff and strict mypy pass; 18 focused tests and all 979 backend tests pass in workflow
+  `30946554198`.
+- Migration upgrade/downgrade/re-upgrade passes at `0040_channel_sync_media_foundation`.
+- OpenAPI remains semantically unchanged at 200 paths; generated TypeScript and unchanged frontend
+  lint, types, tests and production build pass.
+- M13-06A reaches `Repository Validated`; all live provider-dependent M13-06 behavior remains blocked
+  by certification and host evidence.
+
+
 ### 2026-08-04 — QR Pairing & Provider Runtime Foundation (M13-05)
 
 **Added**

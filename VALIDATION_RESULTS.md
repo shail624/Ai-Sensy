@@ -4,7 +4,29 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-04T22:45:00+05:30`.
+Last synchronized: `2026-08-05T01:17:00+05:30`.
+
+
+## M13-06A Provider-neutral Sync & Media Persistence Foundation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `2386b50bc1110e88f346ddff028cf1e017ad2503` on `ui/taste-modernization`. |
+| Provider-neutral boundary | PASS | Sync/media state, models and repositories contain no WAHA, Meta or concrete provider branch and no executable provider path. |
+| Existing-authority reuse | PASS | References existing ChannelConnection, ChannelEndpoint, JobMetadata and MediaAsset records; no duplicate channel, job, message, media or customer authority exists. |
+| Tenant isolation | PASS | Every repository query requires organization scope; foreign organization lookups return no record. |
+| Secret handling | PASS | Opaque cursor/provider metadata recursively rejects plaintext credential-shaped fields. |
+| Persistence integrity | PASS | Scope/provider identity uniqueness, bounded non-negative progress and transfer-state constraints fail closed. |
+| Runtime/certification boundary | PASS | No provider is certified; no adapter, runtime, pairing, event consumer, history executor, media transfer or queue task exists. |
+| Ruff / mypy | PASS | Ruff and strict mypy pass. |
+| Backend tests | PASS | 18 focused channel/sync/media/migration tests and all 979 backend tests pass in workflow `30946554198`. |
+| Frontend gates | PASS | Unchanged frontend passes production audit threshold, ESLint, TypeScript, Vitest and production build. |
+| OpenAPI / generated client | PASS | OpenAPI remains semantically unchanged at 200 paths and generated TypeScript has no drift. |
+| Migration | PASS | Additive `0040_channel_sync_media_foundation` upgrades, downgrades to `0039`, and upgrades again. |
+| Dependency / security boundary | PASS | No dependency changed; Bandit and dependency audit pass. |
+| Performance impact | PASS | No API query, worker, provider runtime or frontend bundle path changed; indexed bounded repository queries are the only new executable persistence surface. |
+| Host validation | PENDING – Host Machine Validation | MySQL migration/rollback, production-scale query plans, real provider runtime, account/device evidence, monitoring, kill switch, recovery and certification remain unproven. |
+| Milestone boundary | PASS | Only provider-neutral persistence/contracts/tests/status records changed; live M13-06 remains blocked. |
 
 ## M13-05 QR Pairing & Provider Runtime Foundation
 

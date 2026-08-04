@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-04T22:45:00+05:30`.
+Last synchronized: `2026-08-05T01:17:00+05:30`.
 
 ## Authority and baseline
 
@@ -46,13 +46,13 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: M13-05 — QR Pairing & Provider Runtime Foundation — REPOSITORY VALIDATED**
+**Current status: M13-06A — Provider-neutral Sync & Media Persistence Foundation — REPOSITORY VALIDATED**
 
-ADR-0020 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts and
-registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
-records; M13-04 durable session lifecycle/lease/fencing; and M13-05 now supplies provider-neutral
-runtime registration/discovery/ownership, lifecycle/events/health/capabilities, heartbeat/restart/
-recovery integration and a no-store pairing state machine. No provider is selected and no live login exists.
+ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
+and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
+records; M13-04 durable session lifecycle/lease/fencing; M13-05 runtime/pairing control-plane facts;
+and M13-06A adds inert sync checkpoints and media references. WAHA remains uncertified and no live
+login, event ingestion, history execution or media transfer exists.
 
 Provider adapters, QR image generation/scanning, WhatsApp protocol, synchronization, messaging,
 webhook, routing and operator UI remain outside this milestone.
@@ -65,14 +65,15 @@ webhook, routing and operator UI remain outside this milestone.
 | M13-03 — Persistent Channel Connections & Endpoint Records | Add organization-owned provider-neutral connection/endpoint records and encrypted versioned/revocable credentials with tenant isolation, lifecycle/health metadata, soft delete, locking, flags and Audit references | **REPOSITORY VALIDATED**; migration `0037`; no API/provider/runtime/UI behavior |
 | M13-04 — QR Session Manager Foundation | Durable provider-neutral session state, lifecycle, heartbeat/expiration, recovery/restart metadata, capability references, tenant/RBAC/flags/Audit and lease/fencing concurrency controls | **REPOSITORY VALIDATED**; migration `0038`; no provider, live runtime, QR/login, API or UI behavior |
 | M13-05 — QR Pairing & Provider Runtime Foundation | Provider-neutral runtime registry/manager, no-store pairing lifecycle, health/events/capabilities, heartbeat/restart/recovery and session persistence integration | **REPOSITORY VALIDATED**; migration `0039`; no provider adapter, QR image/login, messaging, API or UI behavior |
-| M13-06 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | Blocked by provider certification |
+| M13-06 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | **M13-06A provider-neutral checkpoint/media-reference foundation REPOSITORY VALIDATED**; live event ingestion, history execution and media transfer remain blocked by provider certification |
 | M13-07 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
 | M13-08 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by stable source milestones |
 | M13-09 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
 | M13-10 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
 
-Stop after M13-05. No M13-06, provider selection/backfill, live QR image/login, provider adapters,
-messaging, synchronization, webhook, routing or UI work begins automatically.
+Stop after M13-06A. No live QR image/login, provider adapter, event ingestion, history execution,
+media transfer/processing, messaging, webhook, routing or UI work begins until certification and
+a separate owner instruction.
 
 ## Phase 0 — Governance and scope lock
 
