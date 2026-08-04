@@ -1,0 +1,1 @@
+Trigger the diagnostic after correcting the connector fixture vocabulary. This file is never merged.
