@@ -1,0 +1,1 @@
+Trigger the diagnostic with only confirmed focused test files. This file is never merged.
