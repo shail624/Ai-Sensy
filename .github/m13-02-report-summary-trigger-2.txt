@@ -1,0 +1,1 @@
+Refresh the concise report after the scoped Ruff diagnostic. This file is never merged.
