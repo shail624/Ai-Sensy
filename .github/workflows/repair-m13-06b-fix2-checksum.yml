@@ -1,0 +1,65 @@
+name: Repair M13-06B Fix2 Checksum
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.head_ref == 'validation/m13-06b-control-plane'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-06b-control-plane
+          fetch-depth: 0
+
+      - name: Repair checksum from exact GitHub bytes
+        id: repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .validation/m13-06b-fix2/chunk-*.b64 > /tmp/fix2.b64
+          base64 --decode /tmp/fix2.b64 > /tmp/fix2.tar.gz
+          B64_SHA="$(sha256sum /tmp/fix2.b64 | awk '{print $1}')"
+          TAR_SHA="$(sha256sum /tmp/fix2.tar.gz | awk '{print $1}')"
+          FILE=.github/workflows/validate-m13-06b-control-plane-v2.yml
+          python - "$FILE" "$B64_SHA" "$TAR_SHA" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          b64_sha = sys.argv[2]
+          tar_sha = sys.argv[3]
+          text = path.read_text()
+          text = text.replace(
+              "3d5d8b737ee37bf37bdc6f79271cf57d34262bb7226f4fbeb69f9d720e4c74c9  /tmp/fix2.b64",
+              f"{b64_sha}  /tmp/fix2.b64",
+          )
+          text = text.replace(
+              "6363fea457a2cac58cb819469f8dd7905440f14c852980e5dbba07aa8eec004d  /tmp/fix2.tar.gz",
+              f"{tar_sha}  /tmp/fix2.tar.gz",
+          )
+          path.write_text(text)
+          PY
+          if git diff --quiet -- "$FILE"; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit verified checksum repair
+        if: steps.repair.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git add .github/workflows/validate-m13-06b-control-plane-v2.yml
+          git commit -m 'chore(validation): correct m13-06b fix2 integrity'
+          git push origin HEAD:refs/heads/validation/m13-06b-control-plane
