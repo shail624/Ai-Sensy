@@ -36,5 +36,7 @@ jobs:
           cat .validation/ui-taste-04/package.part-* | base64 --decode > /tmp/ui-taste-04-package.tar.gz
           tar -xzf /tmp/ui-taste-04-package.tar.gz -C /tmp/ui-taste-04-package
           test -x /tmp/ui-taste-04-package/run.sh
+      - name: Install repository validation toolchain
+        run: python -m pip install -e 'backend[dev]'
       - name: Validate and publish one clean milestone commit
         run: /tmp/ui-taste-04-package/run.sh
