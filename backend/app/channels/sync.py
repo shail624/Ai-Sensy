@@ -34,6 +34,45 @@ SYNC_TERMINAL_STATUSES = frozenset(
     }
 )
 
+_SYNC_TRANSITIONS: dict[ChannelSyncStatus, frozenset[ChannelSyncStatus]] = {
+    ChannelSyncStatus.PENDING: frozenset(
+        {
+            ChannelSyncStatus.RUNNING,
+            ChannelSyncStatus.FAILED,
+            ChannelSyncStatus.CANCELLED,
+        }
+    ),
+    ChannelSyncStatus.RUNNING: frozenset(
+        {
+            ChannelSyncStatus.PAUSED,
+            ChannelSyncStatus.SUCCEEDED,
+            ChannelSyncStatus.FAILED,
+            ChannelSyncStatus.CANCELLED,
+        }
+    ),
+    ChannelSyncStatus.PAUSED: frozenset(
+        {
+            ChannelSyncStatus.RUNNING,
+            ChannelSyncStatus.FAILED,
+            ChannelSyncStatus.CANCELLED,
+        }
+    ),
+    ChannelSyncStatus.SUCCEEDED: frozenset({ChannelSyncStatus.PENDING}),
+    ChannelSyncStatus.FAILED: frozenset({ChannelSyncStatus.PENDING}),
+    ChannelSyncStatus.CANCELLED: frozenset({ChannelSyncStatus.PENDING}),
+}
+
+
+def can_transition_sync(
+    current: ChannelSyncStatus | str,
+    target: ChannelSyncStatus | str,
+) -> bool:
+    """Return whether the frozen checkpoint lifecycle permits the transition."""
+
+    source = ChannelSyncStatus(current)
+    destination = ChannelSyncStatus(target)
+    return destination in _SYNC_TRANSITIONS[source]
+
 
 class MediaTransferState(StrEnum):
     """Observed provider-reference transfer state without performing a transfer."""

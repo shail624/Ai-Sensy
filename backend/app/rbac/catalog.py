@@ -60,6 +60,7 @@ PERMISSION_CATALOG: tuple[tuple[str, str], ...] = (
     ("channels:manage", "Register and manage provider-neutral channel sessions"),
     ("channels:authenticate", "Manage provider-neutral pairing lifecycle"),
     ("channels:diagnose", "Operate session leases, heartbeats and health observations"),
+    ("channels:history_sync", "Manage provider-neutral history synchronization checkpoints"),
     ("waba:read", "View WhatsApp Business Accounts and numbers"),
     ("waba:manage", "Manage WhatsApp Business Accounts and numbers"),
     ("webhooks:manage", "Manage webhooks and replay"),

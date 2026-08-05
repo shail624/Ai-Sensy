@@ -4,8 +4,30 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-05T12:25:15+05:30`.
+Last synchronized: `2026-08-05T17:00:00+05:30`.
 
+
+## M13-06B Provider-neutral History & Media Control Plane
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `f9a110d34f2095a3e9dbe61a779825edade38bda` on `ui/taste-modernization`. |
+| Frozen architecture reuse | PASS | Existing M13-06A checkpoint/media records, ChannelConnection/Endpoint, MediaAsset, feature flags, RBAC and Audit remain the only authorities; ADR-0020/0021 and Design Document 33 are unchanged. |
+| Provider-neutral lifecycle | PASS | Legal checkpoint transitions, monotonic progress, cutover/watermark bounds, resumable failed/cancelled state and fresh completed-run reset execute without provider I/O. |
+| Tenant / object authorization | PASS | Actor organization, scoped connection/endpoint/media/reference ownership and foreign-id non-disclosure fail closed. |
+| RBAC / feature flags | PASS | Dedicated `channels:history_sync` permission and default-off `omnichannel_qr_history` gate every write; reads require `channels:read`. |
+| Capability boundary | PASS | History preparation requires declared `history_sync`; media registration requires declared upload/download media capability and an enabled endpoint. |
+| Concurrency / idempotency | PASS | Optimistic row versions reject stale mutations; one checkpoint per scope and one provider media identity per endpoint are reused idempotently. |
+| Secret / audit safety | PASS | Cursor and provider metadata reject secret-shaped content; lifecycle/progress/media actions emit redacted immutable Audit evidence. |
+| Provider-certification boundary | PASS | No adapter, QR/login, provider cursor, live event ingestion, history retrieval, media-byte transfer, queue task, API or frontend execution surface exists. |
+| Ruff / mypy | PASS | Ruff and strict mypy pass in workflow `31038662241`. |
+| Backend tests | PASS | Five focused M13-06B tests and all 985 backend tests pass in workflow `31038662241`. |
+| OpenAPI / generated client | PASS | OpenAPI remains semantically unchanged at 200 paths and generated TypeScript has no drift. |
+| Migration | PASS | Permission-only `0041_channel_sync_control_plane` upgrades, downgrades to `0040`, and upgrades again; no table or high-volume ledger change. |
+| Frontend / bundle | PASS | Frontend source is unchanged; ESLint, TypeScript, 36 files / 671 tests and production build pass; main remains `199.78/54.87 kB gzip`. |
+| Security gates | PASS | Bandit, Python/frontend/browser dependency audits and tracked-source vulnerability/secret/IaC scan pass. |
+| Host validation | PENDING – Host Machine Validation | Target-host MySQL permission migration, production KMS/flags/RBAC commissioning, provider certification, real cursors/events/media, monitoring and recovery remain unproven. |
+| Milestone boundary | PASS | Exactly eight product/test/migration files plus six synchronized tracking ledgers; no provider dependency, API, frontend, governance or frozen-architecture change. |
 
 ## UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness
 

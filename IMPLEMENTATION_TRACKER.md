@@ -3,21 +3,33 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-05 · UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness is Repository Validated. The branch awaits explicit Owner Approval and Merge; provider-dependent Module 13 work remains blocked._
+_Last updated: 2026-08-05 · M13-06B Provider-neutral History & Media Control Plane is Repository Validated. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `96bf0a8fcda01703b376a4ebf8f6f6e498a10108`
+- **Starting HEAD:** `f9a110d34f2095a3e9dbe61a779825edade38bda`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0040_channel_sync_media_foundation` · 200 paths
-- **Current milestone:** `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness — REPOSITORY VALIDATED`
-- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `44%` unchanged
+- **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths
+- **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%`
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
-- **Next milestone:** `None — await explicit Owner Approval and Merge`; live M13-06 remains blocked and UI-TASTE-06 is not authorized
-- **Last synchronized:** `2026-08-05T12:25:15+05:30`
+- **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
+- **Last synchronized:** `2026-08-05T17:00:00+05:30`
 
 ## Delivered
+
+### M13-06B Provider-neutral History & Media Control Plane
+
+- Added one provider-neutral service over the existing checkpoint/media-reference persistence; it
+  owns no provider call, queue execution, API route, event ingestion, history retrieval or media bytes.
+- History checkpoints are feature-gated, permissioned, tenant/object scoped, capability-gated and
+  versioned; legal transitions, monotonic progress, cutover/watermark boundaries and restart semantics
+  fail closed and emit immutable Audit evidence.
+- Provider media identifiers reuse existing `MediaAsset` and `ChannelEndpoint` authorities; registration
+  is idempotent, declared media capability is required and factual transfer observations reject secrets.
+- Additive migration `0041_channel_sync_control_plane` seeds only `channels:history_sync`; OpenAPI and
+  frontend remain unchanged.
 
 ### UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness
 
@@ -80,21 +92,21 @@ _Last updated: 2026-08-05 · UI-TASTE-05 Owner Review, Release Candidate Audit a
 
 ## Validation
 
-- Release-candidate quality gate PASS in workflow `30982637585`.
-- Ruff and strict mypy PASS; OpenAPI drift PASS at 200 paths.
-- Full backend regression: 980 PASS; migration head remains `0040_channel_sync_media_foundation`.
+- Repository pre-merge quality gate PASS in workflow `31038662241`.
+- Ruff and strict mypy PASS; OpenAPI/generated-client drift PASS at 200 paths.
+- Full backend regression: 985 PASS; migration head is `0041_channel_sync_control_plane`.
 - Frontend ESLint and TypeScript PASS; 36 Vitest files / 671 tests PASS; production build PASS.
 - E2E TypeScript, Bandit, Python/frontend/browser dependency audits and tracked-source
   vulnerability/secret/IaC scan PASS.
-- Main application bundle: 199.78/54.87 kB gzip; campaign create/edit chunks build without the prior circular-execution warning.
-- Authenticated representative-data visual, screen-reader, browser/device and production-scale
-  performance evidence: PENDING – Host Machine Validation.
-- Exact eight-file product/tracking boundary PASS: two focused campaign route imports and six synchronized tracking ledgers; no API, migration, dependency, provider or live Module 13 behavior changed.
+- Main application bundle remains 199.78/54.87 kB gzip; no frontend or API execution path changed.
+- Five focused M13-06B tests cover lifecycle, RBAC/flags, tenant isolation, capability boundaries,
+  idempotency, audit, secret rejection and absence of public/provider execution.
+- Host/provider certification evidence remains `PENDING – Host Machine Validation`.
 
 ## Explicitly absent
 
 QR image generation/scanning, WhatsApp login/protocol, provider adapters, live event ingestion,
-history execution, media transfer/processing, sending, incoming webhooks, routing, Inbox/Customer
+provider history retrieval, media-byte transfer/processing, sending, incoming webhooks, routing, Inbox/Customer
 360/Analytics changes, public runtime/pairing/sync APIs and provider-specific tables are absent.
 
 ## Remaining work
@@ -108,8 +120,8 @@ history execution, media transfer/processing, sending, incoming webhooks, routin
 
 ## Stop rule
 
-Stop after UI-TASTE-05. Await explicit Owner Approval and Merge; do not begin UI-TASTE-06.
+Stop after M13-06B. No implementation milestone is authorized after this commit.
 
-Do not begin live/provider-dependent M13-06 QR image/login, adapter, ingestion, history, media,
-messaging, webhook, routing, or provider UI work until certification and separate owner
-authorization. Provider-neutral roadmap milestones may proceed in their approved sequence.
+Do not begin provider adapter, QR image/login, live event ingestion, provider history retrieval,
+media-byte transfer, messaging, webhook, routing or provider UI until certification and a separate
+owner instruction.

@@ -11,6 +11,32 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-05 — Provider-neutral History & Media Control Plane (M13-06B)
+
+**Added**
+- Added the repository-owned lifecycle service over the existing M13-06A history checkpoints and
+  media references: create/reopen, bounded transitions, monotonic progress, factual media observations,
+  optimistic concurrency, tenant/object authorization, feature flags, dedicated RBAC and Audit evidence.
+- Added the frozen `channels:history_sync` permission through additive migration
+  `0041_channel_sync_control_plane`; no table, provider dependency or public API was introduced.
+- Added focused regressions for lifecycle legality, resume/fresh-run semantics, permission and flag
+  failure, tenant isolation, capability gating, secret rejection, idempotency and API absence.
+
+**Preserved**
+- No provider is certified. No adapter, QR payload/login, provider cursor, event ingestion, history
+  retrieval, media-byte transfer, queue execution, messaging, webhook, frontend or generated contract
+  exists in M13-06B.
+- ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative.
+
+**Validated**
+- Workflow `31038662241` passes Ruff, strict mypy, OpenAPI/client drift, 985 backend tests,
+  36 frontend files / 671 tests, production build, E2E types, SAST, dependency audits and tracked-source
+  vulnerability/secret/IaC scanning.
+- Migration upgrade/downgrade/re-upgrade passes at `0041_channel_sync_control_plane`; OpenAPI remains
+  200 paths and the main application bundle remains `199.78/54.87 kB gzip`.
+- M13-06B reaches `Repository Validated`; live provider-dependent history/media behavior remains
+  blocked by certification and Host Machine Validation.
+
 ### 2026-08-05 — Owner review, release candidate audit and merge readiness (UI-TASTE-05)
 
 **Fixed**

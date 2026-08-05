@@ -144,7 +144,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0040_channel_sync_media_foundation"
+        assert version == "0041_channel_sync_control_plane"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -274,6 +274,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "channels:manage",
             "channels:authenticate",
             "channels:diagnose",
+            "channels:history_sync",
         }
         con.execute("PRAGMA foreign_keys=OFF")
         case_key = bytes.fromhex("10" * 16)

@@ -7,22 +7,34 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (UI-TASTE-05 closeout; resolve after push) |
-| Current milestone | `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness — REPOSITORY VALIDATED` |
-| Current phase | `Release candidate internally consistent and repository-validated; awaiting explicit Owner Approval and Merge while live M13-06 remains blocked` |
+| Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
+| Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
+| Current phase | `Repository-owned history/media control plane validated; provider certification still blocks all live M13-06 execution` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0040_channel_sync_media_foundation` (40 linear revisions) |
+| Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
-| Backend evidence | Ruff PASS · strict mypy PASS · 4 focused Reactivation tests PASS · 980 full pytest tests PASS |
+| Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS without the campaign circular chunk-order warning |
 | Bundle evidence | Main `199.78/54.87 kB gzip`; authenticated route chunks are lazy-loaded and campaign create/edit execution order is clean |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `44%` evidence-based estimate: M13-01–M13-05 plus provider-neutral sync checkpoint and media-reference persistence |
+| Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
-| Next Module 13 milestone | Provider certification host evidence; live provider-dependent M13-06 remains blocked |
+| Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | One verified Major campaign import-graph correction and synchronized tracking only; no feature, API, migration, dependency, architecture, governance, provider adapter or live execution |
-| Last update | `2026-08-05T12:25:15+05:30` (Asia/Kolkata) |
+| Worktree expectation | Provider-neutral sync/media lifecycle service, permission-only migration, focused tests and synchronized tracking; no API, provider adapter or live execution |
+| Last update | `2026-08-05T17:00:00+05:30` (Asia/Kolkata) |
+
+## M13-06B delivered provider-neutral history and media control plane
+
+- Added lifecycle commands and factual observations over M13-06A persistence without introducing a
+  provider executor, queue task, event consumer, API or frontend surface.
+- Dedicated `channels:history_sync` RBAC and `omnichannel_qr_history` default-off flag protect writes;
+  organization, endpoint ownership, declared capability and optimistic versions fail closed.
+- Checkpoints enforce legal state transitions, monotonic counts/watermarks, live cutover boundaries and
+  distinct resumable-failure versus fresh-completed-run behavior.
+- Media references reuse existing `MediaAsset`/endpoint authorities, are idempotent by provider identity,
+  require media capability and accept only non-secret factual observations.
+- Workflow `31038662241` validates 985 backend tests, unchanged 200-path OpenAPI and unchanged frontend.
 
 ## UI-TASTE-05 completed owner review and merge readiness
 
@@ -96,7 +108,7 @@ disaster recovery or rollout.
 
 Target-host commissioning and provider certification remain mandatory. Live inbound events, history
 execution, media transfer/processing, outbound messaging and unified operator experience remain
-later gated milestones. M13-06A is persistence-only and does not satisfy certification.
+later gated milestones. M13-06A persistence plus M13-06B lifecycle controls do not satisfy provider certification or execute live work.
 
 ## Existing UI modernization state
 
@@ -105,4 +117,4 @@ visual/reference, screen-reader/device, and production-scale performance review 
 
 ## Maintenance rule
 
-Stop after UI-TASTE-05. Await explicit Owner Approval and Merge; UI-TASTE-06 is not authorized. Provider certification continues to block only Module 13 live/provider runtime, ingestion, history, media, messaging, routing, and provider UI.
+Stop after M13-06B. No later implementation milestone is authorized. Provider certification continues to block every live/provider adapter, ingestion, history retrieval, media transfer, messaging, routing and provider UI path.

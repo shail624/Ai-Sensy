@@ -17,7 +17,23 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-05T12:25:15+05:30`.
+Last synchronized: `2026-08-05T17:00:00+05:30`.
+
+## Module 13 — M13-06B Provider-neutral History & Media Control Plane
+
+- **Milestone status:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`.
+- **Completion:** `48%` evidence-based estimate.
+- **Delivered:** lifecycle management for existing history checkpoints and media references, dedicated
+  RBAC/flag gates, tenant/object/capability checks, optimistic concurrency, monotonic progress,
+  resume/fresh-run semantics, idempotent media identity and immutable Audit evidence.
+- **Migration:** `0041_channel_sync_control_plane` seeds only `channels:history_sync`; schema records
+  remain those introduced by M13-06A and OpenAPI remains 200 paths.
+- **Security:** default-off execution, exact organization scope, disabled endpoint rejection, secret-shaped
+  metadata rejection and no public/provider execution surface.
+- **Preserved:** no certified provider, adapter, QR/login, provider cursor, event ingestion, history
+  retrieval, media-byte transfer, queue task, API, generated contract or frontend change.
+- **Next:** provider certification host evidence and separate owner instruction are mandatory before
+  any live M13-06 behavior.
 
 ## Module 13 — M13-06A Provider-neutral Sync & Media Persistence Foundation
 
