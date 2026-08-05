@@ -11,6 +11,31 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-06 — Tag management interface (verified UI remediation)
+
+**Added**
+- Added a Settings → Tags panel so the organization's tag vocabulary can be created, renamed,
+  recoloured, described and deleted from the product. The existing `GET/POST/PATCH/DELETE
+  /api/v1/tags` contract was already complete, but the frontend only ever issued the list read, so
+  no tag could be created anywhere in the UI.
+- The panel reuses the shared enterprise primitives (`Section`, `FilterBar`, `Input`, `Select`,
+  `Button`, `Badge`, `Modal`, `Pagination`, `EmptyState`, `ErrorState`, `TagChip`) and the generated
+  API client; search, a usage filter, client-side paging, a live tag preview, inline validation and a
+  delete confirmation that states how many contacts would be detached.
+- Added ten focused tests covering listing, the persistent create action on an empty organization,
+  create/edit/delete requests, search and usage filtering, colour validation, the read-only
+  experience without `contacts:write`, and the error retry.
+
+**Preserved**
+- Frontend only. No backend file, migration, endpoint, permission definition, OpenAPI path or
+  generated contract type changed; migration head remains `0041_channel_sync_control_plane` and the
+  contract remains drift-free.
+- Tags carry no status column in the contract, so the second filter is usage, derived from the
+  `usage_count` the existing read already returns. No backend field was invented, and the reference
+  product's `First Message` tag concept was deliberately not reproduced.
+- Reads stay on `contacts:read` and writes on `contacts:write`, exactly as the endpoints enforce;
+  users without write permission see no create, edit or delete control at all.
+
 ### 2026-08-05 — Provider-neutral History & Media Control Plane (M13-06B)
 
 **Added**

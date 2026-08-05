@@ -6,6 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
+| Latest change | `Tag management interface — narrowly scoped verified UI remediation (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -14,15 +15,28 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `199.78/54.87 kB gzip`; authenticated route chunks are lazy-loaded and campaign create/edit execution order is clean |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 681 tests PASS · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `205.81/56.88 kB gzip`, measured against a `205.36/56.80 kB gzip` baseline on the same checkout (`+0.45 kB` raw, `+0.08 kB` gzip for the tag remediation); authenticated route chunks stay lazy-loaded and campaign create/edit execution order is clean |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Provider-neutral sync/media lifecycle service, permission-only migration, focused tests and synchronized tracking; no API, provider adapter or live execution |
-| Last update | `2026-08-05T17:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Frontend-only tag management panel over the existing tag contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
+| Last update | `2026-08-06T02:45:00+05:30` (Asia/Kolkata) |
+
+## Tag management interface delivered as a verified UI remediation
+
+- Added a Settings → Tags panel over the existing `GET/POST/PATCH/DELETE /api/v1/tags` endpoints.
+  The contract was already complete and permission-scoped, but the frontend only ever issued the list
+  read, and attaching a tag takes the id of one that already exists — so the tag vocabulary could not
+  be populated from the product and every shipped tagging surface stayed empty on a new organization.
+- Create, rename, recolour, describe and delete are offered to `contacts:write` holders only; readers
+  get the same table with no write control rendered at all.
+- Only contract fields are shown. Tags have no status column, so the filter is usage derived from the
+  existing `usage_count`; no backend field was invented and no reference-specific concept was copied.
+- Frontend only: no backend file, migration, endpoint, permission definition, OpenAPI path or
+  generated type changed. This is not a roadmap milestone, not M13-07, and does not complete Settings.
 
 ## M13-06B delivered provider-neutral history and media control plane
 

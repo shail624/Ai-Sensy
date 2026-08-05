@@ -8,6 +8,9 @@ export type SettingsUpdateRequest = components["schemas"]["SettingsUpdateRequest
 export type FeatureFlag = components["schemas"]["FeatureFlagResponse"];
 export type FeatureFlagPatchRequest = components["schemas"]["FeatureFlagPatchRequest"];
 export type Preferences = components["schemas"]["PreferencesResponse"];
+export type Tag = components["schemas"]["TagResponse"];
+export type TagCreateRequest = components["schemas"]["TagCreateRequest"];
+export type TagUpdateRequest = components["schemas"]["TagUpdateRequest"];
 
 /**
  * Setting scope — the three values `models/settings.py` defines.
@@ -124,3 +127,50 @@ export function validateKey(key: string, existing: string[]): string | null {
 
 /** Feature-flag descriptions are `String(255)` on the model and bounded in the patch schema. */
 export const MAX_FLAG_DESCRIPTION = 255;
+
+/** Tag bounds, mirrored from `schemas/tag.py` so the form fails before a pointless round-trip. */
+export const MAX_TAG_NAME = 60;
+export const MAX_TAG_DESCRIPTION = 255;
+
+/** The server accepts `#RRGGBB` only, or no colour at all. */
+const TAG_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+export function validateTagName(name: string): string | null {
+  const trimmed = name.trim();
+  if (trimmed === "") return "Name is required";
+  if (trimmed.length > MAX_TAG_NAME) return `Names are limited to ${MAX_TAG_NAME} characters`;
+  return null;
+}
+
+/**
+ * An empty colour is valid and means "no colour" — the column is nullable, so a tag without one is
+ * a real state rather than an incomplete form.
+ */
+export function validateTagColor(color: string): string | null {
+  const trimmed = color.trim();
+  if (trimmed === "") return null;
+  if (!TAG_COLOR_PATTERN.test(trimmed)) return "Use a hex colour such as #1F6FEB";
+  return null;
+}
+
+export function validateTagDescription(description: string): string | null {
+  if (description.length > MAX_TAG_DESCRIPTION) {
+    return `Descriptions are limited to ${MAX_TAG_DESCRIPTION} characters`;
+  }
+  return null;
+}
+
+/** Tags carry no status field, so "in use" is derived from the usage count the read returns. */
+export type TagUsageFilter = "all" | "used" | "unused";
+
+export function matchesTagFilter(tag: Tag, search: string, usage: TagUsageFilter): boolean {
+  if (usage === "used" && tag.usage_count === 0) return false;
+  if (usage === "unused" && tag.usage_count > 0) return false;
+
+  const term = search.trim().toLowerCase();
+  if (term === "") return true;
+  return (
+    tag.name.toLowerCase().includes(term) ||
+    (tag.description ?? "").toLowerCase().includes(term)
+  );
+}

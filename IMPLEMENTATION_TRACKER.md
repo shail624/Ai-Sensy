@@ -3,21 +3,37 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-05 · M13-06B Provider-neutral History & Media Control Plane is Repository Validated. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-06 · Tag management interface delivered as a narrowly scoped verified UI remediation on top of M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `f9a110d34f2095a3e9dbe61a779825edade38bda`
+- **Starting HEAD:** `3175955005bc1cf9d43c69347e2846b0f9e75ea2`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths
+- **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%`
+- **Latest change:** Tag management interface — a frontend-only UI remediation, not a roadmap milestone and not M13-07
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
+- **Frontend evidence:** 36 files / 681 tests passed (671 before this change)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-05T17:00:00+05:30`
+- **Last synchronized:** `2026-08-06T02:45:00+05:30`
 
 ## Delivered
+
+### Tag management interface (verified UI remediation)
+
+- Added a Settings → Tags panel over the existing tag endpoints. The contract was already complete,
+  but the frontend only issued the list read, and attaching a tag requires the id of one that already
+  exists — so on a new organization the tag vocabulary could never be populated from the product and
+  every shipped tagging surface stayed empty.
+- Create, rename, recolour, describe and delete are now available to `contacts:write` holders, with
+  search, a usage filter, client-side paging, inline validation, a live preview, and a delete
+  confirmation that states how many contacts would be detached.
+- Writes invalidate the shared `["tags"]` cache and the campaign picker cache, so a new tag is
+  selectable in the existing contact and conversation attach flows without a reload.
+- Frontend only: no backend file, migration, endpoint, permission definition, OpenAPI path or
+  generated type changed. Module 13, its architecture and its provider boundary are untouched.
 
 ### M13-06B Provider-neutral History & Media Control Plane
 

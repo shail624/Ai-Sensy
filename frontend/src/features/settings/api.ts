@@ -8,6 +8,9 @@ import type {
   Organization,
   OrganizationUpdateRequest,
   Setting,
+  Tag,
+  TagCreateRequest,
+  TagUpdateRequest,
 } from "@/features/settings/types";
 
 // Shared error helper, re-exported for this feature's components (as the other features do).
@@ -21,6 +24,17 @@ export const settingsKeys = {
   flags: ["settings", "flags"] as const,
   preferences: ["settings", "preferences"] as const,
 };
+
+/**
+ * Tags are read here under the **same** key the contact and customer-profile hooks already use,
+ * rather than a settings-private one.
+ *
+ * One cache entry for one endpoint is what keeps this panel and the attach pickers from disagreeing:
+ * creating a tag here has to make it selectable on a contact without a reload. The campaign picker
+ * caches the same list under its own key, so writes invalidate that too.
+ */
+const TAGS_KEY = ["tags"] as const;
+const CAMPAIGN_PICKERS_KEY = ["campaigns", "pickers"] as const;
 
 /**
  * The organization this platform runs for.
@@ -138,5 +152,54 @@ export function useUpdatePreferences() {
     async (preferences: Record<string, unknown>): Promise<Record<string, unknown>> =>
       unwrap(await api.PUT("/api/v1/users/me/preferences", { body: { preferences } })).preferences,
     [settingsKeys.preferences],
+  );
+}
+
+/**
+ * Every tag in the organization, with the usage count the list endpoint computes.
+ *
+ * The endpoint returns the whole set — there is no server-side page, search or filter — so this
+ * panel narrows and pages the list it already holds rather than inventing query parameters the API
+ * does not accept.
+ */
+export function useTags() {
+  return useQuery({
+    queryKey: TAGS_KEY,
+    queryFn: async (): Promise<Tag[]> => unwrap(await api.GET("/api/v1/tags")),
+  });
+}
+
+export function useCreateTag() {
+  return useSettingsMutation(
+    async (body: TagCreateRequest): Promise<Tag> =>
+      unwrap(await api.POST("/api/v1/tags", { body })),
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+export function useUpdateTag() {
+  return useSettingsMutation(
+    async ({ id, body }: { id: string; body: TagUpdateRequest }): Promise<Tag> =>
+      unwrap(await api.PATCH("/api/v1/tags/{tag_id}", { params: { path: { tag_id: id } }, body })),
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * Deleting detaches the tag from every contact that carries it; the confirmation says so.
+ *
+ * The endpoint answers `204 No Content`, so the error is checked directly rather than through
+ * `unwrap` — `unwrap` treats an absent body as a failure, which is exactly what a successful delete
+ * returns.
+ */
+export function useDeleteTag() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/tags/{tag_id}", {
+        params: { path: { tag_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
   );
 }

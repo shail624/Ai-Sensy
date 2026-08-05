@@ -10,7 +10,8 @@ import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValue
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
 import { PreferencesPanel } from "@/features/settings/PreferencesPanel";
 import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
-import type { FeatureFlag, Organization, Setting } from "@/features/settings/types";
+import { TagsPanel } from "@/features/settings/TagsPanel";
+import type { FeatureFlag, Organization, Setting, Tag } from "@/features/settings/types";
 import {
   draftFromValue,
   inferValueType,
@@ -56,6 +57,20 @@ function flagFixture(overrides: Partial<FeatureFlag> = {}): FeatureFlag {
     description: "AI-drafted replies in the inbox.",
     is_enabled: false,
     rollout: null,
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function tagFixture(overrides: Partial<Tag> = {}): Tag {
+  return {
+    id: "t1",
+    type: "tag",
+    name: "Prepaid",
+    color: "#1F6FEB",
+    description: "Prepaid reactivation cohort.",
+    usage_count: 3,
+    created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
   };
@@ -472,6 +487,128 @@ describe("PreferencesPanel", () => {
   });
 });
 
+// --- Tags -------------------------------------------------------------------------------------
+
+describe("TagsPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["contacts:read", "contacts:write", "auth:self"];
+  });
+
+  it("lists tags with the usage count the read returns", async () => {
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+
+    expect(await screen.findByText("Prepaid")).toBeInTheDocument();
+    expect(screen.getByText("3 contacts")).toBeInTheDocument();
+    expect(screen.getByText("Prepaid reactivation cohort.")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no tag exists yet", async () => {
+    // The gap this panel closes: with no tag and no way to make one, tagging can never start.
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    expect(await screen.findByText("No tags yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New tag" }).length).toBeGreaterThan(0);
+  });
+
+  it("creates a tag, sending blank optional fields as null rather than empty strings", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  Winback  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags");
+    expect(writes[0]?.body).toEqual({ name: "Winback", color: null, description: null });
+  });
+
+  it("refuses a colour the server would reject, before sending it", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Winback" } });
+    fireEvent.change(screen.getByLabelText(/Colour/), { target: { value: "red" } });
+
+    expect(screen.getByText("Use a hex colour such as #1F6FEB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create tag" })).toBeDisabled();
+    expect(writes).toHaveLength(0);
+  });
+
+  it("narrows the list by search and by usage", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid", usage_count: 3 }),
+      tagFixture({ id: "t2", name: "Postpaid", description: null, usage_count: 0 }),
+    ];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    fireEvent.change(screen.getByLabelText("Search tags"), { target: { value: "post" } });
+    expect(screen.queryByText("Prepaid")).not.toBeInTheDocument();
+    expect(screen.getByText("Postpaid")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search tags"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by usage"), { target: { value: "unused" } });
+    expect(screen.queryByText("Prepaid")).not.toBeInTheDocument();
+    expect(screen.getByText("Postpaid")).toBeInTheDocument();
+  });
+
+  it("edits a tag through the patch endpoint", async () => {
+    responses["/api/v1/tags"] = [tagFixture()];
+    responses["/api/v1/tags/{tag_id}"] = tagFixture({ name: "Prepaid India" });
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prepaid India" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags/{tag_id}");
+    expect(writes[0]?.body).toMatchObject({ name: "Prepaid India" });
+  });
+
+  it("says how many contacts a delete would detach before it happens", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ usage_count: 3 })];
+    // `undefined` stands in for the endpoint's real `204 No Content`: the key is present, so the
+    // stub reports success, but there is no body. Treating that as a failure was a live bug.
+    responses["/api/v1/tags/{tag_id}"] = undefined;
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(screen.getByText(/applied to 3 contacts/)).toBeInTheDocument();
+    expect(screen.getByText(/removes the tag from all of them/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags/{tag_id}");
+
+    // A successful empty-body delete must close the dialog, not report an error.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete tag" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("hides the write controls entirely without contacts:write", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    expect(screen.queryByRole("button", { name: "New tag" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.getByText(/needs the contacts write permission/)).toBeInTheDocument();
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<TagsPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+});
+
 // --- Sections & navigation -------------------------------------------------------------------------------------
 
 describe("settings sections", () => {
@@ -480,8 +617,13 @@ describe("settings sections", () => {
     expect(preferences?.permission).toBe("auth:self");
   });
 
+  it("puts tags on the contact permission their own endpoints enforce", () => {
+    const tags = SETTINGS_SECTIONS.find((section) => section.key === "tags");
+    expect(tags?.permission).toBe("contacts:read");
+  });
+
   it("collects the distinct permissions that grant access to the area", () => {
-    expect(SETTINGS_PERMISSIONS).toEqual(["settings:read", "auth:self"]);
+    expect(SETTINGS_PERMISSIONS).toEqual(["settings:read", "contacts:read", "auth:self"]);
   });
 });
 

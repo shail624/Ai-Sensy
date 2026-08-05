@@ -4,7 +4,28 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-05T17:00:00+05:30`.
+Last synchronized: `2026-08-06T02:45:00+05:30`.
+
+
+## Tag management interface (verified UI remediation)
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified root cause | PASS | `GET/POST/PATCH/DELETE /api/v1/tags` existed and was contract-exposed, but the frontend issued only the list read, and `ContactTagsRequest` accepts ids of tags that already exist — so no tag could be created from the product. |
+| Frontend lint | PASS | `npm run lint` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean for the application and browser test projects. |
+| Focused panel tests | PASS | 10 new tests cover listing, the persistent empty-state create action, create/edit/delete requests, search and usage filtering, colour validation, read-only behaviour and error retry. |
+| Existing settings and tag regressions | PASS | `settings.test.tsx` 49 passed; full frontend suite 36 files / 681 tests passed (671 before this change). |
+| Backend tag regressions | PASS | `tests/test_api_tags.py` and `tests/test_api_quick_replies.py` 25 passed; no backend file changed. |
+| Production build | PASS | Built in 4.32s. Main chunk `205.81 kB / 56.88 kB gzip` against a measured `205.36 kB / 56.80 kB gzip` baseline on the same checkout — `+0.45 kB` raw, `+0.08 kB` gzip, with the panel itself in the lazy settings chunk. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports `openapi.json is up to date`; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps, including backend lint and strict types across 287 source files. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| Permission and tenant behaviour | PASS | Reads gated on `contacts:read` and writes on `contacts:write`, matching the endpoints; the route guard carries the same code, and write controls are hidden rather than shown disabled. Tenant scoping stays server-side in `TagService`. |
+| Contract honesty | PASS | Only contract fields are rendered. Tags have no status column, so the filter is usage derived from `usage_count`; no backend field was invented and no reference-specific concept was reproduced. |
+| Self-review defect found and fixed | PASS | Pre-commit review caught the delete path calling `unwrap` on a `204 No Content` response. `unwrap` throws on an absent body, so every **successful** delete would have surfaced an error and left the dialog open. Corrected to the repository's established 204 pattern (`const { error } = await api.DELETE(...)`), and the regression now stubs an empty body and asserts the dialog closes. |
+| Reference boundary | PASS | Capture inspected outside the repository; no reference file, asset, markup, style or copy was staged or reproduced. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes, and behaviour at a realistic tag volume remain unproven by repository gates. |
 
 
 ## M13-06B Provider-neutral History & Media Control Plane

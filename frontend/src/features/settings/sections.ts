@@ -37,6 +37,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "Flags registered on this deployment and whether they are switched on.",
   },
   {
+    // Tags are contact-domain configuration, so they carry the contact permissions their own
+    // endpoints enforce rather than `settings:read`.
+    key: "tags",
+    label: "Tags",
+    path: "/settings/tags",
+    permission: "contacts:read",
+    description: "The shared tag vocabulary applied to contacts and conversations.",
+  },
+  {
     key: "preferences",
     label: "My preferences",
     path: "/settings/preferences",
