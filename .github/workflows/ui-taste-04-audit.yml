@@ -1,0 +1,131 @@
+name: Audit UI-TASTE-04 Baseline
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Install dependencies
+        run: |
+          python -m pip install -e backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+      - name: Baseline repository gates
+        run: |
+          mkdir -p .quality-artifacts/ui-taste-04
+          (cd backend && ruff check app tests) | tee .quality-artifacts/ui-taste-04/backend-ruff.txt
+          (cd backend && mypy app) | tee .quality-artifacts/ui-taste-04/backend-mypy.txt
+          (cd frontend && npm run lint) | tee .quality-artifacts/ui-taste-04/frontend-lint.txt
+          (cd frontend && npm run typecheck) | tee .quality-artifacts/ui-taste-04/frontend-typecheck.txt
+          (cd frontend && npm test -- --run) | tee .quality-artifacts/ui-taste-04/frontend-tests.txt
+          (cd frontend && npm run build) | tee .quality-artifacts/ui-taste-04/frontend-build.txt
+          (cd e2e && npm run typecheck) | tee .quality-artifacts/ui-taste-04/e2e-typecheck.txt
+      - name: Generate source audit
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path('.')
+          out = root / '.quality-artifacts' / 'ui-taste-04'
+          src = root / 'frontend' / 'src'
+          files = sorted(src.rglob('*.tsx'))
+          pages = sorted((src / 'pages').glob('*.tsx'))
+          ui_files = sorted((src / 'components').rglob('*.tsx'))
+          router = (src / 'routes' / 'router.tsx').read_text(encoding='utf-8')
+
+          routes = re.findall(r'path:\s*"([^"]*)"', router)
+          eager_pages = sorted(set(re.findall(r'import \{[^}]*\}\s+from\s+"@/pages/([^"]+)"', router)))
+          lazy_pages = sorted(set(re.findall(r'import\("@/pages/([^"]+)"\)', router)))
+
+          findings: dict[str, list[dict[str, object]]] = {
+              'buttons_without_type': [],
+              'images_without_alt': [],
+              'clickable_noninteractive': [],
+              'fixed_overlays_without_dialog_role': [],
+              'tables_without_overflow_ancestor_hint': [],
+              'autofocus_usage': [],
+              'positive_tabindex': [],
+              'outline_none_usage': [],
+              'very_large_tsx': [],
+              'non_lazy_page_modules': [],
+          }
+
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              rel = str(path.relative_to(root))
+              lines = text.splitlines()
+              for i, line in enumerate(lines, 1):
+                  if '<button' in line and 'type=' not in line:
+                      findings['buttons_without_type'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if '<img' in line and 'alt=' not in line:
+                      findings['images_without_alt'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if ('onClick=' in line and '<div' in line) and not any(token in line for token in ('role=', 'tabIndex=', '<button')):
+                      findings['clickable_noninteractive'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if ('fixed inset-0' in line or 'fixed top-0' in line) and 'role="dialog"' not in text and 'aria-modal' not in text:
+                      findings['fixed_overlays_without_dialog_role'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if 'autoFocus' in line:
+                      findings['autofocus_usage'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if re.search(r'tabIndex=\{?[1-9]', line):
+                      findings['positive_tabindex'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+                  if 'outline-none' in line and 'focus-visible:' not in line:
+                      findings['outline_none_usage'].append({'file': rel, 'line': i, 'text': line.strip()[:240]})
+              if len(lines) > 700:
+                  findings['very_large_tsx'].append({'file': rel, 'lines': len(lines)})
+              if '<table' in text and 'overflow-x-auto' not in text and 'Table' not in path.name:
+                  findings['tables_without_overflow_ancestor_hint'].append({'file': rel})
+
+          for page in pages:
+              module = page.stem
+              if module not in lazy_pages and module not in {'LoginPage', 'NotFound'}:
+                  findings['non_lazy_page_modules'].append({'file': str(page.relative_to(root))})
+
+          summary = {
+              'tsx_files': len(files),
+              'page_files': len(pages),
+              'component_tsx_files': len(ui_files),
+              'route_path_literals': routes,
+              'lazy_page_modules': lazy_pages,
+              'eager_page_import_groups': eager_pages,
+              'findings': findings,
+          }
+          (out / 'source-audit.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+          (out / 'tsx-files.txt').write_text('\n'.join(str(p.relative_to(root)) for p in files) + '\n', encoding='utf-8')
+          (out / 'page-files.txt').write_text('\n'.join(str(p.relative_to(root)) for p in pages) + '\n', encoding='utf-8')
+          PY
+          du -ah frontend/dist | sort -h > .quality-artifacts/ui-taste-04/bundle-files.txt
+          find frontend/src -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.css' \) -print0 | xargs -0 wc -l | sort -n > .quality-artifacts/ui-taste-04/source-lines.txt
+          tar --exclude=.git --exclude='frontend/node_modules' --exclude='frontend/dist' --exclude='e2e/node_modules' --exclude='.quality-artifacts' -czf /tmp/ui-taste-04-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-taste-04-baseline-audit
+          path: |
+            .quality-artifacts/ui-taste-04
+            /tmp/ui-taste-04-source.tar.gz
+          if-no-files-found: error
+          retention-days: 7
