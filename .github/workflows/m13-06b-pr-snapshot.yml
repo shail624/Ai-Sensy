@@ -1,0 +1,31 @@
+name: M13-06B PR Source Snapshot
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Package exact approved product baseline
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output=ai-sensy-source.tar.gz f9a110d34f2095a3e9dbe61a779825edade38bda
+          printf '%s\n' f9a110d34f2095a3e9dbe61a779825edade38bda > product-head.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-product-source
+          path: |
+            ai-sensy-source.tar.gz
+            product-head.txt
+          if-no-files-found: error
+          retention-days: 1
