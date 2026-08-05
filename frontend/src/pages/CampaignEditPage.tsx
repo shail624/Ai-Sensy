@@ -2,7 +2,8 @@ import { Link, useParams } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
-import { CampaignWizard, campaignToForm } from "@/features/campaigns";
+import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
+import { campaignToForm } from "@/features/campaigns/campaignForm";
 import { apiErrorMessage, useCampaign } from "@/features/campaigns/api";
 import { isEditable } from "@/features/campaigns/types";
 

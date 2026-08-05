@@ -2,14 +2,14 @@ import { Sparkles } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
+import { AiFoundationPanel } from "@/features/ai";
+import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
 import {
-  CampaignWizard,
   contactsToForm,
   duplicateToForm,
   followUpToForm,
-} from "@/features/campaigns";
-import { AiFoundationPanel } from "@/features/ai";
-import type { Campaign } from "@/features/campaigns";
+} from "@/features/campaigns/campaignForm";
+import type { Campaign } from "@/features/campaigns/types";
 
 /**
  * Route page for creating a campaign — and for duplicating one.

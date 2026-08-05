@@ -7,22 +7,31 @@
 |---|---|
 | Current branch | `ui/taste-modernization` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (UI-TASTE-04 closeout; resolve after push) |
-| Current milestone | `UI-TASTE-04 — Responsive, Accessibility and Performance Regression — REPOSITORY VALIDATED` |
-| Current phase | `Provider-neutral UI quality closeout; responsive, accessibility and route-performance defects corrected while live M13-06 remains blocked` |
+| Current Git HEAD | `HEAD` (UI-TASTE-05 closeout; resolve after push) |
+| Current milestone | `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness — REPOSITORY VALIDATED` |
+| Current phase | `Release candidate internally consistent and repository-validated; awaiting explicit Owner Approval and Merge while live M13-06 remains blocked` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0040_channel_sync_media_foundation` (40 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 4 focused Reactivation tests PASS · 980 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS |
-| Bundle evidence | Main `199.78 kB` / `54.87 kB` gzip, improved from `733.97/178.29 kB`; authenticated route chunks are lazy-loaded |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `199.78/54.87 kB gzip`; authenticated route chunks are lazy-loaded and campaign create/edit execution order is clean |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `44%` evidence-based estimate: M13-01–M13-05 plus provider-neutral sync checkpoint and media-reference persistence |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | Provider certification host evidence; live provider-dependent M13-06 remains blocked |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | UI quality corrections and synchronized tracking only; no API, migration, dependency, provider adapter or live execution |
-| Last update | `2026-08-05T11:44:25+05:30` (Asia/Kolkata) |
+| Worktree expectation | One verified Major campaign import-graph correction and synchronized tracking only; no feature, API, migration, dependency, architecture, governance, provider adapter or live execution |
+| Last update | `2026-08-05T12:25:15+05:30` (Asia/Kolkata) |
+
+## UI-TASTE-05 completed owner review and merge readiness
+
+- Full repository review found one verified Major release-candidate defect in the campaign lazy import
+  graph; direct module imports remove the Rollup circular execution-order risk without changing behavior.
+- Workflow `30982637585` passes all applicable repository gates, with main JavaScript at `199.78/54.87 kB gzip`.
+- No verified repository-scope Blocker or Major defect remains. Moderate dependency advisories and all
+  authenticated target-host visual/device/screen-reader/performance evidence remain explicitly pending.
+- The branch is ready for explicit Owner Approval and Merge; it is not Host Validated or Production Ready.
 
 ## UI-TASTE-04 delivered responsive, accessibility and performance regression
 
@@ -91,10 +100,9 @@ later gated milestones. M13-06A is persistence-only and does not satisfy certifi
 
 ## Existing UI modernization state
 
-UI-TASTE-03A, UI-TASTE-03B and UI-TASTE-04 are repository-validated. Authenticated representative-data
+UI-TASTE-03A, UI-TASTE-03B, UI-TASTE-04 and UI-TASTE-05 are repository-validated. Authenticated representative-data
 visual/reference, screen-reader/device, and production-scale performance review remains pending.
 
 ## Maintenance rule
 
-Stop after UI-TASTE-03B. Provider certification continues to block only Module 13 live/provider
-runtime, ingestion, history, media, messaging, routing, and provider UI. The next approved milestone is UI-TASTE-05, which requires explicit owner instruction.
+Stop after UI-TASTE-05. Await explicit Owner Approval and Merge; UI-TASTE-06 is not authorized. Provider certification continues to block only Module 13 live/provider runtime, ingestion, history, media, messaging, routing, and provider UI.

@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-05T03:21:50+05:30`.
+Last synchronized: `2026-08-05T12:25:15+05:30`.
 
 ## Authority and baseline
 
@@ -42,7 +42,7 @@ It deliberately does not claim SSE, browser push, email, or internal WhatsApp de
 Skipped: Not required by product owner.** No generic approval authority or Approval Center will be
 built; existing KYC-specific approval logic and completed authorization safeguards remain preserved.
 
-`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy and `UI-TASTE-04` responsive/accessibility/performance regression are Repository Validated.
+`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy, `UI-TASTE-04` responsive/accessibility/performance regression and `UI-TASTE-05` owner review/merge readiness are Repository Validated. The branch now awaits explicit Owner Approval and Merge.
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
@@ -126,7 +126,7 @@ remain authoritative.
 | UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED | Replace the messaging-led first screen with factual operational intelligence. | Cross-domain attention, blocked customers, KYC, SIM/Activation SLA risk, Campaigns, unread conversations, Templates, agent workload, today KPI changes, task snapshot and source actions. | Repository gates pass with 661 tests and split build; no fake metric/backend duplication; authenticated representative-data visual/reference review remains pending. |
 | UI-TASTE-03B — Reactivation operational hierarchy — REPOSITORY VALIDATED | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Resume only from the latest approved Git HEAD when explicitly instructed; real persisted behavior, permissions, source contracts and representative-data review pass. |
 | UI-TASTE-04 — Responsive, accessibility, and performance regression — REPOSITORY VALIDATED | Prove repository-verifiable modernization quality without claiming host evidence. | KYC route permission truth, debounced search, empty-result keyboard safety, shared modal focus/scroll behavior, narrow pagination, authenticated route splitting and dead-code removal. | **REPOSITORY VALIDATED** in workflow `30980229127`; main bundle 199.78/54.87 kB gzip; host browser/device/screen-reader evidence remains pending. |
-| UI-TASTE-05 — Owner review and merge — NEXT | Close only after evidence-backed owner review. | Focused corrections, governance/validation updates, final branch review and merge. | Owner approves; changed-file boundary is truthful; all required evidence is recorded; merge occurs without bypassing product or quality gates. |
+| UI-TASTE-05 — Owner review and merge — REPOSITORY VALIDATED | Determine owner-approval and merge readiness without adding features or changing architecture/governance. | One verified Major campaign chunk-order correction, full repository audit and synchronized validation records. | **REPOSITORY VALIDATED** in workflow `30982637585`; no repository-scope Blocker/Major remains; host evidence stays pending; explicit Owner Approval and Merge are the only next actions. |
 
 ## Phase 2 — Messaging, growth, analytics, and integrations
 

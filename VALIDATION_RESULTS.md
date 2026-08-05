@@ -4,8 +4,26 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-05T11:44:25+05:30`.
+Last synchronized: `2026-08-05T12:25:15+05:30`.
 
+
+## UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `96bf0a8fcda01703b376a4ebf8f6f6e498a10108` on `ui/taste-modernization`. |
+| Full repository review | PASS | Dashboard, Reactivation, Contacts, Customer 360, Inbox, Campaigns, Templates, Analytics, Notifications, Settings, Authentication, RBAC, Customer Identity, shared components and provider-neutral Module 13 foundations were reviewed as one release candidate. |
+| Verified Major defect | PASS | Campaign create/edit route chunks imported `CampaignWizard` through a barrel re-export that Rollup warned could create broken execution order; direct module imports remove the cycle. |
+| Navigation / integration | PASS | Route guards, deep links, URL-backed state, search, filters, pagination, modal/form/loading/error/empty/shared-component behavior remain covered by existing contracts and regressions. |
+| RBAC / tenant / object authorization | PASS | Existing permission gates and tenant-scoped backend tests pass; no permission catalog, repository authority or audit behavior changed. |
+| Backend gates | PASS | Ruff, strict mypy, bytecode/import integrity, semantic OpenAPI drift and all 980 backend tests pass in workflow `30982637585`. |
+| Frontend gates | PASS | ESLint, TypeScript, 36 Vitest files / 671 tests and production build pass without the campaign circular chunk-order warning. |
+| Security gates | PASS | Bandit, Python audit, E2E audit and Trivy high/critical source scan pass. Frontend production dependencies contain no high/critical advisory; two moderate React Router advisories remain recorded as non-Blocker/Major maintenance debt. |
+| Performance | PASS | Main application JavaScript is `199.78/54.87 kB gzip`; existing authenticated route splitting and 250 ms global-search debounce remain intact. |
+| Architecture / governance / provider boundary | PASS | No architecture, governance, provider certification, WAHA/Evolution, QR, runtime, live messaging, history or media-transfer work exists in this milestone. |
+| Milestone boundary | PASS | Exactly two product files and six synchronized tracking ledgers change in one conventional commit. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual, browser/device, keyboard-only, screen-reader, contrast, touch, production-scale performance and deployed Playwright evidence remain unproven. |
+| Merge readiness | PASS | No verified repository-scope Blocker or Major defect remains; branch is ready for explicit Owner Approval and Merge, not Production Ready. |
 
 ## UI-TASTE-04 Responsive, Accessibility and Performance Regression
 

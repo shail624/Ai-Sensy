@@ -11,6 +11,28 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-05 — Owner review, release candidate audit and merge readiness (UI-TASTE-05)
+
+**Fixed**
+- Removed the verified campaign create/edit lazy-chunk execution cycle by importing the existing
+  `CampaignWizard`, form helpers and types from their direct modules instead of the campaigns barrel.
+- Preserved the existing campaign workflow, API, permissions, route boundaries and feature behavior.
+
+**Reviewed**
+- Audited Dashboard, Reactivation, Contacts, Customer 360, Inbox, Campaigns, Templates, Analytics,
+  Notifications, Settings, Authentication, RBAC, Customer Identity, shared components and the
+  provider-neutral Module 13 foundations as one release candidate.
+- No second authority, architecture drift, governance expansion, provider work or roadmap resequencing
+  was introduced.
+
+**Validated**
+- Release-candidate workflow `30982637585` passes repository lint, strict typing, OpenAPI/client drift,
+  980 backend tests, 36 frontend files / 671 tests, clean production build, E2E types, SAST, dependency
+  audits and tracked-source vulnerability/secret/IaC scanning.
+- Main application JavaScript remains `199.78/54.87 kB gzip`; the campaign chunk-order warning is absent.
+- Authenticated representative-data browser/device/screen-reader and production-scale evidence remains
+  `PENDING – Host Machine Validation`.
+
 ### 2026-08-05 — Responsive, accessibility and performance regression (UI-TASTE-04)
 
 **Changed**
