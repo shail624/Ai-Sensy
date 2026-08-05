@@ -1,0 +1,67 @@
+name: Repair M13-06B Package Transport
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: validation/m13-06b-control-plane
+          fetch-depth: 0
+      - name: Repair only verified transport corruption
+        id: repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          root = Path('.validation/m13-06b')
+          chunk4 = root / 'chunk-004.b64'
+          chunk15 = root / 'chunk-015.b64'
+
+          value4 = chunk4.read_text()
+          value15 = chunk15.read_text()
+
+          if hashlib.sha256(value4.encode()).hexdigest() != 'da7a3983ca045d6c7a219c858157187bde1a7825823689c0ed932ba22efc8df6':
+              assert len(value4) == 10000
+              repaired4 = value4[:8000]
+              assert hashlib.sha256(repaired4.encode()).hexdigest() == 'da7a3983ca045d6c7a219c858157187bde1a7825823689c0ed932ba22efc8df6'
+              chunk4.write_text(repaired4)
+
+          if hashlib.sha256(value15.encode()).hexdigest() != 'e69d61fbaf21a478b3a9f0f9c235822ecb6fb361b08e4700bcc53a07614f84b3':
+              assert len(value15) == 8000
+              assert value15[5641] == 'o'
+              repaired15 = value15[:5641] + 'e' + value15[5642:]
+              assert hashlib.sha256(repaired15.encode()).hexdigest() == 'e69d61fbaf21a478b3a9f0f9c235822ecb6fb361b08e4700bcc53a07614f84b3'
+              chunk15.write_text(repaired15)
+
+          combined = ''.join(path.read_text() for path in sorted(root.glob('chunk-*.b64')))
+          assert len(combined) == 128564
+          assert hashlib.sha256(combined.encode()).hexdigest() == '4f05e0aaa420678d463eb33b873a5ed1aa5562db41b6e7fad37d14505d6bf7d9'
+          PY
+          if git diff --quiet -- .validation/m13-06b/chunk-004.b64 .validation/m13-06b/chunk-015.b64; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit verified transport repair
+        if: steps.repair.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git add .validation/m13-06b/chunk-004.b64 .validation/m13-06b/chunk-015.b64
+          git commit -m 'chore(validation): repair m13-06b package transport'
+          git push origin HEAD:refs/heads/validation/m13-06b-control-plane
