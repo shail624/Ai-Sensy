@@ -1,0 +1,217 @@
+name: Validate M13-06B Provider-neutral History Control
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+    paths:
+      - .validation/m13-06b/**
+      - .github/workflows/validate-m13-06b.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: m13-06b-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE_SHA: f9a110d34f2095a3e9dbe61a779825edade38bda
+      WORK_BRANCH: work/m13-06b-history-control
+    steps:
+      - name: Checkout validation runner
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          path: runner
+
+      - name: Checkout exact product baseline
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 0
+          path: product
+
+      - name: Verify exact baseline and apply bounded product patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C product rev-parse HEAD)" = "$BASE_SHA"
+          cat runner/.validation/m13-06b/apply.py.gz.b64.* | base64 --decode | gzip --decompress > /tmp/apply_m13_06b.py
+          python -m py_compile /tmp/apply_m13_06b.py
+          cd product
+          python /tmp/apply_m13_06b.py code
+          python -m py_compile \
+            backend/app/channels/sync.py \
+            backend/app/services/channel_sync_manager.py \
+            backend/alembic/versions/0041_channel_sync_control_plane.py \
+            backend/tests/test_channel_sync_manager.py
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: product/backend/pyproject.toml
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            product/frontend/package-lock.json
+            product/e2e/package-lock.json
+
+      - name: Install repository validation toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e 'product/backend[dev]'
+          npm ci --prefix product/frontend
+          npm ci --prefix product/e2e
+
+      - name: Run complete product validation before tracking closeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd product
+          python scripts/quality_gate.py pre-merge 2>&1 | tee /tmp/m13-06b-pre.log
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path('/tmp/m13-06b-pre.log').read_text(errors='replace')
+          matches = [int(value) for value in re.findall(r'(?m)^(\d+) passed(?:,| in)', text)]
+          if not matches or matches[0] < 980:
+              raise SystemExit(f'Could not verify backend regression count: {matches}')
+          Path('/tmp/backend-count.txt').write_text(str(matches[0]))
+          PY
+
+      - name: Synchronize milestone tracking records
+        shell: bash
+        env:
+          WORKFLOW_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          BACKEND_COUNT="$(cat /tmp/backend-count.txt)"
+          SYNCHRONIZED_AT="$(TZ=Asia/Kolkata date --iso-8601=seconds)"
+          cd product
+          python /tmp/apply_m13_06b.py tracking \
+            --backend-count "$BACKEND_COUNT" \
+            --workflow-id "$WORKFLOW_ID" \
+            --synchronized-at "$SYNCHRONIZED_AT"
+
+      - name: Run complete validation on final milestone tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd product
+          python scripts/quality_gate.py pre-merge 2>&1 | tee /tmp/m13-06b-final.log
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          expected = int(Path('/tmp/backend-count.txt').read_text())
+          text = Path('/tmp/m13-06b-final.log').read_text(errors='replace')
+          matches = [int(value) for value in re.findall(r'(?m)^(\d+) passed(?:,| in)', text)]
+          if not matches or matches[0] != expected:
+              raise SystemExit(f'Backend count changed between gates: expected {expected}, got {matches}')
+          PY
+
+      - name: Verify milestone boundary and provider-certification stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd product
+          python - <<'PY'
+          import subprocess
+          expected = sorted([
+              'CHANGELOG.md',
+              'IMPLEMENTATION_TRACKER.md',
+              'MODULE_STATUS.md',
+              'PROJECT_STATE.md',
+              'ROADMAP.md',
+              'VALIDATION_RESULTS.md',
+              'backend/alembic/versions/0041_channel_sync_control_plane.py',
+              'backend/app/channels/flags.py',
+              'backend/app/channels/sync.py',
+              'backend/app/rbac/catalog.py',
+              'backend/app/services/audit_service.py',
+              'backend/app/services/channel_sync_manager.py',
+              'backend/tests/test_channel_sync_manager.py',
+              'backend/tests/test_migrations.py',
+          ])
+          actual = sorted(filter(None, subprocess.check_output(
+              ['git', 'diff', '--name-only', 'f9a110d34f2095a3e9dbe61a779825edade38bda'],
+              text=True,
+          ).splitlines()))
+          if actual != expected:
+              raise SystemExit(f'Unexpected milestone boundary.\nExpected: {expected}\nActual: {actual}')
+          PY
+          test "$(git diff --name-only "$BASE_SHA" -- frontend/openapi.json | wc -l)" -eq 0
+          test "$(git diff --name-only "$BASE_SHA" -- frontend/src | wc -l)" -eq 0
+          test "$(git diff --name-only "$BASE_SHA" -- backend/app/api | wc -l)" -eq 0
+          test "$(git diff --name-only "$BASE_SHA" -- backend/app/channels/meta backend/app/channels/base.py | wc -l)" -eq 0
+          test "$(git diff --name-only "$BASE_SHA" -- backend/pyproject.toml frontend/package.json e2e/package.json | wc -l)" -eq 0
+          ! git diff "$BASE_SHA" -- backend/app backend/alembic backend/tests | grep -Eiq '\b(WAHA|Evolution API|EvolutionAPI)\b'
+          grep -q 'no provider I/O' backend/app/services/channel_sync_manager.py
+          grep -q 'exposes no API route' backend/app/services/channel_sync_manager.py
+          grep -q '0041_channel_sync_control_plane' backend/tests/test_migrations.py
+
+      - name: Commit and publish exactly one milestone commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd product
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git switch -c "$WORK_BRANCH"
+          git add \
+            CHANGELOG.md \
+            IMPLEMENTATION_TRACKER.md \
+            MODULE_STATUS.md \
+            PROJECT_STATE.md \
+            ROADMAP.md \
+            VALIDATION_RESULTS.md \
+            backend/alembic/versions/0041_channel_sync_control_plane.py \
+            backend/app/channels/flags.py \
+            backend/app/channels/sync.py \
+            backend/app/rbac/catalog.py \
+            backend/app/services/audit_service.py \
+            backend/app/services/channel_sync_manager.py \
+            backend/tests/test_channel_sync_manager.py \
+            backend/tests/test_migrations.py
+          test -z "$(git status --porcelain | grep '^??' || true)"
+          git commit -m 'feat(channels): add history sync control plane'
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 1
+          git push origin "HEAD:refs/heads/$WORK_BRANCH"
+          git rev-parse HEAD | tee /tmp/m13-06b-commit.txt
+
+      - name: Write validation report
+        if: always()
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p report
+          {
+            echo "workflow_id=$RUN_ID"
+            echo "base_sha=$BASE_SHA"
+            echo "work_branch=$WORK_BRANCH"
+            if test -f /tmp/backend-count.txt; then echo "backend_tests=$(cat /tmp/backend-count.txt)"; fi
+            if test -f /tmp/m13-06b-commit.txt; then echo "commit_sha=$(cat /tmp/m13-06b-commit.txt)"; fi
+          } > report/m13-06b-validation.txt
+          cp /tmp/m13-06b-final.log report/ 2>/dev/null || true
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-validation-${{ github.run_id }}
+          path: report
+          if-no-files-found: error
