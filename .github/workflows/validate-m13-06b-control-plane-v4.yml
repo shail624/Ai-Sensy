@@ -77,7 +77,7 @@ jobs:
           assert 'aware_at.astimezone(timezone.utc)' in text
           text = text.replace(
               'from datetime import datetime, timedelta, timezone',
-              'from datetime import UTC, datetime, timedelta',
+              'from datetime import UTC, datetime, timedelta, timezone',
               1,
           )
           text = text.replace('aware_at.astimezone(timezone.utc)', 'aware_at.astimezone(UTC)', 1)
