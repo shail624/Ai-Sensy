@@ -1,0 +1,37 @@
+name: Diagnose M13-06B Fix Overlay
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Record overlay integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .validation/m13-06b-fix/chunk-*.b64 > /tmp/fix.b64
+          {
+            wc -c /tmp/fix.b64
+            sha256sum /tmp/fix.b64
+            head -c 32 /tmp/fix.b64
+            echo
+            tail -c 32 /tmp/fix.b64
+            echo
+          } > /tmp/fix-integrity.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-fix-integrity
+          path: /tmp/fix-integrity.txt
+          if-no-files-found: error
+          retention-days: 1
