@@ -1,0 +1,39 @@
+name: Diagnose M13-06B Package
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation package
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Record package integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          find .validation/m13-06b -maxdepth 1 -name 'chunk-*.b64' -print | sort > chunk-files.txt
+          test "$(wc -l < chunk-files.txt)" -eq 17
+          xargs sha256sum < chunk-files.txt | tee chunk-sha256.txt
+          xargs cat < chunk-files.txt > actual-m13-06b-patch.b64
+          sha256sum actual-m13-06b-patch.b64 | tee combined-sha256.txt
+      - name: Upload diagnostic package
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-package-diagnostic
+          path: |
+            chunk-files.txt
+            chunk-sha256.txt
+            combined-sha256.txt
+            actual-m13-06b-patch.b64
+          if-no-files-found: error
+          retention-days: 1
