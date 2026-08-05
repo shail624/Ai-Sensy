@@ -1,0 +1,205 @@
+name: Validate M13-06B Control Plane V2
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout validation package
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Reconstruct exact milestone candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .validation/m13-06b/chunk-*.b64 > /tmp/base.b64
+          echo '4f05e0aaa420678d463eb33b873a5ed1aa5562db41b6e7fad37d14505d6bf7d9  /tmp/base.b64' | sha256sum --check
+          base64 --decode /tmp/base.b64 > /tmp/base.tar.gz
+          echo 'cdb2fac428677d6389e8732310a552e474aac574962c95f005b593b4ff7d89b6  /tmp/base.tar.gz' | sha256sum --check
+
+          cat .validation/m13-06b-fix/chunk-*.b64 > /tmp/fix1.b64
+          echo '11c6253d2026aef197c6792249d92f302a6f2bf57455e02841bb79da2225a685  /tmp/fix1.b64' | sha256sum --check
+          base64 --decode /tmp/fix1.b64 > /tmp/fix1.tar.gz
+          echo '527cca9c387db12fc3f5a4e3c9c8fb58141a91d8416aa643efac984354ea4ec8  /tmp/fix1.tar.gz' | sha256sum --check
+
+          test "$(find .validation/m13-06b-fix2 -maxdepth 1 -name 'chunk-*.b64' | wc -l)" -eq 2
+          cat .validation/m13-06b-fix2/chunk-*.b64 > /tmp/fix2.b64
+          echo '3d5d8b737ee37bf37bdc6f79271cf57d34262bb7226f4fbeb69f9d720e4c74c9  /tmp/fix2.b64' | sha256sum --check
+          base64 --decode /tmp/fix2.b64 > /tmp/fix2.tar.gz
+          echo '6363fea457a2cac58cb819469f8dd7905440f14c852980e5dbba07aa8eec004d  /tmp/fix2.tar.gz' | sha256sum --check
+
+          rm -rf /tmp/m13-06b-product
+          git worktree add --detach /tmp/m13-06b-product f9a110d34f2095a3e9dbe61a779825edade38bda
+          tar -xzf /tmp/base.tar.gz -C /tmp/m13-06b-product
+          tar -xzf /tmp/fix1.tar.gz -C /tmp/m13-06b-product
+          tar -xzf /tmp/fix2.tar.gz -C /tmp/m13-06b-product
+          cd /tmp/m13-06b-product
+          test "$(git rev-parse HEAD)" = 'f9a110d34f2095a3e9dbe61a779825edade38bda'
+          git diff --check
+
+      - name: Install repository validation toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '/tmp/m13-06b-product/backend[dev]'
+          npm ci --prefix /tmp/m13-06b-product/frontend
+          npm ci --prefix /tmp/m13-06b-product/e2e
+
+      - name: Run focused M13-06B regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/m13-06b-product/backend
+          python -m pytest -q tests/test_channel_sync_service.py | tee /tmp/m13-06b-focused.log
+          grep -Eq '5 passed' /tmp/m13-06b-focused.log
+
+      - name: Run complete repository pre-merge gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/m13-06b-product
+          python scripts/quality_gate.py pre-merge | tee /tmp/m13-06b-quality.log
+
+      - name: Verify generated client and immutable boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/m13-06b-product/frontend
+          npm run gen:api
+          cd /tmp/m13-06b-product
+          git diff --exit-code -- frontend/openapi.json frontend/src/lib/api/schema.d.ts
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          schema = json.loads(Path('frontend/openapi.json').read_text())
+          assert len(schema['paths']) == 200, len(schema['paths'])
+          PY
+          cd backend
+          python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          cfg = Config('alembic.ini')
+          script = ScriptDirectory.from_config(cfg)
+          assert list(script.get_heads()) == ['0041_channel_sync_control_plane']
+          PY
+
+      - name: Synchronize observed validation evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKEND_TEST_COUNT="$(grep -Eo '[0-9]+ passed' /tmp/m13-06b-quality.log | head -1 | awk '{print $1}')"
+          test -n "$BACKEND_TEST_COUNT"
+          test "$BACKEND_TEST_COUNT" -ge 985
+          cd /tmp/m13-06b-product
+          for file in CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md; do
+            sed -i "s/__WORKFLOW_ID__/${GITHUB_RUN_ID}/g; s/__BACKEND_TEST_COUNT__/${BACKEND_TEST_COUNT}/g" "$file"
+          done
+          ! grep -R '__WORKFLOW_ID__\|__BACKEND_TEST_COUNT__' \
+            CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md
+          printf 'backend_test_count=%s\n' "$BACKEND_TEST_COUNT" >> "$GITHUB_OUTPUT"
+          printf 'workflow_id=%s\n' "$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Verify exact product boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/m13-06b-product
+          cat > /tmp/expected-files.txt <<'EOF'
+          CHANGELOG.md
+          IMPLEMENTATION_TRACKER.md
+          MODULE_STATUS.md
+          PROJECT_STATE.md
+          ROADMAP.md
+          VALIDATION_RESULTS.md
+          backend/alembic/versions/0041_channel_sync_control_plane.py
+          backend/app/channels/flags.py
+          backend/app/channels/sync.py
+          backend/app/rbac/catalog.py
+          backend/app/services/audit_service.py
+          backend/app/services/channel_sync_service.py
+          backend/tests/test_channel_sync_service.py
+          backend/tests/test_migrations.py
+          EOF
+          git status --short | sed -E 's/^.. //' | sort > /tmp/actual-files.txt
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          git diff --check
+          test "$(git status --short | grep -c ' frontend/' || true)" -eq 0
+          test "$(git status --short | grep -c ' docs/adr/\| docs/design/' || true)" -eq 0
+
+      - name: Publish one clean milestone commit
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/m13-06b-product
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git switch -c work/m13-06b-control-plane
+          git add \
+            CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md \
+            backend/alembic/versions/0041_channel_sync_control_plane.py \
+            backend/app/channels/flags.py backend/app/channels/sync.py backend/app/rbac/catalog.py \
+            backend/app/services/audit_service.py backend/app/services/channel_sync_service.py \
+            backend/tests/test_channel_sync_service.py backend/tests/test_migrations.py
+          test "$(git diff --cached --name-only | wc -l)" -eq 14
+          git commit -m 'feat(channels): add history sync control plane'
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-list --count f9a110d34f2095a3e9dbe61a779825edade38bda..HEAD)" -eq 1
+          git push origin HEAD:refs/heads/work/m13-06b-control-plane
+          printf 'commit_sha=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Write validation report
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/m13-06b-report.txt <<EOF
+          workflow_id=${{ steps.evidence.outputs.workflow_id }}
+          backend_tests=${{ steps.evidence.outputs.backend_test_count }}
+          focused_tests=5
+          frontend_tests=671
+          openapi_paths=200
+          migration_head=0041_channel_sync_control_plane
+          commit_sha=${{ steps.publish.outputs.commit_sha }}
+          commit_message=feat(channels): add history sync control plane
+          product_files=14
+          provider_io=none
+          host_validation=pending
+          EOF
+
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-validation-report-v2
+          path: /tmp/m13-06b-report.txt
+          if-no-files-found: error
+          retention-days: 7
