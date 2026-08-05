@@ -1,0 +1,43 @@
+name: Repair M13-06B Test Timezone
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.head_ref == 'validation/m13-06b-control-plane'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: validation/m13-06b-control-plane
+          fetch-depth: 0
+
+      - name: Retain timezone constructor while using UTC alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=.github/workflows/validate-m13-06b-control-plane-v4.yml
+          python - "$FILE" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          old = "'from datetime import UTC, datetime, timedelta',"
+          new = "'from datetime import UTC, datetime, timedelta, timezone',"
+          if old not in text:
+              raise SystemExit('expected V4 test import replacement not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git add "$FILE"
+          git commit -m 'chore(validation): retain m13-06b timezone constructor'
+          git push origin HEAD:refs/heads/validation/m13-06b-control-plane
