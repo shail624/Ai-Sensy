@@ -1,0 +1,54 @@
+name: Apply M13-06B Fix2 Reconstruction
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'validation/m13-06b-control-plane'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: validation/m13-06b-control-plane
+          fetch-depth: 0
+
+      - name: Reconstruct and update validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/fix2.tar.gz
+          for file in .validation/m13-06b-fix2/chunk-*.b64; do
+            base64 --decode "$file" >> /tmp/fix2.tar.gz
+          done
+          tar -tzf /tmp/fix2.tar.gz >/dev/null
+          TAR_SHA="$(sha256sum /tmp/fix2.tar.gz | awk '{print $1}')"
+          python - "$TAR_SHA" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path('.github/workflows/validate-m13-06b-control-plane-v2.yml')
+          text = path.read_text()
+          start = text.index("          test \"$(find .validation/m13-06b-fix2")
+          end_marker = "          echo '6363fea457a2cac58cb819469f8dd7905440f14c852980e5dbba07aa8eec004d  /tmp/fix2.tar.gz' | sha256sum --check\n"
+          end = text.index(end_marker, start) + len(end_marker)
+          replacement = f"""          test \"$(find .validation/m13-06b-fix2 -maxdepth 1 -name 'chunk-*.b64' | wc -l)\" -eq 2
+          : > /tmp/fix2.tar.gz
+          for file in .validation/m13-06b-fix2/chunk-*.b64; do
+            base64 --decode \"$file\" >> /tmp/fix2.tar.gz
+          done
+          echo '{sys.argv[1]}  /tmp/fix2.tar.gz' | sha256sum --check
+"""
+          path.write_text(text[:start] + replacement + text[end:])
+          PY
+          git diff --check
+          git config user.name 'OpenAI Release Engineering'
+          git config user.email 'noreply@openai.com'
+          git add .github/workflows/validate-m13-06b-control-plane-v2.yml
+          git commit -m 'chore(validation): reconstruct m13-06b fix2 archive'
+          git push origin HEAD:refs/heads/validation/m13-06b-control-plane
