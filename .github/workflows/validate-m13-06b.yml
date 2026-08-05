@@ -44,6 +44,7 @@ jobs:
           test "$(git -C product rev-parse HEAD)" = "$BASE_SHA"
           cat runner/.validation/m13-06b/package.* | base64 --decode | gzip --decompress > /tmp/apply_m13_06b.py
           python -m py_compile /tmp/apply_m13_06b.py
+          python runner/.validation/m13-06b/create_migration.py product
           cd product
           python /tmp/apply_m13_06b.py code
           python -m py_compile \
