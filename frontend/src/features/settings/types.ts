@@ -11,6 +11,9 @@ export type Preferences = components["schemas"]["PreferencesResponse"];
 export type Tag = components["schemas"]["TagResponse"];
 export type TagCreateRequest = components["schemas"]["TagCreateRequest"];
 export type TagUpdateRequest = components["schemas"]["TagUpdateRequest"];
+export type QuickReply = components["schemas"]["QuickReplyResponse"];
+export type QuickReplyCreateRequest = components["schemas"]["QuickReplyCreateRequest"];
+export type QuickReplyUpdateRequest = components["schemas"]["QuickReplyUpdateRequest"];
 
 /**
  * Setting scope — the three values `models/settings.py` defines.
@@ -173,4 +176,59 @@ export function matchesTagFilter(tag: Tag, search: string, usage: TagUsageFilter
     tag.name.toLowerCase().includes(term) ||
     (tag.description ?? "").toLowerCase().includes(term)
   );
+}
+
+/** Quick-reply bounds, mirrored from `schemas/quick_reply.py` (Doc 04 §18.2). */
+export const MAX_SHORTCUT = 60;
+export const MAX_TITLE = 120;
+export const MAX_BODY = 4096;
+
+export function validateShortcut(shortcut: string): string | null {
+  const trimmed = shortcut.trim();
+  if (trimmed === "") return "Shortcut is required";
+  if (trimmed.length > MAX_SHORTCUT) return `Shortcuts are limited to ${MAX_SHORTCUT} characters`;
+  return null;
+}
+
+export function validateTitle(title: string): string | null {
+  const trimmed = title.trim();
+  if (trimmed === "") return "Title is required";
+  if (trimmed.length > MAX_TITLE) return `Titles are limited to ${MAX_TITLE} characters`;
+  return null;
+}
+
+export function validateBody(body: string): string | null {
+  const trimmed = body.trim();
+  if (trimmed === "") return "Body is required";
+  if (trimmed.length > MAX_BODY) return `Bodies are limited to ${MAX_BODY} characters`;
+  return null;
+}
+
+/**
+ * Quick replies carry no status field either; the operationally useful split is who can see one —
+ * `shared` is fixed at creation, so this is also the only axis edit never needs to change.
+ */
+export type QuickReplyScopeFilter = "all" | "personal" | "shared";
+
+export function matchesQuickReplyFilter(
+  reply: QuickReply,
+  search: string,
+  scope: QuickReplyScopeFilter,
+): boolean {
+  if (scope === "personal" && reply.shared) return false;
+  if (scope === "shared" && !reply.shared) return false;
+
+  const term = search.trim().toLowerCase();
+  if (term === "") return true;
+  return (
+    reply.shortcut.toLowerCase().includes(term) ||
+    reply.title.toLowerCase().includes(term) ||
+    reply.body.toLowerCase().includes(term)
+  );
+}
+
+/** A one-line table preview — the full body belongs in the editor, not the row. */
+export function previewQuickReplyBody(body: string, maxLength = 80): string {
+  const collapsed = body.replace(/\s+/g, " ").trim();
+  return collapsed.length > maxLength ? `${collapsed.slice(0, maxLength - 1)}…` : collapsed;
 }

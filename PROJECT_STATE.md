@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening (frontend only)` |
+| Latest change | `Canned Messages management interface over the existing Quick Reply contract (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -15,15 +15,32 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 687 tests PASS (681 before this follow-up) · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `205.81/56.88 kB gzip`, measured against a `205.36/56.80 kB gzip` baseline on the same checkout (`+0.45 kB` raw, `+0.08 kB` gzip for the tag remediation); authenticated route chunks stay lazy-loaded and campaign create/edit execution order is clean |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 708 tests PASS (687 before this remediation) · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `206.24/56.97 kB gzip`, against `205.81/56.88 kB gzip` before this remediation (`+0.43 kB` raw, `+0.09 kB` gzip — the composer's new permission-gated link); the Canned Messages panel itself is verified absent from the main chunk and present only in the lazy settings chunk |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Frontend-only tag management panel over the existing tag contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
-| Last update | `2026-08-06T03:20:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Frontend-only canned-message management panel over the existing quick-reply contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
+| Last update | `2026-08-06T04:00:00+05:30` (Asia/Kolkata) |
+
+## Canned Messages management interface over the existing Quick Reply contract
+
+- Added a Settings → Canned Messages panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/quick-replies` endpoints. The contract was already complete, but the frontend only ever
+  issued the list read from the Message Composer's `/shortcut` picker, so the canned-message
+  vocabulary could not be populated from the product on a new organization.
+- Create, edit and delete for `inbox:write` holders; `shared` (Personal/Shared) is selectable only at
+  creation and shown as read-only information in the edit dialog, matching the contract's
+  immutable-after-creation rule.
+- Search, a scope filter and a body preview over supported fields only; `usage_count` is read but not
+  shown, since no send path increments it yet.
+- Writes invalidate the exact `["quick-replies"]` cache key the composer already reads, so a new
+  canned message is selectable there without a reload; a permission-correct link was added to the
+  composer's empty state for `inbox:write` agents only.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed. Not a roadmap milestone, not M13-07.
 
 ## Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
 

@@ -4,7 +4,9 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { visibleNavItems } from "@/components/layout/navigation";
+import { useQuickReplies as useComposerQuickReplies } from "@/features/inbox/api";
 import { ApplicationPanel } from "@/features/settings/ApplicationPanel";
+import { CannedMessagesPanel } from "@/features/settings/CannedMessagesPanel";
 import { FeatureFlagsPanel } from "@/features/settings/FeatureFlagsPanel";
 import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValueEditor";
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
@@ -13,7 +15,7 @@ import { useTags as useCampaignTags } from "@/features/campaigns/api";
 import { useTags as useContactProfileTags } from "@/features/customer-profile/api";
 import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
 import { TagsPanel } from "@/features/settings/TagsPanel";
-import type { FeatureFlag, Organization, Setting, Tag } from "@/features/settings/types";
+import type { FeatureFlag, Organization, QuickReply, Setting, Tag } from "@/features/settings/types";
 import {
   draftFromValue,
   inferValueType,
@@ -72,6 +74,20 @@ function tagFixture(overrides: Partial<Tag> = {}): Tag {
     color: "#1F6FEB",
     description: "Prepaid reactivation cohort.",
     usage_count: 3,
+    created_at: "2026-07-01T10:00:00Z",
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function quickReplyFixture(overrides: Partial<QuickReply> = {}): QuickReply {
+  return {
+    id: "qr1",
+    shortcut: "hi",
+    title: "Greeting",
+    body: "Hi there, thanks for reaching out!",
+    shared: false,
+    usage_count: 0,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
@@ -788,6 +804,357 @@ describe("TagsPanel", () => {
   });
 });
 
+// --- Canned messages ----------------------------------------------------------------------------
+
+/**
+ * The real Message Composer picker, reduced to its data dependency: the same `useQuickReplies` hook
+ * `MessageComposer.tsx` imports from `inbox/api`, under the identical `["quick-replies"]` cache key
+ * the Settings panel writes through.
+ */
+function ComposerQuickReplyProbe(): JSX.Element {
+  const quickReplies = useComposerQuickReplies();
+  return (
+    <ul aria-label="Composer quick-reply picker">
+      {(quickReplies.data ?? []).map((reply) => (
+        <li key={reply.id}>{reply.shortcut}</li>
+      ))}
+    </ul>
+  );
+}
+
+describe("CannedMessagesPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["inbox:read", "inbox:write", "auth:self"];
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    withProviders(<CannedMessagesPanel />);
+    expect(screen.getByText("Loading canned messages…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no canned message exists yet", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    expect(await screen.findByText("No canned messages yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New canned message" }).length).toBeGreaterThan(0);
+  });
+
+  it("shows a clean read-only empty state, with no create action, without inbox:write", async () => {
+    permissions.value = ["inbox:read"];
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    expect(await screen.findByText("No canned messages yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/inbox write permission/).length).toBeGreaterThan(0);
+  });
+
+  it("lists replies with a Personal or Shared badge", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", shared: false }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", shared: true }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Personal")).toBeInTheDocument();
+    expect(within(table).getByText("Shared")).toBeInTheDocument();
+  });
+
+  it("narrows the list by search across shortcut, title and body", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", body: "Hello there" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", body: "See you soon" }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    fireEvent.change(screen.getByLabelText("Search canned messages"), { target: { value: "soon" } });
+    expect(screen.queryByText("Greeting")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("narrows the list by scope", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", shared: false }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", shared: true }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    fireEvent.change(screen.getByLabelText("Filter by scope"), { target: { value: "shared" } });
+    expect(screen.queryByText("Greeting")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("creates a personal reply by default", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies");
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Greeting", body: "Hi there!", shared: false });
+  });
+
+  it("creates a shared reply when Shared is selected", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    fireEvent.change(screen.getByLabelText("Scope"), { target: { value: "shared" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Greeting", body: "Hi there!", shared: true });
+  });
+
+  it("blocks submission and explains why for an empty shortcut, an over-limit shortcut, title or body", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    const submit = screen.getByRole("button", { name: "Create canned message" });
+
+    // Empty shortcut — the required fields are simply not all filled in yet.
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    expect(submit).toBeDisabled();
+
+    // Over-limit shortcut.
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "x".repeat(61) } });
+    expect(screen.getByText("Shortcuts are limited to 60 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+
+    // Over-limit title.
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "x".repeat(121) } });
+    expect(screen.getByText("Titles are limited to 120 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+
+    // Over-limit body.
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "x".repeat(4097) } });
+    expect(screen.getByText("Bodies are limited to 4096 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    expect(writes).toHaveLength(0);
+  });
+
+  it("keeps the create dialog open with the typed values intact when the shortcut conflicts", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ shortcut: "hi" })] };
+    writeErrors["/api/v1/quick-replies"] = {
+      detail: "The shortcut 'hi' is already used by a personal quick reply.",
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Duplicate" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Body text" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    // The conflict is visible and accessible, not a silently swallowed rejection.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The shortcut 'hi' is already used by a personal quick reply.",
+    );
+    // The dialog is still open — a false success is not shown...
+    expect(screen.getByRole("button", { name: "Create canned message" })).toBeInTheDocument();
+    // ...and every typed value survives the failed attempt.
+    expect(screen.getByLabelText("Shortcut")).toHaveValue("hi");
+    expect(screen.getByLabelText("Title")).toHaveValue("Duplicate");
+    expect(screen.getByLabelText("Body")).toHaveValue("Body text");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("edits a reply through the patch endpoint, with scope shown but not editable", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ shared: true })] };
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = quickReplyFixture({
+      shared: true,
+      title: "Updated Greeting",
+    });
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Greeting" }));
+    // Scope is informational only — no control can change it once created.
+    expect(screen.queryByLabelText("Scope")).not.toBeInTheDocument();
+    expect(screen.getByText("Set when a canned message is created and cannot be changed here.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Updated Greeting" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies/{quick_reply_id}");
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Updated Greeting", body: quickReplyFixture().body });
+  });
+
+  it("deletes through the 204 endpoint", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    // `undefined` stands in for the real `204 No Content` — present key, no body.
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = undefined;
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Greeting" }));
+    expect(screen.getByText(/personal canned message, visible only to you/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies/{quick_reply_id}");
+
+    // A successful empty-body delete must close the dialog, not report an error.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete canned message" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the confirmation open with a visible error when the delete fails, and allows a retry", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    writeErrors["/api/v1/quick-replies/{quick_reply_id}"] = {
+      detail: "This canned message could not be deleted right now.",
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+
+    // The error is visible where the operator is already looking, not hidden behind the dialog.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This canned message could not be deleted right now.",
+    );
+    // The confirmation is still open — deletion was not falsely reported as done...
+    expect(screen.getByRole("button", { name: "Delete canned message" })).toBeInTheDocument();
+    // ...and the reply itself is still in the list behind it, because nothing was invalidated.
+    expect(screen.getByText("Greeting")).toBeInTheDocument();
+
+    // Retrying is possible: once the failure clears, the same button succeeds.
+    delete writeErrors["/api/v1/quick-replies/{quick_reply_id}"];
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete canned message" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different reply", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+    writeErrors["/api/v1/quick-replies/{quick_reply_id}"] = { detail: "Greeting could not be saved." };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Greeting could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Sign-off" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Greeting could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Sign-off" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the real Message Composer picker after a create, without a manual reload", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ id: "qr1", shortcut: "hi" })] };
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <CannedMessagesPanel />
+        </div>
+        <ComposerQuickReplyProbe />
+      </>,
+    );
+
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const composerPicker = screen.getByRole("list", { name: "Composer quick-reply picker" });
+    expect(await within(settingsPanel).findByText("Greeting")).toBeInTheDocument();
+    expect(await within(composerPicker).findByText("hi")).toBeInTheDocument();
+    expect(within(composerPicker).queryByText("bye")).not.toBeInTheDocument();
+
+    // The server state a real create leaves behind, so the invalidation-triggered refetch sees it.
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New canned message" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Shortcut"), { target: { value: "bye" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Title"), { target: { value: "Sign-off" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Body"), { target: { value: "See you!" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create canned message" }));
+
+    // Not remounted, not manually refetched — invalidation alone brings the composer's picker current.
+    await waitFor(() => expect(within(composerPicker).getByText("bye")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("hides every write control without inbox:write, on a populated list", async () => {
+    permissions.value = ["inbox:read"];
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Greeting" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Greeting" })).not.toBeInTheDocument();
+    expect(screen.getByText(/inbox write permission/)).toBeInTheDocument();
+  });
+
+  it("names each row action after its own canned message", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    expect(screen.getByRole("button", { name: "Edit Greeting" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Greeting" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Sign-off" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Sign-off" })).toBeInTheDocument();
+    // The visible label stays the shared design-system text; only the accessible name is per-row.
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<CannedMessagesPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+});
+
 // --- Sections & navigation -------------------------------------------------------------------------------------
 
 describe("settings sections", () => {
@@ -801,8 +1168,18 @@ describe("settings sections", () => {
     expect(tags?.permission).toBe("contacts:read");
   });
 
+  it("puts canned messages on the inbox permission their own endpoints enforce", () => {
+    const cannedMessages = SETTINGS_SECTIONS.find((section) => section.key === "canned-messages");
+    expect(cannedMessages?.permission).toBe("inbox:read");
+  });
+
   it("collects the distinct permissions that grant access to the area", () => {
-    expect(SETTINGS_PERMISSIONS).toEqual(["settings:read", "contacts:read", "auth:self"]);
+    expect(SETTINGS_PERMISSIONS).toEqual([
+      "settings:read",
+      "contacts:read",
+      "inbox:read",
+      "auth:self",
+    ]);
   });
 });
 

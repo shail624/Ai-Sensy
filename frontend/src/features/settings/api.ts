@@ -7,6 +7,9 @@ import type {
   FeatureFlagPatchRequest,
   Organization,
   OrganizationUpdateRequest,
+  QuickReply,
+  QuickReplyCreateRequest,
+  QuickReplyUpdateRequest,
   Setting,
   Tag,
   TagCreateRequest,
@@ -35,6 +38,13 @@ export const settingsKeys = {
  */
 const TAGS_KEY = ["tags"] as const;
 const CAMPAIGN_PICKERS_KEY = ["campaigns", "pickers"] as const;
+
+/**
+ * The same key `inboxKeys.quickReplies` uses in `features/inbox/api.ts` — TanStack Query matches
+ * queries by key value, not by the reference that declared it, so this and the Message Composer's
+ * own read share one cache entry without either module importing the other.
+ */
+const QUICK_REPLIES_KEY = ["quick-replies"] as const;
 
 /**
  * The organization this platform runs for.
@@ -201,5 +211,51 @@ export function useDeleteTag() {
       if (error !== undefined) throw error;
     },
     [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * The caller's personal quick replies plus every shared one — the same read the composer already
+ * issues, kept fresh here under the identical cache key.
+ */
+export function useQuickReplies() {
+  return useQuery({
+    queryKey: QUICK_REPLIES_KEY,
+    queryFn: async (): Promise<QuickReply[]> => unwrap(await api.GET("/api/v1/quick-replies")).data,
+  });
+}
+
+export function useCreateQuickReply() {
+  return useSettingsMutation(
+    async (body: QuickReplyCreateRequest): Promise<QuickReply> =>
+      unwrap(await api.POST("/api/v1/quick-replies", { body })),
+    [QUICK_REPLIES_KEY],
+  );
+}
+
+/** `shared` is fixed at creation — the update model carries no field for it (Doc 04 §18.2). */
+export function useUpdateQuickReply() {
+  return useSettingsMutation(
+    async ({ id, body }: { id: string; body: QuickReplyUpdateRequest }): Promise<QuickReply> =>
+      unwrap(
+        await api.PATCH("/api/v1/quick-replies/{quick_reply_id}", {
+          params: { path: { quick_reply_id: id } },
+          body,
+        }),
+      ),
+    [QUICK_REPLIES_KEY],
+  );
+}
+
+/** `204 No Content` on success, like tag deletion — `unwrap` would misread the empty body as a failure. */
+export function useDeleteQuickReply() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/quick-replies/{quick_reply_id}", {
+        params: { path: { quick_reply_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [QUICK_REPLIES_KEY],
   );
 }

@@ -260,6 +260,31 @@ describe("MessageComposer", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("points an inbox:write agent at Settings when there are no quick replies yet", () => {
+    withProviders(<MessageComposer conversation={conversationFixture()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick replies" }));
+
+    expect(screen.getByText("No quick replies yet.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Create one in Settings → Canned Messages" }),
+    ).toHaveAttribute("href", "/settings/canned-messages");
+  });
+
+  it("does not offer the Settings link to an agent without inbox:write", () => {
+    const original = permissions.value;
+    permissions.value = ["inbox:read", "messages:send"];
+    withProviders(<MessageComposer conversation={conversationFixture()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick replies" }));
+
+    expect(screen.getByText("No quick replies yet.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Canned Messages/ }),
+    ).not.toBeInTheDocument();
+    permissions.value = original;
+  });
+
   it("keeps Send disabled until there is something to send", () => {
     withProviders(<MessageComposer conversation={conversationFixture()} />);
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();

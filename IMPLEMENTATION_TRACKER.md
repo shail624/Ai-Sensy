@@ -3,23 +3,40 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-06 · Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening, on top of the Tag management interface remediation and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-06 · Canned Messages management interface delivered over the existing Quick Reply contract, on top of the Tag Management follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `3175955005bc1cf9d43c69347e2846b0f9e75ea2`
+- **Starting HEAD:** `f5edfd208e12d712bbd7e81e49eb0f12a4b10ff8`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening — a frontend-only continuation of the Tag management interface remediation, not a roadmap milestone and not M13-07
+- **Latest change:** Canned Messages management interface over the existing Quick Reply contract — a frontend-only remediation, not a roadmap milestone and not M13-07
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 36 files / 687 tests passed (681 before this follow-up)
+- **Frontend evidence:** 36 files / 708 tests passed (687 before this remediation)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-06T03:20:00+05:30`
+- **Last synchronized:** `2026-08-06T04:00:00+05:30`
 
 ## Delivered
+
+### Canned Messages management interface over the existing Quick Reply contract
+
+- Added a Settings → Canned Messages panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/quick-replies` endpoints. The contract was already complete, but the frontend only ever
+  issued the list read from the Message Composer's `/shortcut` picker, so the canned-message
+  vocabulary could not be populated from the product on a new organization.
+- Create, edit and delete for `inbox:write` holders; `shared` (Personal/Shared) is selectable only
+  at creation, matching the immutable-after-creation contract, and shown as read-only information in
+  the edit dialog rather than offered as a control.
+- Search across shortcut/title/body, a scope filter, and a body preview; `usage_count` is read but
+  intentionally not shown, since no send path increments it yet.
+- Writes invalidate the exact `["quick-replies"]` cache key `MessageComposer.tsx` already reads, so a
+  new canned message is selectable from the composer without a reload. A permission-correct link was
+  added to the composer's empty state for `inbox:write` agents only.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed.
 
 ### Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
 

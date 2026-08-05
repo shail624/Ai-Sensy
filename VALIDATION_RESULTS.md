@@ -4,7 +4,33 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-06T03:20:00+05:30`.
+Last synchronized: `2026-08-06T04:00:00+05:30`.
+
+
+## Canned Messages management interface over the existing Quick Reply contract
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified root cause | PASS | `GET/POST/PATCH/DELETE /api/v1/quick-replies` existed and was contract-exposed with 19 passing backend tests, but the frontend issued only the list read from `MessageComposer.tsx`, which rendered a dead-end "No quick replies yet." with no create path. |
+| Contract fidelity | PASS | Only generated fields used: `shortcut` (1–60), `title` (1–120), `body` (1–4096), `shared` (boolean, creation-only). `usage_count` is read but intentionally not shown in the primary table — no send path increments it. No status, category, favourite, pinning, created-by display or unsupported ownership field was invented. |
+| Immutable scope | PASS | `shared` is offered only in the create dialog; the edit dialog shows scope as a read-only badge with explanatory text and renders no toggle, matching the update schema, which carries no field for it. |
+| Frontend lint | PASS | `npm run lint` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Settings tests | PASS | 18 new `CannedMessagesPanel` tests plus 1 section-permission test in `settings.test.tsx` — 74 passed (55 before). |
+| Focused Inbox tests | PASS | 2 new tests proving the composer's empty-state Settings link appears only for `inbox:write`; `inbox.test.tsx` — 26 passed (24 before). |
+| Full frontend suite | PASS | 36 files / 708 tests passed (687 before this remediation). |
+| Backend quick-reply/tag regressions | PASS | `tests/test_api_quick_replies.py` and `tests/test_api_tags.py` — 25 passed; no backend file changed. |
+| 204 deletion handling | PASS | `useDeleteQuickReply` checks `{ error }` directly rather than `unwrap`, matching the established pattern for an empty-body success; the delete regression stubs an empty response and asserts the dialog closes. |
+| Production build | PASS | Main chunk `206.24/56.97 kB gzip` against `205.81/56.88 kB gzip` before this remediation (`+0.43 kB` raw, `+0.09 kB` gzip — the composer's new link). The panel itself is verified absent from the main chunk (`grep` for panel-unique text returns zero matches) and present only in the lazy settings chunk. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports up to date; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| Permission and tenant behaviour | PASS | Reads gated on `inbox:read`, writes on `inbox:write`, matching the endpoints; the route guard carries the same code; write controls are hidden rather than shown disabled. Tenant and ownership isolation remain entirely server-side in `QuickReplyService`; no client-supplied organization id exists anywhere in the diff. |
+| Cache invalidation and composer refresh | PASS | Writes invalidate the literal `["quick-replies"]` key `inboxKeys.quickReplies` already uses; a dedicated regression renders the panel beside the real `useQuickReplies` hook from `inbox/api.ts` under one shared `QueryClient` and proves a create refreshes the composer's picker without a manual reload. |
+| Stale-error isolation | PASS | Mutation state resets the moment a create/edit/delete dialog opens, mirroring the fix already proven on Tags; a dedicated regression fails one reply, cancels, opens a dialog for a different reply, and asserts no stale error carries over. |
+| Composer empty-state change | PASS | Minimal, permission-correct: an `inbox:write` agent sees a link to Settings → Canned Messages; a read-only agent sees the same empty message with no link. The rest of the composer is unchanged. |
+| Reference boundary | PASS | No reference file, screenshot, MHTML, rendered HTML or extracted asset was staged; the only screen referenced (`0045_09_manage_06_canned_message`) informed workflow/hierarchy only, and its create-modal internals were never captured, so no proprietary detail was available to copy. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes, and behaviour at a realistic canned-message volume remain unproven by repository gates. |
 
 
 ## Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening

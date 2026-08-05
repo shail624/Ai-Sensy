@@ -46,6 +46,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "The shared tag vocabulary applied to contacts and conversations.",
   },
   {
+    // Canned messages are inbox-domain configuration, so they carry the inbox permissions their
+    // own endpoints enforce, the same convention Tags established.
+    key: "canned-messages",
+    label: "Canned Messages",
+    path: "/settings/canned-messages",
+    permission: "inbox:read",
+    description: "Personal and shared quick replies agents insert into the message composer.",
+  },
+  {
     key: "preferences",
     label: "My preferences",
     path: "/settings/preferences",

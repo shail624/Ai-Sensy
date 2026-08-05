@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ErrorState } from "@/components/ui";
 import {
@@ -23,6 +24,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
   const [body, setBody] = useState("");
   const [showReplies, setShowReplies] = useState(false);
   const canSend = useHasPermission("messages:send");
+  const canManageQuickReplies = useHasPermission("inbox:write");
   const quickReplies = useQuickReplies();
   const phoneNumber = useDefaultPhoneNumber();
   const send = useSendMessage(conversation.id);
@@ -59,7 +61,14 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
       {showReplies ? (
         <div className="mb-2 max-h-40 overflow-y-auto rounded-md border border-border">
           {(quickReplies.data ?? []).length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-text-disabled">No quick replies yet.</p>
+            <div className="px-2 py-1.5 text-xs text-text-disabled">
+              <p>No quick replies yet.</p>
+              {canManageQuickReplies ? (
+                <Link to="/settings/canned-messages" className="text-accent hover:underline">
+                  Create one in Settings → Canned Messages
+                </Link>
+              ) : null}
+            </div>
           ) : (
             <ul>
               {(quickReplies.data ?? []).map((reply) => (

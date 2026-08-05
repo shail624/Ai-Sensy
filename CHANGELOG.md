@@ -11,6 +11,35 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-06 — Canned Messages management interface over the existing Quick Reply contract
+
+**Added**
+- Added a Settings → Canned Messages panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/quick-replies` endpoints. The contract was already complete — personal and shared canned
+  replies, scope-aware shortcut uniqueness, soft delete — but the frontend only ever issued the list
+  read from the Message Composer's `/shortcut` picker, so on an organization with no canned messages
+  yet the picker stayed permanently empty with no way to populate it from the product.
+- Create, edit and delete are offered to `inbox:write` holders; `shared` (Personal/Shared) is
+  selectable only at creation, matching the immutable-after-creation contract — the edit dialog shows
+  scope as read-only information rather than a control that would silently do nothing.
+- Search across shortcut, title and body; a scope filter (All/Personal/Shared); a one-line body
+  preview in the table. `usage_count` is read but not shown — no send path increments it yet, so
+  presenting it as live usage would be dishonest.
+- A minimal, permission-correct addition to the Message Composer's empty quick-reply state: an
+  `inbox:write` agent gets a link to Settings → Canned Messages; a read-only agent sees the same
+  empty message with no link, never a misleading action they cannot use.
+- Eighteen focused Settings tests and two focused Inbox tests, including a regression that renders
+  the panel beside the real `useQuickReplies` hook `MessageComposer.tsx` imports from `inbox/api`,
+  under the identical `["quick-replies"]` cache key, and proves a create through Settings refreshes
+  the composer's own picker without a manual reload.
+
+**Preserved**
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed; migration head remains `0041_channel_sync_control_plane` and the contract remains
+  drift-free.
+- Only contract fields are shown; no status, category, favourite, pinning, created-by display, AI
+  generation or unsupported ownership field was invented.
+
 ### 2026-08-06 — Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
 
 **Fixed**
