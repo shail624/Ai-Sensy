@@ -44,9 +44,17 @@ jobs:
           echo '4f05e0aaa420678d463eb33b873a5ed1aa5562db41b6e7fad37d14505d6bf7d9  /tmp/m13-06b-patch.b64' | sha256sum --check
           base64 --decode /tmp/m13-06b-patch.b64 > /tmp/m13-06b-patch.tar.gz
           echo 'cdb2fac428677d6389e8732310a552e474aac574962c95f005b593b4ff7d89b6  /tmp/m13-06b-patch.tar.gz' | sha256sum --check
+
+          test "$(find .validation/m13-06b-fix -maxdepth 1 -name 'chunk-*.b64' | wc -l)" -eq 1
+          cat .validation/m13-06b-fix/chunk-*.b64 > /tmp/m13-06b-fix.b64
+          echo '11c5491460c1f2ead2c6db8973a9a2935e9556263c3cf97a3ba58fbf1d81ccbf  /tmp/m13-06b-fix.b64' | sha256sum --check
+          base64 --decode /tmp/m13-06b-fix.b64 > /tmp/m13-06b-fix.tar.gz
+          echo '93f77b0536bf156abef71893c1b8b525536872b8edbd0c84025389d68abfa1d8  /tmp/m13-06b-fix.tar.gz' | sha256sum --check
+
           rm -rf /tmp/m13-06b-product
           git worktree add --detach /tmp/m13-06b-product f9a110d34f2095a3e9dbe61a779825edade38bda
           tar -xzf /tmp/m13-06b-patch.tar.gz -C /tmp/m13-06b-product
+          tar -xzf /tmp/m13-06b-fix.tar.gz -C /tmp/m13-06b-product
           cd /tmp/m13-06b-product
           test "$(git rev-parse HEAD)" = 'f9a110d34f2095a3e9dbe61a779825edade38bda'
           git diff --check
