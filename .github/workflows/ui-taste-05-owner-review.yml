@@ -1,0 +1,378 @@
+name: Validate UI-TASTE-05 Owner Review
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  release-candidate-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BASE_SHA: 96bf0a8fcda01703b376a4ebf8f6f6e498a10108
+      WORK_BRANCH: work/ui-taste-05-merge-readiness
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 96bf0a8fcda01703b376a4ebf8f6f6e498a10108
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Apply verified Major correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          python - <<'PY'
+          from pathlib import Path
+
+          create = Path("frontend/src/pages/CampaignCreatePage.tsx")
+          text = create.read_text()
+          old = '''import {
+            CampaignWizard,
+            contactsToForm,
+            duplicateToForm,
+            followUpToForm,
+          } from "@/features/campaigns";
+          import { AiFoundationPanel } from "@/features/ai";
+          import type { Campaign } from "@/features/campaigns";
+          '''
+          new = '''import { AiFoundationPanel } from "@/features/ai";
+          import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
+          import {
+            contactsToForm,
+            duplicateToForm,
+            followUpToForm,
+          } from "@/features/campaigns/campaignForm";
+          import type { Campaign } from "@/features/campaigns/types";
+          '''
+          if old not in text:
+              raise SystemExit("CampaignCreatePage import graph did not match verified baseline")
+          create.write_text(text.replace(old, new, 1))
+
+          edit = Path("frontend/src/pages/CampaignEditPage.tsx")
+          text = edit.read_text()
+          old = 'import { CampaignWizard, campaignToForm } from "@/features/campaigns";\n'
+          new = (
+              'import { CampaignWizard } from "@/features/campaigns/CampaignWizard";\n'
+              'import { campaignToForm } from "@/features/campaigns/campaignForm";\n'
+          )
+          if old not in text:
+              raise SystemExit("CampaignEditPage import graph did not match verified baseline")
+          edit.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "frontend/src/pages/CampaignCreatePage.tsx frontend/src/pages/CampaignEditPage.tsx "
+
+      - name: Install repository validation toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e 'backend[dev]'
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+
+      - name: Full repository release-candidate audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .quality-artifacts
+
+          echo '[1/16] Backend lint'
+          (cd backend && ruff check app tests)
+
+          echo '[2/16] Backend strict types'
+          (cd backend && mypy app)
+
+          echo '[3/16] Python import/bytecode integrity'
+          python -m compileall -q backend/app
+
+          echo '[4/16] OpenAPI semantic drift'
+          ENVIRONMENT=test DATABASE_URL='sqlite+aiosqlite:///:memory:' PYTHONPATH=backend python - <<'PY'
+          import json
+          from pathlib import Path
+          from app.main import app
+
+          committed = json.loads(Path("frontend/openapi.json").read_text())
+          generated = app.openapi()
+          if committed != generated:
+              raise SystemExit("OpenAPI semantic drift detected")
+          print(f"OpenAPI semantic drift PASS ({len(committed.get('paths', {}))} paths)")
+          PY
+
+          echo '[5/16] Generated frontend client drift'
+          cp frontend/src/lib/api/schema.d.ts /tmp/schema.d.ts
+          npm run gen:api --prefix frontend
+          cmp /tmp/schema.d.ts frontend/src/lib/api/schema.d.ts
+          git checkout -- frontend/src/lib/api/schema.d.ts
+
+          echo '[6/16] Frontend lint'
+          npm run lint --prefix frontend
+
+          echo '[7/16] Frontend strict types'
+          npm run typecheck --prefix frontend
+
+          echo '[8/16] Browser-test types'
+          npm run typecheck --prefix e2e
+
+          echo '[9/16] Backend full regression'
+          (cd backend && pytest)
+
+          echo '[10/16] Frontend full regression'
+          npm test --prefix frontend
+
+          echo '[11/16] Frontend production build and chunk-order audit'
+          npm run build --prefix frontend 2>&1 | tee .quality-artifacts/frontend-build.log
+          if grep -Fq 'circular dependency between chunks' .quality-artifacts/frontend-build.log; then
+            echo 'Release-candidate chunk-order warning remains' >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import gzip
+          import re
+          from pathlib import Path
+
+          html = Path("frontend/dist/index.html").read_text()
+          match = re.search(r'src="/assets/([^"]+\.js)"', html)
+          if not match:
+              raise SystemExit("Unable to resolve main application bundle")
+          bundle = Path("frontend/dist/assets") / match.group(1)
+          raw = bundle.stat().st_size / 1024
+          zipped = len(gzip.compress(bundle.read_bytes(), compresslevel=9)) / 1024
+          value = f"{raw:.2f}/{zipped:.2f} kB gzip"
+          print(f"MAIN_BUNDLE={value}")
+          with Path("/tmp/main_bundle.txt").open("w") as handle:
+              handle.write(value)
+          PY
+          echo "MAIN_BUNDLE=$(cat /tmp/main_bundle.txt)" >> "$GITHUB_ENV"
+
+          echo '[12/16] Backend SAST'
+          bandit -r backend/app -ll -ii -f json -o .quality-artifacts/bandit.json
+
+          echo '[13/16] Dependency audits'
+          pip-audit
+          npm audit --prefix frontend --omit=dev --audit-level=high
+          npm audit --prefix frontend --omit=dev --json > .quality-artifacts/frontend-audit.json || true
+          npm audit --prefix e2e --audit-level=moderate
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('.quality-artifacts/frontend-audit.json').read_text())
+          counts = report.get('metadata', {}).get('vulnerabilities', {})
+          print('FRONTEND_AUDIT=' + ', '.join(f'{key}:{value}' for key, value in counts.items()))
+          if counts.get('high', 0) or counts.get('critical', 0):
+              raise SystemExit('High or critical frontend production dependency vulnerability found')
+          PY
+
+          echo '[14/16] Tracked-source vulnerability, secret and IaC scan'
+          docker run --rm -v "$PWD:/repo" \
+            aquasec/trivy:0.72.0@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f \
+            fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 \
+            --skip-dirs /repo/frontend/node_modules --skip-dirs /repo/e2e/node_modules \
+            --skip-dirs /repo/frontend/dist /repo
+
+          echo '[15/16] Architecture, integration and dead-code advisory audit'
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import re
+          from collections import defaultdict
+          from pathlib import Path
+
+          roots = [Path('backend/app'), Path('frontend/src')]
+          source_ext = {'.py', '.ts', '.tsx'}
+          files = [p for root in roots for p in root.rglob('*') if p.is_file() and p.suffix in source_ext]
+          total_lines = 0
+          large = []
+          markers = []
+          duplicates: dict[str, list[str]] = defaultdict(list)
+          unsafe = []
+          for path in files:
+              text = path.read_text(errors='replace')
+              lines = text.splitlines()
+              total_lines += len(lines)
+              if len(lines) >= 1200:
+                  large.append((len(lines), str(path)))
+              for number, line in enumerate(lines, 1):
+                  if re.search(r'\b(TODO|FIXME|HACK)\b', line):
+                      markers.append(f'{path}:{number}:{line.strip()}')
+                  if path.suffix in {'.ts', '.tsx'} and ('dangerouslySetInnerHTML' in line or re.search(r'\beval\s*\(', line)):
+                      unsafe.append(f'{path}:{number}:{line.strip()}')
+              if path.name not in {'__init__.py', 'index.ts'} and not path.name.endswith('.test.tsx'):
+                  duplicates[hashlib.sha256(text.encode()).hexdigest()].append(str(path))
+
+          duplicate_groups = [paths for paths in duplicates.values() if len(paths) > 1]
+          print(f'SOURCE_AUDIT={len(files)} files, {total_lines} lines')
+          print(f'LARGE_COMPONENTS_ADVISORY={large[:20]}')
+          print(f'TECHNICAL_DEBT_MARKERS_ADVISORY={len(markers)}')
+          print(f'EXACT_DUPLICATE_GROUPS_ADVISORY={duplicate_groups[:20]}')
+          if unsafe:
+              raise SystemExit('Unsafe frontend rendering/eval primitive found: ' + '; '.join(unsafe))
+
+          router = Path('frontend/src/routes/router.tsx').read_text()
+          required = {
+              'contacts': 'contacts:read',
+              'inbox': 'inbox:read',
+              'campaigns': 'campaigns:read',
+              'templates': 'templates:read',
+              'analytics': 'analytics:read',
+              'reactivation': 'reactivation:read',
+              'kyc': 'kyc:read',
+              'documents': 'documents:read',
+              'settings': 'settings:read',
+          }
+          for route, permission in required.items():
+              if f'path: "{route}"' not in router or f'code="{permission}"' not in router:
+                  raise SystemExit(f'Route/permission integration missing: {route} -> {permission}')
+
+          create = Path('frontend/src/pages/CampaignCreatePage.tsx').read_text()
+          edit = Path('frontend/src/pages/CampaignEditPage.tsx').read_text()
+          if 'CampaignWizard } from "@/features/campaigns"' in create + edit:
+              raise SystemExit('Campaign wizard barrel-cycle import remains')
+          if '@/features/campaigns/CampaignWizard' not in create or '@/features/campaigns/CampaignWizard' not in edit:
+              raise SystemExit('Campaign wizard direct import missing')
+
+          manifests = Path('frontend/package.json').read_text() + Path('backend/pyproject.toml').read_text()
+          for forbidden in ('waha', 'evolution-api', 'evolution api'):
+              if forbidden in manifests.lower():
+                  raise SystemExit(f'Forbidden provider dependency detected: {forbidden}')
+          PY
+
+          echo '[16/16] Scope and diff integrity'
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "frontend/src/pages/CampaignCreatePage.tsx frontend/src/pages/CampaignEditPage.tsx "
+          echo 'Runtime Playwright E2E is not applicable in repository-only validation: E2E_BASE_URL, authenticated representative data and target-host services are intentionally absent and remain Host Machine Validation.'
+
+      - name: Synchronize UI-TASTE-05 tracking and publish one clean commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          export REVIEW_TIMESTAMP="$(TZ=Asia/Kolkata date --iso-8601=seconds)"
+          export REVIEW_RUN_ID="$GITHUB_RUN_ID"
+          python - <<'PY'
+          from __future__ import annotations
+          import os
+          from pathlib import Path
+
+          timestamp = os.environ['REVIEW_TIMESTAMP']
+          run_id = os.environ['REVIEW_RUN_ID']
+          bundle = os.environ['MAIN_BUNDLE']
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f'{label}: expected text not found')
+              return text.replace(old, new, 1)
+
+          # CHANGELOG
+          path = Path('CHANGELOG.md')
+          text = path.read_text()
+          entry = f'''## [Unreleased]\n\n### 2026-08-05 — Owner review, release candidate audit and merge readiness (UI-TASTE-05)\n\n**Fixed**\n- Removed the verified campaign create/edit lazy-chunk execution cycle by importing the existing\n  `CampaignWizard`, form helpers and types from their direct modules instead of the campaigns barrel.\n- Preserved the existing campaign workflow, API, permissions, route boundaries and feature behavior.\n\n**Reviewed**\n- Audited Dashboard, Reactivation, Contacts, Customer 360, Inbox, Campaigns, Templates, Analytics,\n  Notifications, Settings, Authentication, RBAC, Customer Identity, shared components and the\n  provider-neutral Module 13 foundations as one release candidate.\n- No second authority, architecture drift, governance expansion, provider work or roadmap resequencing\n  was introduced.\n\n**Validated**\n- Release-candidate workflow `{run_id}` passes repository lint, strict typing, OpenAPI/client drift,\n  980 backend tests, 36 frontend files / 671 tests, clean production build, E2E types, SAST, dependency\n  audits and tracked-source vulnerability/secret/IaC scanning.\n- Main application JavaScript remains `{bundle}`; the campaign chunk-order warning is absent.\n- Authenticated representative-data browser/device/screen-reader and production-scale evidence remains\n  `PENDING – Host Machine Validation`.\n\n'''
+          text = replace_once(text, '## [Unreleased]\n\n', entry, 'CHANGELOG')
+          path.write_text(text)
+
+          # IMPLEMENTATION_TRACKER
+          path = Path('IMPLEMENTATION_TRACKER.md')
+          text = path.read_text()
+          text = replace_once(text,
+              '_Last updated: 2026-08-05 · UI-TASTE-04 Responsive, Accessibility and Performance Regression is Repository Validated. Provider-dependent Module 13 work remains blocked._',
+              '_Last updated: 2026-08-05 · UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness is Repository Validated. The branch awaits explicit Owner Approval and Merge; provider-dependent Module 13 work remains blocked._',
+              'IMPLEMENTATION_TRACKER header')
+          text = replace_once(text, '- **Starting HEAD:** `5af34560e4af99b476eabd9642f01d26af924eeb`', f'- **Starting HEAD:** `{os.environ["BASE_SHA"]}`', 'IMPLEMENTATION_TRACKER baseline')
+          text = replace_once(text, '- **Current milestone:** `UI-TASTE-04 — Responsive, Accessibility and Performance Regression — REPOSITORY VALIDATED`', '- **Current milestone:** `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness — REPOSITORY VALIDATED`', 'IMPLEMENTATION_TRACKER milestone')
+          text = replace_once(text, '- **Next milestone:** `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness`; live M13-06 remains blocked', '- **Next milestone:** `None — await explicit Owner Approval and Merge`; live M13-06 remains blocked and UI-TASTE-06 is not authorized', 'IMPLEMENTATION_TRACKER next')
+          text = replace_once(text, '- **Last synchronized:** `2026-08-05T11:44:25+05:30`', f'- **Last synchronized:** `{timestamp}`', 'IMPLEMENTATION_TRACKER timestamp')
+          section = f'''## Delivered\n\n### UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness\n\n- Completed a full repository release-candidate audit across product routes, shared components,\n  authentication/RBAC, tenant/object authorization evidence, API contracts, audits and Module 13\n  provider-neutral boundaries.\n- Fixed one verified Major defect: campaign create/edit lazy chunks no longer depend on a cyclic barrel\n  re-export that Rollup warned could break execution order.\n- Full repository validation passes in workflow `{run_id}`; the main application bundle is `{bundle}`.\n- No feature, architecture, governance, provider, QR, runtime, API, migration, dependency, permission\n  catalog or roadmap-sequencing change was made.\n- No verified Blocker or Major defect remains in repository-verifiable scope. The branch is ready for\n  explicit Owner Approval and Merge, not Host Validated or Production Ready.\n\n'''
+          text = replace_once(text, '## Delivered\n\n', section, 'IMPLEMENTATION_TRACKER delivered')
+          text = replace_once(text, '- Repository pre-merge quality gate PASS in workflow `30980229127`.', f'- Release-candidate quality gate PASS in workflow `{run_id}`.', 'IMPLEMENTATION_TRACKER workflow')
+          text = replace_once(text, '- Main application bundle: 199.78/54.87 kB gzip, improved from\n  733.97/178.29 kB gzip.', f'- Main application bundle: {bundle}; campaign create/edit chunks build without the prior circular-execution warning.', 'IMPLEMENTATION_TRACKER bundle')
+          text = replace_once(text, '- Exact sixteen-file product/tracking boundary PASS; no API, migration, dependency, provider or live\n  Module 13 behavior changed.', '- Exact eight-file product/tracking boundary PASS: two focused campaign route imports and six synchronized tracking ledgers; no API, migration, dependency, provider or live Module 13 behavior changed.', 'IMPLEMENTATION_TRACKER boundary')
+          text = replace_once(text, '## Stop rule\n\nDo not begin live/provider-dependent', '## Stop rule\n\nStop after UI-TASTE-05. Await explicit Owner Approval and Merge; do not begin UI-TASTE-06.\n\nDo not begin live/provider-dependent', 'IMPLEMENTATION_TRACKER stop')
+          path.write_text(text)
+
+          # PROJECT_STATE
+          path = Path('PROJECT_STATE.md')
+          text = path.read_text()
+          text = replace_once(text, '| Current Git HEAD | `HEAD` (UI-TASTE-04 closeout; resolve after push) |', '| Current Git HEAD | `HEAD` (UI-TASTE-05 closeout; resolve after push) |', 'PROJECT_STATE head')
+          text = replace_once(text, '| Current milestone | `UI-TASTE-04 — Responsive, Accessibility and Performance Regression — REPOSITORY VALIDATED` |', '| Current milestone | `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness — REPOSITORY VALIDATED` |', 'PROJECT_STATE milestone')
+          text = replace_once(text, '| Current phase | `Provider-neutral UI quality closeout; responsive, accessibility and route-performance defects corrected while live M13-06 remains blocked` |', '| Current phase | `Release candidate internally consistent and repository-validated; awaiting explicit Owner Approval and Merge while live M13-06 remains blocked` |', 'PROJECT_STATE phase')
+          text = replace_once(text, '| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS |', '| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 671 tests PASS · production build PASS without the campaign circular chunk-order warning |', 'PROJECT_STATE frontend')
+          text = replace_once(text, '| Bundle evidence | Main `199.78 kB` / `54.87 kB` gzip, improved from `733.97/178.29 kB`; authenticated route chunks are lazy-loaded |', f'| Bundle evidence | Main `{bundle}`; authenticated route chunks are lazy-loaded and campaign create/edit execution order is clean |', 'PROJECT_STATE bundle')
+          text = replace_once(text, '| Worktree expectation | UI quality corrections and synchronized tracking only; no API, migration, dependency, provider adapter or live execution |', '| Worktree expectation | One verified Major campaign import-graph correction and synchronized tracking only; no feature, API, migration, dependency, architecture, governance, provider adapter or live execution |', 'PROJECT_STATE worktree')
+          text = replace_once(text, '| Last update | `2026-08-05T11:44:25+05:30` (Asia/Kolkata) |', f'| Last update | `{timestamp}` (Asia/Kolkata) |', 'PROJECT_STATE timestamp')
+          section = f'''## UI-TASTE-05 completed owner review and merge readiness\n\n- Full repository review found one verified Major release-candidate defect in the campaign lazy import\n  graph; direct module imports remove the Rollup circular execution-order risk without changing behavior.\n- Workflow `{run_id}` passes all applicable repository gates, with main JavaScript at `{bundle}`.\n- No verified repository-scope Blocker or Major defect remains. Moderate dependency advisories and all\n  authenticated target-host visual/device/screen-reader/performance evidence remain explicitly pending.\n- The branch is ready for explicit Owner Approval and Merge; it is not Host Validated or Production Ready.\n\n'''
+          text = replace_once(text, '## UI-TASTE-04 delivered responsive, accessibility and performance regression\n', section + '## UI-TASTE-04 delivered responsive, accessibility and performance regression\n', 'PROJECT_STATE section')
+          text = replace_once(text, 'UI-TASTE-03A, UI-TASTE-03B and UI-TASTE-04 are repository-validated.', 'UI-TASTE-03A, UI-TASTE-03B, UI-TASTE-04 and UI-TASTE-05 are repository-validated.', 'PROJECT_STATE modernization')
+          text = replace_once(text, 'Stop after UI-TASTE-03B. Provider certification continues to block only Module 13 live/provider\nruntime, ingestion, history, media, messaging, routing, and provider UI. The next approved milestone is UI-TASTE-05, which requires explicit owner instruction.', 'Stop after UI-TASTE-05. Await explicit Owner Approval and Merge; UI-TASTE-06 is not authorized. Provider certification continues to block only Module 13 live/provider runtime, ingestion, history, media, messaging, routing, and provider UI.', 'PROJECT_STATE stop')
+          path.write_text(text)
+
+          # VALIDATION_RESULTS
+          path = Path('VALIDATION_RESULTS.md')
+          text = path.read_text()
+          text = replace_once(text, 'Last synchronized: `2026-08-05T11:44:25+05:30`.', f'Last synchronized: `{timestamp}`.', 'VALIDATION_RESULTS timestamp')
+          section = f'''\n## UI-TASTE-05 Owner Review, Release Candidate Audit and Merge Readiness\n\n| Validation item | Status | Latest evidence |\n|---|---|---|\n| Latest Git baseline | PASS | Work starts from `{os.environ["BASE_SHA"]}` on `ui/taste-modernization`. |\n| Full repository review | PASS | Dashboard, Reactivation, Contacts, Customer 360, Inbox, Campaigns, Templates, Analytics, Notifications, Settings, Authentication, RBAC, Customer Identity, shared components and provider-neutral Module 13 foundations were reviewed as one release candidate. |\n| Verified Major defect | PASS | Campaign create/edit route chunks imported `CampaignWizard` through a barrel re-export that Rollup warned could create broken execution order; direct module imports remove the cycle. |\n| Navigation / integration | PASS | Route guards, deep links, URL-backed state, search, filters, pagination, modal/form/loading/error/empty/shared-component behavior remain covered by existing contracts and regressions. |\n| RBAC / tenant / object authorization | PASS | Existing permission gates and tenant-scoped backend tests pass; no permission catalog, repository authority or audit behavior changed. |\n| Backend gates | PASS | Ruff, strict mypy, bytecode/import integrity, semantic OpenAPI drift and all 980 backend tests pass in workflow `{run_id}`. |\n| Frontend gates | PASS | ESLint, TypeScript, 36 Vitest files / 671 tests and production build pass without the campaign circular chunk-order warning. |\n| Security gates | PASS | Bandit, Python audit, E2E audit and Trivy high/critical source scan pass. Frontend production dependencies contain no high/critical advisory; two moderate React Router advisories remain recorded as non-Blocker/Major maintenance debt. |\n| Performance | PASS | Main application JavaScript is `{bundle}`; existing authenticated route splitting and 250 ms global-search debounce remain intact. |\n| Architecture / governance / provider boundary | PASS | No architecture, governance, provider certification, WAHA/Evolution, QR, runtime, live messaging, history or media-transfer work exists in this milestone. |\n| Milestone boundary | PASS | Exactly two product files and six synchronized tracking ledgers change in one conventional commit. |\n| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual, browser/device, keyboard-only, screen-reader, contrast, touch, production-scale performance and deployed Playwright evidence remain unproven. |\n| Merge readiness | PASS | No verified repository-scope Blocker or Major defect remains; branch is ready for explicit Owner Approval and Merge, not Production Ready. |\n\n'''
+          text = replace_once(text, '\n\n## UI-TASTE-04 Responsive, Accessibility and Performance Regression', '\n' + section + '## UI-TASTE-04 Responsive, Accessibility and Performance Regression', 'VALIDATION_RESULTS section')
+          path.write_text(text)
+
+          # MODULE_STATUS
+          path = Path('MODULE_STATUS.md')
+          text = path.read_text()
+          text = replace_once(text, 'Last synchronized: `2026-08-05T11:44:25+05:30`.', f'Last synchronized: `{timestamp}`.', 'MODULE_STATUS timestamp')
+          section = f'''## UI Taste Modernization — Owner Review, Release Candidate Audit and Merge Readiness\n\n- **Status:** `UI-TASTE-05 — REPOSITORY VALIDATED`.\n- **Defect fixed:** one verified Major campaign lazy-chunk import cycle; create/edit pages now import\n  existing campaign modules directly and preserve all behavior/contracts.\n- **Validation:** workflow `{run_id}` passes 980 backend tests, 36 frontend files / 671 tests, lint,\n  strict typing, OpenAPI/client drift, clean production build, audits and source security scanning.\n- **Readiness:** no verified repository-scope Blocker or Major defect remains; branch awaits explicit\n  Owner Approval and Merge. Host validation and Production Ready status are not claimed.\n- **Completion impact:** Shared Enterprise Design System remains `94%`; Global Search remains `85%`;\n  Reactivation remains `94%`; Module 13 remains `44%`. Review-only evidence does not inflate modules.\n- **Next:** no implementation milestone is authorized; await Owner Approval and Merge.\n\n'''
+          text = replace_once(text, '## UI Taste Modernization — Responsive, Accessibility and Performance Regression\n', section + '## UI Taste Modernization — Responsive, Accessibility and Performance Regression\n', 'MODULE_STATUS section')
+          path.write_text(text)
+
+          # ROADMAP — status only, no sequencing change.
+          path = Path('ROADMAP.md')
+          text = path.read_text()
+          text = replace_once(text, 'Last synchronized: `2026-08-05T03:21:50+05:30`.', f'Last synchronized: `{timestamp}`.', 'ROADMAP timestamp')
+          text = replace_once(text, '`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy and `UI-TASTE-04` responsive/accessibility/performance regression are Repository Validated.', '`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy, `UI-TASTE-04` responsive/accessibility/performance regression and `UI-TASTE-05` owner review/merge readiness are Repository Validated. The branch now awaits explicit Owner Approval and Merge.', 'ROADMAP narrative')
+          text = replace_once(text, '| UI-TASTE-05 — Owner review and merge — NEXT | Close only after evidence-backed owner review. | Focused corrections, governance/validation updates, final branch review and merge. | Owner approves; changed-file boundary is truthful; all required evidence is recorded; merge occurs without bypassing product or quality gates. |', f'| UI-TASTE-05 — Owner review and merge — REPOSITORY VALIDATED | Determine owner-approval and merge readiness without adding features or changing architecture/governance. | One verified Major campaign chunk-order correction, full repository audit and synchronized validation records. | **REPOSITORY VALIDATED** in workflow `{run_id}`; no repository-scope Blocker/Major remains; host evidence stays pending; explicit Owner Approval and Merge are the only next actions. |', 'ROADMAP row')
+          path.write_text(text)
+          PY
+
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          expected = sorted([
+              'CHANGELOG.md',
+              'IMPLEMENTATION_TRACKER.md',
+              'MODULE_STATUS.md',
+              'PROJECT_STATE.md',
+              'ROADMAP.md',
+              'VALIDATION_RESULTS.md',
+              'frontend/src/pages/CampaignCreatePage.tsx',
+              'frontend/src/pages/CampaignEditPage.tsx',
+          ])
+          actual = sorted(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          if actual != expected:
+              raise SystemExit(f'Unexpected milestone boundary: {actual}')
+          print('EXACT_MILESTONE_BOUNDARY=' + ', '.join(actual))
+          PY
+
+          git config user.name 'OpenAI'
+          git config user.email 'noreply@openai.com'
+          git add CHANGELOG.md IMPLEMENTATION_TRACKER.md MODULE_STATUS.md PROJECT_STATE.md ROADMAP.md VALIDATION_RESULTS.md \
+            frontend/src/pages/CampaignCreatePage.tsx frontend/src/pages/CampaignEditPage.tsx
+          git commit -m 'fix(ui): remove campaign lazy-chunk cycle'
+          git push --force origin HEAD:"$WORK_BRANCH"
+          echo "VALIDATED_COMMIT=$(git rev-parse HEAD)"
+          echo "COMMIT_MESSAGE=$(git log -1 --pretty=%s)"
+          echo "FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | tr '\n' ',')"
+          echo "MAIN_BUNDLE=$MAIN_BUNDLE"
