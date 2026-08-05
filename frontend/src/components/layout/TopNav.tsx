@@ -8,12 +8,12 @@ import {
   Plus,
   Search,
   Sun,
-  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { visibleCreateActions } from "@/components/layout/navigation";
+import { Modal } from "@/components/ui";
 import { CommandPalette } from "@/features/global-search";
 import { NotificationCenter, useUnreadCount } from "@/features/notifications";
 import { useQueues } from "@/features/operations/api";
@@ -254,15 +254,33 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
       />
 
       {helpOpen ? (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4 backdrop-blur-sm">
-          <button type="button" aria-label="Close shortcuts" onClick={() => setHelpOpen(false)} className="absolute inset-0" />
-          <section role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface p-5 shadow-lg">
-            <div className="flex items-start justify-between"><div><h2 className="text-lg font-bold text-text-primary">Work faster</h2><p className="mt-1 text-sm text-text-secondary">Keyboard shortcuts available across the workspace.</p></div><button type="button" aria-label="Close" onClick={() => setHelpOpen(false)} className={iconBtn}><X aria-hidden className="h-4 w-4" /></button></div>
-            <dl className="mt-5 divide-y divide-border">
-              {[['⌘ / Ctrl + K','Search and command palette'],['/','Search from any non-editing context'],['?','Open this shortcut guide'],['Esc','Close the active panel or dialog']].map(([key, label]) => <div key={key} className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-text-secondary">{label}</dt><dd><kbd className="rounded-lg border border-border bg-surface-2 px-2 py-1 font-mono text-xs text-text-primary">{key}</kbd></dd></div>)}
-            </dl>
-          </section>
-        </div>
+        <Modal
+          title="Keyboard shortcuts"
+          onClose={() => {
+            setHelpOpen(false);
+            accountButtonRef.current?.focus();
+          }}
+          panelClassName="max-w-lg"
+        >
+          <p className="text-sm text-text-secondary">Keyboard shortcuts available across the workspace.</p>
+          <dl className="mt-4 divide-y divide-border">
+            {[
+              ["⌘ / Ctrl + K", "Search and command palette"],
+              ["/", "Search from any non-editing context"],
+              ["?", "Open this shortcut guide"],
+              ["Esc", "Close the active panel or dialog"],
+            ].map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-sm text-text-secondary">{label}</dt>
+                <dd>
+                  <kbd className="rounded-lg border border-border bg-surface-2 px-2 py-1 font-mono text-xs text-text-primary">
+                    {key}
+                  </kbd>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Modal>
       ) : null}
     </>
   );

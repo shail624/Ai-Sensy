@@ -1,77 +1,97 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType, type ElementType, type LazyExoticComponent, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout";
 import { Spinner } from "@/components/ui";
-import { ApiKeysPanel, AuditPanel, PermissionsPanel, RolesPanel, UsersPanel } from "@/features/admin";
-import { NumberList, WabaList } from "@/features/channels";
-import {
-  JobList,
-  LogsPanel,
-  OPERATIONS_PERMISSIONS,
-  OperationsOverview,
-  QueueMonitor,
-  SystemHealthPanel,
-  WebhooksPanel,
-} from "@/features/operations";
-import {
-  ApplicationPanel,
-  FeatureFlagsPanel,
-  OrganizationPanel,
-  PreferencesPanel,
-} from "@/features/settings";
-import { AdminIndexRedirect, AdminPage } from "@/pages/AdminPage";
-import { PipelineDetailPage } from "@/pages/PipelineDetailPage";
-import { PipelinesPage } from "@/pages/PipelinesPage";
-import { SegmentCreatePage } from "@/pages/SegmentCreatePage";
-import { SegmentDetailPage } from "@/pages/SegmentDetailPage";
-import { SegmentEditPage } from "@/pages/SegmentEditPage";
-import { SegmentsPage } from "@/pages/SegmentsPage";
-import { SettingsIndexRedirect, SettingsPage } from "@/pages/SettingsPage";
-import { JobDetailPage } from "@/pages/JobDetailPage";
-import { OperationsIndexRedirect, OperationsPage } from "@/pages/OperationsPage";
-import { ChannelsIndexRedirect, ChannelsPage } from "@/pages/ChannelsPage";
-import { NumberDetailPage } from "@/pages/NumberDetailPage";
-import { WabaDetailPage } from "@/pages/WabaDetailPage";
-import { CampaignCreatePage } from "@/pages/CampaignCreatePage";
-import { CampaignDetailPage } from "@/pages/CampaignDetailPage";
-import { CampaignEditPage } from "@/pages/CampaignEditPage";
-import { CampaignsPage } from "@/pages/CampaignsPage";
-import { BroadcastsPage } from "@/pages/BroadcastsPage";
-// `ComingSoonPage` is no longer routed: every destination in the navigation is now built. The
-// component remains for a future unbuilt module rather than being deleted along with its tests.
-import { ContactProfilePage } from "@/pages/ContactProfilePage";
-import { ContactsPage } from "@/pages/ContactsPage";
-import { DashboardPage } from "@/pages/DashboardPage";
-import { InboxPage } from "@/pages/InboxPage";
+import { OPERATIONS_PERMISSIONS } from "@/features/operations";
 import { LoginPage } from "@/pages/LoginPage";
-import { MediaDetailPage } from "@/pages/MediaDetailPage";
-import { MediaPage } from "@/pages/MediaPage";
 import { NotFound } from "@/pages/NotFound";
-import { TasksPage } from "@/pages/TasksPage";
-import { TemplateCreatePage } from "@/pages/TemplateCreatePage";
-import { TemplateDetailPage } from "@/pages/TemplateDetailPage";
-import { TemplateEditPage } from "@/pages/TemplateEditPage";
-import { TemplatesPage } from "@/pages/TemplatesPage";
 import { RequireAnonymous, RequireAnyPermission, RequireAuth, RequirePermission } from "@/routes/guards";
 
-/** Heavy analytics and Phase 3 workspace routes load only when opened. */
-const AnalyticsPage = lazy(async () => ({
-  default: (await import("@/pages/AnalyticsPage")).AnalyticsPage,
-}));
-const AutomationPage = lazy(async () => ({ default: (await import("@/pages/AutomationPage")).AutomationPage }));
-const ReactivationPage = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationPage }));
-const ReactivationOverview = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationOverview }));
-const ReactivationWorkspace = lazy(async () => ({ default: (await import("@/pages/ReactivationPage")).ReactivationWorkspace }));
-const ScanPage = lazy(async () => ({ default: (await import("@/pages/ScanPage")).ScanPage }));
+type RouteComponent = ComponentType<Record<string, never>>;
 
-function LazyRoute({ children }: { children: React.ReactNode }): JSX.Element {
+function lazyNamed(
+  loader: () => Promise<Record<string, unknown>>,
+  exportName: string,
+): LazyExoticComponent<RouteComponent> {
+  return lazy(async () => ({
+    default: (await loader())[exportName] as RouteComponent,
+  }));
+}
+
+function lazyElement(Component: ElementType): JSX.Element {
+  return (
+    <LazyRoute>
+      <Component />
+    </LazyRoute>
+  );
+}
+
+const AdminIndexRedirect = lazyNamed(() => import("@/pages/AdminPage"), "AdminIndexRedirect");
+const AdminPage = lazyNamed(() => import("@/pages/AdminPage"), "AdminPage");
+const AnalyticsPage = lazyNamed(() => import("@/pages/AnalyticsPage"), "AnalyticsPage");
+const AutomationPage = lazyNamed(() => import("@/pages/AutomationPage"), "AutomationPage");
+const BroadcastsPage = lazyNamed(() => import("@/pages/BroadcastsPage"), "BroadcastsPage");
+const CampaignCreatePage = lazyNamed(() => import("@/pages/CampaignCreatePage"), "CampaignCreatePage");
+const CampaignDetailPage = lazyNamed(() => import("@/pages/CampaignDetailPage"), "CampaignDetailPage");
+const CampaignEditPage = lazyNamed(() => import("@/pages/CampaignEditPage"), "CampaignEditPage");
+const CampaignsPage = lazyNamed(() => import("@/pages/CampaignsPage"), "CampaignsPage");
+const ChannelsIndexRedirect = lazyNamed(() => import("@/pages/ChannelsPage"), "ChannelsIndexRedirect");
+const ChannelsPage = lazyNamed(() => import("@/pages/ChannelsPage"), "ChannelsPage");
+const ContactProfilePage = lazyNamed(() => import("@/pages/ContactProfilePage"), "ContactProfilePage");
+const ContactsPage = lazyNamed(() => import("@/pages/ContactsPage"), "ContactsPage");
+const DashboardPage = lazyNamed(() => import("@/pages/DashboardPage"), "DashboardPage");
+const InboxPage = lazyNamed(() => import("@/pages/InboxPage"), "InboxPage");
+const JobDetailPage = lazyNamed(() => import("@/pages/JobDetailPage"), "JobDetailPage");
+const MediaDetailPage = lazyNamed(() => import("@/pages/MediaDetailPage"), "MediaDetailPage");
+const MediaPage = lazyNamed(() => import("@/pages/MediaPage"), "MediaPage");
+const NumberDetailPage = lazyNamed(() => import("@/pages/NumberDetailPage"), "NumberDetailPage");
+const OperationsIndexRedirect = lazyNamed(() => import("@/pages/OperationsPage"), "OperationsIndexRedirect");
+const OperationsPage = lazyNamed(() => import("@/pages/OperationsPage"), "OperationsPage");
+const PipelineDetailPage = lazyNamed(() => import("@/pages/PipelineDetailPage"), "PipelineDetailPage");
+const PipelinesPage = lazyNamed(() => import("@/pages/PipelinesPage"), "PipelinesPage");
+const ReactivationOverview = lazyNamed(() => import("@/pages/ReactivationPage"), "ReactivationOverview");
+const ReactivationPage = lazyNamed(() => import("@/pages/ReactivationPage"), "ReactivationPage");
+const ReactivationWorkspace = lazyNamed(() => import("@/pages/ReactivationPage"), "ReactivationWorkspace");
+const ScanPage = lazyNamed(() => import("@/pages/ScanPage"), "ScanPage");
+const SegmentCreatePage = lazyNamed(() => import("@/pages/SegmentCreatePage"), "SegmentCreatePage");
+const SegmentDetailPage = lazyNamed(() => import("@/pages/SegmentDetailPage"), "SegmentDetailPage");
+const SegmentEditPage = lazyNamed(() => import("@/pages/SegmentEditPage"), "SegmentEditPage");
+const SegmentsPage = lazyNamed(() => import("@/pages/SegmentsPage"), "SegmentsPage");
+const SettingsIndexRedirect = lazyNamed(() => import("@/pages/SettingsPage"), "SettingsIndexRedirect");
+const SettingsPage = lazyNamed(() => import("@/pages/SettingsPage"), "SettingsPage");
+const TasksPage = lazyNamed(() => import("@/pages/TasksPage"), "TasksPage");
+const TemplateCreatePage = lazyNamed(() => import("@/pages/TemplateCreatePage"), "TemplateCreatePage");
+const TemplateDetailPage = lazyNamed(() => import("@/pages/TemplateDetailPage"), "TemplateDetailPage");
+const TemplateEditPage = lazyNamed(() => import("@/pages/TemplateEditPage"), "TemplateEditPage");
+const TemplatesPage = lazyNamed(() => import("@/pages/TemplatesPage"), "TemplatesPage");
+const WabaDetailPage = lazyNamed(() => import("@/pages/WabaDetailPage"), "WabaDetailPage");
+
+const ApiKeysPanel = lazyNamed(() => import("@/features/admin"), "ApiKeysPanel");
+const AuditPanel = lazyNamed(() => import("@/features/admin"), "AuditPanel");
+const PermissionsPanel = lazyNamed(() => import("@/features/admin"), "PermissionsPanel");
+const RolesPanel = lazyNamed(() => import("@/features/admin"), "RolesPanel");
+const UsersPanel = lazyNamed(() => import("@/features/admin"), "UsersPanel");
+const NumberList = lazyNamed(() => import("@/features/channels"), "NumberList");
+const WabaList = lazyNamed(() => import("@/features/channels"), "WabaList");
+const JobList = lazyNamed(() => import("@/features/operations"), "JobList");
+const LogsPanel = lazyNamed(() => import("@/features/operations"), "LogsPanel");
+const OperationsOverview = lazyNamed(() => import("@/features/operations"), "OperationsOverview");
+const QueueMonitor = lazyNamed(() => import("@/features/operations"), "QueueMonitor");
+const SystemHealthPanel = lazyNamed(() => import("@/features/operations"), "SystemHealthPanel");
+const WebhooksPanel = lazyNamed(() => import("@/features/operations"), "WebhooksPanel");
+const ApplicationPanel = lazyNamed(() => import("@/features/settings"), "ApplicationPanel");
+const FeatureFlagsPanel = lazyNamed(() => import("@/features/settings"), "FeatureFlagsPanel");
+const OrganizationPanel = lazyNamed(() => import("@/features/settings"), "OrganizationPanel");
+const PreferencesPanel = lazyNamed(() => import("@/features/settings"), "PreferencesPanel");
+
+function LazyRoute({ children }: { children: ReactNode }): JSX.Element {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
 function RouteFallback(): JSX.Element {
   return (
-    <div className="p-6">
+    <div className="p-6" role="status" aria-live="polite">
       <Spinner label="Loading…" />
     </div>
   );
@@ -91,69 +111,69 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          { index: true, element: lazyElement(DashboardPage) },
           {
             path: "contacts",
             element: <RequirePermission code="contacts:read" />,
             children: [
-              { index: true, element: <ContactsPage /> },
-              { path: ":contactId", element: <ContactProfilePage /> },
+              { index: true, element: lazyElement(ContactsPage) },
+              { path: ":contactId", element: lazyElement(ContactProfilePage) },
             ],
           },
           {
             path: "tasks",
             element: <RequirePermission code="tasks:read" />,
-            children: [{ index: true, element: <TasksPage /> }],
+            children: [{ index: true, element: lazyElement(TasksPage) }],
           },
           {
             path: "inbox",
             element: <RequirePermission code="inbox:read" />,
-            children: [{ index: true, element: <InboxPage /> }],
+            children: [{ index: true, element: lazyElement(InboxPage) }],
           },
           {
             path: "campaigns",
             element: <RequirePermission code="campaigns:read" />,
             children: [
-              { index: true, element: <CampaignsPage /> },
+              { index: true, element: lazyElement(CampaignsPage) },
               // `new` and `:campaignId/edit` write, so they carry the write permission the API
               // enforces — reaching them by URL without it gets the same honest refusal the nav
               // gives, not a 403 discovered on save.
               {
                 path: "new",
                 element: <RequirePermission code="campaigns:write" />,
-                children: [{ index: true, element: <CampaignCreatePage /> }],
+                children: [{ index: true, element: lazyElement(CampaignCreatePage) }],
               },
-              { path: ":campaignId", element: <CampaignDetailPage /> },
+              { path: ":campaignId", element: lazyElement(CampaignDetailPage) },
               {
                 path: ":campaignId/edit",
                 element: <RequirePermission code="campaigns:write" />,
-                children: [{ index: true, element: <CampaignEditPage /> }],
+                children: [{ index: true, element: lazyElement(CampaignEditPage) }],
               },
             ],
           },
           {
             path: "broadcasts",
             element: <RequirePermission code="campaigns:read" />,
-            children: [{ index: true, element: <BroadcastsPage /> }],
+            children: [{ index: true, element: lazyElement(BroadcastsPage) }],
           },
           {
             path: "templates",
             element: <RequirePermission code="templates:read" />,
             children: [
-              { index: true, element: <TemplatesPage /> },
+              { index: true, element: lazyElement(TemplatesPage) },
               // `new` and `:templateId/edit` write, so they carry the write permission the API
               // enforces — reaching them by URL without it gets the same honest refusal the nav
               // gives, not a 403 discovered on submit.
               {
                 path: "new",
                 element: <RequirePermission code="templates:write" />,
-                children: [{ index: true, element: <TemplateCreatePage /> }],
+                children: [{ index: true, element: lazyElement(TemplateCreatePage) }],
               },
-              { path: ":templateId", element: <TemplateDetailPage /> },
+              { path: ":templateId", element: lazyElement(TemplateDetailPage) },
               {
                 path: ":templateId/edit",
                 element: <RequirePermission code="templates:write" />,
-                children: [{ index: true, element: <TemplateEditPage /> }],
+                children: [{ index: true, element: lazyElement(TemplateEditPage) }],
               },
             ],
           },
@@ -161,8 +181,8 @@ export const router = createBrowserRouter([
             path: "media",
             element: <RequirePermission code="media:read" />,
             children: [
-              { index: true, element: <MediaPage /> },
-              { path: ":mediaId", element: <MediaDetailPage /> },
+              { index: true, element: lazyElement(MediaPage) },
+              { path: ":mediaId", element: lazyElement(MediaDetailPage) },
             ],
           },
           {
@@ -171,18 +191,14 @@ export const router = createBrowserRouter([
             children: [
               {
                 index: true,
-                element: (
-                  <LazyRoute>
-                    <AnalyticsPage />
-                  </LazyRoute>
-                ),
+                element: lazyElement(AnalyticsPage),
               },
             ],
           },
           {
             path: "automation",
             element: <RequirePermission code="automations:read" />,
-            children: [{ index: true, element: <LazyRoute><AutomationPage /></LazyRoute> }],
+            children: [{ index: true, element: lazyElement(AutomationPage) }],
           },
           {
             path: "reactivation",
@@ -190,19 +206,19 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "",
-                element: <LazyRoute><ReactivationPage /></LazyRoute>,
+                element: lazyElement(ReactivationPage),
                 children: [
-                  { index: true, element: <LazyRoute><ReactivationOverview /></LazyRoute> },
-                  { path: "eligible", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "bulk-eligibility", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "interested", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "pipeline", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "kyc", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "documents", element: <RequirePermission code="documents:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
-                  { path: "sim-orders", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "activation", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "completed", element: <LazyRoute><ReactivationWorkspace /></LazyRoute> },
-                  { path: "reports", element: <RequirePermission code="analytics:read"><LazyRoute><ReactivationWorkspace /></LazyRoute></RequirePermission> },
+                  { index: true, element: lazyElement(ReactivationOverview) },
+                  { path: "eligible", element: lazyElement(ReactivationWorkspace) },
+                  { path: "bulk-eligibility", element: lazyElement(ReactivationWorkspace) },
+                  { path: "interested", element: lazyElement(ReactivationWorkspace) },
+                  { path: "pipeline", element: lazyElement(ReactivationWorkspace) },
+                  { path: "kyc", element: <RequirePermission code="kyc:read">{lazyElement(ReactivationWorkspace)}</RequirePermission> },
+                  { path: "documents", element: <RequirePermission code="documents:read">{lazyElement(ReactivationWorkspace)}</RequirePermission> },
+                  { path: "sim-orders", element: lazyElement(ReactivationWorkspace) },
+                  { path: "activation", element: lazyElement(ReactivationWorkspace) },
+                  { path: "completed", element: lazyElement(ReactivationWorkspace) },
+                  { path: "reports", element: <RequirePermission code="analytics:read">{lazyElement(ReactivationWorkspace)}</RequirePermission> },
                 ],
               },
             ],
@@ -210,7 +226,7 @@ export const router = createBrowserRouter([
           {
             path: "scan",
             element: <RequirePermission code="contacts:read" />,
-            children: [{ index: true, element: <LazyRoute><ScanPage /></LazyRoute> }],
+            children: [{ index: true, element: lazyElement(ScanPage) }],
           },
           {
             // Accounts and numbers share one permission — a number belongs to an account, so there
@@ -220,16 +236,16 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "",
-                element: <ChannelsPage />,
+                element: lazyElement(ChannelsPage),
                 children: [
-                  { index: true, element: <ChannelsIndexRedirect /> },
-                  { path: "accounts", element: <WabaList /> },
-                  { path: "numbers", element: <NumberList /> },
+                  { index: true, element: lazyElement(ChannelsIndexRedirect) },
+                  { path: "accounts", element: lazyElement(WabaList) },
+                  { path: "numbers", element: lazyElement(NumberList) },
                 ],
               },
               // Detail pages render their own container, so they sit outside the tabbed shell.
-              { path: "accounts/:wabaId", element: <WabaDetailPage /> },
-              { path: "numbers/:numberId", element: <NumberDetailPage /> },
+              { path: "accounts/:wabaId", element: lazyElement(WabaDetailPage) },
+              { path: "numbers/:numberId", element: lazyElement(NumberDetailPage) },
             ],
           },
           {
@@ -238,28 +254,28 @@ export const router = createBrowserRouter([
             path: "pipelines",
             element: <RequirePermission code="contacts:read" />,
             children: [
-              { index: true, element: <PipelinesPage /> },
-              { path: ":pipelineId", element: <PipelineDetailPage /> },
+              { index: true, element: lazyElement(PipelinesPage) },
+              { path: ":pipelineId", element: lazyElement(PipelineDetailPage) },
             ],
           },
           {
             path: "segments",
             element: <RequirePermission code="segments:read" />,
             children: [
-              { index: true, element: <SegmentsPage /> },
+              { index: true, element: lazyElement(SegmentsPage) },
               // `new` and `:segmentId/edit` write, so they carry the write permission the API
               // enforces — reaching them by URL without it gets the same honest refusal the nav
               // gives, not a 403 discovered on save.
               {
                 path: "new",
                 element: <RequirePermission code="segments:write" />,
-                children: [{ index: true, element: <SegmentCreatePage /> }],
+                children: [{ index: true, element: lazyElement(SegmentCreatePage) }],
               },
-              { path: ":segmentId", element: <SegmentDetailPage /> },
+              { path: ":segmentId", element: lazyElement(SegmentDetailPage) },
               {
                 path: ":segmentId/edit",
                 element: <RequirePermission code="segments:write" />,
-                children: [{ index: true, element: <SegmentEditPage /> }],
+                children: [{ index: true, element: lazyElement(SegmentEditPage) }],
               },
             ],
           },
@@ -270,53 +286,53 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "",
-                element: <OperationsPage />,
+                element: lazyElement(OperationsPage),
                 children: [
-                  { index: true, element: <OperationsIndexRedirect /> },
-                  { path: "overview", element: <RequirePermission code="system:read"><OperationsOverview /></RequirePermission> },
-                  { path: "jobs", element: <RequirePermission code="system:read"><JobList /></RequirePermission> },
-                  { path: "queues", element: <RequirePermission code="system:read"><QueueMonitor /></RequirePermission> },
-                  { path: "health", element: <RequirePermission code="system:read"><SystemHealthPanel /></RequirePermission> },
-                  { path: "logs", element: <RequirePermission code="system:read"><LogsPanel /></RequirePermission> },
-                  { path: "api", element: <RequirePermission code="apikeys:manage"><ApiKeysPanel /></RequirePermission> },
-                  { path: "webhooks", element: <RequirePermission code="waba:read"><WebhooksPanel /></RequirePermission> },
+                  { index: true, element: lazyElement(OperationsIndexRedirect) },
+                  { path: "overview", element: <RequirePermission code="system:read">{lazyElement(OperationsOverview)}</RequirePermission> },
+                  { path: "jobs", element: <RequirePermission code="system:read">{lazyElement(JobList)}</RequirePermission> },
+                  { path: "queues", element: <RequirePermission code="system:read">{lazyElement(QueueMonitor)}</RequirePermission> },
+                  { path: "health", element: <RequirePermission code="system:read">{lazyElement(SystemHealthPanel)}</RequirePermission> },
+                  { path: "logs", element: <RequirePermission code="system:read">{lazyElement(LogsPanel)}</RequirePermission> },
+                  { path: "api", element: <RequirePermission code="apikeys:manage">{lazyElement(ApiKeysPanel)}</RequirePermission> },
+                  { path: "webhooks", element: <RequirePermission code="waba:read">{lazyElement(WebhooksPanel)}</RequirePermission> },
                 ],
               },
               // The detail page renders its own container, so it sits outside the tabbed shell.
-              { path: "jobs/:jobId", element: <JobDetailPage /> },
+              { path: "jobs/:jobId", element: lazyElement(JobDetailPage) },
             ],
           },
           {
             // Each section carries the permission its own endpoints enforce, so reaching one by
             // URL without it gets the same honest refusal the sub-navigation gives.
             path: "admin",
-            element: <AdminPage />,
+            element: lazyElement(AdminPage),
             children: [
-              { index: true, element: <AdminIndexRedirect /> },
+              { index: true, element: lazyElement(AdminIndexRedirect) },
               {
                 path: "users",
                 element: <RequirePermission code="users:read" />,
-                children: [{ index: true, element: <UsersPanel /> }],
+                children: [{ index: true, element: lazyElement(UsersPanel) }],
               },
               {
                 path: "roles",
                 element: <RequirePermission code="roles:read" />,
-                children: [{ index: true, element: <RolesPanel /> }],
+                children: [{ index: true, element: lazyElement(RolesPanel) }],
               },
               {
                 path: "permissions",
                 element: <RequirePermission code="roles:read" />,
-                children: [{ index: true, element: <PermissionsPanel /> }],
+                children: [{ index: true, element: lazyElement(PermissionsPanel) }],
               },
               {
                 path: "api-keys",
                 element: <RequirePermission code="apikeys:manage" />,
-                children: [{ index: true, element: <ApiKeysPanel /> }],
+                children: [{ index: true, element: lazyElement(ApiKeysPanel) }],
               },
               {
                 path: "audit",
                 element: <RequirePermission code="audit:read" />,
-                children: [{ index: true, element: <AuditPanel /> }],
+                children: [{ index: true, element: lazyElement(AuditPanel) }],
               },
             ],
           },
@@ -325,28 +341,28 @@ export const router = createBrowserRouter([
             // `auth:self` rather than `settings:read`, so someone with no administrative access
             // still reaches their own record.
             path: "settings",
-            element: <SettingsPage />,
+            element: lazyElement(SettingsPage),
             children: [
-              { index: true, element: <SettingsIndexRedirect /> },
+              { index: true, element: lazyElement(SettingsIndexRedirect) },
               {
                 path: "organization",
                 element: <RequirePermission code="settings:read" />,
-                children: [{ index: true, element: <OrganizationPanel /> }],
+                children: [{ index: true, element: lazyElement(OrganizationPanel) }],
               },
               {
                 path: "application",
                 element: <RequirePermission code="settings:read" />,
-                children: [{ index: true, element: <ApplicationPanel /> }],
+                children: [{ index: true, element: lazyElement(ApplicationPanel) }],
               },
               {
                 path: "flags",
                 element: <RequirePermission code="settings:read" />,
-                children: [{ index: true, element: <FeatureFlagsPanel /> }],
+                children: [{ index: true, element: lazyElement(FeatureFlagsPanel) }],
               },
               {
                 path: "preferences",
                 element: <RequirePermission code="auth:self" />,
-                children: [{ index: true, element: <PreferencesPanel /> }],
+                children: [{ index: true, element: lazyElement(PreferencesPanel) }],
               },
             ],
           },

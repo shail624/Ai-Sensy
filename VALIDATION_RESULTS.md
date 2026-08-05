@@ -4,8 +4,28 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-05T03:21:50+05:30`.
+Last synchronized: `2026-08-05T11:44:25+05:30`.
 
+
+## UI-TASTE-04 Responsive, Accessibility and Performance Regression
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Latest Git baseline | PASS | Work starts from `5af34560e4af99b476eabd9642f01d26af924eeb` on `ui/taste-modernization`. |
+| Milestone boundary | PASS | Only eight verified UI quality defects, focused tests and six tracking ledgers changed; no feature, governance, architecture or provider work. |
+| KYC permission truth | PASS | `/reactivation/kyc` reuses the existing `kyc:read` route guard. |
+| Search efficiency | PASS | Record-search fan-out is delayed 250 ms and retains bounded permission-scoped APIs. |
+| Keyboard and modal accessibility | PASS | Empty results keep index zero; shortcut guide uses shared focus entry/trap/Escape/restore; modal background scroll is locked. |
+| Responsive pagination | PASS | Summary and controls wrap without requiring narrow-screen horizontal overflow. |
+| Route performance | PASS | Authenticated page/panel modules lazy-load behind existing guards; main bundle improves to 199.78/54.87 kB gzip from 733.97/178.29 kB. |
+| Dead code | PASS | Unrouted `ComingSoonPage` and its obsolete test are removed. |
+| Ruff / mypy | PASS | Repository pre-merge quality gate passed in workflow `30980229127`. |
+| Backend tests | PASS | All 980 backend tests pass. |
+| OpenAPI / migration | PASS | OpenAPI remains 200 paths; migration head remains `0040_channel_sync_media_foundation`; no API or migration changed. |
+| Frontend gates | PASS | ESLint, TypeScript, 36 Vitest files / 671 tests and production build pass. |
+| Security gates | PASS | E2E TypeScript, Bandit, dependency audits and tracked-source vulnerability/secret/IaC scan pass. |
+| Host validation | PENDING – Host Machine Validation | Authenticated visual, browser/device, keyboard-only, screen-reader, contrast, touch and production-scale performance evidence remain unproven. |
+| Provider boundary | PASS | No provider evaluation/certification, WAHA/Evolution, QR runtime/session, ingestion/history/media, provider dependency or credential work exists. |
 
 ## UI-TASTE-03B Reactivation Operational Hierarchy
 

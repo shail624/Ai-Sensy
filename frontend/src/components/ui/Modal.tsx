@@ -26,6 +26,9 @@ const PANEL: Record<"center" | "sheet" | "drawer", string> = {
     "max-h-[92vh] w-full overflow-y-auto rounded-t-2xl sm:h-full sm:max-h-none sm:max-w-2xl sm:rounded-none sm:rounded-l-2xl",
 };
 
+let openModalCount = 0;
+let previousBodyOverflow = "";
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -42,6 +45,11 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
 
   useEffect(() => {
     const invoker = document.activeElement as HTMLElement | null;
+    if (openModalCount === 0) {
+      previousBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    openModalCount += 1;
     panelRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent): void {
@@ -75,6 +83,8 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      openModalCount = Math.max(openModalCount - 1, 0);
+      if (openModalCount === 0) document.body.style.overflow = previousBodyOverflow;
       // Returning focus to the invoker keeps a keyboard user where they were (DS-10).
       invoker?.focus?.();
     };

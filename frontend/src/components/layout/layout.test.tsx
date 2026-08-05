@@ -33,7 +33,6 @@ vi.mock("@/lib/auth", () => ({
   }),
   useHasPermission: () => true,
 }));
-import { ComingSoonPage } from "@/pages/ComingSoonPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 
 // The dashboard hosts the data-backed My Work Queue widget (Doc 14 §11), so the harness supplies a
@@ -143,6 +142,20 @@ describe("TopNav", () => {
     expect(within(menu).getByRole("menuitem", { name: /switch to dark mode/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(logout).toHaveBeenCalled();
+  });
+
+  it("uses the shared modal focus and Escape contract for keyboard shortcuts", () => {
+    renderTopNav();
+    const account = screen.getByLabelText("Account menu");
+    fireEvent.click(account);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
+    expect(dialog).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument();
+    expect(account).toHaveFocus();
   });
 
   it("opens the permission-aware command palette with governed create actions", () => {
@@ -277,13 +290,5 @@ describe("DashboardPage", () => {
   it("shows no coming-soon placeholder now that every carded module is built", () => {
     renderAt(<DashboardPage />);
     expect(screen.queryByText("Coming Soon")).not.toBeInTheDocument();
-  });
-});
-
-describe("ComingSoonPage", () => {
-  it("renders the module name and placeholder copy", () => {
-    renderAt(<ComingSoonPage title="Inbox" />);
-    expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
-    expect(screen.getByText(/inbox is coming soon/i)).toBeInTheDocument();
   });
 });

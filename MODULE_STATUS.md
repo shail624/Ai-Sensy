@@ -17,7 +17,7 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-05T03:21:50+05:30`.
+Last synchronized: `2026-08-05T11:44:25+05:30`.
 
 ## Module 13 — M13-06A Provider-neutral Sync & Media Persistence Foundation
 
@@ -76,6 +76,24 @@ Last synchronized: `2026-08-05T03:21:50+05:30`.
   frozen contract remain unimplemented and require explicit sequencing.
 - **Next:** M13-02 is not authorized and has not started.
 - **Last synchronized:** `2026-08-04T12:56:16+05:30`.
+
+## UI Taste Modernization — Responsive, Accessibility and Performance Regression
+
+- **Status:** `UI-TASTE-04 — REPOSITORY VALIDATED`.
+- **Delivered:** KYC deep-link permission truth, debounced workspace search, safe empty-result
+  keyboard navigation, shared shortcut-modal focus behavior, modal scroll lock, narrow pagination,
+  authenticated route splitting and verified dead-code removal.
+- **Performance:** main application JavaScript is 199.78/54.87 kB gzip, down from
+  733.97/178.29 kB gzip; route behavior and APIs are unchanged.
+- **Validation:** workflow `30980229127` passes 980 backend tests, 36 frontend files / 671 tests,
+  lint, strict typing, OpenAPI drift, production build, audits and source security scanning.
+- **Completion impact:** Shared Enterprise Design System increases from `90%` to `94%`; Global
+  Search / Command Palette increases from `80%` to `85%`. Reactivation remains `94%` and Module 13
+  remains `44%` because no domain or provider behavior changed.
+- **Host boundary:** authenticated browser/device/screen-reader, contrast, touch and production-scale
+  performance evidence remains pending.
+- **Next:** `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness` only after
+  explicit owner instruction.
 
 ## UI Taste Modernization — Reactivation Operational Hierarchy
 
@@ -145,10 +163,10 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
 | Enterprise Omnichannel Channel Manager | 44% | M13-00–M13-06A are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session/runtime/pairing control plane, sync checkpoints and media references; migrations `0036`–`0040`; unchanged 200-path API | WAHA host certification, live QR/login, event ingestion, history execution, media transfer, messaging and UI remain pending and blocked | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/MediaAsset/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020/0021 and Design Document 33 |
-| Shared Enterprise Design System | 90% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, route-level bundle optimization, and final WCAG/browser matrix. | UI-TASTE-03–05 |
+| Shared Enterprise Design System | 94% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, remaining authenticated host visual/reference approval and final WCAG/browser matrix. | UI-TASTE-03–05 |
 | Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 90% | CRUD, contact links, custom attributes, filters complete | Required/active controls and final domain-specific fields; preserve existing model. | Settings, domain schemas |
-| Global Search / Command Palette | 80% | Search and `Ctrl+K` foundation complete | Index final domain records/documents/notes/agents/tags and add all approved quick actions. | Final domain APIs |
+| Global Search / Command Palette | 85% | Search and `Ctrl+K` foundation complete | Index final domain records/documents/notes/agents/tags and add all approved quick actions. | Final domain APIs |
 | Saved Views | 35% | Local favourites/recent destinations and inbox views exist | Server synchronization and sharing for contacts, campaigns, reactivation, KYC, reports, and chat history. | Users/RBAC, module filters |
 | Audit Timeline | 90% | CORE-07 exposes distinct Customer Timeline and Audit views over existing immutable evidence, including source references and deep links | Normalize remaining old/new values, device/login, generalized approvals and document-access evidence. | All final domain events |
 

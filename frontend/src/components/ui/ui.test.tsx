@@ -56,6 +56,14 @@ describe("Modal focus management (DS-10)", () => {
     expect(document.activeElement).toBe(screen.getByRole("dialog"));
   });
 
+  it("locks background scrolling while open and restores it on unmount", () => {
+    document.body.style.overflow = "auto";
+    const { view } = open();
+    expect(document.body.style.overflow).toBe("hidden");
+    view.unmount();
+    expect(document.body.style.overflow).toBe("auto");
+  });
+
   it("wraps Tab from the last control back to the first, which is the close control", () => {
     open();
     screen.getByRole("button", { name: "Last" }).focus();

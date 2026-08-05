@@ -80,8 +80,9 @@ describe("enterprise UI primitives", () => {
       />,
     );
 
-    expect(screen.getByRole("navigation", { name: "Pagination" })).toBeInTheDocument();
-    expect(screen.getByText("25 of 100 contacts")).toBeInTheDocument();
+    const pagination = screen.getByRole("navigation", { name: "Pagination" });
+    expect(pagination).toHaveClass("flex-wrap");
+    expect(screen.getByText("25 of 100 contacts")).toHaveClass("basis-full");
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(previous).not.toHaveBeenCalled();

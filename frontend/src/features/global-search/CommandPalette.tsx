@@ -37,6 +37,25 @@ interface Props {
 }
 
 const MAX_RESULTS = 36;
+const SEARCH_DEBOUNCE_MS = 250;
+
+export function useDebouncedValue(value: string, delay: number): string {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay, value]);
+
+  return debounced;
+}
+
+export function moveActiveIndex(current: number, direction: 1 | -1, resultCount: number): number {
+  if (resultCount <= 0) return 0;
+  const bounded = Math.min(Math.max(current, 0), resultCount - 1);
+  return Math.min(Math.max(bounded + direction, 0), resultCount - 1);
+}
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -57,7 +76,7 @@ function contactLabel(contact: { full_name?: string | null; profile_name?: strin
  * `/search` route, so this normalizes bounded reads without inventing a second contract. Message
  * results are explicitly the recent conversation previews currently exposed by the inbox API.
  */
-function useWorkspaceSearch(term: string, enabled: boolean): SearchResult[] {
+function useWorkspaceSearch(term: string, enabled: boolean): { results: SearchResult[]; searching: boolean } {
   const { hasPermission, user } = useAuth();
   const normalized = term.trim();
   const permissions = user?.permissions.join("|") ?? "";
@@ -217,7 +236,7 @@ function useWorkspaceSearch(term: string, enabled: boolean): SearchResult[] {
     },
   });
 
-  return query.data ?? [];
+  return { results: query.data ?? [], searching: query.isFetching };
 }
 
 export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
@@ -229,7 +248,8 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const invokerRef = useRef<HTMLElement | null>(null);
-  const recordResults = useWorkspaceSearch(term, open);
+  const debouncedTerm = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
+  const { results: recordResults, searching } = useWorkspaceSearch(debouncedTerm, open);
 
   const navigationResults = useMemo<SearchResult[]>(() => {
     const lower = term.trim().toLocaleLowerCase();
@@ -290,6 +310,14 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
 
   useEffect(() => setActiveIndex(0), [term]);
 
+  useEffect(() => {
+    if (results.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    setActiveIndex((index) => Math.min(Math.max(index, 0), results.length - 1));
+  }, [results.length]);
+
   if (!open) return null;
 
   function choose(result: SearchResult): void {
@@ -298,7 +326,7 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
     onClose();
   }
 
-  const active = Math.min(activeIndex, Math.max(results.length - 1, 0));
+  const active = results.length === 0 ? 0 : Math.min(Math.max(activeIndex, 0), results.length - 1);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/45 px-3 pt-[10vh] backdrop-blur-sm">
@@ -313,11 +341,15 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
           if (event.key === "Escape") onClose();
           if (event.key === "ArrowDown") {
             event.preventDefault();
-            setActiveIndex((index) => Math.min(index + 1, results.length - 1));
+            if (results.length > 0) {
+              setActiveIndex((index) => moveActiveIndex(index, 1, results.length));
+            }
           }
           if (event.key === "ArrowUp") {
             event.preventDefault();
-            setActiveIndex((index) => Math.max(index - 1, 0));
+            if (results.length > 0) {
+              setActiveIndex((index) => moveActiveIndex(index, -1, results.length));
+            }
           }
           if (event.key === "Enter" && results[active]) {
             event.preventDefault();
@@ -363,10 +395,14 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
         </p>
         <div className="min-h-0 flex-1 overflow-y-auto p-2" role="list" aria-label="Search results">
           {results.length === 0 ? (
-            <div className="px-5 py-12 text-center">
+            <div className="px-5 py-12 text-center" aria-busy={searching}>
               <Search aria-hidden className="mx-auto h-8 w-8 text-text-disabled" />
               <p className="mt-3 text-sm font-semibold text-text-primary">
-                {term.trim().length < 2 ? "Type at least two characters" : "No matching workspace items"}
+                {term.trim().length < 2
+                  ? "Type at least two characters"
+                  : searching
+                    ? "Searching workspace records"
+                    : "No matching workspace items"}
               </p>
               <p className="mt-1 text-xs text-text-secondary">
                 Search is permission-aware and only shows records you may open.
@@ -417,7 +453,7 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
 
         <footer className="flex items-center justify-between border-t border-border bg-surface-2 px-4 py-2 text-[11px] text-text-disabled">
           <span>↑↓ move · Enter open · Esc close</span>
-          <span>Recent message search covers the current inbox window</span>
+          <span>{searching ? "Searching records…" : "Recent message search covers the current inbox window"}</span>
         </footer>
       </section>
     </div>

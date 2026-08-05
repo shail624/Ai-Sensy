@@ -11,6 +11,37 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-05 — Responsive, accessibility and performance regression (UI-TASTE-04)
+
+**Changed**
+- Added the existing `kyc:read` route guard to the Reactivation KYC deep link without changing the
+  permission catalog or backend authorization.
+- Debounced permission-aware workspace record search and kept loading feedback truthful while
+  preserving the existing bounded APIs.
+- Lazy-split authenticated page and administrative panel routes behind the existing shell and route
+  guards; no route, workflow or API contract changed.
+- Made shared pagination wrap safely on narrow layouts and made shared modals lock background
+  scrolling while retaining focus entry, trapping, Escape handling and focus restoration.
+
+**Fixed**
+- Prevented empty search-result collections from producing an invalid negative keyboard selection.
+- Replaced the keyboard-shortcut overlay with the shared modal authority.
+- Removed the verified unused `ComingSoonPage` and its obsolete test.
+
+**Preserved**
+- No new feature, API, migration, dependency, governance, architecture, provider, QR, runtime,
+  messaging, history, media or production-credential work was introduced.
+- Reactivation remains 94%; Module 13 remains 44%; all provider-dependent behavior remains blocked.
+
+**Validated**
+- Repository pre-merge quality gate passed in workflow `30980229127`: Ruff, strict mypy, OpenAPI drift,
+  980 backend tests, ESLint, TypeScript, 36 frontend files / 671 tests, production build, E2E types,
+  Bandit, dependency audits and tracked-source vulnerability/secret/IaC scan.
+- Main application JavaScript reduced from 733.97/178.29 kB gzip to
+  199.78/54.87 kB gzip through authenticated route splitting.
+- Authenticated representative-data browser/device/screen-reader and production-scale performance
+  evidence remains `PENDING – Host Machine Validation`.
+
 ### 2026-08-05 — Reactivation operational hierarchy (UI-TASTE-03B)
 
 **Added**

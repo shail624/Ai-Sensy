@@ -3,21 +3,32 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-05 · UI-TASTE-03B Reactivation Operational Hierarchy is Repository Validated. Provider-dependent Module 13 work remains blocked._
+_Last updated: 2026-08-05 · UI-TASTE-04 Responsive, Accessibility and Performance Regression is Repository Validated. Provider-dependent Module 13 work remains blocked._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `5c3414bed1802276e99a9b02605dbde8e1cdcc36`
+- **Starting HEAD:** `5af34560e4af99b476eabd9642f01d26af924eeb`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0040_channel_sync_media_foundation` · 200 paths
-- **Current milestone:** `UI-TASTE-03B — Reactivation Operational Hierarchy — REPOSITORY VALIDATED`
-- **Reactivation completion:** `94%` evidence-based estimate · **Module 13:** `44%` unchanged
+- **Current milestone:** `UI-TASTE-04 — Responsive, Accessibility and Performance Regression — REPOSITORY VALIDATED`
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `44%` unchanged
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
-- **Next milestone:** `UI-TASTE-04 — Responsive, accessibility, and performance regression`; live M13-06 remains blocked
-- **Last synchronized:** `2026-08-05T03:21:50+05:30`
+- **Next milestone:** `UI-TASTE-05 — Owner Review, Release Candidate Audit and Merge Readiness`; live M13-06 remains blocked
+- **Last synchronized:** `2026-08-05T11:44:25+05:30`
 
 ## Delivered
+
+### UI-TASTE-04 Responsive, Accessibility and Performance Regression
+
+- Reactivation KYC deep links now reuse the existing `kyc:read` route authority.
+- Workspace record search waits 250 ms before issuing bounded permission-scoped requests; empty
+  collections retain keyboard index zero and truthful loading feedback.
+- Keyboard shortcuts use the shared modal authority; shared modals lock background scroll and shared
+  pagination wraps without narrow-screen overflow.
+- Authenticated pages and administrative panels load at their route boundaries; the main JavaScript
+  bundle measures 199.78/54.87 kB gzip.
+- Verified unused `ComingSoonPage` code is removed. No business workflow or route was added.
 
 ### UI-TASTE-03B Reactivation Operational Hierarchy
 
@@ -56,19 +67,18 @@ _Last updated: 2026-08-05 · UI-TASTE-03B Reactivation Operational Hierarchy is 
 
 ## Validation
 
-- Ruff PASS.
-- Strict mypy PASS.
-- Focused Reactivation pagination/workflow suite: 4 PASS.
-- Full backend suite: 980 PASS in workflow `30953600784`.
-- OpenAPI/client drift PASS at 200 paths; migration head remains `0040_channel_sync_media_foundation`.
-- Frontend production audit high threshold, ESLint, TypeScript, 35 files /
-  668 tests and production build PASS.
-- E2E TypeScript, Bandit, Python dependency audit, and tracked-source vulnerability/secret/IaC scan PASS.
-- Main bundle: 733.97/178.29 kB gzip; Reactivation route:
-  82.25/19.37 kB gzip.
-- Authenticated representative-data visual/reference, screen-reader/device, and production-scale
+- Repository pre-merge quality gate PASS in workflow `30980229127`.
+- Ruff and strict mypy PASS; OpenAPI drift PASS at 200 paths.
+- Full backend regression: 980 PASS; migration head remains `0040_channel_sync_media_foundation`.
+- Frontend ESLint and TypeScript PASS; 36 Vitest files / 671 tests PASS; production build PASS.
+- E2E TypeScript, Bandit, Python/frontend/browser dependency audits and tracked-source
+  vulnerability/secret/IaC scan PASS.
+- Main application bundle: 199.78/54.87 kB gzip, improved from
+  733.97/178.29 kB gzip.
+- Authenticated representative-data visual, screen-reader, browser/device and production-scale
   performance evidence: PENDING – Host Machine Validation.
-- Exact nineteen-file product/tracking boundary PASS; no provider-specific or live Module 13 file changed.
+- Exact sixteen-file product/tracking boundary PASS; no API, migration, dependency, provider or live
+  Module 13 behavior changed.
 
 ## Explicitly absent
 

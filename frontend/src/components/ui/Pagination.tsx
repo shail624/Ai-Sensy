@@ -30,12 +30,12 @@ export function Pagination({
   return (
     <nav
       aria-label={label}
-      className={`flex min-h-12 items-center gap-3 ${
+      className={`flex min-h-12 flex-wrap items-center gap-3 ${
         summary ? "justify-between" : "justify-end"
       } ${compact ? "border-t border-border bg-surface px-3 py-2" : "border-t border-border pt-4"} ${className}`}
     >
-      {summary ? <div className="min-w-0 text-xs text-text-secondary">{summary}</div> : null}
-      <div className="flex shrink-0 items-center gap-2">
+      {summary ? <div className="min-w-0 flex-1 basis-full text-xs text-text-secondary sm:basis-auto">{summary}</div> : null}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button
           type="button"
           variant="secondary"
