@@ -47,9 +47,9 @@ jobs:
 
           test "$(find .validation/m13-06b-fix -maxdepth 1 -name 'chunk-*.b64' | wc -l)" -eq 1
           cat .validation/m13-06b-fix/chunk-*.b64 > /tmp/m13-06b-fix.b64
-          echo '11c5491460c1f2ead2c6db8973a9a2935e9556263c3cf97a3ba58fbf1d81ccbf  /tmp/m13-06b-fix.b64' | sha256sum --check
+          echo '11c6253d2026aef197c6792249d92f302a6f2bf57455e02841bb79da2225a685  /tmp/m13-06b-fix.b64' | sha256sum --check
           base64 --decode /tmp/m13-06b-fix.b64 > /tmp/m13-06b-fix.tar.gz
-          echo '93f77b0536bf156abef71893c1b8b525536872b8edbd0c84025389d68abfa1d8  /tmp/m13-06b-fix.tar.gz' | sha256sum --check
+          echo '527cca9c387db12fc3f5a4e3c9c8fb58141a91d8416aa643efac984354ea4ec8  /tmp/m13-06b-fix.tar.gz' | sha256sum --check
 
           rm -rf /tmp/m13-06b-product
           git worktree add --detach /tmp/m13-06b-product f9a110d34f2095a3e9dbe61a779825edade38bda
