@@ -1,0 +1,38 @@
+name: Survey M13-06B Source
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: read
+
+jobs:
+  package-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record exact source
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > source-head.txt
+          tar \
+            --exclude=.git \
+            --exclude=.quality-artifacts \
+            --exclude=.quality-cache \
+            --exclude=node_modules \
+            --exclude='backend/.venv' \
+            -czf ai-sensy-source.tar.gz .
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-source
+          path: |
+            ai-sensy-source.tar.gz
+            source-head.txt
+          if-no-files-found: error
+          retention-days: 1
