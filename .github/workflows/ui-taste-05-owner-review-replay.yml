@@ -1,0 +1,83 @@
+name: Replay UI-TASTE-05 Owner Review
+
+on:
+  pull_request:
+    branches:
+      - ui/taste-modernization
+
+permissions:
+  contents: write
+
+jobs:
+  release-candidate-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 96bf0a8fcda01703b376a4ebf8f6f6e498a10108
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Replay complete audit with corrected publication ref
+        shell: bash
+        env:
+          BASE_SHA: 96bf0a8fcda01703b376a4ebf8f6f6e498a10108
+          WORK_BRANCH: work/ui-taste-05-merge-readiness
+        run: |
+          set -euo pipefail
+          python -m pip install PyYAML
+          git fetch origin \
+            refs/heads/validation/ui-taste-05-owner-review:refs/remotes/origin/validation/ui-taste-05-owner-review
+          git show \
+            refs/remotes/origin/validation/ui-taste-05-owner-review:.github/workflows/ui-taste-05-owner-review.yml \
+            > /tmp/ui-taste-05-source.yml
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import os
+          import subprocess
+          from pathlib import Path
+
+          import yaml
+
+          workflow = yaml.safe_load(Path('/tmp/ui-taste-05-source.yml').read_text())
+          steps = workflow['jobs']['release-candidate-audit']['steps']
+          environment = os.environ.copy()
+          github_env = Path(environment['GITHUB_ENV'])
+
+          for step in steps:
+              script = step.get('run')
+              if not script:
+                  continue
+              script = script.replace(
+                  'git push --force origin HEAD:"$WORK_BRANCH"',
+                  'git push --force origin HEAD:"refs/heads/$WORK_BRANCH"',
+              )
+              print(f"REPLAY_STEP={step.get('name', 'unnamed')}", flush=True)
+              subprocess.run(
+                  ['bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script],
+                  check=True,
+                  env=environment,
+              )
+              if github_env.exists():
+                  for line in github_env.read_text().splitlines():
+                      if '=' not in line or line.startswith('#'):
+                          continue
+                      key, value = line.split('=', 1)
+                      environment[key] = value
+          PY
