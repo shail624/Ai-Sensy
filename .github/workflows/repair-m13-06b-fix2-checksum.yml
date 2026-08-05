@@ -19,41 +19,46 @@ jobs:
           ref: validation/m13-06b-control-plane
           fetch-depth: 0
 
-      - name: Repair checksum from exact GitHub bytes
+      - name: Repair independently encoded chunk reconstruction
         id: repair
         shell: bash
         run: |
           set -euo pipefail
-          cat .validation/m13-06b-fix2/chunk-*.b64 > /tmp/fix2.b64
-          base64 --decode /tmp/fix2.b64 > /tmp/fix2.tar.gz
-          B64_SHA="$(sha256sum /tmp/fix2.b64 | awk '{print $1}')"
+          test "$(find .validation/m13-06b-fix2 -maxdepth 1 -name 'chunk-*.b64' | wc -l)" -eq 2
+          : > /tmp/fix2.tar.gz
+          for file in .validation/m13-06b-fix2/chunk-*.b64; do
+            base64 --decode "$file" >> /tmp/fix2.tar.gz
+          done
           TAR_SHA="$(sha256sum /tmp/fix2.tar.gz | awk '{print $1}')"
+          tar -tzf /tmp/fix2.tar.gz >/dev/null
           FILE=.github/workflows/validate-m13-06b-control-plane-v2.yml
-          python - "$FILE" "$B64_SHA" "$TAR_SHA" <<'PY'
+          python - "$FILE" "$TAR_SHA" <<'PY'
           from pathlib import Path
           import sys
 
           path = Path(sys.argv[1])
-          b64_sha = sys.argv[2]
-          tar_sha = sys.argv[3]
+          tar_sha = sys.argv[2]
           text = path.read_text()
-          text = text.replace(
-              "3d5d8b737ee37bf37bdc6f79271cf57d34262bb7226f4fbeb69f9d720e4c74c9  /tmp/fix2.b64",
-              f"{b64_sha}  /tmp/fix2.b64",
-          )
-          text = text.replace(
-              "6363fea457a2cac58cb819469f8dd7905440f14c852980e5dbba07aa8eec004d  /tmp/fix2.tar.gz",
-              f"{tar_sha}  /tmp/fix2.tar.gz",
-          )
-          path.write_text(text)
+          old = """          test \"$(find .validation/m13-06b-fix2 -maxdepth 1 -name 'chunk-*.b64' | wc -l)\" -eq 2
+          cat .validation/m13-06b-fix2/chunk-*.b64 > /tmp/fix2.b64
+          echo '3d5d8b737ee37bf37bdc6f79271cf57d34262bb7226f4fbeb69f9d720e4c74c9  /tmp/fix2.b64' | sha256sum --check
+          base64 --decode /tmp/fix2.b64 > /tmp/fix2.tar.gz
+          echo '6363fea457a2cac58cb819469f8dd7905440f14c852980e5dbba07aa8eec004d  /tmp/fix2.tar.gz' | sha256sum --check
+"""
+          new = f"""          test \"$(find .validation/m13-06b-fix2 -maxdepth 1 -name 'chunk-*.b64' | wc -l)\" -eq 2
+          : > /tmp/fix2.tar.gz
+          for file in .validation/m13-06b-fix2/chunk-*.b64; do
+            base64 --decode \"$file\" >> /tmp/fix2.tar.gz
+          done
+          echo '{tar_sha}  /tmp/fix2.tar.gz' | sha256sum --check
+"""
+          if old not in text:
+              raise SystemExit('expected reconstruction block not found')
+          path.write_text(text.replace(old, new))
           PY
-          if git diff --quiet -- "$FILE"; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          fi
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
 
-      - name: Commit verified checksum repair
+      - name: Commit verified reconstruction repair
         if: steps.repair.outputs.changed == 'true'
         shell: bash
         run: |
@@ -61,5 +66,5 @@ jobs:
           git config user.name 'OpenAI Release Engineering'
           git config user.email 'noreply@openai.com'
           git add .github/workflows/validate-m13-06b-control-plane-v2.yml
-          git commit -m 'chore(validation): correct m13-06b fix2 integrity'
+          git commit -m 'chore(validation): reconstruct m13-06b fix2 chunks'
           git push origin HEAD:refs/heads/validation/m13-06b-control-plane
