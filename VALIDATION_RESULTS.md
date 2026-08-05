@@ -4,7 +4,33 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-06T02:45:00+05:30`.
+Last synchronized: `2026-08-06T03:20:00+05:30`.
+
+
+## Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Scope | PASS | Frontend-only follow-up to the Tag management interface remediation, addressing five independently-audited findings; no backend, migration, OpenAPI, generated type, RBAC/permission, architecture or reference-material change. |
+| Stale mutation state on reopen | PASS | `create`/`update`/`remove` mutation state is now reset at the moment a dialog opens, not only on success, so a prior failure cannot resurface as a false error in a freshly opened dialog for a different tag. |
+| Delete-failure error visibility | PASS | The failed-delete `ErrorState` moved from the page top (rendered behind the still-open confirmation modal's backdrop) into the confirmation modal itself, where it is genuinely visible and announced (`role="alert"`) at the moment of failure. |
+| Accessible row-action names | PASS | Row `Edit`/`Delete` buttons carry a per-tag `aria-label` (e.g. `Edit Prepaid`); visible text is unchanged. |
+| Cross-feature cache-invalidation test | PASS | New regression renders `TagsPanel` alongside the real `useTags` hooks from `customer-profile/api.ts` and `campaigns/api.ts` under one shared `QueryClient` (no new cache-key system) and proves a create through Settings refreshes both existing pickers without a manual reload. |
+| Duplicate-name conflict test | PASS | New regression injects a 409-shaped write failure via an additive, opt-in test-harness map (`writeErrors`, empty by default, does not alter any existing test) and proves the create dialog stays open, the typed name is retained, and the conflict is announced via `role="alert"`. |
+| Failed-delete test | PASS | New regression proves the confirmation dialog stays open, the tag remains in the list, the error is visible, and retrying after the injected failure clears succeeds; the original successful `204` path continues to pass unchanged. |
+| Loading-state test | PASS | New regression asserts `role="status"` / "Loading tags…" renders synchronously before the list query resolves. |
+| Stale-error-does-not-leak test | PASS | New regression fails an edit and, separately, a delete on one tag, cancels each, then opens a dialog for a different tag and asserts no `role="alert"` is present — direct proof of the reset-on-open fix. |
+| Frontend lint | PASS | `npm run lint` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Settings tests | PASS | `settings.test.tsx` — 55 passed (49 before this follow-up). |
+| Full frontend suite | PASS | 36 files / 687 tests passed (681 before this follow-up). |
+| Backend tag/quick-reply regressions | PASS | `tests/test_api_tags.py` and `tests/test_api_quick_replies.py` — 25 passed; no backend file changed. |
+| Production build | PASS | Main chunk `205.81 kB / 56.88 kB gzip`, unchanged from the prior remediation — no new production dependency was introduced. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports `openapi.json is up to date`; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| Diff scope | PASS | Exactly two files changed: `frontend/src/features/settings/TagsPanel.tsx` and `frontend/src/features/settings/settings.test.tsx`; no untracked or reference material staged. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes remain unproven by repository gates. |
 
 
 ## Tag management interface (verified UI remediation)

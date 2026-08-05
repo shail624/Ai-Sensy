@@ -11,6 +11,27 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-06 — Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
+
+**Fixed**
+- Reset stale `create`/`update`/`delete` mutation state when a Tags panel dialog opens, so a
+  previous failure can no longer resurface as a false error the moment a different tag's dialog is
+  opened.
+- Moved the failed-delete error into the confirmation modal itself; it previously rendered behind
+  the still-open modal's backdrop and was not genuinely visible at the moment of failure.
+
+**Added**
+- Six regression tests: cross-feature cache-invalidation (proved against the real `useTags` hooks
+  in `customer-profile/api.ts` and `campaigns/api.ts` under one shared `QueryClient`, no new
+  cache-key system), a duplicate-name 409 conflict, a failed delete with retry, an explicit loading
+  state, per-tag accessible row-action names (e.g. `Edit Prepaid`), and a dedicated proof that a
+  failed attempt's error does not resurface when a dialog is later opened for a different tag.
+
+**Preserved**
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed. Not a roadmap milestone, not M13-07; Settings/Tags/Attributes completion claims are
+  unchanged.
+
 ### 2026-08-06 — Tag management interface (verified UI remediation)
 
 **Added**

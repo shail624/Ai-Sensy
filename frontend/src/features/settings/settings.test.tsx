@@ -9,6 +9,8 @@ import { FeatureFlagsPanel } from "@/features/settings/FeatureFlagsPanel";
 import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValueEditor";
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
 import { PreferencesPanel } from "@/features/settings/PreferencesPanel";
+import { useTags as useCampaignTags } from "@/features/campaigns/api";
+import { useTags as useContactProfileTags } from "@/features/customer-profile/api";
 import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
 import { TagsPanel } from "@/features/settings/TagsPanel";
 import type { FeatureFlag, Organization, Setting, Tag } from "@/features/settings/types";
@@ -94,12 +96,19 @@ vi.mock("@/lib/auth", () => ({
 /** Canned responses per path, so the real hooks and components run without a network. */
 const responses: Record<string, unknown> = {};
 const writes: { path: string; body: unknown }[] = [];
+/**
+ * Per-path write failures, checked before `responses`. Left empty, every existing test's writes
+ * behave exactly as before — this only matters to the tests that populate it to simulate a rejected
+ * mutation (a duplicate name, a failed delete) without touching backend error semantics.
+ */
+const writeErrors: Record<string, unknown> = {};
 
 vi.mock("@/lib/api/client", () => {
   const get = async (path: string) =>
     path in responses ? { data: responses[path] } : { error: new Error(`no stub for ${path}`) };
   const write = async (path: string, init?: { body?: unknown }) => {
     writes.push({ path, body: init?.body });
+    if (path in writeErrors) return { error: writeErrors[path] };
     return path in responses
       ? { data: responses[path] }
       : { error: new Error("network disabled under test") };
@@ -126,6 +135,7 @@ function withProviders(ui: React.ReactElement) {
 beforeEach(() => {
   permissions.value = ["settings:read", "settings:manage", "auth:self"];
   for (const key of Object.keys(responses)) delete responses[key];
+  for (const key of Object.keys(writeErrors)) delete writeErrors[key];
   writes.length = 0;
 });
 
@@ -489,6 +499,38 @@ describe("PreferencesPanel", () => {
 
 // --- Tags -------------------------------------------------------------------------------------
 
+/**
+ * The real contact/inbox/customer-profile tag picker, reduced to its data dependency: the same
+ * `useTags` hook `Inbox.tsx`, `ContactsList.tsx` and `BulkActionDialog.tsx` import from
+ * `customer-profile/api`, under the same `["tags"]` cache key the Settings panel writes through.
+ */
+function ContactPickerProbe(): JSX.Element {
+  const tags = useContactProfileTags();
+  return (
+    <ul aria-label="Contact tag picker">
+      {(tags.data ?? []).map((tag) => (
+        <li key={tag.id}>{tag.name}</li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The real campaign/segment/automation tag picker: the same `useTags` hook `CampaignAudienceStep`,
+ * `SegmentEditor` and `AutomationBuilder` import from `campaigns/api`, under the
+ * `["campaigns", "pickers", "tags"]` cache key.
+ */
+function CampaignPickerProbe(): JSX.Element {
+  const tags = useCampaignTags();
+  return (
+    <ul aria-label="Campaign tag picker">
+      {(tags.data ?? []).map((tag) => (
+        <li key={tag.id}>{tag.name}</li>
+      ))}
+    </ul>
+  );
+}
+
 describe("TagsPanel", () => {
   beforeEach(() => {
     permissions.value = ["contacts:read", "contacts:write", "auth:self"];
@@ -561,7 +603,7 @@ describe("TagsPanel", () => {
     responses["/api/v1/tags/{tag_id}"] = tagFixture({ name: "Prepaid India" });
     withProviders(<TagsPanel />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Prepaid" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prepaid India" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
@@ -577,7 +619,7 @@ describe("TagsPanel", () => {
     responses["/api/v1/tags/{tag_id}"] = undefined;
     withProviders(<TagsPanel />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Prepaid" }));
     expect(screen.getByText(/applied to 3 contacts/)).toBeInTheDocument();
     expect(screen.getByText(/removes the tag from all of them/)).toBeInTheDocument();
 
@@ -598,14 +640,151 @@ describe("TagsPanel", () => {
 
     await screen.findByText("Prepaid");
     expect(screen.queryByRole("button", { name: "New tag" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Prepaid" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Prepaid" })).not.toBeInTheDocument();
     expect(screen.getByText(/needs the contacts write permission/)).toBeInTheDocument();
   });
 
   it("offers a retry when the list fails to load", async () => {
     withProviders(<TagsPanel />);
     expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    // A response is still supplied so the query settles cleanly in the background; the assertion
+    // below runs synchronously, before that promise has a chance to resolve.
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+    expect(screen.getByText("Loading tags…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("names each row action after its own tag, so a buttons-only list is not all 'Edit'/'Delete'", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Postpaid" }),
+    ];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    expect(screen.getByRole("button", { name: "Edit Prepaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Prepaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Postpaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Postpaid" })).toBeInTheDocument();
+    // The visible label stays the shared design-system text; only the accessible name is per-row.
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("keeps the create dialog open with the typed name intact when it conflicts", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ name: "Prepaid" })];
+    writeErrors["/api/v1/tags"] = { detail: "A tag named 'Prepaid' already exists." };
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prepaid" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    // The conflict is visible and accessible, not a silently swallowed rejection.
+    expect(await screen.findByRole("alert")).toHaveTextContent("A tag named 'Prepaid' already exists.");
+    // The dialog is still open — a false success is not shown...
+    expect(screen.getByRole("button", { name: "Create tag" })).toBeInTheDocument();
+    // ...and the operator's typed value was not thrown away.
+    expect(screen.getByLabelText("Name")).toHaveValue("Prepaid");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("keeps the confirmation open with a visible error when the delete request fails, and allows a retry", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ usage_count: 3 })];
+    writeErrors["/api/v1/tags/{tag_id}"] = { detail: "This tag could not be deleted right now." };
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+
+    // The error is visible where the operator is already looking, not hidden behind the dialog.
+    expect(await screen.findByRole("alert")).toHaveTextContent("This tag could not be deleted right now.");
+    // The confirmation is still open — deletion was not falsely reported as done...
+    expect(screen.getByRole("button", { name: "Delete tag" })).toBeInTheDocument();
+    // ...and the tag itself is still in the list behind it, because nothing was invalidated.
+    expect(screen.getByText("Prepaid")).toBeInTheDocument();
+
+    // Retrying is possible: once the failure clears, the same button succeeds.
+    delete writeErrors["/api/v1/tags/{tag_id}"];
+    responses["/api/v1/tags/{tag_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete tag" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different tag", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Postpaid", description: null, usage_count: 0 }),
+    ];
+    writeErrors["/api/v1/tags/{tag_id}"] = { detail: "Prepaid could not be saved." };
+    withProviders(<TagsPanel />);
+
+    // Fail an edit on Prepaid...
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Prepaid could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // ...then open the editor for a different tag: the earlier failure must not resurface here.
+    fireEvent.click(screen.getByRole("button", { name: "Edit Postpaid" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // The same guarantee applies to the delete-confirmation dialog.
+    fireEvent.click(screen.getByRole("button", { name: "Delete Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Prepaid could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Postpaid" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the existing contact and campaign tag pickers after a create, without a manual reload", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ id: "t1", name: "Prepaid" })];
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <TagsPanel />
+        </div>
+        <ContactPickerProbe />
+        <CampaignPickerProbe />
+      </>,
+    );
+
+    // All three real consumers — Settings, the contact/inbox picker and the campaign picker — start
+    // from the one shared cache, scoped separately so the shared tag name is not ambiguous.
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const contactPicker = screen.getByRole("list", { name: "Contact tag picker" });
+    const campaignPicker = screen.getByRole("list", { name: "Campaign tag picker" });
+    expect(await within(settingsPanel).findByText("Prepaid")).toBeInTheDocument();
+    expect(await within(contactPicker).findByText("Prepaid")).toBeInTheDocument();
+    expect(await within(campaignPicker).findByText("Prepaid")).toBeInTheDocument();
+    expect(within(contactPicker).queryByText("Winback")).not.toBeInTheDocument();
+    expect(within(campaignPicker).queryByText("Winback")).not.toBeInTheDocument();
+
+    // The server state a real create leaves behind, so the invalidation-triggered refetches see it.
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Winback", usage_count: 0, description: null }),
+    ];
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New tag" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Name"), { target: { value: "Winback" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create tag" }));
+
+    // Neither picker is remounted or manually refetched — invalidation alone brings them current.
+    await waitFor(() => expect(within(contactPicker).getByText("Winback")).toBeInTheDocument());
+    await waitFor(() => expect(within(campaignPicker).getByText("Winback")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Winback")).toBeInTheDocument();
   });
 });
 

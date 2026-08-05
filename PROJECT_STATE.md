@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Tag management interface — narrowly scoped verified UI remediation (frontend only)` |
+| Latest change | `Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -15,7 +15,7 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 681 tests PASS · production build PASS without the campaign circular chunk-order warning |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 687 tests PASS (681 before this follow-up) · production build PASS without the campaign circular chunk-order warning |
 | Bundle evidence | Main `205.81/56.88 kB gzip`, measured against a `205.36/56.80 kB gzip` baseline on the same checkout (`+0.45 kB` raw, `+0.08 kB` gzip for the tag remediation); authenticated route chunks stay lazy-loaded and campaign create/edit execution order is clean |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
@@ -23,7 +23,20 @@
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
 | Worktree expectation | Frontend-only tag management panel over the existing tag contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
-| Last update | `2026-08-06T02:45:00+05:30` (Asia/Kolkata) |
+| Last update | `2026-08-06T03:20:00+05:30` (Asia/Kolkata) |
+
+## Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
+
+- Reset stale `create`/`update`/`delete` mutation state when a dialog opens, so a previous failure
+  cannot resurface as a false error in a freshly opened dialog for a different tag.
+- Moved the failed-delete error into the confirmation modal itself; it previously rendered behind
+  the still-open modal's backdrop and was not genuinely visible at the moment of failure.
+- Added regressions for cross-feature cache invalidation (real `useTags` hooks, one shared
+  `QueryClient`, no new cache-key system), a duplicate-name conflict, a failed delete with retry, an
+  explicit loading state, per-tag accessible row-action names, and a dedicated proof that a failed
+  attempt's error does not resurface when a dialog is later opened for a different tag.
+- Frontend only. Not a roadmap milestone, not M13-07; Settings/Tags/Attributes completion claims are
+  unchanged from the prior remediation.
 
 ## Tag management interface delivered as a verified UI remediation
 

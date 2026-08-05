@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-06 · Tag management interface delivered as a narrowly scoped verified UI remediation on top of M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-06 · Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening, on top of the Tag management interface remediation and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
@@ -12,14 +12,28 @@ _Last updated: 2026-08-06 · Tag management interface delivered as a narrowly sc
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Tag management interface — a frontend-only UI remediation, not a roadmap milestone and not M13-07
+- **Latest change:** Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening — a frontend-only continuation of the Tag management interface remediation, not a roadmap milestone and not M13-07
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 36 files / 681 tests passed (671 before this change)
+- **Frontend evidence:** 36 files / 687 tests passed (681 before this follow-up)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-06T02:45:00+05:30`
+- **Last synchronized:** `2026-08-06T03:20:00+05:30`
 
 ## Delivered
+
+### Focused Tag Management audit follow-up: regression coverage and accessibility/error-state hardening
+
+- Reset stale `create`/`update`/`delete` mutation state when a dialog opens, so a previous failure
+  cannot resurface as a false error in a freshly opened dialog for a different tag.
+- Moved the failed-delete error into the confirmation modal itself; it previously rendered behind
+  the still-open modal's backdrop and was not genuinely visible at the moment of failure.
+- Added regressions for cross-feature cache invalidation (against the real `useTags` hooks already
+  used by contact/inbox and campaign/segment/automation pickers, under one shared `QueryClient`, no
+  new cache-key system), a duplicate-name conflict, a failed delete with retry, an explicit loading
+  state, per-tag accessible row-action names, and a dedicated proof that a failed attempt's error
+  does not resurface when a dialog is later opened for a different tag.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed. Settings/Tags/Attributes completion claims are unchanged from the prior remediation.
 
 ### Tag management interface (verified UI remediation)
 

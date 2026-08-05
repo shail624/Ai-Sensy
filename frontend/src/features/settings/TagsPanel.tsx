@@ -133,8 +133,20 @@ export function TagsPanel(): JSX.Element {
     return <ErrorState message={apiErrorMessage(tags.error)} onRetry={() => void tags.refetch()} />;
   }
 
+  // A previous failure must not resurface as a stale error the moment an unrelated dialog reopens.
+  function openEditor(next: EditorState): void {
+    create.reset();
+    update.reset();
+    setEditor(next);
+  }
+
+  function openDeleteConfirm(tag: Tag): void {
+    remove.reset();
+    setConfirmDelete(tag);
+  }
+
   const newTagButton = canManage ? (
-    <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setEditor(emptyEditor())}>
+    <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => openEditor(emptyEditor())}>
       New tag
     </Button>
   ) : null;
@@ -150,12 +162,6 @@ export function TagsPanel(): JSX.Element {
           ? "No tags exist yet."
           : `${formatCount(all.length)} tag${all.length === 1 ? "" : "s"} · ${formatCount(inUse)} in use`}
       </p>
-
-      {remove.error ? (
-        <div className="mb-3">
-          <ErrorState message={apiErrorMessage(remove.error)} />
-        </div>
-      ) : null}
 
       {all.length > 0 ? (
         <div className="mb-3">
@@ -268,14 +274,16 @@ export function TagsPanel(): JSX.Element {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => setEditor(editorFor(tag))}
+                            aria-label={`Edit ${tag.name}`}
+                            onClick={() => openEditor(editorFor(tag))}
                           >
                             Edit
                           </Button>
                           <Button
                             variant="danger"
                             size="sm"
-                            onClick={() => setConfirmDelete(tag)}
+                            aria-label={`Delete ${tag.name}`}
+                            onClick={() => openDeleteConfirm(tag)}
                           >
                             Delete
                           </Button>
@@ -410,6 +418,12 @@ export function TagsPanel(): JSX.Element {
               : "This tag is not applied to any contact."}{" "}
             Deleting a tag cannot be undone.
           </p>
+
+          {remove.error ? (
+            <div className="mt-3">
+              <ErrorState message={apiErrorMessage(remove.error)} />
+            </div>
+          ) : null}
 
           <div className="mt-5 flex gap-2 border-t border-border pt-4">
             <Button
