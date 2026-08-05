@@ -1,0 +1,32 @@
+name: M13-06B Source Snapshot
+
+on:
+  push:
+    branches:
+      - validation/m13-06b-source-snapshot
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Package exact product baseline
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > snapshot-branch-head.txt
+          git archive --format=tar.gz --output=ai-sensy-source.tar.gz f9a110d34f2095a3e9dbe61a779825edade38bda
+          printf '%s\n' f9a110d34f2095a3e9dbe61a779825edade38bda > product-head.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m13-06b-source-snapshot
+          path: |
+            ai-sensy-source.tar.gz
+            product-head.txt
+            snapshot-branch-head.txt
+          if-no-files-found: error
+          retention-days: 1
