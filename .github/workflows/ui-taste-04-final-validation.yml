@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/ui-taste-04-package
           mkdir -p /tmp/ui-taste-04-package
-          base64 --decode .validation/ui-taste-04/package.b64 > /tmp/ui-taste-04-package.tar.gz
+          cat .validation/ui-taste-04/package.part-* | base64 --decode > /tmp/ui-taste-04-package.tar.gz
           tar -xzf /tmp/ui-taste-04-package.tar.gz -C /tmp/ui-taste-04-package
           test -x /tmp/ui-taste-04-package/run.sh
       - name: Validate and publish one clean milestone commit
