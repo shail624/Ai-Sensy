@@ -11,6 +11,48 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-07 — Alembic version-table MySQL fix: support long revision ids
+
+**Fixed**
+- `alembic upgrade head` failed on a real MySQL 8 database while transitioning
+  `0035_notification_center → 0036_customer_identity_resolution` with
+  `DataError: Data too long for column 'version_num'`. Root cause: Alembic's own bookkeeping
+  column, `alembic_version.version_num`, defaults to `VARCHAR(32)`; this repository's descriptive
+  revision-id convention produces identifiers up to 43 characters, and
+  `0036_customer_identity_resolution` (33 characters) was the first to exceed it. No real MySQL
+  deployment had ever advanced past `0035_notification_center` — this blocked schema creation,
+  `create-owner`, authentication, and every real UI preview on MySQL.
+- Repaired with a new migration, `0035a_widen_version_table`, inserted between
+  `0035_notification_center` and `0036_customer_identity_resolution`, widening
+  `alembic_version.version_num` to `VARCHAR(255)` on MySQL only (dialect-guarded; SQLite enforces
+  no such length and PostgreSQL is not part of this stack). `0036_customer_identity_resolution`'s
+  `down_revision` was retargeted to the new revision — its own revision id, schema body and
+  behaviour are unchanged. No revision was renamed, renumbered, squashed, reordered, or stamped
+  past a failure; the migration head remains `0041_channel_sync_control_plane` and the chain stays
+  linear with a single head.
+
+**Added**
+- Three hermetic regression tests in `test_migrations.py`: single migration head, linear revision
+  chain (no merges), and every revision id fits the widened column (with an early-warning margin).
+- A new `test_migrations_mysql.py`: three tests against a real, throwaway-per-test MySQL 8
+  database — fresh base→head, upgrade from `0035_notification_center` to head (the exact
+  historical failure), and `create-owner` immediately after. Skipped cleanly (never failed) when
+  no MySQL server is reachable, so the hermetic default suite gains no new external dependency.
+
+**Verified**
+- Real MySQL 8, both automated (throwaway databases) and manual (the documented CLI workflow
+  against a fresh `docker compose` instance): fresh base→head succeeds; `0035`→head succeeds;
+  `python -m app.cli create-owner` succeeds and is idempotent on re-run.
+
+**Preserved**
+- No application endpoint, model, schema, RBAC definition, ADR, provider/Meta/WAHA code, or
+  frontend file changed. `scripts/export_openapi.py --check` and the full static quality gate both
+  pass unchanged.
+- Does not unblock the separate Chat History UI-preview gap: a real, populated `/chat-history`
+  screenshot still requires either live Meta WhatsApp Business API credentials or an approved
+  development fixture mechanism for conversation/message data, neither of which exists. This fix
+  repairs the schema/auth path only. No Host Validated or Production Ready claim is made.
+
 ### 2026-08-07 — Chat History pagination/polling/accessibility hardening (audit findings D1–D8)
 
 **Fixed**

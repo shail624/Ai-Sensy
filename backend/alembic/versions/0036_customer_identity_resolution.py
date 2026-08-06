@@ -1,7 +1,13 @@
 """Provider-independent Customer identity resolution records.
 
 Revision ID: 0036_customer_identity_resolution
-Revises: 0035_notification_center
+Revises: 0035a_widen_version_table
+
+Down-revision retargeted from ``0035_notification_center`` to the inserted
+``0035a_widen_version_table`` (Alembic-bookkeeping-only repair). This revision's own identity and
+schema body are unchanged; no real MySQL deployment has ever advanced past ``0035_notification_center``
+(the failure the inserted revision repairs), so nothing already applied is altered by this
+retargeting.
 """
 
 from __future__ import annotations
@@ -21,7 +27,7 @@ from app.models.contact_identity import (
 )
 
 revision = "0036_customer_identity_resolution"
-down_revision = "0035_notification_center"
+down_revision = "0035a_widen_version_table"
 branch_labels = None
 depends_on = None
 

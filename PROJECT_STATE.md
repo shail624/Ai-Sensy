@@ -6,13 +6,13 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Chat History pagination/polling/accessibility hardening — audit findings D1-D8 (frontend only)` |
+| Latest change | `Alembic version-table MySQL fix — support long revision ids (backend migrations only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
 | Current phase | `Repository-owned history/media control plane validated; provider certification still blocks all live M13-06 execution` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
+| Migration head | `0041_channel_sync_control_plane` (42 linear revisions — `0035a_widen_version_table` inserted between `0035_notification_center` and `0036_customer_identity_resolution`; head and order unchanged) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 766 tests PASS (754 before this hardening pass) · production build PASS without the campaign circular chunk-order warning |
@@ -21,9 +21,47 @@
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
-| Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
+| Host evidence | Target-host MySQL migration is now verified: `alembic upgrade head` succeeds on a real MySQL 8 instance both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward — see `0035a_widen_version_table` remediation below. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
 | Worktree expectation | Frontend-only Chat History pagination/polling/accessibility hardening over the existing workspace, plus synchronized tracking; no backend, migration, API, RBAC, provider adapter or live execution |
-| Last update | `2026-08-07T01:00:00+05:30` (Asia/Kolkata) |
+| Last update | `2026-08-07T02:00:00+05:30` (Asia/Kolkata) |
+
+## Alembic version-table MySQL fix — support long revision ids
+
+- **Verified failure:** `alembic upgrade head` on a real MySQL 8 database (the repository's own
+  `docker compose up -d` MySQL/Redis, per `README.md`) failed transitioning
+  `0035_notification_center → 0036_customer_identity_resolution` with
+  `DataError: Data too long for column 'version_num'`. Root cause: Alembic's own bookkeeping table
+  (`alembic_version.version_num`) defaults to `VARCHAR(32)`; this repository's revision identifiers
+  are descriptive slugs, not short hashes, and `0036_customer_identity_resolution` (33 characters)
+  is the first to exceed it. No real MySQL deployment had ever advanced past `0035_notification_center`.
+- **Repair:** inserted `0035a_widen_version_table`, a new revision between `0035_notification_center`
+  and `0036_customer_identity_resolution`, widening `alembic_version.version_num` to `VARCHAR(255)`
+  on MySQL only (SQLite has no such enforcement; PostgreSQL is not part of this stack).
+  `0036_customer_identity_resolution`'s `down_revision` was retargeted to point at it — its own
+  revision id, schema body and behaviour are byte-for-byte unchanged. No revision was renamed,
+  renumbered, squashed, reordered, or stamped past. The migration head remains
+  `0041_channel_sync_control_plane`; the chain remains linear with a single head (42 revisions, was 41).
+- **Verified on real MySQL 8** (`docker compose up -d`, throwaway per-test databases): a fresh
+  database walks base→head cleanly; a database stamped at `0035_notification_center` (the exact
+  historical failure point) upgrades to head cleanly; `python -m app.cli create-owner` succeeds
+  immediately afterward. Also reproduced manually via the documented CLI workflow against a fresh
+  `docker compose` MySQL instance (not just the automated tests) — identical result.
+- **Regression coverage:** `backend/tests/test_migrations.py` gained three hermetic (SQLite)
+  checks — single head, linear chain (no merges), and every revision id fits the widened column,
+  with a tighter early-warning margin. `backend/tests/test_migrations_mysql.py` is new: three tests
+  against a real, throwaway-per-test MySQL 8 database (fresh base→head, `0035`→head, create-owner
+  after upgrade), skipped cleanly — never failed — when no MySQL server is reachable, so the
+  hermetic default suite gains no new external dependency.
+- **Preserved:** no application endpoint, model, schema, RBAC definition, OpenAPI path or generated
+  frontend type changed; `scripts/export_openapi.py --check` and the full static quality gate both
+  pass unchanged. Frontend untouched.
+- **Remaining blocker, unchanged by this fix:** a real, populated `/chat-history` UI preview is
+  still blocked — now solely by the separate, pre-existing absence of any approved development
+  fixture mechanism for conversation/message data (creating real conversations requires either live
+  Meta WhatsApp Business API credentials this environment does not have, or fabricating data
+  outside approved commands, which remains out of scope). This migration fix removes the schema/
+  auth blocker only; it does not by itself unblock the UI preview. No Host Validated or Production
+  Ready claim is made.
 
 ## Dedicated Chat History read workspace over the existing conversation and message contract
 

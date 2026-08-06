@@ -314,3 +314,45 @@ def test_first_migration_is_base_revision() -> None:
 
     script = ScriptDirectory.from_config(_alembic_config())
     assert list(script.get_bases()) == ["0001_identity_and_audit"]
+
+
+def test_single_migration_head() -> None:
+    """Exactly one head exists — no branch or merge was introduced in the migration graph."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    assert script.get_heads() == ["0041_channel_sync_control_plane"]
+
+
+def test_revision_chain_is_linear() -> None:
+    """No revision has more than one parent — the history never branches or merges (Doc 10 §9)."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    for rev in script.walk_revisions():
+        assert not isinstance(rev.down_revision, tuple), (
+            f"{rev.revision} has multiple parents {rev.down_revision!r} — "
+            "the chain must stay linear"
+        )
+
+
+def test_revision_ids_fit_the_widened_version_table_column() -> None:
+    """Guards the exact MySQL failure ``0035a_widen_version_table`` repairs.
+
+    ``alembic_version.version_num`` is Alembic's own ``VARCHAR(32)`` default until that revision
+    widens it to 255 characters on MySQL (SQLite has no such enforcement — this check is dialect-
+    independent by design, so it catches the regression before anyone touches a real database).
+    A second, tighter margin flags drift toward the limit long before any identifier could hit it.
+    """
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    max_len = max(len(rev.revision) for rev in script.walk_revisions())
+    assert max_len <= 255, (
+        f"longest revision id is {max_len} chars — exceeds the widened "
+        "alembic_version.version_num column (see 0035a_widen_version_table.py)"
+    )
+    assert max_len <= 100, (
+        f"longest revision id is {max_len} chars — well past historical norms; "
+        "a new naming convention may be worth reconsidering before it approaches the column limit"
+    )

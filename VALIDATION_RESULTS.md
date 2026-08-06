@@ -4,7 +4,27 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T01:00:00+05:30`.
+Last synchronized: `2026-08-07T02:00:00+05:30`.
+
+
+## Alembic version-table MySQL fix — support long revision ids
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified failure reproduced | PASS | `alembic upgrade head` against a real MySQL 8 database (`docker compose up -d`) failed with `sqlalchemy.exc.DataError: (pymysql.err.DataError) (1406, "Data too long for column 'version_num' at row 1")` while transitioning `0035_notification_center → 0036_customer_identity_resolution`. `SHOW CREATE TABLE alembic_version` confirmed `version_num varchar(32)`; the failing revision id is 33 characters. |
+| Revision graph integrity | PASS | Single head unchanged: `ScriptDirectory.get_heads() == ["0041_channel_sync_control_plane"]`. Linear chain confirmed: no revision has a tuple `down_revision` (no merges). Base unchanged: `get_bases() == ["0001_identity_and_audit"]`. Revision count: 42 (was 41) — exactly one insertion, no renumbering. |
+| No revision renamed/shortened/squashed/reordered | PASS | `0036_customer_identity_resolution` through `0041_channel_sync_control_plane` keep their exact existing `revision` strings and DDL bodies; only `0036`'s `down_revision` pointer (a graph-linkage field, not an identity) was retargeted to the new `0035a_widen_version_table`. |
+| Fresh MySQL 8: base → head | PASS | Automated (throwaway per-test database) and manual (real `docker compose` instance, real `alembic upgrade head` CLI invocation) — both succeed; `SELECT version_num FROM alembic_version` returns `0041_channel_sync_control_plane`; `SHOW CREATE TABLE alembic_version` shows `varchar(255)`. |
+| MySQL stamped at 0035 → head | PASS | Automated: `alembic upgrade 0035_notification_center` then `alembic upgrade head` against a throwaway MySQL database — the exact historically-failing transition — succeeds. |
+| `create-owner` after upgrade | PASS | Automated (`bootstrap_owner` against a throwaway MySQL database) and manual (`python -m app.cli create-owner` against a real, freshly migrated `docker compose` database) — both succeed; re-running is idempotent (`Owner already exists ... no changes`), matching the documented contract. |
+| Regression coverage | PASS | `test_migrations.py`: 3 new hermetic (SQLite) tests — single head, linear chain, revision-id length margin. `test_migrations_mysql.py`: new file, 3 tests against real throwaway MySQL databases (fresh base→head, 0035→head, create-owner-after-upgrade); `pytestmark = skipif(not reachable)` — confirmed skipping cleanly (not failing) when no MySQL server is running. |
+| Ruff | PASS | `ruff check app tests scripts` clean. |
+| Strict mypy | PASS | `mypy app` — "Success: no issues found in 287 source files" (migrations/tests are outside the strict-typed `app` package, matching existing repository convention). |
+| Full backend test suite | PASS | 991 passed (985 before this remediation; +6 — the new regression tests, with MySQL reachable so all three live tests genuinely ran, not skipped). |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` — "openapi.json is up to date"; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` — all 6 steps pass (backend lint, backend strict types, OpenAPI drift, frontend lint, frontend types, browser test types), confirming no frontend file was touched. |
+| Application/domain unchanged | PASS | No endpoint, model, schema, RBAC definition, ADR, provider/Meta/WAHA code, or frontend file appears in the diff — `git status --porcelain` shows exactly 2 modified files (`0036_customer_identity_resolution.py`, `test_migrations.py`) and 2 new files (`0035a_widen_version_table.py`, `test_migrations_mysql.py`). |
+| Remaining scope | Honestly recorded | This fix repairs the MySQL schema/auth blocker only. A real, populated `/chat-history` UI preview remains blocked by the separate, pre-existing absence of an approved development fixture mechanism for conversation/message data (requires live Meta WhatsApp Business API credentials to register a phone number and create genuine conversations, which this environment correctly does not have). No Host Validated or Production Ready claim is made. |
 
 
 ## Chat History pagination/polling/accessibility hardening (audit findings D1–D8)

@@ -3,23 +3,60 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-07 · Chat History pagination/polling/accessibility hardening (D1–D8 audit follow-up), on top of the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-07 · Alembic version-table MySQL fix (long revision ids), on top of the Chat History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `cc94cbeaf39b3c66967eed44df9242138c5affaf`
+- **Starting HEAD:** `4e745718a73e76630742aac5ba98f808367053f7`
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
+- **Migration/OpenAPI:** `0041_channel_sync_control_plane` (42 revisions, was 41) · 200 paths — head and OpenAPI path count both unchanged by this remediation; one revision inserted before the existing head
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Chat History pagination/polling/accessibility hardening (audit findings D1–D8) over the Dedicated Chat History workspace — a frontend-only follow-up, not a roadmap milestone and not M13-07; Chat History completion is unchanged at `55%`
-- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 37 files / 766 tests passed (754 before this hardening pass)
+- **Latest change:** Repaired a verified MySQL-only migration failure (`alembic_version.version_num` too narrow for this repository's revision-id length) with a dedicated inserted revision, `0035a_widen_version_table` — a backend-migrations-only fix, not a roadmap milestone and not M13-07
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged · Chat History `55%` unchanged (this fix removes a schema/auth blocker, not the separate UI-preview data blocker)
+- **Backend evidence:** Ruff PASS · strict mypy PASS · 991 full pytest tests PASS (985 before this remediation; +6: 3 hermetic migration-graph checks + 3 live-MySQL migration/create-owner checks)
+- **Frontend evidence:** unchanged by this remediation (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-07T01:00:00+05:30`
+- **Last synchronized:** `2026-08-07T02:00:00+05:30`
 
 ## Delivered
+
+### Alembic version-table MySQL fix — support long revision ids
+
+- **Verified failure:** `alembic upgrade head` against a real MySQL 8 database (this repository's
+  own `docker compose up -d` infrastructure) failed transitioning
+  `0035_notification_center → 0036_customer_identity_resolution` with
+  `DataError: Data too long for column 'version_num'`. Alembic's own `alembic_version.version_num`
+  bookkeeping column defaults to `VARCHAR(32)`; this repository's descriptive revision-id
+  convention produces identifiers up to 43 characters, and `0036_customer_identity_resolution`
+  (33 characters) was the first to exceed it. No real MySQL deployment had ever advanced past
+  `0035_notification_center` — this blocked all schema creation, `create-owner`, authentication,
+  and any real UI preview on MySQL.
+- **Repair:** a new revision, `0035a_widen_version_table`, inserted between
+  `0035_notification_center` and `0036_customer_identity_resolution`, widens
+  `alembic_version.version_num` to `VARCHAR(255)` on MySQL only (dialect-guarded; SQLite has no
+  length enforcement and PostgreSQL is not part of this stack). `0036_customer_identity_resolution`'s
+  `down_revision` was retargeted to the new revision; its own id, schema body and behaviour are
+  byte-for-byte unchanged. No revision was renamed, renumbered, squashed, reordered, or stamped
+  past a failure. Head remains `0041_channel_sync_control_plane`; the chain stays linear with a
+  single head (42 revisions, was 41).
+- Verified on real MySQL 8, both via automated tests (throwaway per-test databases) and by
+  reproducing the documented CLI workflow manually against a fresh `docker compose` instance: a
+  fresh database upgrades base→head; a database stamped at `0035_notification_center` (the exact
+  historical failure point) upgrades to head; `python -m app.cli create-owner` succeeds
+  immediately afterward, including its documented idempotent re-run behaviour.
+- Regression coverage added: three hermetic checks in `test_migrations.py` (single head, linear
+  chain, every revision id fits the widened column with an early-warning margin) plus a new
+  `test_migrations_mysql.py` — three tests against real, throwaway MySQL databases, skipped
+  (never failed) when no MySQL server is reachable, so the hermetic default suite gains no new
+  external dependency.
+- Frontend, application endpoints, models, schemas, RBAC, and OpenAPI are all unchanged;
+  `scripts/export_openapi.py --check` and the full static quality gate both pass.
+- **Does not unblock the separate Chat History UI-preview gap:** producing a real, populated
+  `/chat-history` screenshot still requires either live Meta WhatsApp Business API credentials (to
+  register a phone number and create genuine conversations/messages) or an approved development
+  fixture mechanism, neither of which exists. This fix repairs the schema/auth path only.
 
 ### Dedicated Chat History read workspace over the existing conversation and message contract
 
