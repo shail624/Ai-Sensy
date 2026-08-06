@@ -12,7 +12,10 @@ import { FeatureFlagsPanel } from "@/features/settings/FeatureFlagsPanel";
 import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValueEditor";
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
 import { PreferencesPanel } from "@/features/settings/PreferencesPanel";
-import { useTags as useCampaignTags } from "@/features/campaigns/api";
+import {
+  useAttributeDefinitions as useCampaignAttributeDefinitions,
+  useTags as useCampaignTags,
+} from "@/features/campaigns/api";
 import {
   useCustomAttributeDefinitions,
   useTags as useContactProfileTags,
@@ -1191,14 +1194,32 @@ describe("CannedMessagesPanel", () => {
 
 /**
  * The real Contacts-page picker, reduced to its data dependency: the same `useCustomAttributeDefinitions`
- * hook `ContactsList.tsx`, `ContactsToolbar.tsx` and `BulkActionDialog.tsx` import from
- * `customer-profile/api`, under the identical `["custom-attributes"]` cache key the Settings panel
- * writes through.
+ * hook `ContactsList.tsx` and `BulkActionDialog.tsx` import from `customer-profile/api`, under the
+ * identical `["custom-attributes"]` cache key the Settings panel writes through.
+ * `ContactsToolbar.tsx` does not read this hook itself — it receives definitions as a prop from
+ * `ContactsList.tsx`, so it refreshes transitively through the same list.
  */
 function AttributePickerProbe(): JSX.Element {
   const definitions = useCustomAttributeDefinitions();
   return (
     <ul aria-label="Contact attribute picker">
+      {(definitions.data ?? []).map((definition) => (
+        <li key={definition.id}>{definition.key_name}</li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The real campaign/segment attribute picker: the same `useAttributeDefinitions` hook
+ * `CampaignBasicsStep.tsx`, `SegmentEditor.tsx` and `SegmentDetail.tsx` import from `campaigns/api`,
+ * under the `["campaigns", "pickers", "attributes"]` cache key — a prefix of the
+ * `["campaigns", "pickers"]` list this panel's mutations invalidate.
+ */
+function CampaignAttributePickerProbe(): JSX.Element {
+  const definitions = useCampaignAttributeDefinitions();
+  return (
+    <ul aria-label="Campaign attribute picker">
       {(definitions.data ?? []).map((definition) => (
         <li key={definition.id}>{definition.key_name}</li>
       ))}
@@ -1333,6 +1354,27 @@ describe("UserAttributesPanel", () => {
     });
   });
 
+  it("creates an attribute flagged as PII, leaving indexed unset", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "ssn" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "SSN" } });
+    fireEvent.click(screen.getByLabelText(/Personally identifiable information/));
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({
+      key_name: "ssn",
+      label: "SSN",
+      data_type: "string",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: true,
+    });
+  });
+
   it("creates an enum attribute with its choices, and offers no choice field for a non-enum type", async () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
@@ -1382,7 +1424,12 @@ describe("UserAttributesPanel", () => {
 
     fireEvent.change(screen.getByLabelText("Type"), { target: { value: "enum" } });
     expect(submit).toBeDisabled();
-    expect(screen.getByText(/at least one choice/i)).toBeInTheDocument();
+
+    // Punctuation-only input parses to zero choices, surfacing the validator's own message rather
+    // than the field's static description (which is present whether or not there is an error).
+    fireEvent.change(screen.getByLabelText("Choices"), { target: { value: ",," } });
+    expect(screen.getByText("Enum attributes require at least one value")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
 
     expect(writes).toHaveLength(0);
   });
@@ -1508,7 +1555,7 @@ describe("UserAttributesPanel", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("refreshes the real Contacts-page attribute picker after a create, without a manual reload", async () => {
+  it("refreshes the real Contacts-page and campaign/segment attribute pickers after a create, without a manual reload", async () => {
     responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" })];
 
     withProviders(
@@ -1517,14 +1564,21 @@ describe("UserAttributesPanel", () => {
           <UserAttributesPanel />
         </div>
         <AttributePickerProbe />
+        <CampaignAttributePickerProbe />
       </>,
     );
 
+    // All three real consumers — Settings, the Contacts-page picker and the campaign/segment
+    // picker — start from the one shared `QueryClient`, scoped separately so the shared key name
+    // is not ambiguous.
     const settingsPanel = screen.getByTestId("settings-panel");
     const attributePicker = screen.getByRole("list", { name: "Contact attribute picker" });
+    const campaignPicker = screen.getByRole("list", { name: "Campaign attribute picker" });
     expect(await within(settingsPanel).findByText("Plan")).toBeInTheDocument();
     expect(await within(attributePicker).findByText("plan")).toBeInTheDocument();
+    expect(await within(campaignPicker).findByText("plan")).toBeInTheDocument();
     expect(within(attributePicker).queryByText("region")).not.toBeInTheDocument();
+    expect(within(campaignPicker).queryByText("region")).not.toBeInTheDocument();
 
     responses["/api/v1/custom-attributes"] = [
       attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
@@ -1537,6 +1591,7 @@ describe("UserAttributesPanel", () => {
     fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create attribute" }));
 
     await waitFor(() => expect(within(attributePicker).getByText("region")).toBeInTheDocument());
+    await waitFor(() => expect(within(campaignPicker).getByText("region")).toBeInTheDocument());
     expect(within(settingsPanel).getByText("Region")).toBeInTheDocument();
   });
 
