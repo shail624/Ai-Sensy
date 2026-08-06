@@ -38,6 +38,7 @@ const CampaignEditPage = lazyNamed(() => import("@/pages/CampaignEditPage"), "Ca
 const CampaignsPage = lazyNamed(() => import("@/pages/CampaignsPage"), "CampaignsPage");
 const ChannelsIndexRedirect = lazyNamed(() => import("@/pages/ChannelsPage"), "ChannelsIndexRedirect");
 const ChannelsPage = lazyNamed(() => import("@/pages/ChannelsPage"), "ChannelsPage");
+const ChatHistoryPage = lazyNamed(() => import("@/pages/ChatHistoryPage"), "ChatHistoryPage");
 const ContactProfilePage = lazyNamed(() => import("@/pages/ContactProfilePage"), "ContactProfilePage");
 const ContactsPage = lazyNamed(() => import("@/pages/ContactsPage"), "ContactsPage");
 const DashboardPage = lazyNamed(() => import("@/pages/DashboardPage"), "DashboardPage");
@@ -132,6 +133,11 @@ export const router = createBrowserRouter([
             path: "inbox",
             element: <RequirePermission code="inbox:read" />,
             children: [{ index: true, element: lazyElement(InboxPage) }],
+          },
+          {
+            path: "chat-history",
+            element: <RequirePermission code="inbox:read" />,
+            children: [{ index: true, element: lazyElement(ChatHistoryPage) }],
           },
           {
             path: "campaigns",

@@ -42,6 +42,8 @@ export interface InboxFilters {
   contact?: string;
   status?: string;
   assignee?: string;
+  /** Sending number's public id — the backend's `number` filter groups by this (Doc 04 §18.1). */
+  number?: string;
   tag?: string;
   q?: string;
 }

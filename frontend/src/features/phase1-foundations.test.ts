@@ -15,7 +15,7 @@ import { REACTIVATION_SECTIONS } from "@/features/reactivation/sections";
 describe("Phase 1 information architecture", () => {
   it("keeps the business workspace in the planned order", () => {
     expect(navItems.filter((item) => item.group === "Workspace").map((item) => item.label)).toEqual([
-      "Dashboard", "Live Chat", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
+      "Dashboard", "Live Chat", "Chat History", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
     ]);
   });
 

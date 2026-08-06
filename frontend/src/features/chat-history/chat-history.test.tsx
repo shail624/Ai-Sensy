@@ -1,0 +1,473 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { MemoryRouter, Route, Routes, useSearchParams } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { navItems } from "@/components/layout/navigation";
+import { ChatHistory } from "@/features/chat-history";
+import { useConversations } from "@/features/inbox/api";
+import type { Conversation, Message, PhoneNumber } from "@/features/inbox/types";
+import { router } from "@/routes/router";
+
+// --- Fixtures -------------------------------------------------------------------------------------
+
+function conversationFixture(overrides: Partial<Conversation> = {}): Conversation {
+  return {
+    id: "conv1",
+    type: "conversation",
+    status: "open",
+    channel_type: "whatsapp",
+    assigned_to: null,
+    contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" },
+    tags: [],
+    phone_number_id: "pn1",
+    last_message_at: "2026-08-01T10:00:00Z",
+    last_message_preview: "Thanks!",
+    unread_count: 0,
+    window: { is_open: true, expires_at: null, last_inbound_at: null },
+    row_version: 0,
+    created_at: "2026-08-01T09:00:00Z",
+    updated_at: "2026-08-01T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function messageFixture(overrides: Partial<Message> = {}): Message {
+  return {
+    id: "m1",
+    type: "message",
+    conversation_id: "conv1",
+    direction: "outbound",
+    message_type: "text",
+    status: "sent",
+    wamid: "wamid.1",
+    content: { text: { body: "Newest message" } },
+    error_code: null,
+    sent_at: "2026-08-01T09:01:00Z",
+    delivered_at: null,
+    read_at: null,
+    created_at: "2026-08-01T09:01:00Z",
+    ...overrides,
+  };
+}
+
+function numberFixture(overrides: Partial<PhoneNumber> = {}): PhoneNumber {
+  return {
+    id: "pn1",
+    type: "phone_number",
+    waba_id: "w1",
+    channel_type: "whatsapp",
+    phone_number_id: "778899001122",
+    display_number: "+911111111111",
+    verified_name: "Vi Support",
+    quality_rating: "GREEN",
+    messaging_tier: "TIER_10K",
+    throughput_level: "STANDARD",
+    mps_limit: 80,
+    status: "connected",
+    is_default: false,
+    last_synced_at: "2026-07-22T09:00:00Z",
+    created_at: "2026-07-01T10:00:00Z",
+    row_version: 1,
+    ...overrides,
+  };
+}
+
+// --- Harness ------------------------------------------------------------------------------------
+
+const permissions = { value: ["inbox:read", "audit:read"] };
+
+vi.mock("@/lib/auth", () => ({
+  useAuth: () => ({
+    status: "authenticated",
+    user: { id: "u1", permissions: permissions.value, is_superuser: false },
+    login: vi.fn(),
+    logout: vi.fn(),
+    hasPermission: (code: string) => permissions.value.includes(code),
+  }),
+  useHasPermission: (code: string) => permissions.value.includes(code),
+}));
+
+type ResponseEntry = unknown | ((query: Record<string, unknown> | undefined) => unknown);
+
+/** Canned responses per path; a function entry can answer differently per query (pagination/filters). */
+const responses: Record<string, ResponseEntry> = {};
+const errors: Record<string, unknown> = {};
+const calls: { path: string; query?: Record<string, unknown> }[] = [];
+
+function lastCall(path: string): { path: string; query?: Record<string, unknown> } | undefined {
+  return [...calls].reverse().find((call) => call.path === path);
+}
+
+vi.mock("@/lib/api/client", () => {
+  const GET = async (
+    path: string,
+    options?: { params?: { query?: Record<string, unknown> } },
+  ) => {
+    calls.push({ path, query: options?.params?.query });
+    if (path in errors) return { error: errors[path] };
+    if (!(path in responses)) return { error: new Error(`no stub for ${path}`) };
+    const entry = responses[path];
+    const data = typeof entry === "function" ? (entry as (q?: Record<string, unknown>) => unknown)(options?.params?.query) : entry;
+    return { data };
+  };
+  const write = async () => ({ error: new Error("writes are disabled in Chat History tests") });
+  return {
+    api: { GET, POST: write, PATCH: write, PUT: write, DELETE: write },
+    authClient: { POST: write },
+    setSessionExpiredHandler: vi.fn(),
+    refreshOnce: vi.fn(),
+  };
+});
+
+/** The real Live Chat destination, reduced to what proves the deep link landed correctly. */
+function InboxRouteStub(): JSX.Element {
+  const [params] = useSearchParams();
+  return <div data-testid="inbox-stub">Live Chat — conversation={params.get("conversation")}</div>;
+}
+
+function withProviders(ui: ReactElement, initialEntries: string[] = ["/chat-history"]) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <Routes>
+          <Route path="/chat-history" element={ui} />
+          <Route path="/inbox" element={<InboxRouteStub />} />
+          <Route path="/admin/audit" element={<div>Audit Trail Stub</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function seedBaseline(): void {
+  responses["/api/v1/users"] = {
+    data: [{ id: "u1", full_name: "Agent One", email: "agent1@example.test", is_superuser: false }],
+  };
+  responses["/api/v1/phone-numbers"] = { data: [numberFixture()] };
+  // `useTags` (customer-profile/api.ts) returns the raw array — no `{ data }` envelope, unlike
+  // `/users` and `/phone-numbers`.
+  responses["/api/v1/tags"] = [{ id: "t1", name: "VIP", color: "#22c55e" }];
+}
+
+function findRouteByPath(node: unknown, targetPath: string): { element?: ReactElement } | null {
+  const candidate = node as { path?: string; children?: unknown[]; element?: ReactElement } | null;
+  if (!candidate) return null;
+  if (candidate.path === targetPath) return candidate;
+  for (const child of candidate.children ?? []) {
+    const found = findRouteByPath(child, targetPath);
+    if (found) return found;
+  }
+  return null;
+}
+
+beforeEach(() => {
+  permissions.value = ["inbox:read", "audit:read"];
+  for (const key of Object.keys(responses)) delete responses[key];
+  for (const key of Object.keys(errors)) delete errors[key];
+  calls.length = 0;
+  seedBaseline();
+});
+
+// --- Tests ----------------------------------------------------------------------------------------
+
+describe("ChatHistory", () => {
+  it("1. shows the loading state before the conversation list resolves", () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    expect(screen.getByText("Loading conversation history…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("2. shows the empty state when there is no conversation history", async () => {
+    responses["/api/v1/conversations"] = { data: [], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    expect(await screen.findByText("No conversation history yet")).toBeInTheDocument();
+  });
+
+  it("3. shows a list error with retry, and recovers after retry", async () => {
+    errors["/api/v1/conversations"] = new Error("Conversations unavailable");
+    withProviders(<ChatHistory />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Conversations unavailable");
+
+    delete errors["/api/v1/conversations"];
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Ramesh K.")).toBeInTheDocument();
+  });
+
+  it("4. lists conversations with contact, preview, status and tags", async () => {
+    responses["/api/v1/conversations"] = {
+      data: [
+        conversationFixture({
+          tags: [{ id: "t1", name: "VIP", color: "#22c55e" }],
+        }),
+      ],
+      page: { limit: 25, has_more: false },
+    };
+    withProviders(<ChatHistory />);
+
+    expect(await screen.findByText("Ramesh K.")).toBeInTheDocument();
+    expect(screen.getByText("Thanks!")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Conversation history" })).getByText("Open")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Conversation history" })).getByText("VIP")).toBeInTheDocument();
+  });
+
+  it("5. selecting a conversation loads and shows its messages", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = {
+      data: [messageFixture()],
+      page: { limit: 50, has_more: false },
+    };
+    withProviders(<ChatHistory />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ramesh K\./ }));
+    expect(await screen.findByText("Newest message")).toBeInTheDocument();
+  });
+
+  it("6. shows a message error with retry, and recovers after retry", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    errors["/api/v1/conversations/{conversation_id}/messages"] = new Error("Messages unavailable");
+    withProviders(<ChatHistory />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ramesh K\./ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Messages unavailable");
+
+    delete errors["/api/v1/conversations/{conversation_id}/messages"];
+    responses["/api/v1/conversations/{conversation_id}/messages"] = {
+      data: [messageFixture()],
+      page: { limit: 50, has_more: false },
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Newest message")).toBeInTheDocument();
+  });
+
+  it("7. progresses the conversation list cursor when Next is clicked", async () => {
+    responses["/api/v1/conversations"] = (query: Record<string, unknown> | undefined) =>
+      query?.cursor
+        ? { data: [conversationFixture({ id: "conv2", contact: { id: "c2", name: "Second Contact", phone: "+919990000002" } })], page: { limit: 25, has_more: false, next_cursor: null } }
+        : { data: [conversationFixture()], page: { limit: 25, has_more: true, next_cursor: "ccur2" } };
+    withProviders(<ChatHistory />);
+
+    expect(await screen.findByText("Ramesh K.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText("Second Contact")).toBeInTheDocument();
+    expect(lastCall("/api/v1/conversations")?.query?.cursor).toBe("ccur2");
+  });
+
+  it("8. loads older messages via the existing infinite-query control", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = (query: Record<string, unknown> | undefined) =>
+      query?.cursor
+        ? { data: [messageFixture({ id: "m0", content: { text: { body: "Older message" } } })], page: { limit: 50, has_more: false, next_cursor: null } }
+        : { data: [messageFixture()], page: { limit: 50, has_more: true, next_cursor: "mcur2" } };
+    withProviders(<ChatHistory />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ramesh K\./ }));
+    expect(await screen.findByText("Newest message")).toBeInTheDocument();
+    expect(screen.queryByText("Older message")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load older messages" }));
+    expect(await screen.findByText("Older message")).toBeInTheDocument();
+  });
+
+  it("9. maps the search box to the q filter", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.change(screen.getByLabelText("Search chat history"), { target: { value: "ramesh" } });
+    await waitFor(() => expect(lastCall("/api/v1/conversations")?.query?.q).toBe("ramesh"));
+  });
+
+  it("10. maps the status select to the status filter", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "resolved" } });
+    await waitFor(() => expect(lastCall("/api/v1/conversations")?.query?.status).toBe("resolved"));
+  });
+
+  it("11. maps the assignee select to the assignee filter", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.change(screen.getByLabelText("Agent"), { target: { value: "u1" } });
+    await waitFor(() => expect(lastCall("/api/v1/conversations")?.query?.assignee).toBe("u1"));
+  });
+
+  it("12. maps the number select to the number filter", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.change(screen.getByLabelText("Channel"), { target: { value: "pn1" } });
+    await waitFor(() => expect(lastCall("/api/v1/conversations")?.query?.number).toBe("pn1"));
+  });
+
+  it("13. maps a tag chip to the tag filter", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.click(screen.getByRole("button", { name: "VIP" }));
+    await waitFor(() => expect(lastCall("/api/v1/conversations")?.query?.tag).toEqual(["t1"]));
+  });
+
+  it("14. shows a no-results state for a filter with no matches, and Clear filters resets it", async () => {
+    responses["/api/v1/conversations"] = (query: Record<string, unknown> | undefined) =>
+      query?.q === "nomatch"
+        ? { data: [], page: { limit: 25, has_more: false } }
+        : { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+    await screen.findByText("Ramesh K.");
+
+    fireEvent.change(screen.getByLabelText("Search chat history"), { target: { value: "nomatch" } });
+    expect(await screen.findByText("No conversations match")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("Ramesh K.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search chat history")).toHaveValue("");
+  });
+
+  it("15. deep-links the selected conversation into Live Chat", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = { data: [], page: { limit: 50, has_more: false } };
+    withProviders(<ChatHistory />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ramesh K\./ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open in Live Chat" }));
+
+    expect(await screen.findByTestId("inbox-stub")).toHaveTextContent("conversation=conv1");
+  });
+
+  it("16. shows the audit trail link with audit:read", async () => {
+    responses["/api/v1/conversations"] = { data: [], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+
+    const auditLink = await screen.findByRole("button", { name: "Open audit trail" });
+    fireEvent.click(auditLink);
+    expect(await screen.findByText("Audit Trail Stub")).toBeInTheDocument();
+  });
+
+  it("17. hides the audit trail link without audit:read", async () => {
+    permissions.value = ["inbox:read"];
+    responses["/api/v1/conversations"] = { data: [], page: { limit: 25, has_more: false } };
+    withProviders(<ChatHistory />);
+
+    await screen.findByText("No conversation history yet");
+    expect(screen.queryByRole("button", { name: "Open audit trail" })).not.toBeInTheDocument();
+  });
+
+  it("18. exposes no composer or write action for a selected conversation", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = {
+      data: [messageFixture()],
+      page: { limit: 50, has_more: false },
+    };
+    withProviders(<ChatHistory />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ramesh K\./ }));
+    await screen.findByText("Newest message");
+
+    expect(screen.queryByRole("textbox", { name: /message/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/type a message/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Send$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /assign/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /change status/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add (a )?note/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add label/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /react to message/i })).not.toBeInTheDocument();
+  });
+
+  it("19. gates the route and navigation entry on inbox:read", () => {
+    const navEntry = navItems.find((item) => item.path === "/chat-history");
+    expect(navEntry?.permission).toBe("inbox:read");
+
+    const routeEntry = findRouteByPath({ children: router.routes }, "chat-history");
+    expect((routeEntry?.element as ReactElement | undefined)?.props).toMatchObject({
+      code: "inbox:read",
+    });
+  });
+
+  it("20. shares the conversation-list cache with the existing inbox hook, not a second query", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+
+    function ConversationsProbe(): JSX.Element {
+      const conversations = useConversations({}, null, 25);
+      return <div data-testid="probe">{conversations.data?.data.length ?? 0}</div>;
+    }
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/chat-history"]}>
+          <Routes>
+            <Route
+              path="/chat-history"
+              element={
+                <>
+                  <ChatHistory />
+                  <ConversationsProbe />
+                </>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("Ramesh K.");
+    await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent("1"));
+    expect(calls.filter((call) => call.path === "/api/v1/conversations").length).toBe(1);
+  });
+
+  it("21. never fetches an unbounded page of conversations or messages", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: true, next_cursor: "ccur2" } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = {
+      data: [messageFixture()],
+      page: { limit: 50, has_more: true, next_cursor: "mcur2" },
+    };
+    withProviders(<ChatHistory />);
+
+    await screen.findByText("Ramesh K.");
+    expect(lastCall("/api/v1/conversations")?.query?.limit).toBe(25);
+
+    fireEvent.click(screen.getByRole("button", { name: /Ramesh K\./ }));
+    await screen.findByText("Newest message");
+    expect(lastCall("/api/v1/conversations/{conversation_id}/messages")?.query?.limit).toBe(50);
+    // Having more available never auto-fetches a further page on its own.
+    expect(calls.filter((call) => call.path === "/api/v1/conversations/{conversation_id}/messages").length).toBe(1);
+  });
+
+  it("22. keeps list selection, controls and errors accessible", async () => {
+    responses["/api/v1/conversations"] = { data: [conversationFixture()], page: { limit: 25, has_more: false } };
+    responses["/api/v1/conversations/{conversation_id}"] = conversationFixture();
+    responses["/api/v1/conversations/{conversation_id}/messages"] = { data: [], page: { limit: 50, has_more: false } };
+    withProviders(<ChatHistory />);
+
+    expect(await screen.findByLabelText("Search chat history")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Conversation history pagination" })).toBeInTheDocument();
+
+    const row = await screen.findByRole("button", { name: /Ramesh K\./ });
+    expect(row).not.toHaveAttribute("aria-current");
+    fireEvent.click(row);
+    await waitFor(() => expect(row).toHaveAttribute("aria-current", "true"));
+  });
+});

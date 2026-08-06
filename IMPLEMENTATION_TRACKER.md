@@ -3,23 +3,47 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-06 · User Attributes management interface delivered over the existing Custom Attribute contract, on top of the Canned Messages remediation, its accessibility fix and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-07 · Dedicated Chat History read workspace over the existing conversation and message contract, on top of the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `58975cde18919437fb96fc22b63716a4fe6ea867`
+- **Starting HEAD:** `dd2005bac47131163fc2d9817db80dedb0c432b6`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** User Attributes management interface over the existing Custom Attribute contract — a frontend-only remediation, not a roadmap milestone and not M13-07
+- **Latest change:** Dedicated Chat History read workspace over the existing conversation and message contract — a frontend-only remediation (CORE-10's frontend half only), not a roadmap milestone and not M13-07
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 36 files / 731 tests passed (708 before this remediation)
+- **Frontend evidence:** 37 files / 754 tests passed (731 before this remediation)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-06T05:00:00+05:30`
+- **Last synchronized:** `2026-08-07T00:00:00+05:30`
 
 ## Delivered
+
+### Dedicated Chat History read workspace over the existing conversation and message contract
+
+- Added a `/chat-history` route and permission-aware `inbox:read` navigation entry — a read-only
+  list/detail workspace over the same `GET /conversations`, `GET /conversations/{id}` and
+  `GET /conversations/{id}/messages` endpoints Live Chat and Customer 360 already read, reusing
+  `useConversations`/`useConversation`/`useMessages`/`useAssignableUsers` from
+  `features/inbox/api.ts` verbatim — no second query authority.
+- Supports every filter the current contract already backs: search (`q`), status, assignee, tag,
+  and a new `number` (channel) filter — additive to `InboxFilters`/`toListQuery`, the same shared
+  types Live Chat's own filters use, so the addition is available to both surfaces from one
+  definition. Cursor pagination for the conversation list and the existing infinite-query
+  "Load older messages" control are both reused as-is.
+- Deliberately exposes no assignment, status, tag, note or send control — those remain Live Chat's
+  job; this route only reads. A deep link opens the selected conversation in Live Chat; a second
+  deep link to the audit trail is shown only to `audit:read` holders and hidden otherwise.
+- Date-range filtering and transcript export are named in the UI as not yet available rather than
+  offered as disabled controls — neither is backed by the current contract (`MessageResponse` has
+  no `campaign_id`, the endpoints have no date-range query param, and no export entity exists for
+  this data).
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path, RBAC
+  definition or generated type changed. Closes the frontend half of `ROADMAP.md`'s `CORE-10`; the
+  backend "Conversation query extensions" and export capability it also names remain unimplemented
+  and are recorded as open follow-up, not claimed here.
 
 ### User Attributes management interface over the existing Custom Attribute contract
 

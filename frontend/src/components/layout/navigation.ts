@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bot,
   Contact,
+  History,
   Inbox,
   LayoutDashboard,
   ListChecks,
@@ -178,6 +179,11 @@ export const navItems: NavItem[] = [
     label: "Live Chat", path: "/inbox", available: true, glyph: "L", icon: Inbox,
     group: "Workspace", permission: "inbox:read",
     description: "One shared team inbox for every conversation.",
+  },
+  {
+    label: "Chat History", path: "/chat-history", available: true, glyph: "Ch", icon: History,
+    group: "Workspace", permission: "inbox:read",
+    description: "Read-only conversation and message history, separate from live triage.",
   },
   {
     label: "Campaigns", path: "/campaigns", available: true, glyph: "Ca", icon: Megaphone,

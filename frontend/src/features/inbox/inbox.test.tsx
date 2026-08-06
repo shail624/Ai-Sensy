@@ -81,6 +81,7 @@ describe("toListQuery", () => {
       contact: null,
       status: null,
       assignee: null,
+      number: null,
       tag: null,
       q: null,
       cursor: null,
@@ -89,18 +90,23 @@ describe("toListQuery", () => {
   });
 
   it("carries every filter, the cursor and the limit", () => {
-    expect(toListQuery({ contact: "c1", status: "open", assignee: "u1", tag: "t1", q: "ramesh" }, "cur1", 50)).toEqual(
-      {
-        contact: "c1",
-        status: "open",
-        assignee: "u1",
-        // The contract declares `tag` repeatable; the UI filters by one at a time.
-        tag: ["t1"],
-        q: "ramesh",
-        cursor: "cur1",
-        limit: 50,
-      },
-    );
+    expect(
+      toListQuery(
+        { contact: "c1", status: "open", assignee: "u1", number: "pn1", tag: "t1", q: "ramesh" },
+        "cur1",
+        50,
+      ),
+    ).toEqual({
+      contact: "c1",
+      status: "open",
+      assignee: "u1",
+      number: "pn1",
+      // The contract declares `tag` repeatable; the UI filters by one at a time.
+      tag: ["t1"],
+      q: "ramesh",
+      cursor: "cur1",
+      limit: 50,
+    });
   });
 });
 

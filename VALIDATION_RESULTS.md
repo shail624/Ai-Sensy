@@ -4,7 +4,33 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-06T05:00:00+05:30`.
+Last synchronized: `2026-08-07T00:00:00+05:30`.
+
+
+## Dedicated Chat History read workspace over the existing conversation and message contract
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified root cause | PASS | `GET /conversations`, `GET /conversations/{id}` and `GET /conversations/{id}/messages` already existed and were `inbox:read`-gated, but the only frontend consumers were Live Chat (live triage) and Customer 360's exact-contact projection — no route reproduced the full, filterable, provider-independent history the product itself named as a gap. |
+| No second query authority | PASS | `useConversations`, `useConversation`, `useMessages` and `useAssignableUsers` are imported unmodified from `features/inbox/api.ts`; the only change to that file is one additive `number` field on `toListQuery`, also used by nothing else in Live Chat's own behaviour (defaults to `null`, dropped by the client's query serializer). |
+| Supported filters | PASS | Search (`q`), status, assignee and tag map onto the identical query params Live Chat already sends; `number` (channel) is a new, additive, contract-backed filter (the backend already accepted it — only the shared frontend type was missing it). Date-range and campaign-generated filtering are not offered; both are honestly named in the page header as not yet available rather than shown as disabled controls. |
+| Read-only boundary | PASS | No assignment, status, tag, note or send control exists on the route; a dedicated regression (`18. exposes no composer or write action…`) asserts the absence of a composer textbox and every write-action button by name. |
+| Live Chat deep link | PASS | "Open in Live Chat" navigates to `/inbox?conversation={id}` — the exact query shape `Inbox.tsx`'s own `readFilters` already parses. |
+| Audit deep link / RBAC | PASS | Gated on `useHasPermission("audit:read")`, the same convention `CustomerProfile.tsx` already uses; hidden (not disabled) without the permission. Route and navigation entry both carry `inbox:read`, matching the endpoints' own guard; no new permission was introduced and `rbac/catalog.py` is untouched. |
+| Tenant isolation | PASS | No client-supplied organization id exists anywhere in the diff; every read stays scoped server-side through the reused hooks and their existing endpoints. |
+| Cursor pagination / bounded fetch | PASS | Conversation list uses the existing 25-row cursor page and `Pagination` control; message history uses the existing infinite-query "Load older messages" control (50-row pages). A dedicated regression asserts exactly one initial fetch per list with a `limit` query param, and that a further page is never fetched automatically. |
+| Frontend lint | PASS | `eslint .` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Chat History tests | PASS | 22 new tests in `chat-history.test.tsx`, covering every required scenario (loading, empty, no-results, list/message error+retry, cursor progression, all five filter mappings, deep links, RBAC visibility, write-action absence, route/nav permission, cache reuse, bounded fetch, accessibility). |
+| Relevant consumer tests | PASS | `inbox.test.tsx` (26, including the updated `toListQuery` shape), `customer-profile` (13), `components/layout` (21) — all pass unchanged in behaviour. |
+| Full frontend suite | PASS | 37 files / 754 tests passed (731 before this remediation). |
+| Production build | PASS | Main chunk `207.50/57.23 kB gzip` against `206.66/57.05 kB gzip` before this remediation (`+0.84 kB` raw, `+0.18 kB` gzip — route/nav/lazy-import registration and the additive `number` field only). The workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports up to date; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| Reference boundary | PASS | No reference file, screenshot, MHTML, rendered HTML or extracted asset was staged; captured AI Sensy screens informed workflow/hierarchy and visual-quality expectations only. |
+| Remaining scope | Honestly recorded | Date-range filtering, campaign-generated identification, transcript export and a Download Center are not implemented — each requires a separately authorized backend change (`MessageResponse.campaign_id`, a date-range query param, a new export entity) and is recorded, not built, per the strict boundary. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes remain unproven by repository gates. |
 
 
 ## User Attributes management interface over the existing Custom Attribute contract

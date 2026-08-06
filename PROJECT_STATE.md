@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `User Attributes management interface over the existing Custom Attribute contract (frontend only)` |
+| Latest change | `Dedicated Chat History read workspace over the existing conversation and message contract (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -15,15 +15,35 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 731 tests PASS (708 before this remediation) · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `206.66/57.05 kB gzip`, against `206.24/56.97 kB gzip` before this remediation (`+0.42 kB` raw, `+0.08 kB` gzip — the new route/lazy-import registration only); the User Attributes panel itself is verified absent from the main chunk and present only in the lazy settings chunk (`+~10.2 kB` there) |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 754 tests PASS (731 before this remediation) · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `207.50/57.23 kB gzip`, against `206.66/57.05 kB gzip` before this remediation (`+0.84 kB` raw, `+0.18 kB` gzip — the new route/lazy-import/nav registration and the additive `number` filter field only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk (`~9.15 kB` there) |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Frontend-only user-attribute management panel over the existing custom-attribute contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
-| Last update | `2026-08-06T05:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Frontend-only dedicated Chat History read workspace over the existing conversation/message contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
+| Last update | `2026-08-07T00:00:00+05:30` (Asia/Kolkata) |
+
+## Dedicated Chat History read workspace over the existing conversation and message contract
+
+- Added a `/chat-history` route (`inbox:read`) and matching navigation entry — a read-only
+  list/detail workspace over the same `GET /conversations`, `GET /conversations/{id}` and
+  `GET /conversations/{id}/messages` endpoints Live Chat and Customer 360 already read, reusing
+  `useConversations`/`useConversation`/`useMessages`/`useAssignableUsers` from
+  `features/inbox/api.ts` verbatim rather than opening a second query authority.
+- Supports search, status, assignee, tag and a new `number` (channel) filter — the `number` field
+  is an additive entry on the shared `InboxFilters`/`toListQuery` types Live Chat's own filters
+  also use, so both surfaces read it from one definition. Cursor pagination for the conversation
+  list and the existing infinite-query "Load older messages" control are both reused as-is.
+- No assignment, status, tag, note or send control is exposed; a deep link opens the selected
+  conversation in Live Chat, and a second deep link to the audit trail is shown only to
+  `audit:read` holders.
+- Date-range filtering and transcript export are honestly disclosed in the UI as not yet
+  available, rather than offered as disabled controls — neither is backed by the current contract.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path, RBAC
+  definition or generated type changed. Closes the frontend half of `ROADMAP.md`'s `CORE-10`; its
+  backend "Conversation query extensions" and export capability remain open follow-up.
 
 ## User Attributes management interface over the existing Custom Attribute contract
 

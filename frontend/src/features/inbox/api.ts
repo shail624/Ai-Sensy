@@ -50,6 +50,7 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
     contact: filters.contact || null,
     status: filters.status || null,
     assignee: filters.assignee || null,
+    number: filters.number || null,
     tag: filters.tag ? [filters.tag] : null,
     q: filters.q || null,
     cursor: cursor || null,

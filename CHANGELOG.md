@@ -11,6 +11,41 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-07 — Dedicated Chat History read workspace over the existing conversation and message contract
+
+**Added**
+- Added a `/chat-history` route and `inbox:read`-gated navigation entry: a read-only list/detail
+  workspace over the same `GET /conversations`, `GET /conversations/{id}` and
+  `GET /conversations/{id}/messages` endpoints Live Chat and Customer 360 already read. Reuses
+  `useConversations`, `useConversation`, `useMessages` and `useAssignableUsers` from
+  `features/inbox/api.ts` verbatim — no second conversation/message query authority was opened.
+- Search, status, assignee and tag filters map onto the identical query params Live Chat's own
+  filters already send. A new `number` (channel) filter is additive on the shared
+  `InboxFilters`/`toListQuery` types both surfaces read from one definition — the backend already
+  accepted `number`; only the frontend type was missing it.
+- Cursor pagination for the conversation list and the existing infinite-query "Load older
+  messages" control are both reused as-is, so neither list nor message history ever fetches an
+  unbounded page.
+- A deep link opens the selected conversation in Live Chat (`/inbox?conversation={id}`, the exact
+  shape Live Chat's own route already parses); a second deep link to the audit trail is shown only
+  to `audit:read` holders and hidden otherwise, following the same pattern Customer 360 already
+  uses.
+- The route exposes no assignment, status, tag, note or send control — those remain Live Chat's
+  job. Date-range and campaign-generated filtering, and transcript export, are named in the page
+  header as not yet available rather than offered as disabled controls, since none is backed by
+  the current contract.
+- Twenty-two focused tests, plus updates to `inbox.test.tsx`'s `toListQuery` fixtures and
+  `phase1-foundations.test.ts`'s exact-order navigation assertion for the additive `number` field
+  and new nav entry.
+
+**Preserved**
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path, RBAC
+  definition or generated type changed. No new permission was introduced.
+- Closes the frontend half of `ROADMAP.md`'s `CORE-10 — Dedicated Chat History`; its backend
+  "Conversation query extensions" (a date-range query param, `MessageResponse.campaign_id`) and
+  export capability are not implemented and remain recorded, open follow-up — not claimed here,
+  not M13-07, and `ROADMAP.md` itself is unmodified.
+
 ### 2026-08-06 — User Attributes management interface over the existing Custom Attribute contract
 
 **Added**
