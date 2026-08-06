@@ -11,6 +11,15 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-06 — Canned message scope accessibility fix
+
+**Fixed**
+- The Canned Messages edit dialog showed its read-only Scope information through a `Field
+  htmlFor="canned-message-scope"` label pointing at a plain `<div>`, which is not a labelable
+  element and created no real accessible association. Replaced with the `DefinitionRow`/`<dl>`
+  pattern already used for read-only information elsewhere in Settings (`OrganizationPanel`,
+  `ApplicationPanel`) — no fake form control, no behaviour change.
+
 ### 2026-08-06 — Canned Messages management interface over the existing Quick Reply contract
 
 **Added**

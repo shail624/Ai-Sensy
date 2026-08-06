@@ -4,7 +4,20 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-06T04:00:00+05:30`.
+Last synchronized: `2026-08-06T04:20:00+05:30`.
+
+
+## Canned message scope accessibility fix
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified finding addressed | PASS | Independent audit Minor finding: `Field htmlFor="canned-message-scope"` labelled a non-labelable `<div>` in the edit dialog's read-only Scope row, creating no real accessible association. Replaced with the existing `DefinitionRow`/`<dl>` pattern already shipped in `OrganizationPanel`/`ApplicationPanel`; no fake input introduced. |
+| Frontend lint | PASS | `npm run lint` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Settings tests | PASS | `settings.test.tsx` — 74 passed, unchanged; the existing edit-dialog and read-only-scope assertions pass against the corrected markup without modification. |
+| Full frontend suite | PASS | 36 files / 708 tests passed, unchanged — a markup-only accessibility fix with no behavioural change. |
+| Diff scope | PASS | One file changed: `frontend/src/features/settings/CannedMessagesPanel.tsx`. No backend, migration, OpenAPI, generated type, RBAC, ADR or roadmap file touched. |
+| Host validation | PENDING – Host Machine Validation | A real screen-reader pass confirming the corrected association remains unproven by repository gates. |
 
 
 ## Canned Messages management interface over the existing Quick Reply contract

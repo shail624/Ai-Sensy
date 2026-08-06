@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Badge,
   Button,
+  DefinitionRow,
   EmptyState,
   ErrorState,
   Field,
@@ -321,14 +322,19 @@ export function CannedMessagesPanel(): JSX.Element {
             </Field>
 
             {editor.reply ? (
-              <Field htmlFor="canned-message-scope" label="Scope">
-                <div id="canned-message-scope" className="flex items-center gap-2">
-                  <ScopeBadge shared={editor.reply.shared} />
-                  <p className="text-xs text-text-secondary">
-                    Set when a canned message is created and cannot be changed here.
-                  </p>
-                </div>
-              </Field>
+              // Read-only information, not a control — a `label htmlFor` pointing at a `<div>` would
+              // create no real accessible association, so this is a definition row instead of a fake
+              // form field.
+              <dl>
+                <DefinitionRow label="Scope">
+                  <div className="flex items-center gap-2">
+                    <ScopeBadge shared={editor.reply.shared} />
+                    <span className="text-xs text-text-secondary">
+                      Set when a canned message is created and cannot be changed here.
+                    </span>
+                  </div>
+                </DefinitionRow>
+              </dl>
             ) : (
               <Field
                 htmlFor="canned-message-shared"
