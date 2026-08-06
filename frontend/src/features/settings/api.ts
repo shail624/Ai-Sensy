@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
+  AttributeDefinition,
+  AttributeDefinitionCreateRequest,
+  AttributeDefinitionUpdateRequest,
   FeatureFlag,
   FeatureFlagPatchRequest,
   Organization,
@@ -45,6 +48,13 @@ const CAMPAIGN_PICKERS_KEY = ["campaigns", "pickers"] as const;
  * own read share one cache entry without either module importing the other.
  */
 const QUICK_REPLIES_KEY = ["quick-replies"] as const;
+
+/**
+ * The same key `contactKeys.attributeDefinitions` uses in `customer-profile/api.ts`. The campaign
+ * picker's `[...campaignKeys.pickers(), "attributes"]` key shares the `CAMPAIGN_PICKERS_KEY` prefix
+ * above, so one invalidation list already reaches both existing consumers.
+ */
+const ATTRIBUTE_DEFINITIONS_KEY = ["custom-attributes"] as const;
 
 /**
  * The organization this platform runs for.
@@ -257,5 +267,59 @@ export function useDeleteQuickReply() {
       if (error !== undefined) throw error;
     },
     [QUICK_REPLIES_KEY],
+  );
+}
+
+/** Definitions only — the values a contact holds are read through the contact/customer-profile APIs. */
+export function useAttributeDefinitions() {
+  return useQuery({
+    queryKey: ATTRIBUTE_DEFINITIONS_KEY,
+    queryFn: async (): Promise<AttributeDefinition[]> =>
+      unwrap(await api.GET("/api/v1/custom-attributes")),
+  });
+}
+
+export function useCreateAttributeDefinition() {
+  return useSettingsMutation(
+    async (body: AttributeDefinitionCreateRequest): Promise<AttributeDefinition> =>
+      unwrap(await api.POST("/api/v1/custom-attributes", { body })),
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/** `key_name` and `data_type` are fixed at creation — the update model carries no field for either. */
+export function useUpdateAttributeDefinition() {
+  return useSettingsMutation(
+    async ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: AttributeDefinitionUpdateRequest;
+    }): Promise<AttributeDefinition> =>
+      unwrap(
+        await api.PATCH("/api/v1/custom-attributes/{attribute_id}", {
+          params: { path: { attribute_id: id } },
+          body,
+        }),
+      ),
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * `204 No Content` on success — checked directly rather than through `unwrap`, which would misread
+ * the empty body as a failure. Removing a definition also removes every contact's stored value for
+ * it; the confirmation states that plainly rather than only naming the definition.
+ */
+export function useDeleteAttributeDefinition() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/custom-attributes/{attribute_id}", {
+        params: { path: { attribute_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
   );
 }

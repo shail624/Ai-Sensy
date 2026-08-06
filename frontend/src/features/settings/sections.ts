@@ -55,6 +55,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "Personal and shared quick replies agents insert into the message composer.",
   },
   {
+    // User attributes are contact-domain configuration, on the same `contacts:*` permissions Tags
+    // already uses — the definitions endpoint sits beside the tag endpoint in the same contract.
+    key: "user-attributes",
+    label: "User Attributes",
+    path: "/settings/user-attributes",
+    permission: "contacts:read",
+    description: "Typed custom fields available on every contact, campaign audience and segment.",
+  },
+  {
     key: "preferences",
     label: "My preferences",
     path: "/settings/preferences",

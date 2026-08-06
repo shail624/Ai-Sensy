@@ -86,6 +86,7 @@ const OrganizationPanel = lazyNamed(() => import("@/features/settings"), "Organi
 const PreferencesPanel = lazyNamed(() => import("@/features/settings"), "PreferencesPanel");
 const TagsPanel = lazyNamed(() => import("@/features/settings"), "TagsPanel");
 const CannedMessagesPanel = lazyNamed(() => import("@/features/settings"), "CannedMessagesPanel");
+const UserAttributesPanel = lazyNamed(() => import("@/features/settings"), "UserAttributesPanel");
 
 function LazyRoute({ children }: { children: ReactNode }): JSX.Element {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
@@ -370,6 +371,11 @@ export const router = createBrowserRouter([
                 path: "canned-messages",
                 element: <RequirePermission code="inbox:read" />,
                 children: [{ index: true, element: lazyElement(CannedMessagesPanel) }],
+              },
+              {
+                path: "user-attributes",
+                element: <RequirePermission code="contacts:read" />,
+                children: [{ index: true, element: lazyElement(UserAttributesPanel) }],
               },
               {
                 path: "preferences",

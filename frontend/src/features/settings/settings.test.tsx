@@ -7,20 +7,34 @@ import { visibleNavItems } from "@/components/layout/navigation";
 import { useQuickReplies as useComposerQuickReplies } from "@/features/inbox/api";
 import { ApplicationPanel } from "@/features/settings/ApplicationPanel";
 import { CannedMessagesPanel } from "@/features/settings/CannedMessagesPanel";
+import { UserAttributesPanel } from "@/features/settings/UserAttributesPanel";
 import { FeatureFlagsPanel } from "@/features/settings/FeatureFlagsPanel";
 import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValueEditor";
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
 import { PreferencesPanel } from "@/features/settings/PreferencesPanel";
 import { useTags as useCampaignTags } from "@/features/campaigns/api";
-import { useTags as useContactProfileTags } from "@/features/customer-profile/api";
+import {
+  useCustomAttributeDefinitions,
+  useTags as useContactProfileTags,
+} from "@/features/customer-profile/api";
 import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
 import { TagsPanel } from "@/features/settings/TagsPanel";
-import type { FeatureFlag, Organization, QuickReply, Setting, Tag } from "@/features/settings/types";
+import type {
+  AttributeDefinition,
+  FeatureFlag,
+  Organization,
+  QuickReply,
+  Setting,
+  Tag,
+} from "@/features/settings/types";
 import {
   draftFromValue,
   inferValueType,
   isEditableSetting,
+  matchesAttributeFilter,
+  parseEnumValues,
   parseValue,
+  validateAttributeEnumValues,
   validateKey,
 } from "@/features/settings/types";
 
@@ -88,6 +102,24 @@ function quickReplyFixture(overrides: Partial<QuickReply> = {}): QuickReply {
     body: "Hi there, thanks for reaching out!",
     shared: false,
     usage_count: 0,
+    created_at: "2026-07-01T10:00:00Z",
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function attributeDefinitionFixture(
+  overrides: Partial<AttributeDefinition> = {},
+): AttributeDefinition {
+  return {
+    id: "attr1",
+    type: "custom_attribute",
+    key_name: "plan",
+    label: "Plan",
+    data_type: "string",
+    enum_values: null,
+    is_indexed: false,
+    is_pii: false,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
@@ -1155,6 +1187,392 @@ describe("CannedMessagesPanel", () => {
   });
 });
 
+// --- User attributes -----------------------------------------------------------------------------
+
+/**
+ * The real Contacts-page picker, reduced to its data dependency: the same `useCustomAttributeDefinitions`
+ * hook `ContactsList.tsx`, `ContactsToolbar.tsx` and `BulkActionDialog.tsx` import from
+ * `customer-profile/api`, under the identical `["custom-attributes"]` cache key the Settings panel
+ * writes through.
+ */
+function AttributePickerProbe(): JSX.Element {
+  const definitions = useCustomAttributeDefinitions();
+  return (
+    <ul aria-label="Contact attribute picker">
+      {(definitions.data ?? []).map((definition) => (
+        <li key={definition.id}>{definition.key_name}</li>
+      ))}
+    </ul>
+  );
+}
+
+describe("attribute helper functions", () => {
+  it("splits, trims and drops empty entries from comma-separated choices", () => {
+    expect(parseEnumValues(" gold ,silver,, bronze ")).toEqual(["gold", "silver", "bronze"]);
+    expect(parseEnumValues("")).toEqual([]);
+    expect(parseEnumValues("   ")).toEqual([]);
+  });
+
+  it("requires at least one choice for an enum attribute, and nothing for any other type", () => {
+    expect(validateAttributeEnumValues("enum", "")).toMatch(/at least one value/);
+    expect(validateAttributeEnumValues("enum", "gold")).toBeNull();
+    expect(validateAttributeEnumValues("string", "")).toBeNull();
+  });
+
+  it("matches an attribute by key name, label and the exact type filter", () => {
+    const plan = attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "enum" });
+    const ltv = attributeDefinitionFixture({ key_name: "ltv", label: "LTV", data_type: "number" });
+
+    expect(matchesAttributeFilter(plan, "plan", "all")).toBe(true);
+    expect(matchesAttributeFilter(plan, "LTV", "all")).toBe(false);
+    expect(matchesAttributeFilter(plan, "", "number")).toBe(false);
+    expect(matchesAttributeFilter(ltv, "", "number")).toBe(true);
+  });
+});
+
+describe("UserAttributesPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["contacts:read", "contacts:write", "auth:self"];
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture()];
+    withProviders(<UserAttributesPanel />);
+    expect(screen.getByText("Loading user attributes…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no attribute exists yet", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New attribute" }).length).toBeGreaterThan(0);
+  });
+
+  it("shows a clean read-only empty state, with no create action, without contacts:write", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/contacts write permission/).length).toBeGreaterThan(0);
+  });
+
+  it("lists attributes with their type, indexed and PII state", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", data_type: "enum", is_indexed: true }),
+      attributeDefinitionFixture({ id: "a2", key_name: "notes", label: "Notes", data_type: "string", is_pii: true }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    const tbody = screen.getByRole("table").querySelector("tbody")!;
+    expect(within(tbody).getByText("Choice list")).toBeInTheDocument();
+    expect(within(tbody).getByText("Indexed")).toBeInTheDocument();
+    expect(within(tbody).getByText("PII")).toBeInTheDocument();
+  });
+
+  it("narrows the list by search across key name and label", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Search user attributes"), { target: { value: "ltv" } });
+    expect(screen.queryByText("Plan")).not.toBeInTheDocument();
+    expect(screen.getByText("LTV")).toBeInTheDocument();
+  });
+
+  it("narrows the list by data type", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", data_type: "string" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV", data_type: "number" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Filter by type"), { target: { value: "number" } });
+    expect(screen.queryByText("Plan")).not.toBeInTheDocument();
+    expect(screen.getByText("LTV")).toBeInTheDocument();
+  });
+
+  it("explains a filtered-to-nothing list and offers Clear filters", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ key_name: "plan", label: "Plan" })];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Search user attributes"), { target: { value: "nope" } });
+    expect(await screen.findByText("No user attributes match")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("Plan")).toBeInTheDocument();
+  });
+
+  it("creates a plain string attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes");
+    expect(writes[0]?.body).toEqual({
+      key_name: "region",
+      label: "Region",
+      data_type: "string",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: false,
+    });
+  });
+
+  it("creates an enum attribute with its choices, and offers no choice field for a non-enum type", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    expect(screen.queryByLabelText("Choices")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Plan" } });
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "enum" } });
+    expect(screen.getByLabelText("Choices")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Choices"), { target: { value: "gold, silver" } });
+    fireEvent.click(screen.getByLabelText(/Indexed/));
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({
+      key_name: "plan",
+      label: "Plan",
+      data_type: "enum",
+      enum_values: ["gold", "silver"],
+      is_indexed: true,
+      is_pii: false,
+    });
+  });
+
+  it("blocks submission for an empty or over-limit key name, an over-limit label, and an enum with no choices", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    const submit = screen.getByRole("button", { name: "Create attribute" });
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "x".repeat(61) } });
+    expect(screen.getByText("Key names are limited to 60 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "x".repeat(121) } });
+    expect(screen.getByText("Labels are limited to 120 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "enum" } });
+    expect(submit).toBeDisabled();
+    expect(screen.getByText(/at least one choice/i)).toBeInTheDocument();
+
+    expect(writes).toHaveLength(0);
+  });
+
+  it("keeps the create dialog open with the typed values intact when the key name conflicts", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ key_name: "plan" })];
+    writeErrors["/api/v1/custom-attributes"] = {
+      detail: "An attribute named 'plan' already exists.",
+    };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Duplicate" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "An attribute named 'plan' already exists.",
+    );
+    expect(screen.getByRole("button", { name: "Create attribute" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Key name")).toHaveValue("plan");
+    expect(screen.getByLabelText("Label")).toHaveValue("Duplicate");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("edits label and flags through the patch endpoint, with key name and type shown but not editable", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "string" }),
+    ];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = attributeDefinitionFixture({
+      label: "Plan Tier",
+    });
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    const dialog = screen.getByRole("dialog");
+    // Immutable facts are shown as information, not as editable controls.
+    expect(screen.queryByLabelText("Key name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Type")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("plan")).toBeInTheDocument();
+    expect(within(dialog).getByText("Text")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Plan Tier" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes/{attribute_id}");
+    expect(writes[0]?.body).toEqual({
+      label: "Plan Tier",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: false,
+    });
+  });
+
+  it("deletes through the 204 endpoint and states that stored values are removed too", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    // `undefined` stands in for the real `204 No Content` — present key, no body.
+    responses["/api/v1/custom-attributes/{attribute_id}"] = undefined;
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Plan" }));
+    expect(screen.getByText(/removes this attribute and its stored value from every contact/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes/{attribute_id}");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete attribute" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the confirmation open with a visible error when the delete fails, and allows a retry", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    writeErrors["/api/v1/custom-attributes/{attribute_id}"] = {
+      detail: "This attribute could not be deleted right now.",
+    };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This attribute could not be deleted right now.",
+    );
+    expect(screen.getByRole("button", { name: "Delete attribute" })).toBeInTheDocument();
+    // Still in the table behind the dialog, because nothing was invalidated.
+    expect(within(screen.getByRole("table")).getByText("Plan")).toBeInTheDocument();
+
+    delete writeErrors["/api/v1/custom-attributes/{attribute_id}"];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete attribute" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    writeErrors["/api/v1/custom-attributes/{attribute_id}"] = { detail: "Plan could not be saved." };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Plan could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit LTV" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Plan could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete LTV" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the real Contacts-page attribute picker after a create, without a manual reload", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" })];
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <UserAttributesPanel />
+        </div>
+        <AttributePickerProbe />
+      </>,
+    );
+
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const attributePicker = screen.getByRole("list", { name: "Contact attribute picker" });
+    expect(await within(settingsPanel).findByText("Plan")).toBeInTheDocument();
+    expect(await within(attributePicker).findByText("plan")).toBeInTheDocument();
+    expect(within(attributePicker).queryByText("region")).not.toBeInTheDocument();
+
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "region", label: "Region", data_type: "string" }),
+    ];
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New attribute" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Key name"), { target: { value: "region" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Label"), { target: { value: "Region" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(within(attributePicker).getByText("region")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Region")).toBeInTheDocument();
+  });
+
+  it("hides every write control without contacts:write, on a populated list", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Plan" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Plan" })).not.toBeInTheDocument();
+    expect(screen.getByText(/contacts write permission/)).toBeInTheDocument();
+  });
+
+  it("names each row action after its own attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    expect(screen.getByRole("button", { name: "Edit Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit LTV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete LTV" })).toBeInTheDocument();
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<UserAttributesPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+});
+
 // --- Sections & navigation -------------------------------------------------------------------------------------
 
 describe("settings sections", () => {
@@ -1171,6 +1589,11 @@ describe("settings sections", () => {
   it("puts canned messages on the inbox permission their own endpoints enforce", () => {
     const cannedMessages = SETTINGS_SECTIONS.find((section) => section.key === "canned-messages");
     expect(cannedMessages?.permission).toBe("inbox:read");
+  });
+
+  it("puts user attributes on the contact permission their own endpoints enforce", () => {
+    const userAttributes = SETTINGS_SECTIONS.find((section) => section.key === "user-attributes");
+    expect(userAttributes?.permission).toBe("contacts:read");
   });
 
   it("collects the distinct permissions that grant access to the area", () => {

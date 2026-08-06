@@ -11,6 +11,35 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-06 — User Attributes management interface over the existing Custom Attribute contract
+
+**Added**
+- Added a Settings → User Attributes panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/custom-attributes` endpoints. The contract was already complete — typed definitions
+  (`string`/`number`/`datetime`/`boolean`/`enum`), org-scoped key uniqueness, `is_indexed`/`is_pii`
+  flags — but the frontend only ever issued the list read consumed by the Contacts filter bar,
+  campaign audience rules and segment predicates, so no organization could define a typed field
+  from the product itself.
+- Create, edit and delete for `contacts:write` holders. `key_name` and `data_type` are immutable
+  after creation — the update contract carries no field for either — so the edit dialog presents
+  both as read-only facts (via the same `DefinitionRow`/`<dl>` pattern used for Canned Messages'
+  read-only scope) rather than disabled controls that would silently do nothing.
+- Search across key name and label; a data-type filter; `Indexed`/`PII` shown as informational
+  badges. The delete confirmation states plainly that removing a definition also removes every
+  contact's stored value for it, matching the endpoint's real behaviour.
+- Twenty-three focused tests, including three pure-function tests for the comma-separated
+  enum-choice parser and its validation, and a cache-refresh regression against the real
+  `useCustomAttributeDefinitions` hook the Contacts page already imports from
+  `customer-profile/api.ts`, under one shared `QueryClient`.
+
+**Preserved**
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed; migration head remains `0041_channel_sync_control_plane` and the contract remains
+  drift-free.
+- Only contract fields are shown; no status, category, required/active flag or other unsupported
+  field was invented. `is_pii` is described honestly as not yet enforced elsewhere, since nothing
+  else in the codebase reads it.
+
 ### 2026-08-06 — Canned message scope accessibility fix
 
 **Fixed**

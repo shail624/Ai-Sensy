@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Canned Messages management interface over the existing Quick Reply contract (frontend only)` |
+| Latest change | `User Attributes management interface over the existing Custom Attribute contract (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -15,15 +15,33 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 708 tests PASS (687 before this remediation) · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `206.24/56.97 kB gzip`, against `205.81/56.88 kB gzip` before this remediation (`+0.43 kB` raw, `+0.09 kB` gzip — the composer's new permission-gated link); the Canned Messages panel itself is verified absent from the main chunk and present only in the lazy settings chunk |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 36 Vitest files / 731 tests PASS (708 before this remediation) · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `206.66/57.05 kB gzip`, against `206.24/56.97 kB gzip` before this remediation (`+0.42 kB` raw, `+0.08 kB` gzip — the new route/lazy-import registration only); the User Attributes panel itself is verified absent from the main chunk and present only in the lazy settings chunk (`+~10.2 kB` there) |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Frontend-only canned-message management panel over the existing quick-reply contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
-| Last update | `2026-08-06T04:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Frontend-only user-attribute management panel over the existing custom-attribute contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
+| Last update | `2026-08-06T05:00:00+05:30` (Asia/Kolkata) |
+
+## User Attributes management interface over the existing Custom Attribute contract
+
+- Added a Settings → User Attributes panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/custom-attributes` endpoints. The contract was already complete, but the frontend only
+  ever issued the list read consumed by the Contacts filter bar, campaign audience rules and
+  segment predicates, so no organization could define a typed field from the product itself.
+- Create, edit and delete for `contacts:write` holders; `key_name` and `data_type` are immutable
+  after creation, shown as read-only facts in the edit dialog via the same `DefinitionRow` pattern
+  Canned Messages already established.
+- Search, a data-type filter, and `Indexed`/`PII` shown as informational badges; the delete
+  confirmation accurately states that every contact's stored value for the definition is removed
+  too.
+- Writes invalidate the exact `["custom-attributes"]` cache key the Contacts page already reads,
+  plus the campaign/segment picker's key prefix, so a new attribute is selectable in both without a
+  reload.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed. Not a roadmap milestone, not M13-07.
 
 ## Canned Messages management interface over the existing Quick Reply contract
 

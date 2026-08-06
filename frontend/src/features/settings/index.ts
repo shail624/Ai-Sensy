@@ -4,8 +4,16 @@ export { FeatureFlagsPanel, FlagStateChip } from "./FeatureFlagsPanel";
 export { PreferencesPanel } from "./PreferencesPanel";
 export { TagsPanel } from "./TagsPanel";
 export { CannedMessagesPanel } from "./CannedMessagesPanel";
+export { UserAttributesPanel } from "./UserAttributesPanel";
 export { KeyValueEditor } from "./KeyValueEditor";
 export type { KeyValueEntry } from "./KeyValueEditor";
 export { SETTINGS_SECTIONS, SETTINGS_PERMISSIONS } from "./sections";
 export type { SettingsSection } from "./sections";
-export type { Organization, Setting, FeatureFlag, Tag, QuickReply } from "./types";
+export type {
+  Organization,
+  Setting,
+  FeatureFlag,
+  Tag,
+  QuickReply,
+  AttributeDefinition,
+} from "./types";

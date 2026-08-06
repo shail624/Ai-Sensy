@@ -4,7 +4,32 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-06T04:20:00+05:30`.
+Last synchronized: `2026-08-06T05:00:00+05:30`.
+
+
+## User Attributes management interface over the existing Custom Attribute contract
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Verified root cause | PASS | `GET/POST/PATCH/DELETE /api/v1/custom-attributes` existed and was contract-exposed with 7 passing backend tests, but the frontend issued only the list read consumed by the Contacts filter bar, campaign audience rules and segment predicates — no organization could define a typed field from the product. |
+| Contract fidelity | PASS | Only generated fields used: `key_name` (1–60, immutable), `label` (1–120), `data_type` (one of `string`/`number`/`datetime`/`boolean`/`enum`, immutable), `enum_values` (required non-empty for `enum`), `is_indexed`, `is_pii`. No status, category, required/active flag, created-by display or unsupported ownership field was invented. |
+| Immutable fields | PASS | `key_name` and `data_type` are offered only in the create dialog; the edit dialog shows both as read-only facts via the `DefinitionRow`/`<dl>` pattern (no `Field htmlFor` pointing at a non-labelable element), matching the update schema, which carries no field for either. |
+| Frontend lint | PASS | `npm run lint` clean (one unescaped-apostrophe fix applied before commit). |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Settings tests | PASS | 23 new tests (20 panel + 3 pure-function) in `settings.test.tsx` — 97 passed (74 before). |
+| Relevant consumer tests | PASS | Contacts, campaigns, segments and customer-profile test files — 181 passed, unchanged. |
+| Full frontend suite | PASS | 36 files / 731 tests passed (708 before this remediation). |
+| Backend attribute regressions | PASS | `tests/test_api_attributes.py` — 7 passed; no backend file changed. |
+| 204 deletion handling | PASS | `useDeleteAttributeDefinition` checks `{ error }` directly rather than `unwrap`, matching the established pattern; the delete regression stubs an empty response and asserts the dialog closes. |
+| Production build | PASS | Main chunk `206.66/57.05 kB gzip` against `206.24/56.97 kB gzip` before this remediation (`+0.42 kB` raw, `+0.08 kB` gzip — new route/lazy-import registration only). The panel itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in the lazy settings chunk. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports up to date; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| Permission and tenant behaviour | PASS | Reads gated on `contacts:read`, writes on `contacts:write`, matching the endpoints; the route guard carries the same code; write controls are hidden rather than shown disabled. Tenant isolation remains entirely server-side in `AttributeService`; no client-supplied organization id exists anywhere in the diff. |
+| Cache invalidation | PASS | Writes invalidate the literal `["custom-attributes"]` key `contactKeys.attributeDefinitions` already uses, plus the `["campaigns","pickers"]` prefix that already covers the campaign/segment picker's own key. A dedicated regression renders the panel beside the real `useCustomAttributeDefinitions` hook from `customer-profile/api.ts` under one shared `QueryClient` and proves a create refreshes that picker without a manual reload. |
+| Stale-error isolation | PASS | Mutation state resets the moment a create/edit/delete dialog opens, the same fix already proven on Tags and Canned Messages; a dedicated regression fails one attribute, cancels, opens a dialog for a different attribute, and asserts no stale error carries over. |
+| Reference boundary | PASS | No reference file, screenshot, MHTML, rendered HTML or extracted asset was staged; the only screen referenced (`0042_09_manage_05_user_attributes`) informed workflow/hierarchy only. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes, and behaviour at a realistic attribute volume remain unproven by repository gates. |
 
 
 ## Canned message scope accessibility fix

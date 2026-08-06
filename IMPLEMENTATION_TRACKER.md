@@ -3,23 +3,41 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-06 · Canned Messages management interface delivered over the existing Quick Reply contract, on top of the Tag Management follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-06 · User Attributes management interface delivered over the existing Custom Attribute contract, on top of the Canned Messages remediation, its accessibility fix and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `f5edfd208e12d712bbd7e81e49eb0f12a4b10ff8`
+- **Starting HEAD:** `58975cde18919437fb96fc22b63716a4fe6ea867`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Canned Messages management interface over the existing Quick Reply contract — a frontend-only remediation, not a roadmap milestone and not M13-07
+- **Latest change:** User Attributes management interface over the existing Custom Attribute contract — a frontend-only remediation, not a roadmap milestone and not M13-07
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 36 files / 708 tests passed (687 before this remediation)
+- **Frontend evidence:** 36 files / 731 tests passed (708 before this remediation)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-06T04:00:00+05:30`
+- **Last synchronized:** `2026-08-06T05:00:00+05:30`
 
 ## Delivered
+
+### User Attributes management interface over the existing Custom Attribute contract
+
+- Added a Settings → User Attributes panel over the existing `GET/POST/PATCH/DELETE
+  /api/v1/custom-attributes` endpoints. The contract was already complete, but the frontend only
+  ever issued the list read consumed by the Contacts filter bar, campaign audience rules and
+  segment predicates, so no organization could define a typed field from the product itself.
+- Create, edit and delete for `contacts:write` holders; `key_name` and `data_type` are immutable
+  after creation, shown as read-only facts in the edit dialog via the same `DefinitionRow`
+  pattern Canned Messages already established, rather than disabled controls.
+- Search, a data-type filter, and `Indexed`/`PII` shown as informational badges; the delete
+  confirmation accurately states that every contact's stored value for the definition is removed
+  too.
+- Writes invalidate the exact `["custom-attributes"]` cache key the Contacts page already reads,
+  plus the campaign/segment picker's key prefix, so a new attribute is selectable in both existing
+  pickers without a reload.
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path or generated
+  type changed.
 
 ### Canned Messages management interface over the existing Quick Reply contract
 

@@ -14,6 +14,11 @@ export type TagUpdateRequest = components["schemas"]["TagUpdateRequest"];
 export type QuickReply = components["schemas"]["QuickReplyResponse"];
 export type QuickReplyCreateRequest = components["schemas"]["QuickReplyCreateRequest"];
 export type QuickReplyUpdateRequest = components["schemas"]["QuickReplyUpdateRequest"];
+export type AttributeDefinition = components["schemas"]["AttributeDefinitionResponse"];
+export type AttributeDefinitionCreateRequest =
+  components["schemas"]["AttributeDefinitionCreateRequest"];
+export type AttributeDefinitionUpdateRequest =
+  components["schemas"]["AttributeDefinitionUpdateRequest"];
 
 /**
  * Setting scope — the three values `models/settings.py` defines.
@@ -231,4 +236,78 @@ export function matchesQuickReplyFilter(
 export function previewQuickReplyBody(body: string, maxLength = 80): string {
   const collapsed = body.replace(/\s+/g, " ").trim();
   return collapsed.length > maxLength ? `${collapsed.slice(0, maxLength - 1)}…` : collapsed;
+}
+
+/** Attribute bounds, mirrored from `schemas/attribute.py` (Doc 04 §14.4). */
+export const MAX_ATTRIBUTE_KEY_NAME = 60;
+export const MAX_ATTRIBUTE_LABEL = 120;
+
+/** The five `data_type` values `crm/attribute_types.py` declares — closed, not open text. */
+export const ATTRIBUTE_DATA_TYPES = ["string", "number", "datetime", "boolean", "enum"] as const;
+export type AttributeDataType = (typeof ATTRIBUTE_DATA_TYPES)[number];
+
+export const ATTRIBUTE_DATA_TYPE_LABELS: Record<AttributeDataType, string> = {
+  string: "Text",
+  number: "Number",
+  datetime: "Date & time",
+  boolean: "True / false",
+  enum: "Choice list",
+};
+
+export function validateAttributeKeyName(keyName: string): string | null {
+  const trimmed = keyName.trim();
+  if (trimmed === "") return "Key name is required";
+  if (trimmed.length > MAX_ATTRIBUTE_KEY_NAME) {
+    return `Key names are limited to ${MAX_ATTRIBUTE_KEY_NAME} characters`;
+  }
+  return null;
+}
+
+export function validateAttributeLabel(label: string): string | null {
+  const trimmed = label.trim();
+  if (trimmed === "") return "Label is required";
+  if (trimmed.length > MAX_ATTRIBUTE_LABEL) {
+    return `Labels are limited to ${MAX_ATTRIBUTE_LABEL} characters`;
+  }
+  return null;
+}
+
+/** Turn the editor's comma-separated text into the trimmed, non-empty list the API expects. */
+export function parseEnumValues(text: string): string[] {
+  return text
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
+}
+
+/** The server's own rule (`_validate_definition`): an enum attribute needs at least one value. */
+export function validateAttributeEnumValues(
+  dataType: AttributeDataType,
+  enumValuesText: string,
+): string | null {
+  if (dataType !== "enum") return null;
+  return parseEnumValues(enumValuesText).length === 0
+    ? "Enum attributes require at least one value"
+    : null;
+}
+
+/**
+ * Attributes carry no status field either; the useful split is data type, since it is fixed for
+ * the attribute's lifetime and determines which values it can ever hold.
+ */
+export type AttributeTypeFilter = "all" | AttributeDataType;
+
+export function matchesAttributeFilter(
+  definition: AttributeDefinition,
+  search: string,
+  typeFilter: AttributeTypeFilter,
+): boolean {
+  if (typeFilter !== "all" && definition.data_type !== typeFilter) return false;
+
+  const term = search.trim().toLowerCase();
+  if (term === "") return true;
+  return (
+    definition.key_name.toLowerCase().includes(term) ||
+    definition.label.toLowerCase().includes(term)
+  );
 }
