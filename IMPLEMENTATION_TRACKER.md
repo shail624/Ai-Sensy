@@ -3,21 +3,21 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-07 · Dedicated Chat History read workspace over the existing conversation and message contract, on top of the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-07 · Chat History pagination/polling/accessibility hardening (D1–D8 audit follow-up), on top of the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `dd2005bac47131163fc2d9817db80dedb0c432b6`
+- **Starting HEAD:** `cc94cbeaf39b3c66967eed44df9242138c5affaf`
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0041_channel_sync_control_plane` · 200 paths — both unchanged by this remediation
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Dedicated Chat History read workspace over the existing conversation and message contract — a frontend-only remediation (CORE-10's frontend half only), not a roadmap milestone and not M13-07
+- **Latest change:** Chat History pagination/polling/accessibility hardening (audit findings D1–D8) over the Dedicated Chat History workspace — a frontend-only follow-up, not a roadmap milestone and not M13-07; Chat History completion is unchanged at `55%`
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged
-- **Frontend evidence:** 37 files / 754 tests passed (731 before this remediation)
+- **Frontend evidence:** 37 files / 766 tests passed (754 before this hardening pass)
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-07T00:00:00+05:30`
+- **Last synchronized:** `2026-08-07T01:00:00+05:30`
 
 ## Delivered
 
@@ -44,6 +44,15 @@ _Last updated: 2026-08-07 · Dedicated Chat History read workspace over the exis
   definition or generated type changed. Closes the frontend half of `ROADMAP.md`'s `CORE-10`; the
   backend "Conversation query extensions" and export capability it also names remain unimplemented
   and are recorded as open follow-up, not claimed here.
+- **Follow-up hardening (same day):** removed the dead Previous-page control (the backend never
+  returns `prev_cursor`) in favour of a bounded "Back to newest" reset; disabled the inherited 10s
+  poll for the selected conversation's detail and messages via an optional, backward-compatible
+  `refetchInterval` override on `useConversation`/`useMessages` (Live Chat and Customer 360 keep
+  their existing default); moved focus into the detail pane on narrow viewports and restored it to
+  the originating row on return; included the `contact` deep-link filter in active-filter
+  detection; matched the status badge to Live Chat's open-only success convention; and added an
+  accessible name to the message list plus a page/thread heading pair. Twelve new tests; no
+  backend, contract, RBAC or percentage change.
 
 ### User Attributes management interface over the existing Custom Attribute contract
 

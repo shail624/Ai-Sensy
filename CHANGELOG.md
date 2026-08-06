@@ -11,6 +11,45 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-07 — Chat History pagination/polling/accessibility hardening (audit findings D1–D8)
+
+**Fixed**
+- Removed the Chat History conversation list's Previous control, which could never activate — the
+  backend never returns `prev_cursor`. Replaced it with a forward-only `Next` plus a `Back to
+  newest` reset, shown only once a later page has been loaded, that returns to the same bounded
+  25-row first page rather than any backend cursor contract change.
+- `useConversation`/`useMessages` (`features/inbox/api.ts`) gained an optional trailing
+  `refetchInterval` parameter, defaulting to the existing 10s poll every current caller relies on;
+  Chat History passes `false` for the selected conversation's detail and messages, since a
+  read-only archive view has no live-triage need for it. Live Chat and Customer 360 are
+  unaffected — neither passes the new argument.
+- Selecting a conversation below the route's own `lg` list/detail breakpoint now moves focus into
+  the detail pane (the "Back to conversation history" button); returning to the list restores
+  focus to the row that was open. Neither happens at or above `lg`, where both panes stay visible.
+  Reuses the existing `useMediaQuery` utility rather than a new breakpoint mechanism.
+- The `contact` deep-link filter now participates in active-filter detection, so a contact filter
+  matching nothing shows the same "No conversations match" / Clear filters state every other
+  filter does, instead of the global "no history at all" empty state.
+- The conversation list's status badge now colors `open` as success and every other status as
+  neutral, matching Live Chat's own `ConversationList.tsx` convention exactly (previously every
+  non-resolved status, including pending and snoozed, read as success).
+- The message list gained `aria-label="Message history"`; the page title is now a real `<h1>` and
+  the selected thread's contact name a real `<h2>` (matching `ConversationThread.tsx`'s own
+  heading level for the identical field) — the route previously contributed no heading at all.
+
+**Added**
+- Twelve new tests in `chat-history.test.tsx` covering all of the above, plus a direct regression
+  proving no conversation-detail or message request is made before a conversation is selected.
+
+**Preserved**
+- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path, RBAC
+  definition or generated type changed; no new permission was introduced.
+- `MODULE_STATUS.md`'s Chat History pending-work wording was corrected to keep naming media-only
+  and audit-scoped filtering alongside the existing date-range/campaign-generated/export/Download
+  Center gaps; completion remains `55%`, unchanged by this hardening pass.
+- Audit findings D9–D12 (the `<time>` `dateTime` attribute, the `/phone-numbers` duplicate cache
+  key, general test observations, button-vs-anchor deep links) were left untouched, as instructed.
+
 ### 2026-08-07 — Dedicated Chat History read workspace over the existing conversation and message contract
 
 **Added**

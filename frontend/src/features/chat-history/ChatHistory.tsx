@@ -1,5 +1,5 @@
-import { ArrowLeft, ExternalLink, History, Search, ShieldCheck } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowLeft, ChevronRight, ExternalLink, History, Search, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -9,7 +9,6 @@ import {
   ErrorState,
   Field,
   Input,
-  Pagination,
   Select,
   Spinner,
   TagChip,
@@ -29,8 +28,16 @@ import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
 import { useTags } from "@/features/customer-profile/api";
 import { useHasPermission } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 const PAGE_SIZE = 25;
+
+/**
+ * Matches Tailwind's default `lg` breakpoint (1024px) — the width this route's list/detail split
+ * itself switches on (`lg:flex` / `hidden lg:flex` below). Below it, only one pane is visible at a
+ * time, so selecting a row must move focus into the pane that becomes visible (Doc 05 DS-10).
+ */
+const NARROW_QUERY = "(max-width: 1023.98px)";
 
 function readFilters(params: URLSearchParams): InboxFilters {
   return {
@@ -68,7 +75,12 @@ function contactLabel(contact: { name: string | null; phone: string } | null): s
 
 function hasActiveFilter(filters: InboxFilters): boolean {
   return Boolean(
-    filters.q || filters.status || filters.assignee || filters.number || filters.tag,
+    filters.q ||
+      filters.status ||
+      filters.assignee ||
+      filters.number ||
+      filters.tag ||
+      filters.contact,
   );
 }
 
@@ -95,8 +107,15 @@ export function ChatHistory(): JSX.Element {
   const tags = useTags();
   const canAudit = useHasPermission("audit:read");
 
-  const selectedConversation = useConversation(selectedId);
-  const messages = useMessages(selectedId, 50);
+  // A read-only history view has no live-triage need for the 10s poll every other conversation
+  // and message consumer relies on — one read per selection is enough (Doc: audit finding D2).
+  const selectedConversation = useConversation(selectedId, false);
+  const messages = useMessages(selectedId, 50, false);
+
+  const isNarrow = useMediaQuery(NARROW_QUERY);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const previousSelectedIdRef = useRef<string | null>(null);
 
   const rows = conversations.data?.data ?? [];
   const page = conversations.data?.page;
@@ -116,9 +135,25 @@ export function ChatHistory(): JSX.Element {
     setSearchParams(writeParams(filters, conversationId, cursor));
   }
 
-  function goToCursor(next: string): void {
+  /** `null` returns to the first (newest) page — the only reset the contract actually supports. */
+  function goToCursor(next: string | null): void {
     setSearchParams(writeParams(filters, selectedId, next));
   }
+
+  // Below `lg` only one pane is visible at a time, so a selection change must carry focus with it
+  // (Doc 05 DS-10) — into the detail pane on select, back onto the row that was open on return.
+  // Never forced on desktop, where both panes stay visible and nothing here changes what a
+  // keyboard/screen-reader user is already looking at.
+  useEffect(() => {
+    if (isNarrow) {
+      if (selectedId) {
+        backButtonRef.current?.focus();
+      } else if (previousSelectedIdRef.current) {
+        rowRefs.current.get(previousSelectedIdRef.current)?.focus();
+      }
+    }
+    previousSelectedIdRef.current = selectedId;
+  }, [selectedId, isNarrow]);
 
   const flatMessages = (messages.data?.pages ?? []).flatMap((p) => p.data);
   const { thread: orderedMessages } = collateReactions([...flatMessages].reverse());
@@ -128,10 +163,10 @@ export function ChatHistory(): JSX.Element {
     <div className="flex h-full min-h-0 flex-col bg-canvas">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface px-4 py-3.5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-bold text-text-primary">
+          <h1 className="flex items-center gap-2 text-sm font-bold text-text-primary">
             <History aria-hidden className="h-4 w-4 text-accent" />
             Chat History
-          </div>
+          </h1>
           <p className="mt-1 max-w-2xl text-xs text-text-secondary">
             Read-only conversation and message history. To reply, assign, tag or resolve a
             conversation, open it in Live Chat. Date-range filtering and transcript export are not
@@ -282,6 +317,10 @@ export function ChatHistory(): JSX.Element {
                   return (
                     <li key={conversation.id}>
                       <button
+                        ref={(node) => {
+                          if (node) rowRefs.current.set(conversation.id, node);
+                          else rowRefs.current.delete(conversation.id);
+                        }}
                         type="button"
                         aria-current={selected ? "true" : undefined}
                         onClick={() => select(conversation.id)}
@@ -300,7 +339,7 @@ export function ChatHistory(): JSX.Element {
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <Badge
-                            tone={conversation.status === "resolved" ? "neutral" : "success"}
+                            tone={conversation.status === "open" ? "success" : "neutral"}
                             dot
                           >
                             {STATUS_LABELS[conversation.status as ConversationStatus] ??
@@ -318,19 +357,44 @@ export function ChatHistory(): JSX.Element {
             )}
           </div>
 
-          <Pagination
-            compact
-            label="Conversation history pagination"
-            hasPrevious={Boolean(page?.prev_cursor)}
-            hasNext={Boolean(page?.next_cursor)}
-            busy={conversations.isFetching}
-            onPrevious={() => {
-              if (page?.prev_cursor) goToCursor(page.prev_cursor);
-            }}
-            onNext={() => {
-              if (page?.next_cursor) goToCursor(page.next_cursor);
-            }}
-          />
+          {/*
+            The backend never returns `prev_cursor` (no endpoint sets it), so a bidirectional
+            Previous/Next control would show an affordance that can never activate. This is
+            deliberately forward-only: Next pages further back in time, and "Back to newest" —
+            shown only once a later page has been loaded — is the one reset the contract actually
+            supports (Doc: audit finding D1).
+          */}
+          <nav
+            aria-label="Conversation history pagination"
+            className="flex min-h-12 items-center justify-between gap-2 border-t border-border bg-surface px-3 py-2"
+          >
+            {cursor ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={conversations.isFetching}
+                onClick={() => goToCursor(null)}
+                leftIcon={<ArrowLeft aria-hidden className="h-3.5 w-3.5" />}
+              >
+                Back to newest
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!page?.next_cursor || conversations.isFetching}
+              onClick={() => {
+                if (page?.next_cursor) goToCursor(page.next_cursor);
+              }}
+              rightIcon={<ChevronRight aria-hidden className="h-3.5 w-3.5" />}
+            >
+              Next
+            </Button>
+          </nav>
         </div>
 
         <div className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-1 flex-col`}>
@@ -344,6 +408,7 @@ export function ChatHistory(): JSX.Element {
           ) : (
             <div className="flex h-full min-h-0 flex-col">
               <button
+                ref={backButtonRef}
                 type="button"
                 onClick={() => select(null)}
                 className="flex items-center gap-2 border-b border-border bg-surface px-4 py-3 text-sm font-semibold text-text-primary lg:hidden"
@@ -366,9 +431,9 @@ export function ChatHistory(): JSX.Element {
                 <>
                   <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-text-primary">
+                      <h2 className="truncate text-sm font-semibold text-text-primary">
                         {contactLabel(thread.contact)}
-                      </p>
+                      </h2>
                       <p className="truncate text-xs text-text-secondary">
                         {thread.contact?.phone} ·{" "}
                         {STATUS_LABELS[thread.status as ConversationStatus] ?? thread.status} ·{" "}
@@ -402,7 +467,7 @@ export function ChatHistory(): JSX.Element {
                         description="Conversation metadata is persisted, but the message ledger has no visible entries."
                       />
                     ) : (
-                      <ul className="space-y-2">
+                      <ul aria-label="Message history" className="space-y-2">
                         {messages.hasNextPage ? (
                           <li className="flex justify-center">
                             <Button

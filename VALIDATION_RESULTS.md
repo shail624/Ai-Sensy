@@ -4,7 +4,35 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T00:00:00+05:30`.
+Last synchronized: `2026-08-07T01:00:00+05:30`.
+
+
+## Chat History pagination/polling/accessibility hardening (audit findings D1–D8)
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| D1 — dead Previous control | PASS | The backend never returns `prev_cursor` (confirmed: only the schema default, no endpoint sets it); the bidirectional `Pagination` control was replaced with a forward-only `Next` plus a `Back to newest` reset shown only once a later page has loaded. A dedicated regression proves Next loads the next cursor, Back to newest appears only after paging forward, activating it reloads the initial 25-row page (`limit` stays 25 throughout), and the control then disappears again. |
+| D2 — inherited 10s polling on a read-only view | PASS | `useConversation`/`useMessages` (`features/inbox/api.ts`) gained an optional trailing `refetchInterval` parameter defaulting to the existing `POLL_INTERVAL_MS`; Chat History passes `false` for both. Three regressions inspect the real registered `QueryCache` entries: Chat History's detail/messages queries carry `refetchInterval: false`; a probe calling the hooks with no override (the exact call shape Live Chat's `ConversationThread` and Customer 360's `ConversationHistorySection` already use) still gets `POLL_INTERVAL_MS`; loading an older message page does not reactivate polling. |
+| Live Chat polling preserved | PASS | `inbox.test.tsx` (26 tests, unchanged) and `customer-profile` (13 tests, unchanged) pass without modification — no existing consumer's call site or behaviour changed. |
+| D3 — responsive focus | PASS | Reuses the existing `useMediaQuery` utility (`lib/useMediaQuery.ts`) with a `(max-width: 1023.98px)` query matching the route's own `lg` split. Selecting a conversation below `lg` moves focus to the "Back to conversation history" button; returning to the list restores focus to the row that was open; neither happens at or above `lg`. Three regressions cover narrow-select, narrow-return and desktop-no-op. |
+| D4 — contact filter in active-filter detection | PASS | `hasActiveFilter` now includes `filters.contact`; a `contact`-filtered empty result renders "No conversations match" with a working Clear filters action instead of the global empty state. |
+| D6 — status badge tone | PASS | Changed to `status === "open" ? "success" : "neutral"`, matching `ConversationList.tsx`'s existing Live Chat convention exactly. A regression renders one conversation per status and asserts the rendered tone class for all four. |
+| D7 — message list accessible name | PASS | `aria-label="Message history"` added to the message `<ul>`. |
+| D8 — heading semantics | PASS | Page title is now an `<h1>`; the selected thread's contact name is now an `<h2>` (matching `ConversationThread.tsx`'s own heading level for the identical field); no duplicate heading level is introduced. |
+| No detail/message request before selection | PASS | New regression asserts neither `/conversations/{id}` nor `/conversations/{id}/messages` is ever called while `selectedId` is null. |
+| Frontend lint | PASS | `eslint .` clean. |
+| TypeScript | PASS | `tsc --noEmit` clean. |
+| Focused Chat History tests | PASS | 34 tests in `chat-history.test.tsx` (22 existing + 12 new for D1–D8 and the strengthened gaps), all passing. |
+| Relevant consumer tests | PASS | `inbox.test.tsx` (26), `customer-profile` (13), `components/layout` (21) — all unchanged and passing. |
+| Full frontend suite | PASS | 37 files / 766 tests passed (754 before this hardening pass). |
+| Production build | PASS | Main chunk `207.50/57.27 kB gzip` against `207.50/57.23 kB gzip` before this pass (raw unchanged, `+0.04 kB` gzip — the optional hook parameter only). The workspace remains absent from the main chunk and present only in its own lazy chunk. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` reports up to date; path count unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` passed all six steps. |
+| Migration head | PASS | `0041_channel_sync_control_plane`, 41 revisions — unchanged. |
+| RBAC / permissions | PASS | No new permission; `rbac/catalog.py` untouched; route/nav/audit-link gating unchanged. |
+| Governance accuracy (D5) | PASS | `MODULE_STATUS.md`'s Chat History pending-work cell corrected to name media-only and audit-scoped filtering alongside the existing date-range/campaign/export/Download Center gaps; completion percentage unchanged at `55%`. |
+| Scope discipline | PASS | D9–D12 (the `dateTime` attribute, the `/phone-numbers` duplicate cache key, general test observations, button-vs-anchor) were left untouched, as instructed. |
+| Host validation | PENDING – Host Machine Validation | Authenticated representative-data visual review, browser/device matrix, keyboard-only and screen-reader passes remain unproven by repository gates. |
 
 
 ## Dedicated Chat History read workspace over the existing conversation and message contract

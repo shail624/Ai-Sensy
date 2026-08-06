@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Dedicated Chat History read workspace over the existing conversation and message contract (frontend only)` |
+| Latest change | `Chat History pagination/polling/accessibility hardening — audit findings D1-D8 (frontend only)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -15,15 +15,15 @@
 | Migration head | `0041_channel_sync_control_plane` (41 linear revisions) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
 | Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 754 tests PASS (731 before this remediation) · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `207.50/57.23 kB gzip`, against `206.66/57.05 kB gzip` before this remediation (`+0.84 kB` raw, `+0.18 kB` gzip — the new route/lazy-import/nav registration and the additive `number` filter field only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk (`~9.15 kB` there) |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 766 tests PASS (754 before this hardening pass) · production build PASS without the campaign circular chunk-order warning |
+| Bundle evidence | Main `207.50/57.27 kB gzip`, against `207.50/57.23 kB gzip` before this hardening pass (raw unchanged, `+0.04 kB` gzip — the optional `refetchInterval` parameter on the shared hooks only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
 | Host evidence | Target-host MySQL migration, real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody and staged tenant/RBAC/flag commissioning remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Frontend-only dedicated Chat History read workspace over the existing conversation/message contract, plus synchronized tracking; no backend, migration, API, provider adapter or live execution |
-| Last update | `2026-08-07T00:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | Frontend-only Chat History pagination/polling/accessibility hardening over the existing workspace, plus synchronized tracking; no backend, migration, API, RBAC, provider adapter or live execution |
+| Last update | `2026-08-07T01:00:00+05:30` (Asia/Kolkata) |
 
 ## Dedicated Chat History read workspace over the existing conversation and message contract
 

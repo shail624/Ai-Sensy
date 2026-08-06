@@ -78,7 +78,15 @@ export function useConversations(
   });
 }
 
-export function useConversation(conversationId: string | null) {
+/**
+ * `refetchInterval` defaults to the live 10s poll every existing caller (Live Chat's thread view,
+ * Customer 360's conversation section) relies on; a read-only consumer with no live-triage need
+ * (Chat History) can pass `false` to read once per selection instead, without a second hook.
+ */
+export function useConversation(
+  conversationId: string | null,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useQuery({
     queryKey: inboxKeys.detail(conversationId ?? ""),
     queryFn: async (): Promise<Conversation> =>
@@ -88,15 +96,20 @@ export function useConversation(conversationId: string | null) {
         }),
       ),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
 /**
- * Message history, newest-first, one cursor page at a time. The first page polls for new messages;
- * older pages are fetched on demand by the thread's "Load older messages" control and stay put.
+ * Message history, newest-first, one cursor page at a time. The first page polls for new messages
+ * by default; older pages are fetched on demand by the thread's "Load older messages" control and
+ * stay put. `refetchInterval` follows the same override convention as {@link useConversation}.
  */
-export function useMessages(conversationId: string | null, limit = 50) {
+export function useMessages(
+  conversationId: string | null,
+  limit = 50,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useInfiniteQuery({
     queryKey: inboxKeys.messages(conversationId ?? ""),
     initialPageParam: null as string | null,
@@ -111,7 +124,7 @@ export function useMessages(conversationId: string | null, limit = 50) {
       ),
     getNextPageParam: (last) => (last.page.has_more ? (last.page.next_cursor ?? null) : null),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
