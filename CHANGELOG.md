@@ -11,6 +11,61 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-06: WAHA session recovery, health and teardown
+
+**Added**
+- `app/channels/waha/recovery.py` — `ReconnectDecision`, `plan_reconnect()`, `backoff_delay()`,
+  `RuntimeLease`/`assert_lease_current()`/`StaleRuntimeLease`, `project_health()`, and the
+  opt-in `waha_channel_metadata()`/`waha_runtime_metadata()`/`register_waha_runtime()`.
+- `WahaClient.start_session()`, `stop_session()`, `logout_session()`.
+- `WahaChannelAdapter.session_health()`, `plan_session_recovery()`, `reconnect_session()`,
+  `stop_session()`, `logout_session()`.
+- **`SESSION_RECONNECT` and `SESSION_LOGOUT` declared** — earned by implementing them.
+- 62 tests in `tests/test_channel_waha_recovery.py`.
+
+**Behaviour**
+- **Reconnect never guesses from an ambiguous provider status.** QR-02 proved `STARTING` means
+  either a fresh session heading to `SCAN_QR_CODE` *or* a paired one resuming to `WORKING`.
+  `plan_reconnect()` is therefore driven by the platform's **durable** pairing record and consults
+  it before the provider status; `STARTING` yields `WAIT`, never `RECONNECT` and never
+  `REQUIRES_REAUTH`. A session whose durable state is not `PAIRED` is never auto-restarted.
+- **Provider unavailability never destroys durable truth.** An unreachable provider yields
+  `PROVIDER_UNAVAILABLE` — explicitly not `REQUIRES_REAUTH` — so a brief outage cannot unpair a
+  customer. `session_health()` reports it as unknown-and-unhealthy rather than optimistically fine.
+- **Reconnect is bounded.** Attempts stop at `DEFAULT_MAX_RECONNECT_ATTEMPTS`, and `backoff_delay()`
+  grows exponentially to a 60s ceiling as a pure function of the attempt number — identical in every
+  worker, no shared coordination, no reconnect storm. A `WORKING` session is never reported
+  exhausted regardless of prior attempts.
+- **STOP and LOGOUT stay semantically distinct.** STOP halts the session and leaves credentials
+  (`pairing_state` stays indeterminate — it does not claim the session became unpaired). LOGOUT
+  invalidates them, producing the certified `SCAN_QR_CODE` / `me=null` / re-auth-required outcome,
+  which is the *intended* result and is never auto-repaired. Collapsing them would let a routine
+  restart silently unpair an account. `DELETE` is deliberately not exposed at all.
+- **Ownership reuses the existing lease.** `RuntimeLease` describes a lease the existing session
+  authority already issued; `assert_lease_current()` requires **both** holder identity and fencing
+  token to match, so a re-claimed session cannot accept a stale writer that happens to hold the same
+  token number. Every lifecycle mutation refuses outright without a lease and makes **no** provider
+  call in that case. No new ownership system was invented.
+- **Health is session-scoped.** Only `WORKING` is healthy; a reachable server with no working
+  session is not. A session awaiting a scan reports re-authentication required, which outranks
+  generic provider health.
+- **No auto-pairing.** Recovery never fetches a QR and never creates a session — `reconnect_session`
+  issues `POST /sessions/{name}/start`, never `POST /sessions`.
+- **Runtime registration is opt-in.** `register_waha_runtime()` is explicit and idempotent; merely
+  importing the package still registers no runtime, preserving the invariant every milestone through
+  QR-05 asserted. Runtime capabilities are asserted never to exceed the adapter's.
+
+**Changed**
+- Twelve milestone-boundary guards were re-pointed as `SESSION_RECONNECT`/`SESSION_LOGOUT` moved
+  from withheld to declared and stop/logout legitimately began to exist. They now guard what remains
+  unimplemented — permanent deletion, history and media transfer.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, zero QR
+  routes, RBAC, generated types, **frontend untouched**, Meta behaviour, and the default
+  `ProviderRuntimeRegistry` (still empty). `BULK`/`CAMPAIGNS`/`TEMPLATE` remain permanently
+  prohibited. No history/media sync, interactive, reaction, location, contact or UI.
+
 ### 2026-08-08 — Fix: WAHA webhook event identity collision
 
 **Fixed**

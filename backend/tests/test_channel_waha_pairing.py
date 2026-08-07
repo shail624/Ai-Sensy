@@ -325,7 +325,7 @@ def test_prohibited_capabilities_still_never_declared() -> None:
 
 def test_qr03_adds_no_teardown() -> None:
     """QR-03 can bring a session up; only QR-06 may take one down."""
-    for name in ("stop_session", "restart_session", "logout", "logout_session", "delete_session"):
+    for name in ("delete_session", "destroy_session", "sync_history"):
         assert not hasattr(WahaChannelAdapter, name)
         assert not hasattr(WahaClient, name)
 
@@ -367,8 +367,6 @@ async def test_unimplemented_send_types_still_refuse() -> None:
 def test_qr03_declares_no_runtime_or_messaging_capability() -> None:
     """``SESSION_STREAM`` left this list when QR-04 implemented ingestion; runtime/messaging stay."""
     withheld = {
-        Capability.SESSION_RECONNECT,
-        Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
         Capability.MEDIA,
     }

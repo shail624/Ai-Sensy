@@ -6,9 +6,12 @@ Deliberately small, and grown one milestone at a time:
 * QR-02 — one more read: a single session's lifecycle status.
 * QR-03 — creating a session with the certified configuration, and fetching its transient QR.
 
-Start, stop, restart and logout (QR-06), webhook ingestion (QR-04), messaging (QR-05), media and
-history are **not** implemented here and must not be reachable from this milestone. In particular
-this client can bring a session up but still cannot tear a paired one down.
+* QR-06 — starting, stopping and logging out an existing session.
+
+Webhook ingestion (QR-04) is handled at the adapter seam; media and history transfer remain
+unimplemented. ``DELETE /api/sessions/{name}`` is deliberately **not** exposed: QR-06 needs stop and
+logout, and permanently deleting a session record is neither required by this milestone nor
+recoverable if issued in error.
 
 Everything the platform catches is a channel-neutral error from :mod:`app.channels.errors`, so no
 WAHA exception type escapes the seam (Doc 07 §5.3). Deterministic mapping of every failure shape
@@ -391,6 +394,40 @@ class WahaClient:
                 http_status=response.status_code,
             )
         return response.content, content_type
+
+    # --- Session lifecycle mutation (QR-06) ----------------------------------
+    async def start_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/start`` — resume an existing session.
+
+        Distinct from QR-03's ``create_session``: this resumes a session that already exists,
+        reusing whatever credentials it still holds, and never creates one. A session that does not
+        exist surfaces the provider's error rather than being silently created, because creating
+        one here would turn a reconnect into an unrequested new pairing.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/start", {})
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def stop_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/stop`` — halt the session, keeping credentials.
+
+        Non-destructive to pairing: certification showed a stopped session can be started again
+        without a new scan. See :meth:`logout_session` for the destructive counterpart.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/stop", {})
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def logout_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/logout`` — invalidate the WhatsApp credentials.
+
+        **Destructive and intentional.** Certification proved the observable result:
+        ``WORKING → SCAN_QR_CODE``, ``me=null``, and the QR endpoint answering again. The session
+        will need a fresh scan afterwards; that is the point of the operation, not a fault.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/logout", {})
+        return WahaSessionSnapshot.from_payload(body)
 
     # --- Send / reconcile (QR-05) --------------------------------------------
     async def send_text(self, *, chat_id: str, text: str) -> dict[str, Any]:

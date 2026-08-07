@@ -12,7 +12,8 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 and QR-02 add no migration, no route, no RBAC entry and no generated type
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-05 — WAHA send path and delivery-state reconciliation: outbound text through the configured session, canonical provider-id capture, acknowledgement translation onto the platform's **existing** monotonic `messages.status` vocabulary, and an endpoint-scoped reconcile-before-resend primitive. Declares `TEXT`. **No blind retry, no teardown/reconnect, no media/history, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
+- **Latest change:** QR-06 — WAHA session recovery, health and teardown: start/stop/logout behind a runtime lease, bounded reconnect planning driven by durable pairing truth rather than the provider's ambiguous `STARTING`, and a session-scoped health projection. Declares `SESSION_RECONNECT` and `SESSION_LOGOUT`. Runtime registration is **opt-in** — importing the package still registers no runtime. **No history/media sync, no session deletion, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
+- **Previous change:** QR-05 — WAHA send path and delivery-state reconciliation: outbound text through the configured session, canonical provider-id capture, acknowledgement translation onto the platform's **existing** monotonic `messages.status` vocabulary, and an endpoint-scoped reconcile-before-resend primitive. Declares `TEXT`. **No blind retry, no teardown/reconnect, no media/history, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
 - **Previous change:** QR-04 — WAHA webhook ingestion: raw-body sha512 HMAC verification and provider event normalization onto the **existing** `ChannelAdapter` webhook seam and `webhook_events` ingest authority. Dedupe identity is scoped by session **and** event type because certification proved `envelope.id` alone is not unique. Declares `SESSION_STREAM`. **No new route, table or migration; no send path, no delivery-state persistence, no teardown, no history/media execution and no UI.**
 - **Previous change:** QR-03 — WAHA QR pairing: create a session with the certified store configuration, fetch the transient QR challenge, and report provider-neutral pairing state. First declared capability since QR-01 (`QR_AUTH`). **QR-03 can bring a session up and cannot take one down — no stop/restart/logout/delete, no webhook ingestion, no send path, no media/history transfer, no session runtime, no public route and no UI.**
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-01 is adapter foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented and non-functional.
@@ -20,7 +21,7 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. The physical-phone evidence that record required was produced on 2026-08-08 and PASSED; the record itself still reads **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** and needs an **owner decision** to advance, which QR-02 does not make on its own authority. QR-01 registers a `waha` adapter limited to an authenticated server probe; QR-02 adds a read-only session lifecycle mapping; `ProviderRuntimeRegistry` still has no WAHA runtime.
 - **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02.
-- **Next milestone:** `QR-06 — reconnect/health/teardown`. Not started.
+- **Next milestone:** `QR-07 — QR frontend`. Not started.
 - **Last synchronized:** `2026-08-08T00:00:00+05:30`
 
 ## Delivered
@@ -98,6 +99,33 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
   collided on the same inputs the new algorithm now discriminates, plus five delimiter-injection
   cases and a determinism/no-`hash()` assertion. Full QR-04 suite 64 passed (52 before); all five
   WAHA suites 253 passed together; full backend suite 1289 passed (1277 before).
+
+### QR-06 — WAHA session recovery, health and teardown
+
+- **Delivered:** `app/channels/waha/recovery.py` (`plan_reconnect`, `backoff_delay`, `RuntimeLease`/
+  `assert_lease_current`, `project_health`, opt-in runtime metadata + `register_waha_runtime`),
+  client `start_session`/`stop_session`/`logout_session`, and adapter `session_health`/
+  `plan_session_recovery`/`reconnect_session`/`stop_session`/`logout_session`. Declares
+  `SESSION_RECONNECT` and `SESSION_LOGOUT`.
+- **STARTING ambiguity enforced, not just documented:** reconnect planning consults the durable
+  pairing record before the provider status, so `STARTING` yields `WAIT` and never `RECONNECT` or
+  `REQUIRES_REAUTH`. An unpaired session is never auto-restarted.
+- **Outage safety:** an unreachable provider yields `PROVIDER_UNAVAILABLE`, asserted distinct from
+  `REQUIRES_REAUTH`, so durable pairing truth survives a provider being briefly down.
+- **Bounded:** attempts capped and backoff exponential to a 60s ceiling, computed as a pure function
+  of the attempt number so every worker agrees without coordination.
+- **STOP vs LOGOUT preserved:** STOP keeps credentials and refuses to claim the session became
+  unpaired; LOGOUT deliberately produces re-auth-required truth that nothing auto-repairs. `DELETE`
+  is not exposed at all.
+- **Lease reuse, not reinvention:** `RuntimeLease` carries identifiers only; ownership remains
+  `SessionManager`/`ProviderRuntimeManager` against `channel_sessions`. Both holder identity and
+  fencing token must match, and every mutation refuses — with no provider call — when unowned.
+- **Runtime registration opt-in:** the default `ProviderRuntimeRegistry` is still empty, preserving
+  the invariant every milestone through QR-05 asserted.
+- **Tests:** 62 new hermetic tests (`tests/test_channel_waha_recovery.py`); 313 across all six WAHA
+  suites. Full suite 1349 passed (1289 before QR-06).
+- **Unchanged:** migration head, OpenAPI (200 paths, zero QR routes), RBAC, generated types,
+  frontend, Meta behaviour, and prohibited capabilities.
 
 ### QR-05 — WAHA send path and delivery-state reconciliation
 

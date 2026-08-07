@@ -7,6 +7,49 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-06 — WAHA session recovery, health and teardown
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| WORKING session is healthy | PASS | `project_health()` reports `healthy=True` only for `WORKING`. |
+| Server-up / session-down distinction | PASS | `STOPPED`, `STARTING` and `FAILED` all report unhealthy — QR-01's "server health is not session health" rule is preserved, not conflated. |
+| Re-auth outranks generic health | PASS | A session awaiting a scan reports unhealthy with an explicit re-authentication detail, regardless of provider uptime. |
+| Unreachable provider is unknown | PASS | `project_health(None)` is unhealthy and labelled unknown; `session_health()` maps a transport failure to it rather than raising or reporting fine. |
+| STARTING ambiguity preserved | PASS | `plan_reconnect()` returns `WAIT` for `STARTING`, and is asserted to return neither `RECONNECT` nor `REQUIRES_REAUTH` — the QR-02 finding is enforced, not merely documented. |
+| Paired session may reconnect | PASS | `STOPPED`/`FAILED` with a durable `PAIRED` record yield `RECONNECT`. |
+| Unpaired session never auto-restarted | PASS | `UNPAIRED`, `PAIRING_EXPIRED`, `PAIRING_CANCELLED` all yield `REQUIRES_REAUTH`; restarting them could only raise a QR nobody asked for. |
+| Indeterminate durable state waits | PASS | `PAIRING_REQUESTED`/`PAIRING_AVAILABLE` yield `WAIT` rather than a guess. |
+| Provider unavailable preserves durable truth | PASS | Yields `PROVIDER_UNAVAILABLE`, asserted **not** to be `REQUIRES_REAUTH`, so an outage cannot unpair a customer. |
+| Reconnect bounded | PASS | Attempts at `DEFAULT_MAX_RECONNECT_ATTEMPTS` yield `ATTEMPTS_EXHAUSTED`; a `WORKING` session is never exhausted even at 99 attempts. |
+| Backoff bounded and deterministic | PASS | Monotonic, capped at 60s, identical across repeated computation (a pure function of attempt number — no shared coordination); negative attempts rejected. |
+| Stop → STOPPED semantics | PASS | `POST /sessions/{name}/stop`; maps to `SessionState.PAUSED` and asserts `pairing_state is None` — STOP never claims the session became unpaired. |
+| Logout → re-auth truth | PASS | `POST /sessions/{name}/logout`; certified `SCAN_QR_CODE` + `me=null` → `WAITING_FOR_PAIRING`, `PAIRING_AVAILABLE`, health unhealthy. The intended outcome, not a fault. |
+| Stop and logout are distinct | PASS | Asserted to hit different provider endpoints; collapsing them would let a restart silently unpair an account. |
+| Idempotent lifecycle operations | PASS | Repeating reconnect/stop/logout converges on the same reported state. |
+| Stale fencing token rejected | PASS | A newer token raises `StaleRuntimeLease`. |
+| Lost/absent lease holder rejected | PASS | A different `runtime_id`, and a `None` holder, both raise. |
+| Matching token under a different owner rejected | PASS | Identity **and** token must match — a re-claimed session can reuse a token number, so a token alone is insufficient. |
+| Mutation refuses without a lease | PASS | Reconnect, stop and logout each raise `ChannelConfigError` and are asserted to make **no** provider call. |
+| No new ownership system | PASS | `RuntimeLease` only carries identifiers; issuing/extending/revoking remain `SessionManager`/`ProviderRuntimeManager` against `channel_sessions`. |
+| No auto-pairing / QR retrieval | PASS | Recovery paths asserted never to touch `auth/qr`; `reconnect_session` asserted never to `POST /api/sessions`. |
+| Session-name validation | PASS | `../admin` rejected on all three lifecycle operations before any request is issued. |
+| Engine guard on lifecycle | PASS | A session reporting `GOWS` fails closed with `WahaEngineNotApproved`. |
+| No startup network / registry side effect | PASS | Importing the package registers no runtime; the default `ProviderRuntimeRegistry` is asserted empty (`available() == ()`), preserving the QR-01..05 invariant. |
+| Explicit registration works | PASS | `register_waha_runtime()` installs provider + runtime metadata, is idempotent, and is asserted never to advertise more than the adapter implements or any prohibited capability. |
+| No DELETE surface | PASS | `delete_session`/`destroy_session`/`purge_session` absent from adapter and client — QR-06 needs stop and logout, and permanent deletion is unrecoverable if issued in error. |
+| Capability gating | PASS | Without `SESSION_RECONNECT`, reconnect/stop raise; without `SESSION_LOGOUT`, logout raises. |
+| No later capability | PASS | `HISTORY_SYNC`, `MEDIA`, `MEDIA_UPLOAD`, `MEDIA_DOWNLOAD`, `INTERACTIVE`, `REACTION`, `LOCATION`, `CONTACT` all remain undeclared. |
+| Prohibited capabilities | PASS | `BULK`/`CAMPAIGNS`/`TEMPLATE` disjoint from the declared set and from runtime metadata. |
+| Meta regression | PASS | Full suite passes with Meta suites unmodified. |
+| QR-01..05 + webhook digest regression | PASS | 313 tests across all six WAHA suites pass together, including the QR-04 identity-digest tests. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in **297** source files (296 before QR-06). |
+| Full backend suite | PASS | **1349 passed**, 0 skipped (1289 before QR-06; +60). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, **43 revisions, unchanged**. QR-06 reuses the existing session/lease authorities; no migration is justified. |
+| OpenAPI / routes | PASS | **200 paths, unchanged**; zero `qr`/`pair`/`waha` routes. |
+| Frontend | PASS (unchanged) | `git status frontend/` reports zero changed files. |
+
+
 ## Defect fix — WAHA webhook event identity collision
 
 | Validation item | Status | Latest evidence |

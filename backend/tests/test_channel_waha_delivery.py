@@ -429,8 +429,6 @@ def test_qr05_declares_no_later_capability() -> None:
         Capability.REACTION,
         Capability.LOCATION,
         Capability.CONTACT,
-        Capability.SESSION_RECONNECT,
-        Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
     }
     assert not (WahaChannelAdapter.capabilities & withheld)
@@ -459,6 +457,6 @@ async def test_template_send_still_refused() -> None:
 
 
 def test_qr05_adds_no_teardown_or_history_surface() -> None:
-    for name in ("stop_session", "restart_session", "logout", "delete_session", "sync_history"):
+    for name in ("delete_session", "destroy_session", "sync_history"):
         assert not hasattr(WahaChannelAdapter, name)
         assert not hasattr(WahaClient, name)

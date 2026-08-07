@@ -82,9 +82,11 @@ QR-04 (webhook ingestion) is also delivered: verification and normalization onto
 QR-05 (text send and delivery-state reconciliation) is also delivered, reusing the existing
 monotonic `messages` status authority rather than adding a second ordering.
 
+QR-06 (session recovery, health and teardown) is also delivered, reusing the existing session
+lease/fencing authority rather than adding a second runtime ownership system.
+
 Still not started, and still requiring their own milestones: provider history retrieval and
-media-byte transfer/processing, session teardown/reconnect runtime (QR-06) and all UI
-(QR-07/QR-08).
+media-byte transfer/processing, and all UI (QR-07/QR-08).
 
 ## Phase 0 — Governance and scope lock
 

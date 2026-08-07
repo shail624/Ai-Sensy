@@ -25,8 +25,14 @@ QR-05: **send and delivery state** — outbound text through the configured sess
 capture, acknowledgement translation onto the platform's existing monotonic status vocabulary, and
 the reconcile-before-resend primitive (:mod:`app.channels.waha.delivery`). This earns ``TEXT``.
 
-The asymmetry is deliberate: QR-03 can bring a session **up** but has no way to stop, restart or log
-one out. Teardown is QR-06, so nothing here can destroy a working pairing.
+QR-06: **recovery, health and teardown** — start/stop/logout behind a runtime lease, bounded
+reconnect planning, and a session-scoped health projection
+(:mod:`app.channels.waha.recovery`). This earns ``SESSION_RECONNECT`` and ``SESSION_LOGOUT``.
+
+QR-06 is the first milestone that may take a session **down**, so its safety rules matter: a
+reconnect is planned from the platform's own durable pairing record rather than the provider's
+ambiguous ``STARTING``, an unreachable provider means "unknown" rather than "unpaired", and a logout
+deliberately produces re-authentication-required truth that nothing here tries to auto-repair.
 
 ## Why the capability set is (almost) empty
 
@@ -44,7 +50,7 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 | ``HEALTH`` | **yes** | :meth:`health_signal` is implemented and proven against the certified build. |
 | ``QR_AUTH`` | **yes** | QR-03. :meth:`begin_pairing`/:meth:`pairing_challenge`/:meth:`pairing_state` are implemented, and physical-phone certification paired a real handset through this exact provider path. |
 | ``SESSION_STREAM`` | **yes** | QR-04. Raw-body sha512 HMAC verification and event normalization into the existing ``webhook_events`` ingest authority. |
-| ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | no | Session runtime is QR-06. QR-03 can bring a session **up**; it deliberately cannot stop, restart or log one out. |
+| ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | **yes** | QR-06. Start/stop/logout are implemented behind a runtime lease, with bounded reconnect planning that never guesses from an ambiguous provider status. |
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
 | ``TEXT`` | **yes** | QR-05. :meth:`_dispatch` sends text through the configured session, and certification proved an external cross-account delivery reaching ``READ``. |
 | ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | QR-05 sends text only; media transfer is a later milestone. |
@@ -77,7 +83,7 @@ from typing import Any, Final
 
 from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
-from app.channels.errors import ChannelConfigError, ChannelNotSupported
+from app.channels.errors import ChannelConfigError, ChannelNotSupported, ChannelTransportError
 from app.channels.models import (
     ChannelStatus,
     HealthSignal,
@@ -94,6 +100,13 @@ from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
 from app.channels.waha.delivery import extract_sent_id, to_status_update
 from app.channels.waha.lifecycle import WahaSessionSnapshot
 from app.channels.waha.pairing import WahaQrChallenge
+from app.channels.waha.recovery import (
+    DEFAULT_MAX_RECONNECT_ATTEMPTS,
+    ReconnectDecision,
+    RuntimeLease,
+    plan_reconnect,
+    project_health,
+)
 from app.channels.waha.webhook import parse_events, to_inbound_message, verify_signature
 from app.core.config import settings
 
@@ -124,6 +137,8 @@ class WahaChannelAdapter(ChannelAdapter):
             Capability.QR_AUTH,
             Capability.SESSION_STREAM,
             Capability.TEXT,
+            Capability.SESSION_RECONNECT,
+            Capability.SESSION_LOGOUT,
         }
     )
 
@@ -339,6 +354,99 @@ class WahaChannelAdapter(ChannelAdapter):
         """
         self.require(Capability.SESSION_STREAM)
         return to_status_update(payload)
+
+    # --- Session recovery / teardown (QR-06) ---------------------------------
+    async def session_health(self, name: str) -> HealthSignal:
+        """Health of one **WhatsApp session** — not the server.
+
+        A reachable server with no ``WORKING`` session reports unhealthy, and a session awaiting a
+        scan reports re-authentication required, which outranks generic provider health. An
+        unreachable provider is reported as unknown-and-unhealthy rather than optimistically fine.
+        """
+        self.require(Capability.HEALTH)
+        try:
+            snapshot = await self.session_snapshot(name)
+        except ChannelTransportError:
+            return project_health(None)
+        return project_health(snapshot)
+
+    async def plan_session_recovery(
+        self,
+        name: str,
+        *,
+        durable_pairing_state: PairingState,
+        attempts: int = 0,
+        max_attempts: int = DEFAULT_MAX_RECONNECT_ATTEMPTS,
+    ) -> ReconnectDecision:
+        """Decide what may safely be done for a session, without mutating anything.
+
+        ``durable_pairing_state`` is the platform's own record, and it is authoritative here: the
+        provider's ``STARTING`` cannot distinguish a fresh session from a paired one resuming, so a
+        reconnect is never planned from provider status alone.
+        """
+        self.require(Capability.SESSION_RECONNECT)
+        try:
+            snapshot = await self.session_snapshot(name)
+            status = snapshot.status
+        except ChannelTransportError:
+            # Unreachable is "unknown", never "unpaired" — durable truth must survive an outage.
+            status = None
+        return plan_reconnect(
+            provider_status=status,
+            durable_pairing_state=durable_pairing_state,
+            attempts=attempts,
+            max_attempts=max_attempts,
+        )
+
+    async def reconnect_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+        """Resume an existing session. Never creates one, never pairs, never fetches a QR.
+
+        Idempotent against an already-working session: the provider is asked to start, and a session
+        that is already ``WORKING`` simply stays that way.
+        """
+        self.require(Capability.SESSION_RECONNECT)
+        self._require_lease(lease)
+        snapshot = await self._client.start_session(name)
+        self._assert_session_engine(snapshot)
+        return snapshot
+
+    async def stop_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+        """Halt a session while leaving its stored credentials intact.
+
+        Non-destructive to pairing — see :meth:`logout_session` for the destructive counterpart.
+        """
+        self.require(Capability.SESSION_RECONNECT)
+        self._require_lease(lease)
+        snapshot = await self._client.stop_session(name)
+        self._assert_session_engine(snapshot)
+        return snapshot
+
+    async def logout_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+        """Invalidate the session's WhatsApp credentials, requiring a fresh scan afterwards.
+
+        The resulting re-authentication-required state is the **intended** outcome, not a fault to
+        be auto-repaired: nothing in this adapter may respond to it by fetching a QR or re-pairing.
+        """
+        self.require(Capability.SESSION_LOGOUT)
+        self._require_lease(lease)
+        snapshot = await self._client.logout_session(name)
+        self._assert_session_engine(snapshot)
+        return snapshot
+
+    @staticmethod
+    def _require_lease(lease: RuntimeLease | None) -> None:
+        """Lifecycle mutation requires a lease the caller has already validated as current.
+
+        The durable check belongs to the existing session authority
+        (:func:`~app.channels.waha.recovery.assert_lease_current` against
+        ``SessionManager``/``ProviderRuntimeManager``); this only refuses an unowned mutation
+        outright so no caller can skip that step by omission.
+        """
+        if lease is None:
+            raise ChannelConfigError(
+                "A session lifecycle mutation requires a runtime lease; refusing to act without "
+                "proven ownership."
+            )
 
     # --- Outbound (QR-05) ----------------------------------------------------
     async def _dispatch(self, message: OutboundMessage) -> SendResult:

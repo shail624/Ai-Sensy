@@ -460,8 +460,6 @@ def test_session_stream_declared() -> None:
 
 def test_qr04_declares_no_later_capability() -> None:
     withheld = {
-        Capability.SESSION_RECONNECT,
-        Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
         Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
@@ -478,5 +476,5 @@ def test_prohibited_capabilities_unchanged() -> None:
 
 
 def test_qr04_adds_no_send_or_teardown() -> None:
-    for name in ("stop_session", "restart_session", "logout", "delete_session", "send_image"):
+    for name in ("delete_session", "send_image", "sync_history"):
         assert not hasattr(WahaChannelAdapter, name)

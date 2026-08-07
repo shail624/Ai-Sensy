@@ -93,6 +93,8 @@ def test_declares_only_implemented_capabilities() -> None:
             Capability.QR_AUTH,
             Capability.SESSION_STREAM,
             Capability.TEXT,
+            Capability.SESSION_RECONNECT,
+            Capability.SESSION_LOGOUT,
         }
     )
 
@@ -100,8 +102,6 @@ def test_declares_only_implemented_capabilities() -> None:
 @pytest.mark.parametrize(
     "capability",
     [
-        Capability.SESSION_RECONNECT,
-        Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
         Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
@@ -506,11 +506,9 @@ def test_adapter_exposes_no_teardown_or_messaging_surface() -> None:
     or logged out by anything shipped so far.
     """
     forbidden = {
-        "stop_session",
-        "restart_session",
-        "logout",
-        "logout_session",
         "delete_session",
+        "destroy_session",
+        "purge_session",
         "pair_phone",
         "sync_history",
     }

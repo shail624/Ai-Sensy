@@ -344,19 +344,28 @@ async def test_api_key_is_sent_but_never_exposed() -> None:
 # --- Milestone boundary -------------------------------------------------------------------------
 
 
-def test_lifecycle_capabilities_remain_withheld() -> None:
-    """QR-02's own capabilities are still withheld after QR-03.
+def test_lifecycle_capabilities_are_earned_not_assumed() -> None:
+    """Every lifecycle capability is declared only by the milestone that implemented it.
 
-    QR-03 earned ``QR_AUTH`` by implementing pairing and QR-04 earned ``SESSION_STREAM`` by
-    implementing ingestion. The runtime capabilities this suite guards —
-    SESSION_RECONNECT/SESSION_LOGOUT (QR-06) — must stay undeclared, because nothing implements
-    them.
+    QR-03 earned ``QR_AUTH``, QR-04 ``SESSION_STREAM``, QR-06 ``SESSION_RECONNECT``/
+    ``SESSION_LOGOUT``. What this suite still guards is that capabilities nothing implements —
+    history and media transfer — remain undeclared.
     """
-    withheld = {
+    earned = {
+        Capability.QR_AUTH,
+        Capability.SESSION_STREAM,
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
     }
-    assert not (WahaChannelAdapter.capabilities & withheld)
+    assert earned <= WahaChannelAdapter.capabilities
+
+    unimplemented = {
+        Capability.HISTORY_SYNC,
+        Capability.MEDIA,
+        Capability.MEDIA_UPLOAD,
+        Capability.MEDIA_DOWNLOAD,
+    }
+    assert not (WahaChannelAdapter.capabilities & unimplemented)
 
 
 def test_no_session_teardown_surface() -> None:
@@ -366,11 +375,9 @@ def test_no_session_teardown_surface() -> None:
     working pairing cannot be destroyed by anything shipped so far.
     """
     forbidden = (
-        "stop_session",
-        "restart_session",
-        "logout",
-        "logout_session",
         "delete_session",
+        "destroy_session",
+        "purge_session",
     )
     for name in forbidden:
         assert not hasattr(WahaChannelAdapter, name), f"teardown is QR-06: {name!r}"
