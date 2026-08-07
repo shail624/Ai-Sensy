@@ -360,9 +360,9 @@ async def test_inherited_send_path_still_refuses() -> None:
         await adapter.send_text("919355585553", "should never send")
 
 
-def test_qr03_declares_no_stream_or_runtime_capability() -> None:
+def test_qr03_declares_no_runtime_or_messaging_capability() -> None:
+    """``SESSION_STREAM`` left this list when QR-04 implemented ingestion; runtime/messaging stay."""
     withheld = {
-        Capability.SESSION_STREAM,
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,

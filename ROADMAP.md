@@ -66,7 +66,7 @@ transfer, messaging, webhook, routing and operator UI remain outside this milest
 | M13-03 — Persistent Channel Connections & Endpoint Records | Add organization-owned provider-neutral connection/endpoint records and encrypted versioned/revocable credentials with tenant isolation, lifecycle/health metadata, soft delete, locking, flags and Audit references | **REPOSITORY VALIDATED**; migration `0037`; no API/provider/runtime/UI behavior |
 | M13-04 — QR Session Manager Foundation | Durable provider-neutral session state, lifecycle, heartbeat/expiration, recovery/restart metadata, capability references, tenant/RBAC/flags/Audit and lease/fencing concurrency controls | **REPOSITORY VALIDATED**; migration `0038`; no provider, live runtime, QR/login, API or UI behavior |
 | M13-05 — QR Pairing & Provider Runtime Foundation | Provider-neutral runtime registry/manager, no-store pairing lifecycle, health/events/capabilities, heartbeat/restart/recovery and session persistence integration | **REPOSITORY VALIDATED**; migration `0039`; no provider adapter, QR image/login, messaging, API or UI behavior |
-| M13-06 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | **M13-06A persistence and M13-06B provider-neutral lifecycle control plane REPOSITORY VALIDATED**; provider adapters, live event ingestion, provider history retrieval and media-byte transfer remain blocked by certification |
+| M13-06 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | **M13-06A persistence and M13-06B provider-neutral lifecycle control plane REPOSITORY VALIDATED**; certification PASSED 2026-08-08, and the provider adapter (QR-01) and live event ingestion (QR-04) are delivered. Provider history retrieval and media-byte transfer remain unimplemented |
 | M13-07 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
 | M13-08 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by stable source milestones |
 | M13-09 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
@@ -76,9 +76,12 @@ The M13-06B stop gate has since been released: physical-phone certification **PA
 2026-08-08 and the owner instructed the QR sequence to proceed. QR-01 (adapter foundation),
 QR-02 (session lifecycle mapping) and QR-03 (QR pairing) are delivered under that release.
 
-Still not started, and still requiring their own milestones: live event ingestion (QR-04), provider
-history retrieval and media-byte transfer/processing (QR-05/QR-06), messaging (QR-05), webhook
-routing (QR-04), session teardown/runtime (QR-06) and all UI (QR-07/QR-08).
+QR-04 (webhook ingestion) is also delivered: verification and normalization onto the existing
+`webhook_events` authority, with no new route, table or migration.
+
+Still not started, and still requiring their own milestones: messaging/send and delivery-state
+persistence (QR-05), provider history retrieval and media-byte transfer/processing, session
+teardown/reconnect runtime (QR-06) and all UI (QR-07/QR-08).
 
 ## Phase 0 — Governance and scope lock
 

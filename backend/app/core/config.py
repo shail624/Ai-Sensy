@@ -173,6 +173,10 @@ class Settings(BaseSettings):
     waha_certified_version: str = "2026.7.2"
     #: Only NOWEB is owner-approved. Changing this requires a new owner decision and re-certification.
     waha_approved_engine: str = "NOWEB"
+    #: Shared secret the WAHA server signs each webhook body with (raw-body sha512 HMAC). Secret:
+    #: never logged. Empty by default and an empty secret **rejects** every delivery, so an
+    #: unconfigured deployment cannot silently accept unsigned provider traffic.
+    waha_webhook_hmac_secret: str = ""
 
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
     # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not

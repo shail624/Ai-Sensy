@@ -11,6 +11,55 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-04: WAHA webhook ingestion
+
+**Added**
+- `app/channels/waha/webhook.py` — raw-body sha512 HMAC verification, provider event
+  normalization, `event_identity()` and `canonical_message_id()`.
+- `WahaChannelAdapter.verify_webhook_signature()` / `parse_webhook()` / `to_inbound_message()`,
+  implementing the **existing** generic `ChannelAdapter` seam. No parallel ingest path.
+- Configuration `WAHA_WEBHOOK_HMAC_SECRET`, empty by default.
+- **`SESSION_STREAM` declared** — earned by implementing ingestion.
+- 52 tests in `tests/test_channel_waha_webhook.py`.
+
+**Behaviour**
+- **Reuses the existing ingest authority.** Events flow into `WebhookService` → `webhook_events`,
+  which already owns persist-first durability, dedupe and dead-lettering. No new table, no new
+  route, no second dedupe store, no migration.
+- **`envelope.id` alone is not the dedupe key.** Certification proved delivery is at-least-once,
+  that a retry repeats both `envelope.id` and `X-Webhook-Request-Id`, and that one provider message
+  arrives as both `message` and `message.any` **sharing one `envelope.id`**. `event_identity()`
+  scopes the key by session **and** event type, so a retry collapses while two distinct event types
+  over one message both survive. Session scoping also prevents cross-tenant collision on a
+  provider-chosen id. Determinism is proven by test — including a 64-way concurrent duplicate —
+  because `messages` is partitioned and MySQL cannot enforce that uniqueness (error 1503).
+- **Signature is verified before parsing**, over the raw bytes the provider signed, with
+  `hmac.compare_digest`. An absent, malformed or wrong-algorithm signature is a rejection.
+  A body over 1 MiB is refused **before** hashing.
+- **An unset secret rejects every delivery** — an unconfigured deployment cannot silently accept
+  unsigned provider traffic. There is no default secret.
+- **Unknown shapes fail closed but are never dropped.** Unrecognised event types and malformed
+  envelopes become `UNKNOWN` so Doc 06 §11.6 can dead-letter them for inspection. A malformed
+  envelope carries **no** `event_id`, so two different malformed deliveries can never collapse.
+- **Outbound echoes and acknowledgements are recorded, not applied.** `fromMe: true` and
+  `message.ack` become `UNKNOWN`; delivery-state persistence is QR-05.
+- **Identity evidence is preserved, not normalised away.** `@c.us`/`@lid`/`@s.whatsapp.net` survive
+  into the stored payload; the canonical trailing provider message id is exposed alongside. No
+  global provider-message lookup is performed.
+- **Media inbound is not faked as empty text** — it is reported as `unsupported` with a
+  `provider_has_media` flag rather than being rendered as a blank message.
+
+**Changed**
+- Five milestone-boundary tests were re-pointed as `SESSION_STREAM` moved from withheld to declared.
+  `test_adapter_declares_no_webhook_ingestion` now guards `to_status_update` (QR-05) instead of the
+  webhook methods QR-04 was always scoped to implement.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, zero QR
+  routes, RBAC, generated types, frontend, Meta behaviour, and the absence of any WAHA entry in
+  `ProviderRuntimeRegistry`. `BULK`/`CAMPAIGNS`/`TEMPLATE` remain permanently prohibited. No send
+  path, no delivery-state persistence, no teardown, no history/media execution, no UI.
+
 ### 2026-08-08 — QR-03: WAHA QR pairing
 
 **Added**

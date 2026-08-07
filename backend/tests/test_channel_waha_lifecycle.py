@@ -347,12 +347,12 @@ async def test_api_key_is_sent_but_never_exposed() -> None:
 def test_lifecycle_capabilities_remain_withheld() -> None:
     """QR-02's own capabilities are still withheld after QR-03.
 
-    QR-03 earned ``QR_AUTH`` by implementing pairing. The stream and runtime capabilities this
-    suite guards — SESSION_STREAM (QR-04) and SESSION_RECONNECT/SESSION_LOGOUT (QR-06) — must stay
-    undeclared, because nothing implements them.
+    QR-03 earned ``QR_AUTH`` by implementing pairing and QR-04 earned ``SESSION_STREAM`` by
+    implementing ingestion. The runtime capabilities this suite guards —
+    SESSION_RECONNECT/SESSION_LOGOUT (QR-06) — must stay undeclared, because nothing implements
+    them.
     """
     withheld = {
-        Capability.SESSION_STREAM,
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
     }

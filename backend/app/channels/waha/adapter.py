@@ -17,8 +17,13 @@ QR-03: **QR pairing** — creating a session with the certified store configurat
 transient QR challenge a handset scans (:mod:`app.channels.waha.pairing`). This is the milestone
 that earns ``QR_AUTH``.
 
+QR-04: **inbound stream** — raw-body HMAC verification and normalization of provider deliveries into
+canonical :class:`InboundEvent` values for the existing ``webhook_events`` ingest authority
+(:mod:`app.channels.waha.webhook`). This is the milestone that earns ``SESSION_STREAM``.
+
 The asymmetry is deliberate: QR-03 can bring a session **up** but has no way to stop, restart or log
-one out. Teardown is QR-06, so nothing here can destroy a working pairing.
+one out. Teardown is QR-06, so nothing here can destroy a working pairing. Likewise QR-04 *receives*
+events but sends nothing and applies no delivery state — that is QR-05.
 
 ## Why the capability set is (almost) empty
 
@@ -35,7 +40,7 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 |---|---|---|
 | ``HEALTH`` | **yes** | :meth:`health_signal` is implemented and proven against the certified build. |
 | ``QR_AUTH`` | **yes** | QR-03. :meth:`begin_pairing`/:meth:`pairing_challenge`/:meth:`pairing_state` are implemented, and physical-phone certification paired a real handset through this exact provider path. |
-| ``SESSION_STREAM`` | no | Webhook ingestion is QR-04. |
+| ``SESSION_STREAM`` | **yes** | QR-04. Raw-body sha512 HMAC verification and event normalization into the existing ``webhook_events`` ingest authority. |
 | ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | no | Session runtime is QR-06. QR-03 can bring a session **up**; it deliberately cannot stop, restart or log one out. |
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
 | ``TEXT`` / ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | Send path is QR-05 and none is proven with a paired account. |
@@ -69,11 +74,19 @@ from typing import Any, Final
 from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
 from app.channels.errors import ChannelConfigError, ChannelNotSupported
-from app.channels.models import ChannelStatus, HealthSignal, OutboundMessage, SendResult
+from app.channels.models import (
+    ChannelStatus,
+    HealthSignal,
+    InboundEvent,
+    InboundMessage,
+    OutboundMessage,
+    SendResult,
+)
 from app.channels.runtime import PairingState
 from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
 from app.channels.waha.lifecycle import WahaSessionSnapshot
 from app.channels.waha.pairing import WahaQrChallenge
+from app.channels.waha.webhook import parse_events, to_inbound_message, verify_signature
 from app.core.config import settings
 
 #: Capabilities this provider may never declare, at any milestone (ADR-0020 §5; ADR-0021; owner
@@ -97,7 +110,9 @@ class WahaChannelAdapter(ChannelAdapter):
     channel_type = ChannelType.WHATSAPP
     connector_type = CONNECTOR_WAHA
     #: Only what this adapter can actually do today. See the module docstring for the full rationale.
-    capabilities = frozenset({Capability.HEALTH, Capability.QR_AUTH})
+    capabilities = frozenset(
+        {Capability.HEALTH, Capability.QR_AUTH, Capability.SESSION_STREAM}
+    )
 
     def __init__(
         self,
@@ -274,6 +289,33 @@ class WahaChannelAdapter(ChannelAdapter):
         self.require(Capability.QR_AUTH)
         snapshot = await self.session_snapshot(name)
         return snapshot.pairing_state
+
+    # --- Inbound stream (QR-04) ----------------------------------------------
+    def verify_webhook_signature(self, body: bytes, signature: str | None) -> bool:
+        """Raw-body sha512 HMAC check, run **before** anything parses the delivery.
+
+        The raw bytes are what the provider signed, so they are verified as received — any
+        re-serialisation would change them. An unconfigured secret rejects rather than accepts.
+        """
+        return verify_signature(
+            body,
+            signature,
+            settings.waha_webhook_hmac_secret,
+        )
+
+    def parse_webhook(self, payload: dict[str, Any]) -> list[InboundEvent]:
+        """Verified delivery → canonical events, deduped on a session+type-scoped identity.
+
+        ``envelope.id`` alone is not unique: certification proved one provider message is delivered
+        as both ``message`` and ``message.any`` sharing it. See :mod:`app.channels.waha.webhook`.
+        """
+        self.require(Capability.SESSION_STREAM)
+        return parse_events(payload)
+
+    def to_inbound_message(self, payload: dict[str, Any]) -> InboundMessage:
+        """A ``MESSAGES`` event's payload → the message it represents (text at QR-04)."""
+        self.require(Capability.SESSION_STREAM)
+        return to_inbound_message(payload)
 
     # --- Outbound (not implemented at QR-01) --------------------------------
     async def _dispatch(self, message: OutboundMessage) -> SendResult:

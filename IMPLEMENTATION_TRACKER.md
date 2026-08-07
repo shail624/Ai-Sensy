@@ -12,13 +12,14 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 and QR-02 add no migration, no route, no RBAC entry and no generated type
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-03 — WAHA QR pairing: create a session with the certified store configuration, fetch the transient QR challenge, and report provider-neutral pairing state. First declared capability since QR-01 (`QR_AUTH`). **QR-03 can bring a session up and cannot take one down — no stop/restart/logout/delete, no webhook ingestion, no send path, no media/history transfer, no session runtime, no public route and no UI.**
+- **Latest change:** QR-04 — WAHA webhook ingestion: raw-body sha512 HMAC verification and provider event normalization onto the **existing** `ChannelAdapter` webhook seam and `webhook_events` ingest authority. Dedupe identity is scoped by session **and** event type because certification proved `envelope.id` alone is not unique. Declares `SESSION_STREAM`. **No new route, table or migration; no send path, no delivery-state persistence, no teardown, no history/media execution and no UI.**
+- **Previous change:** QR-03 — WAHA QR pairing: create a session with the certified store configuration, fetch the transient QR challenge, and report provider-neutral pairing state. First declared capability since QR-01 (`QR_AUTH`). **QR-03 can bring a session up and cannot take one down — no stop/restart/logout/delete, no webhook ingestion, no send path, no media/history transfer, no session runtime, no public route and no UI.**
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-01 is adapter foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented and non-functional.
 - **Backend evidence:** Ruff PASS · strict mypy PASS (292 files) · 1099 full pytest tests PASS (1036 before QR-01; +63 WAHA adapter tests) · previously 999 (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. The physical-phone evidence that record required was produced on 2026-08-08 and PASSED; the record itself still reads **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** and needs an **owner decision** to advance, which QR-02 does not make on its own authority. QR-01 registers a `waha` adapter limited to an authenticated server probe; QR-02 adds a read-only session lifecycle mapping; `ProviderRuntimeRegistry` still has no WAHA runtime.
 - **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02.
-- **Next milestone:** `QR-04 — webhook ingestion`. Not started. See the QR-04 carry-forward under Remaining work before designing dedupe.
+- **Next milestone:** `QR-05 — send path`. Not started. See the QR-05 acknowledgement-ordering carry-forward under Remaining work before designing delivery-state persistence.
 - **Last synchronized:** `2026-08-08T00:00:00+05:30`
 
 ## Delivered
@@ -69,6 +70,29 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Known gap, pre-existing:** no CI pipeline exists in this repository, and the local quality gate
   does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
   execution path today — it runs only when a developer manually starts MySQL first.
+
+### QR-04 — WAHA webhook ingestion
+
+- **Delivered:** `app/channels/waha/webhook.py` (raw-body sha512 HMAC verification,
+  `event_identity()`, `canonical_message_id()`, event normalization) plus the adapter's
+  implementation of the existing `verify_webhook_signature`/`parse_webhook`/`to_inbound_message`
+  seam. Configuration `WAHA_WEBHOOK_HMAC_SECRET` (empty default). Declares `SESSION_STREAM`.
+- **No parallel ingest path:** events flow into the existing `WebhookService` → `webhook_events`
+  authority, which already owns persist-first durability, dedupe and dead-lettering. No new route,
+  table or migration.
+- **Dedupe identity resolved:** the QR-04 carry-forward is closed. `envelope.id` alone is unsafe —
+  one provider message arrives as both `message` and `message.any` sharing it — so the key is
+  scoped by session and event type. Determinism proven by a 64-way concurrent test, because
+  `messages` is partitioned and MySQL cannot enforce that uniqueness (error 1503).
+- **Security:** verify before parse, over raw bytes, constant-time, 1 MiB bound enforced before
+  hashing, unset secret rejects everything, no default secret, unknown/malformed shapes fail closed
+  to `UNKNOWN` with no `event_id`.
+- **Not pulled forward:** acknowledgements and outbound echoes are recorded as `UNKNOWN`, never
+  applied — delivery state is QR-05. No teardown, history or media execution.
+- **Tests:** 52 new hermetic tests (`tests/test_channel_waha_webhook.py`); 196 across all four WAHA
+  suites. Full suite 1232 passed (1181 before QR-04).
+- **Unchanged:** migration head, OpenAPI (200 paths, zero QR routes), RBAC, generated types,
+  frontend, Meta behaviour, prohibited capabilities, and the absence of a WAHA runtime.
 
 ### QR-03 — WAHA QR pairing
 
@@ -464,8 +488,14 @@ provider history retrieval, media-byte transfer/processing, sending, incoming we
 
 ## Stop rule
 
-Stop after M13-06B. No implementation milestone is authorized after this commit.
+This rule was written at M13-06B closeout. Its release conditions — "certification **and** a separate
+owner instruction" — have both since been met, so it no longer blocks the QR sequence:
 
-Do not begin provider adapter, QR image/login, live event ingestion, provider history retrieval,
-media-byte transfer, messaging, webhook, routing or provider UI until certification and a separate
-owner instruction.
+- **Certification:** physical-phone WAHA certification PASSED on 2026-08-08.
+- **Owner instruction:** the owner authorized QR-01 through QR-04 individually, and QR-01, QR-02,
+  QR-03 and QR-04 were delivered under that authorization.
+
+Still gated, and each requiring its own owner instruction: QR-05 send, QR-06 reconnect/health/
+teardown, QR-07 provider UI, QR-08 Unified Inbox, QR-09 production validation. Provider history
+retrieval and media-byte transfer remain unimplemented. No Production Ready or Host Validated claim
+is made, and the WAHA selection record's approval state is unchanged and remains an owner decision.

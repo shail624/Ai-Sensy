@@ -53,12 +53,28 @@ from app.channels.waha.pairing import (
     WahaQrChallenge,
     build_session_config,
 )
+from app.channels.waha.webhook import (
+    MAX_BODY_BYTES,
+    SIGNATURE_HEADER,
+    WahaBodyTooLarge,
+    canonical_message_id,
+    event_identity,
+    parse_events,
+    verify_signature,
+)
 
 register_adapter(CONNECTOR_WAHA, _factory)
 
 __all__ = [
     "CERTIFIED_NOWEB_STORE",
+    "MAX_BODY_BYTES",
     "PROHIBITED_CAPABILITIES",
+    "SIGNATURE_HEADER",
+    "WahaBodyTooLarge",
+    "canonical_message_id",
+    "event_identity",
+    "parse_events",
+    "verify_signature",
     "WahaChannelAdapter",
     "WahaClient",
     "WahaCredentials",

@@ -7,6 +7,44 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-04 — WAHA webhook ingestion
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Valid HMAC accepted | PASS | Raw-body sha512 HMAC over the certified envelope verifies. |
+| Raw-body verification | PASS | Re-serialising the same JSON (`{"a":1,"b":2}` → `{"a": 1, "b": 2}`) breaks verification — the bytes the provider signed are what is checked. |
+| Missing / invalid signature rejected | PASS | `None`, `""`, `deadbeef`, non-hex and tampered bodies all reject. |
+| Wrong secret rejected | PASS | A signature made with a different secret rejects. |
+| Unset secret rejects everything | PASS | An empty secret rejects both correctly- and incorrectly-signed bodies; asserted the settings default is `""` so no default secret can be introduced silently. |
+| Constant-time compare | PASS | `hmac.compare_digest`, asserted by source inspection. |
+| Algorithm downgrade rejected | PASS | `md5` rejects; `SHA512` (case-insensitive) accepts. |
+| Bounded body | PASS | A body over 1 MiB raises `WahaBodyTooLarge` **before** hashing. |
+| Verify before parse | PASS | `WebhookService.ingest` verifies then parses; the adapter's `verify_webhook_signature` takes raw bytes and touches no payload field. |
+| `envelope.id` alone is not the key | PASS | `message` and `message.any` sharing one `envelope.id` produce **two distinct** keys, asserted end-to-end through `parse_events`. |
+| Retry collapses | PASS | Repeated delivery of the same envelope+type yields one identical key. |
+| Session/tenant scoping | PASS | The same `envelope.id` under two different sessions yields different keys, so two tenants' sessions cannot collide on a provider-chosen id. |
+| Key fits the column | PASS | `webhook_events.event_id` is `String(128)`; a 200-character session is truncated to ≤128 with the envelope id last so the discriminator survives. |
+| Concurrent duplicate safety | PASS | 64 concurrent parses across 16 threads resolve to exactly one identity. Proven in code because `messages` is partitioned and MySQL cannot enforce endpoint/provider-id uniqueness (error 1503). |
+| Unknown event types | PASS | `session.status`, `state.change` and arbitrary names emit `UNKNOWN` rather than being dropped, so Doc 06 §11.6 can dead-letter them. |
+| Malformed JSON / envelope | PASS | Six malformed shapes (empty, missing session, missing event, wrong types) emit a single `UNKNOWN` event with **no** `event_id`, so two different malformed deliveries can never collapse into one. |
+| Outbound echo not ingested | PASS | `fromMe: true` and `message.ack` become `UNKNOWN`; QR-04 records acknowledgements but applies no delivery state (QR-05). |
+| Provider identity preserved | PASS | `@lid` sender survives into `from_id`; the canonical trailing provider message id is extracted alongside without discarding the composite. No global provider-message lookup. |
+| Certified inbound TEXT path | PASS | The real certified inbound (`QRCERT-FINAL-INBOUND`) translates to `message_type="text"` with profile name and timestamp. |
+| Media not faked | PASS | A media inbound becomes `unsupported` with `provider_has_media`, never an empty text message. |
+| Secret/log safety | PASS | Neither the HMAC secret nor the API key appears in parsed output; payloads are stored for replay but no secret is logged. |
+| Capability gating | PASS | Without `SESSION_STREAM`, `parse_webhook`/`to_inbound_message` raise `ChannelNotSupported`. |
+| No later capability | PASS | `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC`, `TEXT`, `MEDIA`, `MEDIA_UPLOAD`, `MEDIA_DOWNLOAD` all remain undeclared. |
+| Prohibited capabilities | PASS | `BULK`/`CAMPAIGNS`/`TEMPLATE` unchanged and disjoint from the declared set. |
+| Meta regression | PASS | Full suite passes with Meta webhook, message, inbound-dedupe and Inbox suites unmodified. |
+| QR-01/02/03 regression | PASS | 196 tests across all four WAHA suites pass together. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in **295** source files (294 before QR-04). |
+| Full backend suite | PASS | **1232 passed**, 0 skipped (1181 before QR-04; +51). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, **43 revisions, unchanged**. QR-04 reuses `webhook_events`; no migration is justified. |
+| OpenAPI / routes | PASS | **200 paths, unchanged**; zero `qr`/`pair`/`waha` routes. QR-04 adds no public route. |
+| Frontend | PASS (unchanged) | No frontend file touched. |
+
+
 ## QR-03 — WAHA QR pairing
 
 | Validation item | Status | Latest evidence |

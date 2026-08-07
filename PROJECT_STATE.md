@@ -20,10 +20,32 @@
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) selected as the ADR-0021 Class B candidate — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. QR-01 adds a registered `waha` adapter performing **an authenticated server probe only** (version/engine banner and server health). It declares exactly one capability (`HEALTH`); `BULK`/`CAMPAIGNS`/`TEMPLATE` are permanently prohibited and test-enforced. **No WhatsApp session, QR generation, pairing, webhook ingestion, send path, history/media transfer, session runtime or UI exists.** `ProviderRuntimeRegistry` has no WAHA runtime. Unconfigured and disabled by default. QR login does not work and is not claimed to |
-| Next Module 13 milestone | `QR-04 — webhook ingestion`. Not started. Physical-phone certification **PASSED** on 2026-08-08 — paired session reaching `WORKING`, external inbound text and JPEG, external outbound with `DEVICE`/`READ` acknowledgement, HMAC-verified webhooks, history/fullSync correlation and logout are all certified — and has now been consumed by QR-02 (lifecycle mapping) and QR-03 (pairing) |
+| Next Module 13 milestone | `QR-05 — send path`. Not started. Physical-phone certification **PASSED** on 2026-08-08 — paired session reaching `WORKING`, external inbound text and JPEG, external outbound with `DEVICE`/`READ` acknowledgement, HMAC-verified webhooks, history/fullSync correlation and logout are all certified — and has now been consumed by QR-02 (lifecycle mapping) and QR-03 (pairing) |
 | Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, automated CI execution of the live-MySQL migration tests, and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
 | Worktree expectation | QR-01 adapter foundation: connector identity, minimal typed WAHA client, authenticated server probe, deterministic error mapping, engine/version guard, conservative capabilities. No migration, OpenAPI, RBAC or frontend change; no session, QR, pairing, webhook, send or runtime |
 | Last update | `2026-08-07T05:00:00+05:30` (Asia/Kolkata) |
+
+## QR-04 — WAHA webhook ingestion
+
+- **Scope:** verify and normalize provider deliveries onto the **existing** `ChannelAdapter` webhook
+  seam and `webhook_events` ingest authority. Declares `SESSION_STREAM`.
+- **No parallel ingest path, no new route, table or migration** — the persist-first durability,
+  dedupe and dead-letter behaviour already owned by `WebhookService` is reused, not duplicated.
+- **Dedupe identity:** scoped by session and provider event type. Certification proved
+  `envelope.id` alone is unsafe (one message arrives as both `message` and `message.any` sharing
+  it) and that delivery is at-least-once with retries repeating every id. Determinism is proven by
+  a concurrent test because `messages` is partitioned and MySQL cannot enforce the constraint.
+- **Security:** signature verified before parsing, over raw bytes, constant-time, body bounded
+  before hashing, unset secret rejects everything, unknown/malformed shapes fail closed to
+  `UNKNOWN` and are dead-lettered rather than dropped.
+- **Not pulled forward:** acknowledgements and outbound echoes are recorded, never applied —
+  delivery state is QR-05. No teardown, history or media execution.
+- **Unchanged:** migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200
+  paths with zero QR routes, RBAC, generated types, frontend, prohibited capabilities, and the
+  absence of a WAHA entry in `ProviderRuntimeRegistry`. No Production Ready, Host Validated or
+  M13-07 claim.
+- **Still pending:** QR-05 send, QR-06 reconnect/health/logout, QR-07 UI, QR-08 Unified Inbox,
+  QR-09 production validation. There is still no QR route or operator UI.
 
 ## QR-03 — WAHA QR pairing
 
@@ -397,4 +419,4 @@ visual/reference, screen-reader/device, and production-scale performance review 
 
 ## Maintenance rule
 
-Stop after M13-06B. No later implementation milestone is authorized. Provider certification continues to block every live/provider adapter, ingestion, history retrieval, media transfer, messaging, routing and provider UI path.
+Written at M13-06B closeout. Provider certification PASSED on 2026-08-08 and the owner authorized the QR sequence, so certification no longer blocks the adapter and ingestion paths: QR-01 (adapter), QR-02 (session lifecycle), QR-03 (pairing) and QR-04 (webhook ingestion) are delivered. Still gated on a separate owner instruction each: QR-05 messaging/send, QR-06 reconnect/teardown, QR-07 provider UI, QR-08 Unified Inbox, QR-09 production validation. History retrieval and media-byte transfer remain unimplemented; no Production Ready or Host Validated claim is made.

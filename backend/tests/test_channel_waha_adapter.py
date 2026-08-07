@@ -88,14 +88,13 @@ def test_declares_only_implemented_capabilities() -> None:
     still withheld; see the parametrized test below.
     """
     assert WahaChannelAdapter.capabilities == frozenset(
-        {Capability.HEALTH, Capability.QR_AUTH}
+        {Capability.HEALTH, Capability.QR_AUTH, Capability.SESSION_STREAM}
     )
 
 
 @pytest.mark.parametrize(
     "capability",
     [
-        Capability.SESSION_STREAM,
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
@@ -505,12 +504,15 @@ def test_adapter_exposes_no_teardown_or_messaging_surface() -> None:
 
 
 def test_adapter_declares_no_webhook_ingestion() -> None:
-    """Webhook ingestion is QR-04; the inherited defaults must remain unimplemented."""
+    """Delivery-state translation is QR-05; that inherited default must remain unimplemented.
+
+    Updated by QR-04: ``verify_webhook_signature``/``parse_webhook`` are now implemented (webhook
+    ingestion was always scoped to QR-04). ``to_status_update`` is not — QR-04 records
+    acknowledgement events but applies no delivery state.
+    """
     adapter = WahaChannelAdapter(CREDS)
     with pytest.raises(ChannelNotSupported):
-        adapter.verify_webhook_signature(b"{}", "sig")
-    with pytest.raises(ChannelNotSupported):
-        adapter.parse_webhook({})
+        adapter.to_status_update({})
 
 
 async def test_adapter_cannot_transfer_media() -> None:
