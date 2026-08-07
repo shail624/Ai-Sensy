@@ -344,31 +344,37 @@ async def test_api_key_is_sent_but_never_exposed() -> None:
 # --- Milestone boundary -------------------------------------------------------------------------
 
 
-def test_qr02_adds_no_capability() -> None:
-    """Observing a lifecycle is not being able to drive one.
+def test_lifecycle_capabilities_remain_withheld() -> None:
+    """QR-02's own capabilities are still withheld after QR-03.
 
-    QR_AUTH is QR-03; SESSION_RECONNECT/SESSION_LOGOUT are QR-06; SESSION_STREAM is QR-04.
+    QR-03 earned ``QR_AUTH`` by implementing pairing. The stream and runtime capabilities this
+    suite guards — SESSION_STREAM (QR-04) and SESSION_RECONNECT/SESSION_LOGOUT (QR-06) — must stay
+    undeclared, because nothing implements them.
     """
-    assert WahaChannelAdapter.capabilities == frozenset({Capability.HEALTH})
+    withheld = {
+        Capability.SESSION_STREAM,
+        Capability.SESSION_RECONNECT,
+        Capability.SESSION_LOGOUT,
+    }
+    assert not (WahaChannelAdapter.capabilities & withheld)
 
 
-def test_qr02_exposes_no_session_mutation() -> None:
-    """No create/start/stop/restart/logout/QR surface may exist at QR-02."""
+def test_no_session_teardown_surface() -> None:
+    """Bringing a session up is QR-03; tearing one down is QR-06 and must not exist yet.
+
+    Updated by QR-03: ``create_session``/QR retrieval are now legitimate. Teardown is not, so a
+    working pairing cannot be destroyed by anything shipped so far.
+    """
     forbidden = (
-        "create_session",
-        "start_session",
         "stop_session",
         "restart_session",
         "logout",
         "logout_session",
         "delete_session",
-        "request_qr",
-        "qr",
-        "pair",
     )
     for name in forbidden:
-        assert not hasattr(WahaChannelAdapter, name), f"QR-02 must not expose {name!r}"
-        assert not hasattr(WahaClient, name), f"QR-02 must not expose {name!r}"
+        assert not hasattr(WahaChannelAdapter, name), f"teardown is QR-06: {name!r}"
+        assert not hasattr(WahaClient, name), f"teardown is QR-06: {name!r}"
 
 
 @pytest.mark.anyio

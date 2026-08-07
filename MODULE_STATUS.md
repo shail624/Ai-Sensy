@@ -42,7 +42,7 @@ Last synchronized: `2026-08-07T05:00:00+05:30`.
 - **Delivered:** provider-neutral history checkpoint and media-reference records, bounded progress/expiry state, tenant-scoped repositories, non-secret metadata validation and migration `0040`.
 - **Security:** organization predicates, existing foreign authorities, no secret-shaped metadata, uniqueness/check constraints and optimistic row versions fail closed.
 - **Preserved:** no provider certification, adapter, dependency, QR/login, live event ingestion, history execution, media transfer/processing, queue task, API, generated contract or frontend change.
-- **Next:** real WAHA host evidence and certification remain required before any live M13-06 behavior.
+- **Next:** physical-phone WAHA certification **PASSED** on 2026-08-08 and the adapter has since reached QR-03 (pairing). Live M13-06 behavior still requires QR-04 event ingestion and QR-06 history execution; no live ingestion, history execution or media transfer exists yet.
 
 ## Module 13 — M13-05 QR Pairing & Provider Runtime Foundation
 

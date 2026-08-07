@@ -7,6 +7,34 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-03 — WAHA QR pairing
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| `QR_AUTH` declared and implemented | PASS | Capabilities are now exactly `{health, qr_auth}`. `begin_pairing`/`pairing_challenge`/`pairing_state` are implemented, and physical-phone certification paired a real handset through this provider path. |
+| Capability gate precedes I/O | PASS | An adapter without `QR_AUTH` raises `ChannelNotSupported` from all three methods and is asserted to open **no** connection. |
+| Certified session configuration | PASS | `build_session_config()` emits `{"noweb":{"store":{"enabled":true,"fullSync":true}}}`. Asserted camelCase, asserted `full_sync` absent from the request body, and asserted copied so a caller cannot corrupt the constant. Certification proved the snake_case spelling returns HTTP 201 and silently disables history. |
+| QR treated as a secret | PASS | `WahaQrChallenge` excludes bytes from the dataclass `repr`; `repr`/`str` render `data=***withheld***` and are asserted not to contain the payload. Nothing persists, logs or audits it — M13-05's "QR images and challenge bytes are deliberately absent" boundary is preserved, not widened. |
+| Pairing safety on ambiguous state | PASS | `pairing_state()` returns `None` for `STARTING`/`STOPPED`/`FAILED`; `begin_pairing()` on a `STARTING` response is asserted to claim no pairing and `connected=False`. Durable pairing truth is never overwritten from an ambiguous provider status. |
+| No silent reuse on conflict | PASS | A provider "already exists" response surfaces as `ChannelApiError`; the session is not reused or recreated, because QR-03 owns no teardown. |
+| Non-image QR rejected | PASS | `text/html` (the shape the real server returns on its root path) and JSON error bodies raise `ChannelApiError` instead of being returned as a QR. |
+| QR not-ready surfaced | PASS | The certified build's `422` ("Session status is not as expected", `expected: ["SCAN_QR_CODE"]`) surfaces as `ChannelApiError` rather than being smoothed into a placeholder. |
+| Session name validation | PASS | `../evil` and `a/b` raise `ChannelConfigError` and are asserted to open **no** connection, on both pairing methods. |
+| Engine guard on pairing | PASS | A session created reporting `GOWS` fails closed with `WahaEngineNotApproved`. |
+| Secret handling | PASS | A 401 during QR retrieval is asserted free of the API key; transport failure maps to `ChannelTransportError`. |
+| No teardown surface | PASS | Adapter and client expose none of `stop_session`/`restart_session`/`logout`/`logout_session`/`delete_session`. QR-03 can bring a session up and cannot take one down. |
+| No QR-04/QR-05 surface | PASS | No WAHA-specific `handle_webhook`/`ingest_event`/`verify_hmac`/`send_image`/`sync_history`/`download_media`/`get_messages`/`get_chats`. The inherited generic send seam is asserted **behaviourally** to still raise `ChannelNotSupported`. |
+| Stream/runtime capabilities withheld | PASS | `SESSION_STREAM`, `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC`, `TEXT`, `MEDIA` all remain undeclared. |
+| No live WAHA runtime | PASS | `ProviderRuntimeRegistry` still has no `waha` entry and reports an empty registry; declaring `QR_AUTH` installs no supervisor. |
+| Prohibited capabilities | PASS | `BULK`/`CAMPAIGNS`/`TEMPLATE` unchanged and asserted disjoint from the declared set — QR-03 is not a route around campaign controls. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in **294** source files (293 before QR-03). |
+| Full backend suite | PASS | **1181 passed**, 0 skipped (1153 before QR-03; +28 net). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, **43 revisions, unchanged**. QR-03 adds no migration. |
+| OpenAPI invariance | PASS | **200 paths, unchanged**; zero `qr`/`pair`/`waha` routes. No public API surface. |
+| Frontend | PASS (unchanged) | No frontend file touched by QR-03. |
+
+
 ## QR-02 — WAHA session lifecycle read and provider-neutral mapping
 
 | Validation item | Status | Latest evidence |

@@ -81,15 +81,20 @@ def test_connector_identity() -> None:
 # --- Capabilities: conservative, evidence-led ---------------------------------------------------
 
 
-def test_declares_only_health() -> None:
-    """QR-01 implements a server probe and nothing else, so it advertises exactly that."""
-    assert WahaChannelAdapter.capabilities == frozenset({Capability.HEALTH})
+def test_declares_only_implemented_capabilities() -> None:
+    """The adapter advertises exactly what it implements — no more.
+
+    ``HEALTH`` from QR-01's server probe, ``QR_AUTH`` from QR-03's pairing path. Everything else is
+    still withheld; see the parametrized test below.
+    """
+    assert WahaChannelAdapter.capabilities == frozenset(
+        {Capability.HEALTH, Capability.QR_AUTH}
+    )
 
 
 @pytest.mark.parametrize(
     "capability",
     [
-        Capability.QR_AUTH,
         Capability.SESSION_STREAM,
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
@@ -479,17 +484,20 @@ async def test_drift_is_surfaced_in_authenticate_detail() -> None:
 # --- Scope: no session / QR / pairing / messaging surface ---------------------------------------
 
 
-def test_adapter_exposes_no_session_or_qr_methods() -> None:
-    """QR-01 must not ship a pairing or session surface, even an unused one."""
+def test_adapter_exposes_no_teardown_or_messaging_surface() -> None:
+    """The boundary moved with QR-03, but it still exists — and teardown stays out.
+
+    QR-03 legitimately added ``begin_pairing``/``pairing_challenge``/``pairing_state``, so this
+    guard no longer forbids bringing a session *up*. It still forbids tearing one **down**
+    (QR-06) and messaging/history (QR-05/QR-06), so a paired session cannot be stopped, restarted
+    or logged out by anything shipped so far.
+    """
     forbidden = {
-        "create_session",
-        "start_session",
         "stop_session",
+        "restart_session",
+        "logout",
         "logout_session",
-        "request_qr",
-        "get_qr",
-        "qr_image",
-        "pair",
+        "delete_session",
         "pair_phone",
         "sync_history",
     }

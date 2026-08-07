@@ -72,9 +72,13 @@ transfer, messaging, webhook, routing and operator UI remain outside this milest
 | M13-09 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
 | M13-10 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
 
-Stop after M13-06B. No provider adapter, QR image/login, live event ingestion, provider history
-retrieval, media-byte transfer/processing, messaging, webhook, routing or UI work begins until
-certification and a separate owner instruction.
+The M13-06B stop gate has since been released: physical-phone certification **PASSED** on
+2026-08-08 and the owner instructed the QR sequence to proceed. QR-01 (adapter foundation),
+QR-02 (session lifecycle mapping) and QR-03 (QR pairing) are delivered under that release.
+
+Still not started, and still requiring their own milestones: live event ingestion (QR-04), provider
+history retrieval and media-byte transfer/processing (QR-05/QR-06), messaging (QR-05), webhook
+routing (QR-04), session teardown/runtime (QR-06) and all UI (QR-07/QR-08).
 
 ## Phase 0 — Governance and scope lock
 

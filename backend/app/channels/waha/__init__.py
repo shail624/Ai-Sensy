@@ -1,4 +1,4 @@
-"""WAHA QR provider adapter package (ADR-0021 Class B) — QR-01 foundation, QR-02 session lifecycle.
+"""WAHA QR provider adapter package (ADR-0021 Class B) — QR-01 foundation, QR-02 lifecycle, QR-03 pairing.
 
 Importing this package registers the ``waha`` adapter factory, following the same self-registration
 pattern as the Meta package so wiring a provider in is an import rather than an edit to the engine
@@ -8,8 +8,9 @@ Registration here is **inert by design**:
 
 * no network call happens at import or registration — the factory only constructs an object;
 * no API key is required to import, register or construct the adapter;
-* no WhatsApp session is created, resumed, started, stopped or logged out — QR-02 can *read* a
-  named session's status, which requires a caller to already know that name;
+* importing or registering the adapter still creates no session and pairs nothing — QR-03's pairing
+  methods are capability-gated and must be called explicitly with a session name;
+* no session can be stopped, restarted or logged out at any point — that is QR-06;
 * nothing is added to :class:`~app.channels.runtime_registry.ProviderRuntimeRegistry`, so there is
   no live WAHA runtime and no supervisor can start one;
 * every organization-facing QR feature flag stays off by default
@@ -47,19 +48,27 @@ from app.channels.waha.lifecycle import (
     parse_session_status,
     validate_session_name,
 )
+from app.channels.waha.pairing import (
+    CERTIFIED_NOWEB_STORE,
+    WahaQrChallenge,
+    build_session_config,
+)
 
 register_adapter(CONNECTOR_WAHA, _factory)
 
 __all__ = [
+    "CERTIFIED_NOWEB_STORE",
     "PROHIBITED_CAPABILITIES",
     "WahaChannelAdapter",
     "WahaClient",
     "WahaCredentials",
     "WahaEngineNotApproved",
+    "WahaQrChallenge",
     "WahaServerHealth",
     "WahaServerInfo",
     "WahaSessionSnapshot",
     "WahaSessionStatus",
+    "build_session_config",
     "map_session_status",
     "parse_session_status",
     "redact_headers",

@@ -11,6 +11,55 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-03: WAHA QR pairing
+
+**Added**
+- `app/channels/waha/pairing.py` — `CERTIFIED_NOWEB_STORE`/`build_session_config()` (the session
+  configuration certification proved is required) and `WahaQrChallenge`, a transient QR value that
+  redacts its own bytes.
+- `WahaClient.create_session(name)` — `POST /api/sessions`, the first provider **write**.
+- `WahaClient.qr_challenge(name)` — `GET /api/{session}/auth/qr`, returning raw image bytes.
+- `WahaChannelAdapter.begin_pairing()` / `pairing_challenge()` / `pairing_state()`.
+- **`QR_AUTH` is now declared** — the first capability added since QR-01, earned by implementing
+  pairing and proven end-to-end by physical-phone certification.
+- 30 tests in `tests/test_channel_waha_pairing.py`, fully hermetic via `httpx.MockTransport`.
+
+**Behaviour**
+- **Up, but never down.** QR-03 can create and start a session; it deliberately has no stop,
+  restart, logout or delete. Teardown is QR-06, so nothing shipped so far can destroy a working
+  pairing. Asserted by test on both adapter and client.
+- **`fullSync` is camelCase, in exactly one place.** Certification proved the provider accepts
+  `full_sync` with HTTP 201 and then silently stores `fullSync: false`, leaving a session that looks
+  healthy with no history. The payload is built centrally and asserted by test so the trap cannot be
+  reintroduced per call site.
+- **The QR challenge is treated as a secret.** It is never persisted, never logged, excluded from
+  the dataclass `repr`, and `repr`/`str` render `data=***withheld***`. This preserves M13-05's
+  boundary that QR images and challenge bytes are never stored.
+- **Pairing safety.** `pairing_state()` returns `None` for `STARTING`/`STOPPED`/`FAILED` and callers
+  must leave durable pairing truth untouched — certification proved `STARTING` occurs both for a
+  fresh session and for an already-paired session restarting, so inferring "unpaired" would discard
+  a real pairing on a transient restart.
+- **No guessing on conflict.** If the provider reports a session of that name already exists, the
+  error surfaces rather than the session being silently reused or recreated.
+- **Fails closed** on a non-image QR response (an HTML login page or JSON error is never handed back
+  as a QR), on an unapproved engine, and on an invalid session name before any URL is built.
+- **Capability-gated before I/O**: without `QR_AUTH` all three pairing methods raise
+  `ChannelNotSupported` and open no connection.
+
+**Changed**
+- Two milestone-boundary tests were re-pointed rather than deleted, because the boundary legitimately
+  moved: bringing a session **up** is now allowed, tearing one **down** still is not. `QR_AUTH` was
+  removed from the withheld-capability list and the capability assertion now expects
+  `{HEALTH, QR_AUTH}`. `send_text` was dropped from one forbidden-name list — it is an inherited
+  generic `ChannelAdapter` method present on every adapter, so its presence proved nothing; the send
+  path is now asserted **behaviourally** to still raise `ChannelNotSupported`.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, RBAC,
+  generated types, frontend, Meta behaviour, and the absence of any WAHA entry in
+  `ProviderRuntimeRegistry`. `BULK`/`CAMPAIGNS`/`TEMPLATE` remain permanently prohibited and
+  disjoint from the declared set. No webhook ingestion, send path, media, history, runtime or UI.
+
 ### 2026-08-08 — QR-02: WAHA session lifecycle read and provider-neutral mapping
 
 **Added**

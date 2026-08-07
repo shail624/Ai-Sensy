@@ -10,10 +10,15 @@ logic branches on ``connector_type``.
 QR-01: an authenticated **server** probe (version/engine banner and health), plus the deterministic
 error mapping around it.
 
-QR-02 adds one thing on top: reading a **named session's** lifecycle status and translating it into
-the platform's own vocabulary (:mod:`app.channels.waha.lifecycle`). Still read-only — no session is
-created, started, stopped, restarted, paired or logged out, and no capability is added, because
-observing a lifecycle is not the same as being able to drive one.
+QR-02: reading a **named session's** lifecycle status and translating it into the platform's own
+vocabulary (:mod:`app.channels.waha.lifecycle`).
+
+QR-03: **QR pairing** — creating a session with the certified store configuration and fetching the
+transient QR challenge a handset scans (:mod:`app.channels.waha.pairing`). This is the milestone
+that earns ``QR_AUTH``.
+
+The asymmetry is deliberate: QR-03 can bring a session **up** but has no way to stop, restart or log
+one out. Teardown is QR-06, so nothing here can destroy a working pairing.
 
 ## Why the capability set is (almost) empty
 
@@ -29,9 +34,9 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 | Capability | Declared | Why |
 |---|---|---|
 | ``HEALTH`` | **yes** | :meth:`health_signal` is implemented and proven against the certified build. |
-| ``QR_AUTH`` | no | Provider supports it (real QR observed in QR-00), but this adapter has no pairing method — QR-03. Declaring it would let the CRM offer a "Connect" action that cannot run. |
+| ``QR_AUTH`` | **yes** | QR-03. :meth:`begin_pairing`/:meth:`pairing_challenge`/:meth:`pairing_state` are implemented, and physical-phone certification paired a real handset through this exact provider path. |
 | ``SESSION_STREAM`` | no | Webhook ingestion is QR-04. |
-| ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | no | Session runtime is QR-06. |
+| ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | no | Session runtime is QR-06. QR-03 can bring a session **up**; it deliberately cannot stop, restart or log one out. |
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
 | ``TEXT`` / ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | Send path is QR-05 and none is proven with a paired account. |
 | ``INTERACTIVE`` / ``REACTION`` / ``LOCATION`` / ``CONTACT`` | no | Neither implemented nor evidenced. |
@@ -65,8 +70,10 @@ from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
 from app.channels.errors import ChannelConfigError, ChannelNotSupported
 from app.channels.models import ChannelStatus, HealthSignal, OutboundMessage, SendResult
+from app.channels.runtime import PairingState
 from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
 from app.channels.waha.lifecycle import WahaSessionSnapshot
+from app.channels.waha.pairing import WahaQrChallenge
 from app.core.config import settings
 
 #: Capabilities this provider may never declare, at any milestone (ADR-0020 §5; ADR-0021; owner
@@ -90,7 +97,7 @@ class WahaChannelAdapter(ChannelAdapter):
     channel_type = ChannelType.WHATSAPP
     connector_type = CONNECTOR_WAHA
     #: Only what this adapter can actually do today. See the module docstring for the full rationale.
-    capabilities = frozenset({Capability.HEALTH})
+    capabilities = frozenset({Capability.HEALTH, Capability.QR_AUTH})
 
     def __init__(
         self,
@@ -174,21 +181,28 @@ class WahaChannelAdapter(ChannelAdapter):
         return await self.authenticate()
 
     # --- Session lifecycle (QR-02) -------------------------------------------
-    async def session_snapshot(self, name: str) -> WahaSessionSnapshot:
-        """Read one session's lifecycle status and map it to provider-neutral state.
+    @staticmethod
+    def _assert_session_engine(snapshot: WahaSessionSnapshot) -> None:
+        """Apply the engine guard to a session payload.
 
-        The engine guard applies here too: an adapter certified against NOWEB must not interpret
-        another engine's session payload, and a session snapshot is exactly such a payload.
+        An adapter certified against NOWEB must not interpret — or pair against — another engine's
+        session. Sessions whose payload omits the engine are not rejected: the guard reports on what
+        the provider stated, and inventing a violation from silence would break valid deployments.
         """
+        if snapshot.engine is None:
+            return
+        approved = settings.waha_approved_engine
+        if snapshot.engine.upper() != approved.upper():
+            raise WahaEngineNotApproved(
+                f"WAHA session reports engine {snapshot.engine!r}, but only {approved!r} is "
+                "approved for this deployment.",
+                detail=f"engine={snapshot.engine}",
+            )
+
+    async def session_snapshot(self, name: str) -> WahaSessionSnapshot:
+        """Read one session's lifecycle status and map it to provider-neutral state."""
         snapshot = await self._client.session_status(name)
-        if snapshot.engine is not None:
-            approved = settings.waha_approved_engine
-            if snapshot.engine.upper() != approved.upper():
-                raise WahaEngineNotApproved(
-                    f"WAHA session reports engine {snapshot.engine!r}, but only {approved!r} is "
-                    "approved for this deployment.",
-                    detail=f"engine={snapshot.engine}",
-                )
+        self._assert_session_engine(snapshot)
         return snapshot
 
     async def session_status(self, name: str) -> ChannelStatus:
@@ -222,6 +236,44 @@ class WahaChannelAdapter(ChannelAdapter):
         if health.detail:
             detail = f"{detail}; {health.detail}"
         return HealthSignal(healthy=health.healthy, detail=detail)
+
+    # --- Pairing (QR-03) -----------------------------------------------------
+    async def begin_pairing(self, name: str) -> WahaSessionSnapshot:
+        """Create and start a session so it can present a QR, then report its mapped state.
+
+        Capability-gated on :attr:`Capability.QR_AUTH`. The engine guard applies, so a session
+        created on an unapproved engine is rejected rather than paired against.
+
+        Deliberately **not** idempotent-by-guessing: if the provider says a session of this name
+        already exists, that error surfaces. Silently reusing or recreating it could tear down a
+        working pairing, and this milestone owns no teardown.
+        """
+        self.require(Capability.QR_AUTH)
+        snapshot = await self._client.create_session(name)
+        self._assert_session_engine(snapshot)
+        return snapshot
+
+    async def pairing_challenge(self, name: str) -> WahaQrChallenge:
+        """Fetch the transient QR challenge for a session that is awaiting a scan.
+
+        The result is never logged or persisted — see :class:`WahaQrChallenge`. A session that is
+        not awaiting a scan raises rather than returning a stale or placeholder image.
+        """
+        self.require(Capability.QR_AUTH)
+        return await self._client.qr_challenge(name)
+
+    async def pairing_state(self, name: str) -> PairingState | None:
+        """Provider-neutral pairing state, or ``None`` when the provider status cannot determine it.
+
+        ``None`` is a real answer, not a failure. Certification proved ``STARTING`` occurs both for
+        a fresh session heading toward a QR and for an already-paired session restarting toward
+        ``WORKING``; ``STOPPED`` and ``FAILED`` are similarly undetermined. Callers must leave
+        durable pairing truth untouched when this returns ``None`` — inferring "unpaired" here would
+        discard a real pairing on a transient restart.
+        """
+        self.require(Capability.QR_AUTH)
+        snapshot = await self.session_snapshot(name)
+        return snapshot.pairing_state
 
     # --- Outbound (not implemented at QR-01) --------------------------------
     async def _dispatch(self, message: OutboundMessage) -> SendResult:

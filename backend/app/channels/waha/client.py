@@ -1,12 +1,14 @@
-"""Minimal typed async WAHA client (QR-01 server probe, QR-02 session lifecycle read).
+"""Minimal typed async WAHA client (QR-01 server probe, QR-02 lifecycle read, QR-03 pairing).
 
-Deliberately small. QR-01 added exactly two authenticated reads — the server version/engine banner
-and the server health probe. QR-02 adds exactly one more: reading a single session's lifecycle
-status.
+Deliberately small, and grown one milestone at a time:
 
-Every one of the three is a **read**. Session creation, QR retrieval, pairing, start/stop/restart,
-logout, messaging, media and history are **not** implemented here; they belong to QR-03 and later
-and must not be reachable from this milestone.
+* QR-01 — two authenticated reads: the server version/engine banner and the server health probe.
+* QR-02 — one more read: a single session's lifecycle status.
+* QR-03 — creating a session with the certified configuration, and fetching its transient QR.
+
+Start, stop, restart and logout (QR-06), webhook ingestion (QR-04), messaging (QR-05), media and
+history are **not** implemented here and must not be reachable from this milestone. In particular
+this client can bring a session up but still cannot tear a paired one down.
 
 Everything the platform catches is a channel-neutral error from :mod:`app.channels.errors`, so no
 WAHA exception type escapes the seam (Doc 07 §5.3). Deterministic mapping of every failure shape
@@ -33,6 +35,7 @@ from app.channels.errors import (
     ChannelTransportError,
 )
 from app.channels.waha.lifecycle import WahaSessionSnapshot, validate_session_name
+from app.channels.waha.pairing import WahaQrChallenge, build_session_config
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -290,6 +293,77 @@ class WahaClient:
         session = validate_session_name(name)
         body = await self._get(f"/api/sessions/{session}")
         return WahaSessionSnapshot.from_payload(body)
+
+    # --- Pairing (QR-03) -----------------------------------------------------
+    async def create_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions`` — create and start a session with the certified configuration.
+
+        The only write QR-03 adds. Stop, restart and logout are QR-06 and are intentionally absent,
+        so this client still cannot tear a paired session down.
+
+        The store configuration comes from :func:`build_session_config` rather than being written
+        inline: certification proved a snake_case ``full_sync`` is accepted and then silently
+        ignored, which would leave a session that looks healthy with no history.
+        """
+        session = validate_session_name(name)
+        payload = {"name": session, "start": True, "config": build_session_config()}
+        body = await self._post("/api/sessions", payload)
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def qr_challenge(self, name: str) -> WahaQrChallenge:
+        """``GET /api/{session}/auth/qr`` — the transient QR image for a session awaiting a scan.
+
+        Returns raw image bytes, so it bypasses :meth:`_decode` (which requires JSON). The provider
+        answers ``422`` when the session is not awaiting a scan — already paired, still booting or
+        failed — and that is surfaced as a normal :class:`ChannelApiError` rather than being
+        smoothed over, because "no QR right now" is a real state the caller must handle.
+
+        The result is never logged or persisted; see :class:`WahaQrChallenge`.
+        """
+        session = validate_session_name(name)
+        content, content_type = await self._get_bytes(f"/api/{session}/auth/qr?format=image")
+        return WahaQrChallenge(session=session, mimetype=content_type, data=content)
+
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Authenticated JSON POST returning a decoded object, or a channel-neutral error."""
+        self._credentials.require()
+        request = httpx.Request(
+            "POST",
+            self.url(path),
+            headers={**self._headers(), "Content-Type": "application/json"},
+            json=payload,
+        )
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        return self._decode(response)
+
+    async def _get_bytes(self, path: str) -> tuple[bytes, str]:
+        """Authenticated GET returning raw bytes and content type, for non-JSON provider media."""
+        self._credentials.require()
+        request = httpx.Request("GET", self.url(path), headers=self._headers())
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        if response.status_code >= 400:
+            self._raise(response)
+        content_type = response.headers.get("content-type", "").split(";")[0].strip()
+        if not content_type.startswith("image/"):
+            raise ChannelApiError(
+                f"WAHA returned an unexpected QR content type ({content_type or 'none'})",
+                http_status=response.status_code,
+            )
+        return response.content, content_type
 
     async def close(self) -> None:
         if self._http is not None:
