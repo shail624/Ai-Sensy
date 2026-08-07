@@ -5,10 +5,15 @@ A second *implementation* of the ``whatsapp`` channel family behind the existing
 No parallel adapter hierarchy, no provider-specific CRM service family, and nothing in core business
 logic branches on ``connector_type``.
 
-## What QR-01 actually implements
+## What this adapter actually implements
 
-Exactly one thing: an authenticated **server** probe (version/engine banner and health), plus the
-deterministic error mapping around it. That is the whole milestone.
+QR-01: an authenticated **server** probe (version/engine banner and health), plus the deterministic
+error mapping around it.
+
+QR-02 adds one thing on top: reading a **named session's** lifecycle status and translating it into
+the platform's own vocabulary (:mod:`app.channels.waha.lifecycle`). Still read-only — no session is
+created, started, stopped, restarted, paired or logged out, and no capability is added, because
+observing a lifecycle is not the same as being able to drive one.
 
 ## Why the capability set is (almost) empty
 
@@ -42,10 +47,14 @@ test that no future milestone may quietly relax.
 
 ## Server health is not session health
 
-:meth:`health_signal` and :meth:`status` report on the **WAHA server**, never on a WhatsApp account.
-A perfectly healthy WAHA server with zero paired sessions cannot send or receive anything, so
-:meth:`status` returns ``connected=False``: at QR-01 no WhatsApp session exists, can exist, or is
-claimed to exist.
+:meth:`health_signal`, :meth:`authenticate` and :meth:`status` report on the **WAHA server**, never
+on a WhatsApp account. A perfectly healthy WAHA server with zero paired sessions cannot send or
+receive anything, so those three always return ``connected=False``.
+
+:meth:`session_status` is the only method that may report ``connected=True``, and only for a
+session the caller named that the provider reports as ``WORKING``. The distinction is the point:
+"the server answers" and "this account can message" are different facts, and QR-02 keeps them on
+separate methods so no caller can conflate them.
 """
 
 from __future__ import annotations
@@ -57,6 +66,7 @@ from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
 from app.channels.errors import ChannelConfigError, ChannelNotSupported
 from app.channels.models import ChannelStatus, HealthSignal, OutboundMessage, SendResult
 from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
+from app.channels.waha.lifecycle import WahaSessionSnapshot
 from app.core.config import settings
 
 #: Capabilities this provider may never declare, at any milestone (ADR-0020 §5; ADR-0021; owner
@@ -151,12 +161,53 @@ class WahaChannelAdapter(ChannelAdapter):
         return ChannelStatus(
             connected=False,
             identity=None,
-            detail=f"{detail}. No WhatsApp session — QR pairing is not implemented (QR-02+).",
+            detail=f"{detail}. No WhatsApp session — QR pairing is not implemented (QR-03).",
         )
 
     async def status(self) -> ChannelStatus:
-        """Server reachability/auth only — there is no session state to report at QR-01."""
+        """Server reachability/auth only.
+
+        Unchanged by QR-02 on purpose: this adapter owns no session name, so it cannot know *which*
+        session a generic ``status()`` should describe. Session lifecycle is read explicitly through
+        :meth:`session_snapshot`, which requires the caller to name the session it means.
+        """
         return await self.authenticate()
+
+    # --- Session lifecycle (QR-02) -------------------------------------------
+    async def session_snapshot(self, name: str) -> WahaSessionSnapshot:
+        """Read one session's lifecycle status and map it to provider-neutral state.
+
+        The engine guard applies here too: an adapter certified against NOWEB must not interpret
+        another engine's session payload, and a session snapshot is exactly such a payload.
+        """
+        snapshot = await self._client.session_status(name)
+        if snapshot.engine is not None:
+            approved = settings.waha_approved_engine
+            if snapshot.engine.upper() != approved.upper():
+                raise WahaEngineNotApproved(
+                    f"WAHA session reports engine {snapshot.engine!r}, but only {approved!r} is "
+                    "approved for this deployment.",
+                    detail=f"engine={snapshot.engine}",
+                )
+        return snapshot
+
+    async def session_status(self, name: str) -> ChannelStatus:
+        """Provider-neutral :class:`ChannelStatus` for one named session.
+
+        ``connected`` is true only for a ``WORKING`` session — never for a merely reachable server.
+        """
+        snapshot = await self.session_snapshot(name)
+        pairing = snapshot.pairing_state
+        detail = (
+            f"WAHA session {snapshot.name!r}: provider status={snapshot.status.value}, "
+            f"session_state={snapshot.session_state.value}, "
+            f"pairing_state={pairing.value if pairing else 'indeterminate'}"
+        )
+        return ChannelStatus(
+            connected=snapshot.connected,
+            identity=snapshot.identity,
+            detail=detail,
+        )
 
     # --- Health --------------------------------------------------------------
     async def health_signal(self) -> HealthSignal:

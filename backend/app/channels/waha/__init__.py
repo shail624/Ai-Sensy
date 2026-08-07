@@ -1,4 +1,4 @@
-"""WAHA QR provider adapter package (ADR-0021 Class B) — QR-01 foundation.
+"""WAHA QR provider adapter package (ADR-0021 Class B) — QR-01 foundation, QR-02 session lifecycle.
 
 Importing this package registers the ``waha`` adapter factory, following the same self-registration
 pattern as the Meta package so wiring a provider in is an import rather than an edit to the engine
@@ -8,7 +8,8 @@ Registration here is **inert by design**:
 
 * no network call happens at import or registration — the factory only constructs an object;
 * no API key is required to import, register or construct the adapter;
-* no WhatsApp session is created, resumed or probed;
+* no WhatsApp session is created, resumed, started, stopped or logged out — QR-02 can *read* a
+  named session's status, which requires a caller to already know that name;
 * nothing is added to :class:`~app.channels.runtime_registry.ProviderRuntimeRegistry`, so there is
   no live WAHA runtime and no supervisor can start one;
 * every organization-facing QR feature flag stays off by default
@@ -39,6 +40,13 @@ from app.channels.waha.client import (
     WahaServerInfo,
     redact_headers,
 )
+from app.channels.waha.lifecycle import (
+    WahaSessionSnapshot,
+    WahaSessionStatus,
+    map_session_status,
+    parse_session_status,
+    validate_session_name,
+)
 
 register_adapter(CONNECTOR_WAHA, _factory)
 
@@ -50,5 +58,10 @@ __all__ = [
     "WahaEngineNotApproved",
     "WahaServerHealth",
     "WahaServerInfo",
+    "WahaSessionSnapshot",
+    "WahaSessionStatus",
+    "map_session_status",
+    "parse_session_status",
     "redact_headers",
+    "validate_session_name",
 ]

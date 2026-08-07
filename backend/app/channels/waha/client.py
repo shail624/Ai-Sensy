@@ -1,9 +1,12 @@
-"""Minimal typed async WAHA client (QR-01 only).
+"""Minimal typed async WAHA client (QR-01 server probe, QR-02 session lifecycle read).
 
-Deliberately small: QR-01 needs exactly two authenticated reads — the server version/engine banner
-and the server health probe. Session creation, QR retrieval, pairing, messaging, media and history
-are **not** implemented here; they belong to QR-02 and later and must not be reachable from this
-milestone.
+Deliberately small. QR-01 added exactly two authenticated reads — the server version/engine banner
+and the server health probe. QR-02 adds exactly one more: reading a single session's lifecycle
+status.
+
+Every one of the three is a **read**. Session creation, QR retrieval, pairing, start/stop/restart,
+logout, messaging, media and history are **not** implemented here; they belong to QR-03 and later
+and must not be reachable from this milestone.
 
 Everything the platform catches is a channel-neutral error from :mod:`app.channels.errors`, so no
 WAHA exception type escapes the seam (Doc 07 §5.3). Deterministic mapping of every failure shape
@@ -29,6 +32,7 @@ from app.channels.errors import (
     ChannelConfigError,
     ChannelTransportError,
 )
+from app.channels.waha.lifecycle import WahaSessionSnapshot, validate_session_name
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -274,6 +278,18 @@ class WahaClient:
         return WahaServerHealth(
             healthy=status_text == "ok", status=status_text, detail=detail
         )
+
+    # --- Session lifecycle read (QR-02) -------------------------------------
+    async def session_status(self, name: str) -> WahaSessionSnapshot:
+        """``GET /api/sessions/{name}`` — one session's lifecycle status.
+
+        A **read**. QR-02 deliberately adds no create/start/stop/restart/logout call: observing a
+        session is what the platform needs to map provider status onto its own lifecycle, and
+        mutating one belongs to the pairing and runtime milestones (QR-03/QR-06).
+        """
+        session = validate_session_name(name)
+        body = await self._get(f"/api/sessions/{session}")
+        return WahaSessionSnapshot.from_payload(body)
 
     async def close(self) -> None:
         if self._http is not None:

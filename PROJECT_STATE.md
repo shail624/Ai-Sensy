@@ -20,10 +20,31 @@
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) selected as the ADR-0021 Class B candidate — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. QR-01 adds a registered `waha` adapter performing **an authenticated server probe only** (version/engine banner and server health). It declares exactly one capability (`HEALTH`); `BULK`/`CAMPAIGNS`/`TEMPLATE` are permanently prohibited and test-enforced. **No WhatsApp session, QR generation, pairing, webhook ingestion, send path, history/media transfer, session runtime or UI exists.** `ProviderRuntimeRegistry` has no WAHA runtime. Unconfigured and disabled by default. QR login does not work and is not claimed to |
-| Next Module 13 milestone | `QR-02 — session lifecycle`. **Blocked on physical-phone certification evidence**: a paired session reaching `WORKING`, real inbound/outbound, delivery acknowledgement, media and history all remain uncertified |
+| Next Module 13 milestone | `QR-03 — QR endpoint/state` (pairing initiation and QR retrieval). Not started. Physical-phone certification **PASSED** on 2026-08-08 — paired session reaching `WORKING`, external inbound text and JPEG, external outbound with `DEVICE`/`READ` acknowledgement, HMAC-verified webhooks, history/fullSync correlation and logout are all certified — which unblocked and was consumed by QR-02 |
 | Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, automated CI execution of the live-MySQL migration tests, and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
 | Worktree expectation | QR-01 adapter foundation: connector identity, minimal typed WAHA client, authenticated server probe, deterministic error mapping, engine/version guard, conservative capabilities. No migration, OpenAPI, RBAC or frontend change; no session, QR, pairing, webhook, send or runtime |
 | Last update | `2026-08-07T05:00:00+05:30` (Asia/Kolkata) |
+
+## QR-02 — WAHA session lifecycle read and provider-neutral mapping
+
+- **Scope:** read one named WAHA session's status and translate it into the platform's own
+  `SessionState`/`PairingState` vocabulary. One authenticated read; a pure mapping; no runtime.
+- **Read-only and capability-neutral:** nothing is created, started, stopped, restarted, paired or
+  logged out; capabilities remain exactly `HEALTH`. Adapter and client are asserted to expose no
+  session-mutation or QR method.
+- **Mapping:** `SCAN_QR_CODE → waiting_for_pairing/pairing_available`; `WORKING → active/paired`;
+  `STARTING`, `FAILED`, `STOPPED` → `initializing`/`degraded`/`paused` with **no** pairing claim,
+  because the status alone cannot determine whether credentials exist. `FAILED` is deliberately not
+  terminal — certification recovered it with a controlled restart.
+- **Evidence basis:** every status and transition encoded here was observed during physical-phone
+  certification against `devlikeapro/waha@sha256:33ecd1b7…` (2026.7.2 / NOWEB / CORE), not read off
+  documentation. Tests are hermetic; the payloads they assert are the captured real shapes.
+- **Unchanged:** migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200
+  paths, RBAC, generated types, frontend, and the absence of a WAHA entry in
+  `ProviderRuntimeRegistry`. No Production Ready, Host Validated or M13-07 claim.
+- **Still pending:** QR-03 QR endpoint/state, QR-04 webhook ingestion, QR-05 send, QR-06
+  reconnect/health, QR-07 UI, QR-08 Unified Inbox, QR-09 production validation. QR login does not
+  work and is not claimed to.
 
 ## QR-01 — WAHA provider adapter foundation
 
@@ -78,9 +99,9 @@
 - **Unchanged:** migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200
   paths, RBAC, generated types, frontend. No Production Ready, Host Validated, provider-certified or
   M13-07 claim.
-- **Still pending:** QR-02 session lifecycle, QR-03 QR endpoint/state, QR-04 webhook ingestion,
-  QR-05 send, QR-06 reconnect/health, QR-07 UI, QR-08 Unified Inbox, QR-09 production validation, and
-  physical-phone certification evidence.
+- **Still pending at QR-01:** QR-02 session lifecycle (since delivered), QR-03 QR endpoint/state,
+  QR-04 webhook ingestion, QR-05 send, QR-06 reconnect/health, QR-07 UI, QR-08 Unified Inbox,
+  QR-09 production validation, and physical-phone certification evidence (since PASSED 2026-08-08).
 
 ## QR-00 — WAHA Class B provider selection and provider-message identity foundation
 

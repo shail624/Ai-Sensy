@@ -4,7 +4,34 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T05:00:00+05:30`.
+Last synchronized: `2026-08-08T00:00:00+05:30`.
+
+
+## QR-02 — WAHA session lifecycle read and provider-neutral mapping
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Certified status vocabulary | PASS | `WahaSessionStatus` records exactly the five statuses observed during physical-phone certification: `STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`. No speculative member. |
+| Provider-neutral mapping | PASS | `SCAN_QR_CODE → (waiting_for_pairing, pairing_available)`; `WORKING → (active, paired)`; `STARTING → (initializing, indeterminate)`; `FAILED → (degraded, indeterminate)`; `STOPPED → (paused, indeterminate)`. Every certified status is mapped; asserted by test. |
+| `FAILED` is not terminal | PASS | Certification recovered a `FAILED` session with a controlled restart, so it maps to `degraded`, asserted absent from `SESSION_TERMINAL_STATES`. Marking it terminal would strand a revivable session. |
+| Ambiguous statuses refuse to guess | PASS | `STARTING`/`STOPPED`/`FAILED` return pairing `None`. Certification observed `STARTING` on both a fresh session (`→ SCAN_QR_CODE`) and a controlled restart of a paired one (`→ WORKING`, no new QR), so status alone cannot decide; the caller keeps its durable pairing state. |
+| Mapping is pure / order-independent | PASS | Certification proved provider events can arrive out of order (`DEVICE(2) → SERVER(1) → READ(3)`). The mapping is a pure function of status with no persistence and no call-order dependence, so it cannot regress durable state. Asserted with an interleaved sequence. |
+| Uncertified status fails closed | PASS | An unrecognised status raises `ChannelApiError` and the raw provider value is **not** echoed into the message (asserted with a script-like payload). |
+| Session name validation | PASS | The name is interpolated into a request path, so it is validated as a strict identifier, not escaped. `../admin`, `a/b`, `a?x=1`, `a b`, `a%2f`, over-length and empty all rejected; a traversal attempt is asserted to open **no** connection. |
+| Session engine guard | PASS | A session payload reporting `GOWS` fails closed with `WahaEngineNotApproved` — an adapter certified against NOWEB must not interpret another engine's session payload. |
+| Both addressing forms carried | PASS | Certification proved one account is addressed as both `@c.us` and `@lid`; `identity` and `lid` are both retained, neither normalised away. |
+| Only `WORKING` is connected | PASS | `connected=True` only for `WORKING`. A reachable server, a booting session and a QR-showing session all report `connected=False`. |
+| Server health vs session health preserved | PASS | `authenticate()`/`status()` still return `connected=False` with no identity; `session_status(name)` is the only method that may report a live session, and requires the caller to name it. |
+| No capability added | PASS | Capabilities remain exactly `{HEALTH}`. Observing a lifecycle is not being able to drive one — `QR_AUTH` is QR-03, `SESSION_STREAM` QR-04, `SESSION_RECONNECT`/`SESSION_LOGOUT` QR-06. |
+| No session mutation surface | PASS | Adapter and client expose none of `create_session`/`start_session`/`stop_session`/`restart_session`/`logout`/`delete_session`/`request_qr`/`qr`/`pair`; asserted by test. QR-02 adds exactly one authenticated **read**. |
+| No live WAHA runtime | PASS | `ProviderRuntimeRegistry` still contains no `waha` entry (QR-01 assertion unchanged and still passing). |
+| Secret handling | PASS | The API key is sent as `X-Api-Key` and asserted absent from the snapshot `repr`. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in **293** source files (292 before QR-02). |
+| Full backend suite | PASS | **1153 passed**, 0 skipped (1099 before QR-02; +54). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, **43 revisions, unchanged**. QR-02 adds no migration. |
+| OpenAPI invariance | PASS | **200 paths, unchanged**; no route, schema, RBAC entry or generated type added. |
+| Frontend | PASS (unchanged) | No frontend file touched by QR-02. |
 
 
 ## QR-01 — WAHA provider adapter foundation
@@ -26,7 +53,7 @@ Last synchronized: `2026-08-07T05:00:00+05:30`.
 | Provider 5xx | PASS | HTTP 503 maps to `ChannelApiError` with `http_status=503` preserved for the retry engine. |
 | Secret redaction | PASS | `redact_headers` masks `X-Api-Key`/`Authorization`/`Cookie`; `WahaCredentials.__repr__` hides the key; auth/API errors and the warning log are asserted free of the key; provider error bodies are never echoed. |
 | NOWEB / version guard | PASS (real provider) | Real server reports `version=2026.7.2 engine=NOWEB`, no drift. `GOWS` and `WEBJS` both fail closed with `WahaEngineNotApproved`; engine comparison is case-insensitive; drift is reported in `authenticate()` detail and never auto-corrected. |
-| Server health vs session health | PASS (real provider) | `authenticate()`/`status()` return `connected=False`, `identity=None`, detail "No WhatsApp session — QR pairing is not implemented (QR-02+)"; `health_signal()` detail says "server health only, not session health". |
+| Server health vs session health | PASS (real provider) | `authenticate()`/`status()` return `connected=False`, `identity=None`, detail "No WhatsApp session — QR pairing is not implemented (QR-03)" (the milestone reference was corrected from `QR-02+` by QR-02, which implements lifecycle reads but not pairing); `health_signal()` detail says "server health only, not session health". |
 | No session/QR execution path | PASS | Adapter exposes none of `create_session`/`start_session`/`stop_session`/`logout_session`/`request_qr`/`get_qr`/`qr_image`/`pair`/`pair_phone`/`sync_history`; webhook and media methods remain `ChannelNotSupported`. |
 | Meta unchanged | PASS | `meta_cloud` still registered; `test_api_webhooks.py`, `test_api_messages.py`, channel and QR-00 identity suites — 189 passed together, unmodified. |
 | Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |

@@ -11,6 +11,50 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-02: WAHA session lifecycle read and provider-neutral mapping
+
+**Added**
+- `app/channels/waha/lifecycle.py` — `WahaSessionStatus` (the five statuses observed during
+  physical-phone certification), a pure `map_session_status()` translating each to the platform's
+  own `SessionState`/`PairingState`, `WahaSessionSnapshot`, and strict session-name validation.
+- `WahaClient.session_status(name)` — one authenticated read, `GET /api/sessions/{name}`.
+- `WahaChannelAdapter.session_snapshot(name)` / `session_status(name)` — provider-neutral lifecycle
+  for a session the caller names.
+- 54 tests in `tests/test_channel_waha_lifecycle.py`, fully hermetic via `httpx.MockTransport`.
+
+**Behaviour**
+- **Read-only.** QR-02 adds exactly one authenticated read. No session is created, started,
+  stopped, restarted, paired or logged out; adapter and client are asserted to expose no such
+  method. Driving a lifecycle is QR-03 (pairing) and QR-06 (reconnect/health).
+- **No capability added.** Capabilities remain exactly `HEALTH`. Observing a lifecycle is not being
+  able to drive one, and `PROHIBITED_CAPABILITIES` is untouched.
+- **Ambiguous statuses refuse to guess a pairing state.** `STARTING`, `STOPPED` and `FAILED` return
+  no pairing state. Certification observed `STARTING` both on a fresh session (`→ SCAN_QR_CODE`) and
+  on a controlled restart of a paired one (`→ WORKING` with no new QR), so the status alone cannot
+  distinguish "never paired" from "paired and reconnecting". The caller keeps its durable state
+  rather than having it overwritten by an inference.
+- **`FAILED` maps to `degraded`, not a terminal state**, because certification recovered a `FAILED`
+  session with a controlled restart.
+- **Order-independence by construction.** Certification observed acknowledgements arriving out of
+  order (`DEVICE(2) → SERVER(1) → READ(3)`). QR-02 introduces no delivery-state persistence at all,
+  and the mapping is a pure function of status, so no arrival order can regress state.
+- **Fails closed on an uncertified status**, without echoing the raw provider value.
+- **Session names are validated, not escaped**, before reaching a request path; a traversal attempt
+  opens no connection.
+- **Both `@c.us` and `@lid` are retained** — certification proved one account is addressed both
+  ways — so provider-neutral identity boundaries are preserved rather than normalised away here.
+- **Server health is still not session health.** `authenticate()`/`status()` remain
+  `connected=False`; only `session_status(name)` may report a live session, and only for `WORKING`.
+
+**Fixed**
+- `authenticate()` detail said QR pairing arrives in "QR-02+". QR-02 exists and does not implement
+  pairing, so the reference was corrected to `QR-03`. Documentation-only string; no behaviour change.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, RBAC,
+  generated types, frontend, Meta behaviour, and the absence of any WAHA entry in
+  `ProviderRuntimeRegistry`. No QR API, QR UI, webhook ingestion, send path, media or history.
+
 ### 2026-08-07 — QR-01: WAHA provider adapter foundation
 
 **Added**

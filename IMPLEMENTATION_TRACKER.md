@@ -10,15 +10,16 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Branch:** `ui/taste-modernization`
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 adds no migration, no route, no RBAC entry and no generated type
+- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 and QR-02 add no migration, no route, no RBAC entry and no generated type
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-01 — WAHA provider adapter foundation: connector identity (`waha`/`whatsapp`), a minimal typed async client, an authenticated **server** probe, deterministic error mapping and an engine/version guard. **No WhatsApp session, QR, pairing, webhook ingestion, send path, media/history transfer, session runtime or UI.**
+- **Latest change:** QR-02 — WAHA session lifecycle: one authenticated read (`GET /api/sessions/{name}`) plus a pure provider-neutral mapping of the five certified WAHA statuses onto `SessionState`/`PairingState`. Read-only and capability-neutral. **No session creation/start/stop/restart/pairing/logout, no QR, no webhook ingestion, no send path, no media/history transfer, no session runtime and no UI.**
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-01 is adapter foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented and non-functional.
 - **Backend evidence:** Ruff PASS · strict mypy PASS (292 files) · 1099 full pytest tests PASS (1036 before QR-01; +63 WAHA adapter tests) · previously 999 (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
-- **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. QR-01 registers a `waha` adapter limited to an authenticated server probe; `ProviderRuntimeRegistry` still has no WAHA runtime.
-- **Next milestone:** `QR-02 — session lifecycle`, blocked on physical-phone certification evidence.
-- **Last synchronized:** `2026-08-07T05:00:00+05:30`
+- **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. The physical-phone evidence that record required was produced on 2026-08-08 and PASSED; the record itself still reads **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** and needs an **owner decision** to advance, which QR-02 does not make on its own authority. QR-01 registers a `waha` adapter limited to an authenticated server probe; QR-02 adds a read-only session lifecycle mapping; `ProviderRuntimeRegistry` still has no WAHA runtime.
+- **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02.
+- **Next milestone:** `QR-03 — QR endpoint/state` (pairing initiation and QR retrieval). Not started.
+- **Last synchronized:** `2026-08-08T00:00:00+05:30`
 
 ## Delivered
 
@@ -68,6 +69,28 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Known gap, pre-existing:** no CI pipeline exists in this repository, and the local quality gate
   does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
   execution path today — it runs only when a developer manually starts MySQL first.
+
+### QR-02 — WAHA session lifecycle read and provider-neutral mapping
+
+- **Delivered:** `app/channels/waha/lifecycle.py` — `WahaSessionStatus` (the five statuses observed
+  during physical-phone certification: `STARTING`, `SCAN_QR_CODE`, `WORKING`, `FAILED`, `STOPPED`),
+  a pure `map_session_status()` onto `SessionState`/`PairingState`, `WahaSessionSnapshot`, and
+  strict session-name validation. One authenticated client read (`GET /api/sessions/{name}`) and two
+  adapter methods (`session_snapshot`, `session_status`).
+- **Read-only:** no session is created, started, stopped, restarted, paired or logged out. Adapter
+  and client are asserted to expose no such method. Driving a lifecycle is QR-03/QR-06.
+- **Capability-neutral:** capabilities remain exactly `HEALTH`; `PROHIBITED_CAPABILITIES` untouched.
+- **Honest ambiguity:** `STARTING`/`STOPPED`/`FAILED` return no pairing state, because certification
+  observed `STARTING` on both a fresh session and a controlled restart of a paired one. `FAILED`
+  maps to `degraded`, not a terminal state, because certification recovered it with a restart.
+- **Carry-forward respected:** QR-02 introduces no delivery-state persistence and no event dedupe,
+  so the out-of-order acknowledgement finding (`DEVICE(2) → SERVER(1) → READ(3)`) and the shared
+  `envelope.id` finding constrain QR-04/QR-05, not this milestone. The mapping is pure and
+  order-independent by construction.
+- **Tests:** 54 new hermetic tests (`tests/test_channel_waha_lifecycle.py`). Full suite 1153 passed
+  (1099 before QR-02).
+- **Unchanged:** migration head, OpenAPI (200 paths), RBAC, generated types, frontend, Meta
+  behaviour, and the absence of a WAHA entry in `ProviderRuntimeRegistry`.
 
 ### QR-01 — WAHA provider adapter foundation
 
@@ -379,9 +402,19 @@ provider history retrieval, media-byte transfer/processing, sending, incoming we
 
 ## Remaining work
 
-- QR-02 session lifecycle, QR-03 QR endpoint/state, QR-04 webhook ingestion, QR-05 send path,
-  QR-06 reconnect/health, QR-07 QR frontend, QR-08 Unified Inbox integration, QR-09 production
-  validation — none started. QR-01 delivered an adapter that can probe the WAHA *server* only.
+- QR-03 QR endpoint/state, QR-04 webhook ingestion, QR-05 send path, QR-06 reconnect/health,
+  QR-07 QR frontend, QR-08 Unified Inbox integration, QR-09 production validation — none started.
+  QR-01 delivered an adapter that can probe the WAHA *server*; QR-02 added a read-only session
+  lifecycle mapping. Nothing can yet pair, ingest, send or supervise a session.
+- **QR-05 carry-forward (acknowledgement ordering):** physical-phone certification observed
+  acknowledgements arriving `DEVICE(2) → SERVER(1) → READ(3)`. Any delivery-state persistence must
+  advance monotonically (take the highest state reached); last-write-wins would regress a delivered
+  message back to "sent".
+- **QR-04 carry-forward (event identity):** the same underlying provider message was delivered as
+  both `message` and `message.any` sharing one `envelope.id`. Deduplication keyed on `envelope.id`
+  alone would silently drop a genuine event; the key must include the event type. Webhook delivery
+  is at-least-once and redelivery repeats both `envelope.id` and `X-Webhook-Request-Id`, so neither
+  distinguishes a retry from a first delivery.
 - **QR-04 carry-forward (concurrency):** `messages` is partitioned, so DB-level endpoint/provider
   message-id uniqueness cannot be enforced by constraint (MySQL error 1503). Concurrent
   duplicate-event safety must therefore be proven independently — by test, not by schema — before
