@@ -3,22 +3,22 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-07 · QR-00 WAHA Class B provider selection and provider-message identity foundation, on top of the MySQL migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of the QR-00 provider selection and provider-message identity foundation, the MySQL migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `cc824e89336a1dc0d3d3c8c9ee2f7c8b0c11d2cc` (`test(dev): add representative preview fixtures`)
+- **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, was 42) · 200 paths — QR-00 adds one additive, index-only migration; OpenAPI path count unchanged and no route added
+- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 adds no migration, no route, no RBAC entry and no generated type
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-00 — WAHA Class B provider-selection record, endpoint-scoped provider-message identity/tenant-isolation hardening (one additive index migration), and a provider-neutral re-authentication health projection. **Foundation only: no WAHA adapter, runtime, QR API, QR UI, webhook ingestion or send path exists.**
-- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-00 is foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented.
-- **Backend evidence:** Ruff PASS · strict mypy PASS · 1036 full pytest tests PASS (1015 before QR-00; +21) · previously 999 (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
+- **Latest change:** QR-01 — WAHA provider adapter foundation: connector identity (`waha`/`whatsapp`), a minimal typed async client, an authenticated **server** probe, deterministic error mapping and an engine/version guard. **No WhatsApp session, QR, pairing, webhook ingestion, send path, media/history transfer, session runtime or UI.**
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-01 is adapter foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented and non-functional.
+- **Backend evidence:** Ruff PASS · strict mypy PASS (292 files) · 1099 full pytest tests PASS (1036 before QR-01; +63 WAHA adapter tests) · previously 999 (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
-- **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) selected as the ADR-0021 Class B candidate — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. Owner/Architecture/Security approval and explicit ban-risk acceptance recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. No provider adapter is registered; only `meta_cloud` exists.
-- **Next milestone:** `QR-01 — provider adapter` is authorized. Physical-phone certification evidence remains mandatory before any live execution or production enablement.
-- **Last synchronized:** `2026-08-07T04:00:00+05:30`
+- **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. QR-01 registers a `waha` adapter limited to an authenticated server probe; `ProviderRuntimeRegistry` still has no WAHA runtime.
+- **Next milestone:** `QR-02 — session lifecycle`, blocked on physical-phone certification evidence.
+- **Last synchronized:** `2026-08-07T05:00:00+05:30`
 
 ## Delivered
 
@@ -68,6 +68,38 @@ _Last updated: 2026-08-07 · QR-00 WAHA Class B provider selection and provider-
 - **Known gap, pre-existing:** no CI pipeline exists in this repository, and the local quality gate
   does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
   execution path today — it runs only when a developer manually starts MySQL first.
+
+### QR-01 — WAHA provider adapter foundation
+
+- **Delivered:** connector identity `waha` on channel family `whatsapp`; a minimal typed async
+  client (`app/channels/waha/client.py`) implementing exactly two authenticated reads — the server
+  version/engine banner and `/health`; the adapter (`app/channels/waha/adapter.py`) behind the
+  existing `ChannelAdapter` seam; inert static registration; and disabled-by-default configuration.
+- **Capabilities:** only `HEALTH`. Withheld deliberately: `QR_AUTH`, `SESSION_STREAM`,
+  `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC`, `TEXT`, `MEDIA`, `MEDIA_UPLOAD`,
+  `MEDIA_DOWNLOAD`, `INTERACTIVE`, `REACTION`, `LOCATION`, `CONTACT` — each either unimplemented
+  here, unproven without a paired handset, or both. A provider endpoint existing is not evidence
+  that this adapter can use it.
+- **Permanently prohibited:** `BULK`, `CAMPAIGNS`, `TEMPLATE` (ADR-0020 section 5, ADR-0021, owner
+  Class B approval). Recorded in `PROHIBITED_CAPABILITIES` and enforced by tests asserting they are
+  never declared and that the capability gate refuses template/text sends.
+- **Server health is not session health:** `authenticate()`/`status()` report `connected=False` with
+  an explicit "No WhatsApp session" detail; `health_signal()` labels itself server-health-only.
+- **Error mapping:** timeout and unavailable to `ChannelTransportError` (distinct messages);
+  401/403 to `ChannelAuthError`; 5xx and other reached errors to `ChannelApiError` with status;
+  malformed JSON, unexpected content type and non-object JSON to `ChannelApiError`; unconfigured to
+  `ChannelConfigError` before any socket opens.
+- **Version/engine safety:** baseline `2026.7.2`, `NOWEB` only. Unexpected engine fails closed;
+  drift is reported and never auto-corrected; the spike pinned an immutable digest, not a floating
+  tag.
+- **Security:** API key sent only as `X-Api-Key`, never logged, never in an exception message,
+  masked in `repr`; provider error bodies never echoed; error log carries status and path only.
+- **Real validation:** isolated `devlikeapro/waha:noweb-2026.7.2` run locally on `127.0.0.1`; the
+  committed adapter driven against it, 11/11 checks. No session created, no QR requested, no phone
+  paired, nothing sent or received. Torn down and credentials removed; the committed
+  `docker-compose.yml` was not edited.
+- **Unchanged:** migration head, OpenAPI (200 paths), RBAC, generated types, frontend, Meta
+  behaviour, and the QR-00 endpoint-scoped provider-message identity.
 
 ### QR-00 — WAHA Class B provider selection and provider-message identity foundation
 
@@ -347,9 +379,13 @@ provider history retrieval, media-byte transfer/processing, sending, incoming we
 
 ## Remaining work
 
-- QR-01 provider adapter, QR-02 session lifecycle, QR-03 QR endpoint/state, QR-04 webhook
-  ingestion, QR-05 send path, QR-06 reconnect/health, QR-07 QR frontend, QR-08 Unified Inbox
-  integration, QR-09 production validation — none started; QR-00 is foundation only.
+- QR-02 session lifecycle, QR-03 QR endpoint/state, QR-04 webhook ingestion, QR-05 send path,
+  QR-06 reconnect/health, QR-07 QR frontend, QR-08 Unified Inbox integration, QR-09 production
+  validation — none started. QR-01 delivered an adapter that can probe the WAHA *server* only.
+- **QR-04 carry-forward (concurrency):** `messages` is partitioned, so DB-level endpoint/provider
+  message-id uniqueness cannot be enforced by constraint (MySQL error 1503). Concurrent
+  duplicate-event safety must therefore be proven independently — by test, not by schema — before
+  QR-04 turns on live webhook ingestion. Partitioning is deliberately not redesigned.
 - Physical-phone WAHA certification evidence (paired session reaching `WORKING`, real inbound,
   outbound send, delivery/read acknowledgement, media, history) — the four Required criteria that
   remain PENDING in the selection record.

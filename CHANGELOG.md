@@ -11,6 +11,71 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-07 — QR-01: WAHA provider adapter foundation
+
+**Added**
+- `app/channels/waha/` — the `waha` provider adapter behind the existing `ChannelAdapter` seam
+  (ADR-0021 Class B). Connector identity `connector_type="waha"` on channel family
+  `channel_type="whatsapp"`: a second *implementation* of the same channel, never a second channel
+  and never a parallel hierarchy.
+- `app/channels/waha/client.py` — a minimal typed async client implementing exactly the two
+  authenticated reads QR-01 needs: the server version/engine banner and `/health`.
+- Configuration `WAHA_BASE_URL`, `WAHA_API_KEY`, `WAHA_TIMEOUT_SECONDS`,
+  `WAHA_CERTIFIED_VERSION` (`2026.7.2`), `WAHA_APPROVED_ENGINE` (`NOWEB`). Unconfigured by
+  default with **no default API key**; the application boots normally with none of them set.
+- 63 tests in `tests/test_channel_waha_adapter.py`, fully hermetic via `httpx.MockTransport`.
+
+**Behaviour**
+- **Capabilities are deliberately minimal: only `HEALTH`.** The QR-00 spike proved the *provider*
+  supports QR pairing, sessions, media and history, but a provider endpoint existing is not the
+  same as this adapter being able to use it, and neither is the same as a paired WhatsApp account
+  working. `QR_AUTH`, `SESSION_STREAM`, `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC`,
+  `TEXT`, `MEDIA`, `MEDIA_UPLOAD`, `MEDIA_DOWNLOAD`, `INTERACTIVE`, `REACTION`, `LOCATION` and
+  `CONTACT` are all withheld until the milestone that implements them.
+- **`BULK`, `CAMPAIGNS` and `TEMPLATE` are permanently prohibited** for this provider (ADR-0020
+  section 5, ADR-0021, owner Class B approval) — recorded in `PROHIBITED_CAPABILITIES` and enforced
+  by tests that no future milestone may quietly relax.
+- **Server health is not session health.** `authenticate()`/`status()` return `connected=False`
+  with an explicit "No WhatsApp session" detail, and `health_signal()` labels itself
+  server-health-only. A healthy WAHA server with zero paired sessions cannot message.
+- **Deterministic error mapping**, each shape observed against the real certified build: timeout and
+  unavailable to `ChannelTransportError` (distinct messages); 401/403 to `ChannelAuthError`; 5xx and
+  other reached errors to `ChannelApiError` carrying the status; malformed JSON, unexpected content
+  type (the real server answers `text/html` on its root path) and non-object JSON to
+  `ChannelApiError`; unconfigured to `ChannelConfigError` before any socket opens.
+- **Version/engine safety.** Certified baseline `2026.7.2`, `NOWEB` only. An unexpected engine fails
+  closed because payload shapes differ between engines. Version drift is reported, never
+  auto-corrected; nothing upgrades a provider on its own.
+- **Registration is inert.** Static registration opens no socket, requires no API key and starts no
+  runtime, so the provider is *resolvable* but *disabled*. `ProviderRuntimeRegistry` deliberately
+  gains no WAHA runtime.
+
+**Security**
+- API key sent only as `X-Api-Key`; never logged, never echoed into an exception message, masked in
+  `repr`. Provider error bodies are never quoted (they are attacker-influencable); the warning log
+  records status and path only. No QR material exists to persist. Meta webhook security and the
+  QR-00 endpoint-scoped provider-message identity are unchanged.
+
+**Verified**
+- An isolated `devlikeapro/waha:noweb-2026.7.2` (digest `sha256:33ecd1b7...`) was run locally on
+  `127.0.0.1` and the committed adapter driven against it: 11/11 checks covering authenticated
+  version/engine, authenticated health, wrong-key and missing-config rejection, unavailable, timeout,
+  non-JSON handling and the engine guard. **No session was created, no QR requested, no phone
+  paired, nothing sent or received.** Torn down afterwards with all credentials and artefacts
+  removed; the committed `docker-compose.yml` was not edited.
+- Ruff, strict mypy (292 files), **1099 backend tests (0 skipped)**, `export_openapi.py --check`
+  (200 paths, unchanged) and `quality_gate.py static` all pass.
+
+**Preserved**
+- No migration (head remains `0042_scope_provider_message_identity`, 43 revisions), no OpenAPI
+  change, no RBAC change, no generated-type change, no frontend change. Meta Cloud behaviour is
+  untouched.
+- **QR login does not work and is not claimed to.** No WhatsApp session, QR generation, pairing,
+  webhook ingestion, send path, media or history transfer, session worker or UI exists. QR-02
+  through QR-09 and physical-phone certification all remain pending; no Production Ready, Host
+  Validated, provider-certified or M13-07 claim is made.
+
+
 ### 2026-08-07 — QR-00: WAHA Class B provider selection and provider-message identity foundation
 
 **Added**

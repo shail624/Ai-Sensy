@@ -1,0 +1,54 @@
+"""WAHA QR provider adapter package (ADR-0021 Class B) — QR-01 foundation.
+
+Importing this package registers the ``waha`` adapter factory, following the same self-registration
+pattern as the Meta package so wiring a provider in is an import rather than an edit to the engine
+(Doc 07 §5.4).
+
+Registration here is **inert by design**:
+
+* no network call happens at import or registration — the factory only constructs an object;
+* no API key is required to import, register or construct the adapter;
+* no WhatsApp session is created, resumed or probed;
+* nothing is added to :class:`~app.channels.runtime_registry.ProviderRuntimeRegistry`, so there is
+  no live WAHA runtime and no supervisor can start one;
+* every organization-facing QR feature flag stays off by default
+  (:class:`~app.channels.flags.OmnichannelFeatureFlag`).
+
+Registering the adapter makes it *resolvable*; it does not make it *enabled*. A deployment with no
+``WAHA_BASE_URL``/``WAHA_API_KEY`` boots normally and the adapter simply raises
+:class:`~app.channels.errors.ChannelConfigError` if anything ever asks it to talk to a server.
+
+Unlike ``app.channels.meta``, this package installs **no** retry error map: QR-01 has no queued
+provider work to classify. That arrives with the send/ingestion paths (QR-04/QR-05).
+"""
+
+from __future__ import annotations
+
+from app.channels.base import register_adapter
+from app.channels.capabilities import CONNECTOR_WAHA
+from app.channels.waha.adapter import (
+    PROHIBITED_CAPABILITIES,
+    WahaChannelAdapter,
+    WahaEngineNotApproved,
+    _factory,
+)
+from app.channels.waha.client import (
+    WahaClient,
+    WahaCredentials,
+    WahaServerHealth,
+    WahaServerInfo,
+    redact_headers,
+)
+
+register_adapter(CONNECTOR_WAHA, _factory)
+
+__all__ = [
+    "PROHIBITED_CAPABILITIES",
+    "WahaChannelAdapter",
+    "WahaClient",
+    "WahaCredentials",
+    "WahaEngineNotApproved",
+    "WahaServerHealth",
+    "WahaServerInfo",
+    "redact_headers",
+]

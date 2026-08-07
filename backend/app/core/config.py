@@ -154,6 +154,26 @@ class Settings(BaseSettings):
     bootstrap_org_name: str = "Vi Reactivation Team"
     bootstrap_org_slug: str = "vi-reactivation"
 
+    # ---- WAHA QR provider (ADR-0021 Class B; QR-01 adapter foundation) -------------------
+    # Unconfigured and disabled by default. The application boots normally with none of these
+    # set — the adapter is registered statically but performs no network call until something
+    # explicitly asks it to, and every organization-facing QR feature flag is off by default
+    # (`app.channels.flags.OmnichannelFeatureFlag`).
+    #
+    # There is deliberately **no default API key**. An empty key is a configuration error raised
+    # at call time (`ChannelConfigError`), never a silent fallback that might reach a real server.
+    #: Administrative base URL of the self-hosted WAHA server. Must stay on an internal network —
+    #: WAHA's own documentation warns against exposing it publicly.
+    waha_base_url: str = ""
+    #: Server API key. Secret: never logged, never echoed, redacted from adapter diagnostics.
+    waha_api_key: str = ""
+    waha_timeout_seconds: float = 10.0
+    #: Certification baseline (`docs/evidence/provider-evaluations/waha-class-b-selection-record.md`).
+    #: A server reporting a different version is reported as drift; a different engine fails closed.
+    waha_certified_version: str = "2026.7.2"
+    #: Only NOWEB is owner-approved. Changing this requires a new owner decision and re-certification.
+    waha_approved_engine: str = "NOWEB"
+
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
     # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not
     # enough, since a shared dev/staging box could still have ENVIRONMENT=development set by

@@ -4,8 +4,40 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T04:00:00+05:30`.
+Last synchronized: `2026-08-07T05:00:00+05:30`.
 
+
+## QR-01 — WAHA provider adapter foundation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Connector identity | PASS | `connector_type="waha"`, `channel_type="whatsapp"` — a second implementation of the same channel family behind the existing `ChannelAdapter` seam, not a second channel. |
+| Conservative capabilities | PASS | Declares only `HEALTH`. Parametrized tests assert `QR_AUTH`, `SESSION_STREAM`, `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC`, `TEXT`, `MEDIA`, `MEDIA_UPLOAD`, `MEDIA_DOWNLOAD`, `INTERACTIVE`, `REACTION`, `LOCATION`, `CONTACT` are all withheld — none is implemented here and none is proven with a paired handset. |
+| Prohibited capabilities | PASS | `BULK`/`CAMPAIGNS`/`TEMPLATE` recorded in `PROHIBITED_CAPABILITIES`, asserted never declared, asserted disjoint from the declared set, and template/text sends proven refused by the capability gate. |
+| Static registration | PASS | `waha` present in `available_adapters()` alongside `meta_cloud`; `get_adapter("waha")` returns a `WahaChannelAdapter`. |
+| Zero startup network calls | PASS | Test patches `socket.socket.connect` to fail outright, then reloads the package and constructs the adapter — registration opens no connection and needs no API key. |
+| Boots without WAHA config | PASS | With `WAHA_BASE_URL`/`WAHA_API_KEY` unset the application imports and the adapter constructs with `configured=False`. Verified by importing `app.main` with the variables cleared. |
+| Disabled by default | PASS | Both settings default to `""` (asserted against the model fields, so no default key can be introduced silently); QR feature flags off by default. |
+| No live WAHA runtime | PASS | `ProviderRuntimeRegistry` contains no `waha` entry; asserted by test. No session worker, supervisor or reconnect loop exists. |
+| Authenticated server health | PASS (real provider) | Against isolated `devlikeapro/waha:noweb-2026.7.2` (digest `sha256:33ecd1b7...`): `/health` returns `status=ok`; adapter reports `healthy=True`. |
+| Auth failure | PASS (real provider) | Wrong API key returns HTTP 401 and maps to `ChannelAuthError`; the key does not appear in the message. No key and wrong key behave identically. |
+| Timeout / unavailable | PASS (real provider) | Real socket timeout maps to `ChannelTransportError` ("timed out"); a closed port maps to `ChannelTransportError` ("unavailable"). Distinct messages, both transient to the retry engine. |
+| Malformed / unexpected content type | PASS | Non-JSON body maps to `ChannelApiError` ("malformed"); `text/html` maps to `ChannelApiError` ("unexpected content type") — the shape the real server returns on its root path. Non-object JSON also rejected. |
+| Provider 5xx | PASS | HTTP 503 maps to `ChannelApiError` with `http_status=503` preserved for the retry engine. |
+| Secret redaction | PASS | `redact_headers` masks `X-Api-Key`/`Authorization`/`Cookie`; `WahaCredentials.__repr__` hides the key; auth/API errors and the warning log are asserted free of the key; provider error bodies are never echoed. |
+| NOWEB / version guard | PASS (real provider) | Real server reports `version=2026.7.2 engine=NOWEB`, no drift. `GOWS` and `WEBJS` both fail closed with `WahaEngineNotApproved`; engine comparison is case-insensitive; drift is reported in `authenticate()` detail and never auto-corrected. |
+| Server health vs session health | PASS (real provider) | `authenticate()`/`status()` return `connected=False`, `identity=None`, detail "No WhatsApp session — QR pairing is not implemented (QR-02+)"; `health_signal()` detail says "server health only, not session health". |
+| No session/QR execution path | PASS | Adapter exposes none of `create_session`/`start_session`/`stop_session`/`logout_session`/`request_qr`/`get_qr`/`qr_image`/`pair`/`pair_phone`/`sync_history`; webhook and media methods remain `ChannelNotSupported`. |
+| Meta unchanged | PASS | `meta_cloud` still registered; `test_api_webhooks.py`, `test_api_messages.py`, channel and QR-00 identity suites — 189 passed together, unmodified. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in 292 source files. |
+| Full backend suite | PASS | **1099 passed**, 0 skipped (1036 before QR-01; +63). |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` up to date; **200 paths, unchanged**; no route added. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` — all 6 steps pass. |
+| Migration invariants | PASS | Head remains `0042_scope_provider_message_identity`; 43 revisions; linear. No migration file touched. |
+| Scope discipline | PASS | Zero changes under `frontend/`, `backend/alembic/`, `backend/app/rbac/`, `backend/app/api/`, `docs/adr/`. |
+| Real-provider spike hygiene | PASS | Temporary WAHA torn down (`docker compose down -v`), spike directory and credentials deleted, committed `docker-compose.yml` untouched, and no spike key present anywhere in the repository. |
+| UI preview | NOT APPLICABLE | QR-01 contains no user-facing QR interface. |
 
 ## QR-00 — WAHA Class B provider selection and provider-message identity foundation
 
