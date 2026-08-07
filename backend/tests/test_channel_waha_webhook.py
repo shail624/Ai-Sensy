@@ -154,10 +154,121 @@ def test_identity_is_session_scoped() -> None:
     assert a != b
 
 
-def test_identity_fits_the_column_and_keeps_the_discriminator() -> None:
-    """``webhook_events.event_id`` is String(128); the envelope id must survive truncation."""
-    key = event_identity(session="s" * 200, event_type="message", envelope_id="evt_tail")
-    assert len(key) <= 128
+def test_identity_fits_the_column_regardless_of_component_length() -> None:
+    """``webhook_events.event_id`` is String(128). The digest is fixed-length, so this holds for
+    any component length rather than depending on where a cut lands."""
+    for length in (0, 1, 64, 127, 128, 200, 1000):
+        key = event_identity(
+            session="s" * length, event_type="message", envelope_id="evt_tail"
+        )
+        assert len(key) <= 128
+
+
+def test_long_components_still_discriminate_by_envelope_id() -> None:
+    """The specific defect this replaced: previously, once ``session``/``event_type`` alone
+    exceeded 128 characters, ``envelope_id`` was cut away entirely and every envelope collapsed
+    to one key. The digest must still distinguish them."""
+    long_session = "s" * 120
+    a = event_identity(session=long_session, event_type="message", envelope_id="AAAA1111")
+    b = event_identity(session=long_session, event_type="message", envelope_id="BBBB2222")
+    assert a != b
+
+
+def _old_truncated_identity(session: str, event_type: str, envelope_id: str) -> str:
+    """The removed QR-04 algorithm, reconstructed only to prove it collided.
+
+    Not a call into production code — the implementation under test no longer contains this
+    logic. Kept purely so the regression below documents the defect it replaced.
+    """
+    return f"waha:{session}:{event_type}:{envelope_id}"[:128]
+
+
+def test_old_truncation_algorithm_did_collide_on_long_inputs() -> None:
+    """Reproduces the verified defect: Python's ``s[:128]`` keeps the LEFT prefix, so placing
+    ``envelope_id`` last did not make it "survive truncation" — it made it the first thing cut.
+    Once the fixed prefix alone reaches 128 characters, every envelope_id is discarded and two
+    distinct events collapse onto one stored key."""
+    long_session = "s" * 120
+    prefix = f"waha:{long_session}:message:"
+    assert len(prefix) > 128, "prefix must itself exceed the column width to prove the defect"
+
+    a = _old_truncated_identity(long_session, "message", "AAAA1111")
+    b = _old_truncated_identity(long_session, "message", "BBBB2222")
+    assert a == b, "the old algorithm is expected to collide here — that was the defect"
+
+
+def test_new_algorithm_does_not_collide_on_the_same_long_inputs() -> None:
+    """The exact inputs that collided under the old algorithm must not collide under the new one."""
+    long_session = "s" * 120
+    a = event_identity(session=long_session, event_type="message", envelope_id="AAAA1111")
+    b = event_identity(session=long_session, event_type="message", envelope_id="BBBB2222")
+    assert a != b
+
+
+def test_old_algorithm_was_also_delimiter_ambiguous() -> None:
+    """A second, length-independent defect in the removed algorithm: plain ``":"`` joins let one
+    component's content be mistaken for another component's boundary."""
+    a = _old_truncated_identity("tenant", "a:b", "ENV1")
+    b = _old_truncated_identity("tenant:a", "b", "ENV1")
+    assert a == b, "the old algorithm is expected to collide here — that was the defect"
+
+
+@pytest.mark.parametrize(
+    ("session_a", "event_type_a", "session_b", "event_type_b"),
+    [
+        ("tenant", "a:b", "tenant:a", "b"),
+        ("tenant", "a|b", "tenant|a", "b"),
+        ("1:x", "y", "1", "x:y"),
+        ("", "a", "a", ""),
+        ("a" * 3 + ":a", "a", "a" * 3, "a:a"),
+    ],
+)
+def test_new_algorithm_resists_delimiter_injection(
+    session_a: str, event_type_a: str, session_b: str, event_type_b: str
+) -> None:
+    """Adversarial component values that were ambiguous under plain concatenation must not
+    produce equivalent canonical inputs under the length-prefixed digest."""
+    envelope = "ENV1"
+    a = event_identity(session=session_a, event_type=event_type_a, envelope_id=envelope)
+    b = event_identity(session=session_b, event_type=event_type_b, envelope_id=envelope)
+    assert a != b
+
+
+def test_identity_is_deterministic_across_repeated_calls() -> None:
+    """Not Python's ``hash()`` — which is randomized per process via ``PYTHONHASHSEED`` — so the
+    same triple must produce the same key on every call, in this process or another."""
+    calls = [
+        event_identity(session="phonecert", event_type="message", envelope_id="evt_1")
+        for _ in range(50)
+    ]
+    assert len(set(calls)) == 1
+
+
+def test_identity_does_not_use_python_hash() -> None:
+    import inspect
+
+    from app.channels.waha import webhook as module
+
+    source = inspect.getsource(module.event_identity) + inspect.getsource(module._canonicalize)
+    assert "hash(" not in source
+    assert "sha256" in source
+
+
+def test_canonicalize_is_injective_for_boundary_edge_cases() -> None:
+    """Empty components, components equal to a digit string, and components containing the
+    delimiter characters themselves must all still discriminate correctly."""
+    from app.channels.waha.webhook import _canonicalize
+
+    cases = [
+        ("", "", ""),
+        ("0", "", ""),
+        ("", "0", ""),
+        ("1:2", "3", "4"),
+        ("1", "2:3", "4"),
+        ("a|1:b", "c", "d"),
+    ]
+    canon = {_canonicalize(*case) for case in cases}
+    assert len(canon) == len(cases)
 
 
 def test_parse_produces_distinct_keys_for_the_shared_envelope() -> None:

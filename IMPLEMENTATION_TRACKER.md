@@ -72,6 +72,33 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
   does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
   execution path today — it runs only when a developer manually starts MySQL first.
 
+### Defect fix — WAHA webhook event identity collision
+
+- **Root cause:** `event_identity()` in `app/channels/waha/webhook.py` built
+  `f"waha:{session}:{event_type}:{envelope_id}"[:128]`. The docstring claimed placing
+  `envelope_id` last made it "survive truncation"; this was backwards — Python slicing `[:128]`
+  keeps the **left** prefix and discards the right tail, so `envelope_id` (placed last) is exactly
+  what gets cut. Once `session`/`event_type` alone pushed the fixed prefix past 128 characters,
+  every `envelope_id` was discarded and two distinct events collapsed onto one stored
+  `webhook_events.event_id`. A second, length-independent collision existed in the same
+  concatenation: plain `":"` delimiters let one component's content be mistaken for another's
+  boundary (`session="tenant", event_type="a:b"` collided with `session="tenant:a", event_type="b"`).
+  Both reproduced as regression tests before the fix.
+- **Fix:** `event_identity()` now returns `"waha:" + sha256(canonical).hexdigest()` — a fixed 69
+  characters, always within the 128-character column regardless of component length. `canonical`
+  is a netstring-style length-prefixed encoding of all three full components
+  (`f"{len(part)}:{part}|"` per component), which is unambiguous by construction: a component's
+  own exact character count pins its boundary, so no content — including the delimiter characters
+  themselves — can forge a false boundary. `hashlib.sha256` is used, not Python's `hash()`, which
+  is per-process randomized and would make the key non-reproducible.
+- **Scope discipline:** the fix is confined to `event_identity()`/`_canonicalize()` in
+  `webhook.py`. QR-05 send/delivery-state code, Meta behaviour, capabilities, routes, OpenAPI and
+  migrations are all untouched.
+- **Tests:** 12 new tests, including a reconstruction of the removed algorithm that proves it
+  collided on the same inputs the new algorithm now discriminates, plus five delimiter-injection
+  cases and a determinism/no-`hash()` assertion. Full QR-04 suite 64 passed (52 before); all five
+  WAHA suites 253 passed together; full backend suite 1289 passed (1277 before).
+
 ### QR-05 — WAHA send path and delivery-state reconciliation
 
 - **Delivered:** `app/channels/waha/delivery.py` (ack vocabulary, `map_ack()`, `to_status_update()`,
@@ -87,9 +114,12 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
   proven absence; a failed lookup stays indeterminate. No resend path exists.
 - **Endpoint scoping is structural:** sends and lookups both go through `require_session()`, and the
   reconcile query runs inside that session's own chat. No global provider-message lookup.
-- **QR-04 review:** the 128-character `event_identity` truncation was re-inspected. No collision
-  defect was found — the envelope id is placed last so the discriminating component survives — so
-  QR-04 was left unchanged.
+- **QR-04 review (superseded — see the defect fix below):** the 128-character `event_identity`
+  truncation was re-inspected during QR-05 and reported clean at the time. That conclusion was
+  **wrong**: Python's `s[:128]` keeps the left prefix and discards the right tail, so placing
+  `envelope_id` last did not make it survive truncation — it made it the first thing cut. A
+  follow-up fix replaced the truncated concatenation with a fixed-length digest; see "Defect fix —
+  WAHA webhook event identity collision" below.
 - **Tests:** 46 new hermetic tests (`tests/test_channel_waha_delivery.py`); 241 across all five WAHA
   suites. Full suite 1277 passed (1232 before QR-05).
 - **Unchanged:** migration head, OpenAPI (200 paths, zero QR routes), RBAC, generated types,

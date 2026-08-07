@@ -7,6 +7,26 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## Defect fix — WAHA webhook event identity collision
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Root cause reproduced | PASS | The removed algorithm (`f"waha:{session}:{event_type}:{envelope_id}"[:128]`) is reconstructed in a test and shown to collide: with a 120-character session, the fixed prefix alone exceeds 128 characters, so `envelope_id` is discarded entirely and two distinct events (`AAAA1111`, `BBBB2222`) produce an identical key. A second, length-independent collision is also reproduced: `(session="tenant", event_type="a:b")` and `(session="tenant:a", event_type="b")` collided purely from delimiter ambiguity. |
+| New algorithm does not collide | PASS | The exact inputs that collided under the old algorithm produce distinct keys under the new one; five additional adversarial delimiter-injection cases (`:`, `\|`, digit-mimicking prefixes, empty components) all discriminate correctly. |
+| Fixed-length, not truncated | PASS | The key is `"waha:" + sha256(...).hexdigest()` — a constant 69 characters — asserted to fit the 128-character column for component lengths from 0 to 1000. |
+| Deterministic, no `hash()` | PASS | 50 repeated calls with the same inputs produce one identical key; source is asserted to contain `sha256` and not `hash(`. `hashlib.sha256` has no process-random seed, unlike Python's built-in `hash()`. |
+| Canonicalization is injective | PASS | Length-prefixed (netstring-style) encoding: each component is preceded by its own exact character count, so no component's content can forge a boundary. Asserted against boundary edge cases (empty strings, digit-string components, components containing the delimiter characters). |
+| Existing behavioural guarantees preserved | PASS | Retry-collapse, session-scoping, and the `message`/`message.any` distinction (all pre-existing, non-implementation-specific tests) pass unmodified against the new algorithm. |
+| Tests | PASS | 12 new tests in `test_channel_waha_webhook.py`; full QR-04 suite 64 passed (52 before); all five WAHA suites 253 passed together. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in 296 source files (unchanged file count; fix is internal to an existing module). |
+| Full backend suite | PASS | **1289 passed**, 0 skipped (1277 before the fix; +12). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, 43 revisions, unchanged. |
+| OpenAPI / routes / capabilities | PASS | 200 paths unchanged; zero QR routes; capabilities unchanged (`health`, `qr_auth`, `session_stream`, `text`). |
+| QR-05 / Meta unchanged | PASS | Send/delivery-state code untouched; Meta suites pass unmodified. |
+| Frontend | PASS (unchanged) | `git status frontend/` reports zero changed files. |
+
+
 ## QR-05 — WAHA send path and delivery-state reconciliation
 
 | Validation item | Status | Latest evidence |
@@ -64,7 +84,7 @@ Last synchronized: `2026-08-08T00:00:00+05:30`.
 | `envelope.id` alone is not the key | PASS | `message` and `message.any` sharing one `envelope.id` produce **two distinct** keys, asserted end-to-end through `parse_events`. |
 | Retry collapses | PASS | Repeated delivery of the same envelope+type yields one identical key. |
 | Session/tenant scoping | PASS | The same `envelope.id` under two different sessions yields different keys, so two tenants' sessions cannot collide on a provider-chosen id. |
-| Key fits the column | PASS | `webhook_events.event_id` is `String(128)`; a 200-character session is truncated to ≤128 with the envelope id last so the discriminator survives. |
+| Key fits the column | PASS | `webhook_events.event_id` is `String(128)`; the key is a fixed 69-character SHA-256 digest (`waha:` + hexdigest), so it fits regardless of component length rather than depending on where a truncation cut lands — see the defect fix below. |
 | Concurrent duplicate safety | PASS | 64 concurrent parses across 16 threads resolve to exactly one identity. Proven in code because `messages` is partitioned and MySQL cannot enforce endpoint/provider-id uniqueness (error 1503). |
 | Unknown event types | PASS | `session.status`, `state.change` and arbitrary names emit `UNKNOWN` rather than being dropped, so Doc 06 §11.6 can dead-letter them. |
 | Malformed JSON / envelope | PASS | Six malformed shapes (empty, missing session, missing event, wrong types) emit a single `UNKNOWN` event with **no** `event_id`, so two different malformed deliveries can never collapse into one. |

@@ -11,6 +11,42 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — Fix: WAHA webhook event identity collision
+
+**Fixed**
+- `event_identity()` in `app/channels/waha/webhook.py` built its dedupe key by concatenating
+  `session`, `event_type` and `envelope_id` and slicing the result to 128 characters, on the belief
+  that placing `envelope_id` last made it "survive truncation". That was backwards: Python's
+  `s[:128]` keeps the **left** prefix and discards the right tail — placing `envelope_id` last made
+  it the first thing cut. Once `session`/`event_type` alone reached 128 characters, every
+  `envelope_id` was discarded and two genuinely different events collapsed onto one stored
+  `webhook_events.event_id`, defeating the very dedupe scoping QR-04 introduced. A second,
+  length-independent collision existed in the same concatenation: plain `":"` delimiters let one
+  component's content be mistaken for another's boundary. Both are reproduced as regression tests
+  that assert the removed algorithm collided and the replacement does not.
+- Replaced with `"waha:" + sha256(canonical).hexdigest()` — a fixed 69 characters, always within
+  the 128-character column regardless of any component's length. `canonical` is a netstring-style
+  length-prefixed encoding (`f"{len(part)}:{part}|"` per component) that is unambiguous by
+  construction, so no adversarial component content can forge a false boundary. Uses
+  `hashlib.sha256`, not Python's per-process-randomized `hash()`.
+- Corrected the inaccurate "envelope id survives truncation" claim everywhere it appeared:
+  `webhook.py`'s docstrings, `VALIDATION_RESULTS.md`, and the QR-05 tracker entry that had reported
+  the (wrong) prior review as clean.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, zero QR
+  routes, capabilities (`health`, `qr_auth`, `session_stream`, `text`), RBAC, generated types,
+  frontend, Meta behaviour, and QR-05 send/delivery-state code. The fix is confined to
+  `event_identity()`/`_canonicalize()`.
+
+**Tests**
+- 12 new tests in `tests/test_channel_waha_webhook.py`: the old algorithm reconstructed and shown
+  to collide on the same long-input and delimiter-injection cases the new algorithm resolves,
+  fixed-length-regardless-of-input-length assertions, five adversarial delimiter cases, a
+  50-call determinism check, and a source assertion that `hash()` is not used.
+- Full QR-04 suite: 64 passed (52 before). All five WAHA suites: 253 passed together. Full backend
+  suite: **1289 passed** (1277 before; +12).
+
 ### 2026-08-08 — QR-05: WAHA send path and delivery-state reconciliation
 
 **Added**

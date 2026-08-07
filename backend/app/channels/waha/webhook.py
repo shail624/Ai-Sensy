@@ -27,6 +27,30 @@ Deduplicating on ``envelope.id`` alone would therefore silently discard a genuin
 event collapses while two distinct event types over one message both survive. The session component
 keeps two tenants' sessions from ever colliding on a provider-chosen id.
 
+## Identity is a digest, not a truncated concatenation
+
+An earlier version of :func:`event_identity` built ``f"waha:{session}:{event_type}:{envelope_id}"``
+and sliced it to 128 characters — the width of ``webhook_events.event_id`` — believing that placing
+``envelope_id`` last made it "survive truncation". That was backwards: Python's ``s[:128]`` keeps the
+**left** prefix and discards everything past index 128, which is exactly where the last-placed
+component lives. A long enough ``session``/``event_type`` pushed ``envelope_id`` partly or entirely
+past the cut, so two genuinely different events could produce an identical stored key — a verified
+collision, reproduced in ``test_channel_waha_webhook.py`` before the fix and proven absent after it.
+The same concatenation was independently ambiguous even at short lengths: plain ``":"`` delimiters
+let one component's content be mistaken for another's boundary (``session="tenant", event_type="a:b"``
+collided with ``session="tenant:a", event_type="b"``).
+
+:func:`event_identity` now hashes a **length-prefixed** (netstring-style) canonical encoding of all
+three full components with SHA-256, and returns ``"waha:" + hexdigest`` — a fixed 69 characters,
+always within the 128-character column, independent of how long any component is. Each component is
+preceded by its own exact character count before a literal boundary marker, so a decoder could always
+recover the original three strings unambiguously: no value any component holds — colons, pipes, digit
+runs designed to mimic a length prefix — can shift where one component ends and the next begins. This
+makes the digest not merely "unlikely to collide" but constructively injective over the encoding, on
+top of SHA-256 collision resistance. ``hashlib.sha256`` is used rather than Python's built-in
+``hash()``, which is randomized per process (``PYTHONHASHSEED``) and would make the key
+non-reproducible across processes, threads or a restart.
+
 ## Unknown shapes fail closed, but are not dropped
 
 An event type this milestone does not interpret becomes :attr:`InboundEventType.UNKNOWN` rather than
@@ -45,7 +69,7 @@ webhook, history and acknowledgement. It performs no global provider-message loo
 from __future__ import annotations
 
 import hmac
-from hashlib import sha512
+from hashlib import sha256, sha512
 from typing import Any, Final
 
 from app.channels.models import InboundEvent, InboundEventType, InboundMessage
@@ -110,15 +134,31 @@ def canonical_message_id(raw: object) -> str | None:
     return raw.rsplit("_", 1)[-1] or None
 
 
+def _canonicalize(*parts: str) -> bytes:
+    """Length-prefix each part so no adversarial content can forge a component boundary.
+
+    Each component is written as ``"<char-count>:<content>"`` followed by ``"|"``. Because the
+    prefix is the component's own exact length, decoding is unambiguous regardless of what
+    characters the component contains — including delimiters this scheme itself uses. Two distinct
+    tuples of parts can never canonicalize to the same bytes (see the module docstring).
+    """
+
+    encoded = "".join(f"{len(part)}:{part}|" for part in parts)
+    return encoded.encode("utf-8")
+
+
 def event_identity(*, session: str, event_type: str, envelope_id: str) -> str:
     """Build the dedupe key for one provider event.
 
     Scoped by session **and** event type because certification proved ``envelope.id`` alone is not
-    unique — see the module docstring. Truncated to the 128 characters ``webhook_events.event_id``
-    stores, with the envelope id last so the discriminating part survives truncation.
+    unique — see the module docstring. The key is a fixed-length SHA-256 digest over all three full
+    components (never truncated, never delimiter-ambiguous — see the module docstring), so it
+    always fits well within the 128 characters ``webhook_events.event_id`` stores no matter how long
+    ``session``, ``event_type`` or ``envelope_id`` are.
     """
 
-    return f"waha:{session}:{event_type}:{envelope_id}"[:128]
+    digest = sha256(_canonicalize(session, event_type, envelope_id)).hexdigest()
+    return f"waha:{digest}"
 
 
 def _text_content(payload: dict[str, Any]) -> dict[str, Any] | None:
