@@ -8,6 +8,10 @@ Creates the single-tenant organization (if absent), realigns the preset system r
 creates the Owner superuser. The owner password is read from ``OWNER_PASSWORD`` and is never
 logged, defaulted, or stored in code. The operation is **idempotent** — re-running it does
 not duplicate the organization, roles, or user.
+
+Also hosts two development-only subcommands, ``seed-dev-fixtures``/``reset-dev-fixtures``, that
+delegate to :mod:`app.dev_fixtures` — see that module for the safety model. They are refused
+outright unless ``ENVIRONMENT`` is ``development``/``test`` and ``ALLOW_DEV_FIXTURES=true``.
 """
 
 from __future__ import annotations
@@ -24,6 +28,14 @@ from app.core.config import settings
 from app.core.security import hash_password, validate_password_policy
 from app.crm.seeding import sync_default_pipeline
 from app.db.session import dispose_engine, get_sessionmaker
+from app.dev_fixtures import (
+    FIXTURE_AGENT_EMAILS,
+    DevFixturesNotAllowed,
+    FixtureSummary,
+    ResetSummary,
+    reset_chat_history_preview,
+    seed_chat_history_preview,
+)
 from app.models.organization import Organization
 from app.models.user import User
 from app.rbac.catalog import ROLE_OWNER
@@ -100,6 +112,20 @@ async def _run_create_owner(email: str, full_name: str, password: str) -> Bootst
         await dispose_engine()
 
 
+async def _run_seed_dev_fixtures() -> FixtureSummary:
+    try:
+        return await seed_chat_history_preview(get_sessionmaker())
+    finally:
+        await dispose_engine()
+
+
+async def _run_reset_dev_fixtures() -> ResetSummary:
+    try:
+        return await reset_chat_history_preview(get_sessionmaker())
+    finally:
+        await dispose_engine()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description="Platform administration CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -107,6 +133,18 @@ def main(argv: list[str] | None = None) -> int:
     owner = sub.add_parser("create-owner", help="Create/ensure the Owner superuser")
     owner.add_argument("--email", default=os.environ.get("OWNER_EMAIL"))
     owner.add_argument("--name", default=os.environ.get("OWNER_FULL_NAME", "Owner"))
+
+    sub.add_parser(
+        "seed-dev-fixtures",
+        help=(
+            "Development-only: populate Chat History with fictional preview data. "
+            "Refused unless ENVIRONMENT=development|test and ALLOW_DEV_FIXTURES=true."
+        ),
+    )
+    sub.add_parser(
+        "reset-dev-fixtures",
+        help="Development-only: remove only the rows seed-dev-fixtures created.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -128,6 +166,29 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"Owner already exists: {result.owner_email} (no changes)")
         return 0
+
+    if args.command == "seed-dev-fixtures":
+        try:
+            summary = asyncio.run(_run_seed_dev_fixtures())
+        except DevFixturesNotAllowed as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Dev fixtures seeded: {summary}")
+        print(
+            "Preview agent login (development-only, not a real credential): "
+            f"{FIXTURE_AGENT_EMAILS[0]} / see app.dev_fixtures.FIXTURE_AGENT_PASSWORD"
+        )
+        return 0
+
+    if args.command == "reset-dev-fixtures":
+        try:
+            reset_summary = asyncio.run(_run_reset_dev_fixtures())
+        except DevFixturesNotAllowed as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Dev fixtures reset: {reset_summary}")
+        return 0
+
     return 1
 
 

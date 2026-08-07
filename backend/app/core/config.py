@@ -154,6 +154,14 @@ class Settings(BaseSettings):
     bootstrap_org_name: str = "Vi Reactivation Team"
     bootstrap_org_slug: str = "vi-reactivation"
 
+    # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
+    # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not
+    # enough, since a shared dev/staging box could still have ENVIRONMENT=development set by
+    # mistake. Defaults to False everywhere, including local development, so fixture data is
+    # never created as a side effect of anything else. Never true in production — enforced in
+    # code (`app.dev_fixtures.ensure_dev_fixtures_allowed`), not just by convention.
+    allow_dev_fixtures: bool = False
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors_origins(cls, value: object) -> object:
