@@ -177,6 +177,9 @@ class Settings(BaseSettings):
     #: never logged. Empty by default and an empty secret **rejects** every delivery, so an
     #: unconfigured deployment cannot silently accept unsigned provider traffic.
     waha_webhook_hmac_secret: str = ""
+    #: Session this deployment sends through — the endpoint scope for sends, acknowledgement
+    #: correlation and reconcile lookups. Empty by default; a send without one fails closed.
+    waha_session_name: str = ""
 
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
     # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not

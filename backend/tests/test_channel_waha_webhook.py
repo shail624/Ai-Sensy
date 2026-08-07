@@ -352,7 +352,6 @@ def test_qr04_declares_no_later_capability() -> None:
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
-        Capability.TEXT,
         Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,

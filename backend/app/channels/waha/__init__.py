@@ -41,6 +41,13 @@ from app.channels.waha.client import (
     WahaServerInfo,
     redact_headers,
 )
+from app.channels.waha.delivery import (
+    ACK_TO_STATUS,
+    WahaAck,
+    WahaSendIndeterminate,
+    extract_sent_id,
+    map_ack,
+)
 from app.channels.waha.lifecycle import (
     WahaSessionSnapshot,
     WahaSessionStatus,
@@ -66,8 +73,13 @@ from app.channels.waha.webhook import (
 register_adapter(CONNECTOR_WAHA, _factory)
 
 __all__ = [
+    "ACK_TO_STATUS",
     "CERTIFIED_NOWEB_STORE",
     "MAX_BODY_BYTES",
+    "WahaAck",
+    "WahaSendIndeterminate",
+    "extract_sent_id",
+    "map_ack",
     "PROHIBITED_CAPABILITIES",
     "SIGNATURE_HEADER",
     "WahaBodyTooLarge",

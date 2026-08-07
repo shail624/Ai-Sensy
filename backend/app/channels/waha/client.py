@@ -25,6 +25,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
+from urllib.parse import quote
 
 import httpx
 
@@ -34,8 +35,10 @@ from app.channels.errors import (
     ChannelConfigError,
     ChannelTransportError,
 )
+from app.channels.waha.delivery import WahaSendIndeterminate
 from app.channels.waha.lifecycle import WahaSessionSnapshot, validate_session_name
 from app.channels.waha.pairing import WahaQrChallenge, build_session_config
+from app.channels.waha.webhook import canonical_message_id
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -100,15 +103,39 @@ class WahaCredentials:
 
     base_url: str = ""
     api_key: str = ""
+    #: The session this connection sends through. **This is the endpoint scope**: a message id may
+    #: only ever be resolved within its own session, which is what prevents one endpoint from
+    #: advancing another's message. Mirrors Meta's ``require_phone_number()``.
+    session: str = ""
 
     @classmethod
     def from_settings(cls) -> WahaCredentials:
-        """Process-wide defaults. Both are empty unless explicitly configured."""
-        return cls(base_url=settings.waha_base_url, api_key=settings.waha_api_key)
+        """Process-wide defaults. All are empty unless explicitly configured."""
+        return cls(
+            base_url=settings.waha_base_url,
+            api_key=settings.waha_api_key,
+            session=settings.waha_session_name,
+        )
 
     def __repr__(self) -> str:  # pragma: no cover - defensive; exercised via test_no_secret_in_repr
         """Never render the key, even in a traceback or debugger."""
-        return f"WahaCredentials(base_url={self.base_url!r}, api_key={_REDACTED!r})"
+        return (
+            f"WahaCredentials(base_url={self.base_url!r}, session={self.session!r}, "
+            f"api_key={_REDACTED!r})"
+        )
+
+    def require_session(self) -> str:
+        """The session to act on, validated, or fail closed before any request is built.
+
+        Sending or reconciling without an explicit session would leave the endpoint scope implicit,
+        and an implicit scope is how one endpoint ends up resolving another's message.
+        """
+        if not self.session:
+            raise ChannelConfigError(
+                "WAHA session is not configured; set WAHA_SESSION_NAME. "
+                "A send must name the endpoint it goes through."
+            )
+        return validate_session_name(self.session)
 
     @property
     def configured(self) -> bool:
@@ -364,6 +391,66 @@ class WahaClient:
                 http_status=response.status_code,
             )
         return response.content, content_type
+
+    # --- Send / reconcile (QR-05) --------------------------------------------
+    async def send_text(self, *, chat_id: str, text: str) -> dict[str, Any]:
+        """``POST /api/sendText`` through the configured session.
+
+        A transport failure here is **ambiguous**, not a clean failure: the request may have reached
+        WhatsApp before the connection broke. It is raised as :class:`WahaSendIndeterminate` so no
+        caller can treat it as retry-safe.
+        """
+        session = self._credentials.require_session()
+        payload = {"session": session, "chatId": chat_id, "text": text}
+        try:
+            return await self._post("/api/sendText", payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
+    async def message_exists(self, *, chat_id: str, canonical_id: str) -> bool:
+        """Whether ``canonical_id`` is present in this session's copy of ``chat_id``.
+
+        The reconcile-before-resend primitive, and deliberately **endpoint-scoped**: the lookup runs
+        inside one session's own chat, so it can never confirm or advance a message belonging to a
+        different endpoint. There is no global provider-message search.
+        """
+        session = self._credentials.require_session()
+        path = (
+            f"/api/{session}/chats/{quote(chat_id, safe='')}/messages"
+            "?limit=50&downloadMedia=false"
+        )
+        body = await self._get_list(path)
+        for entry in body:
+            if not isinstance(entry, dict):
+                continue
+            if canonical_message_id(entry.get("id")) == canonical_id:
+                return True
+        return False
+
+    async def _get_list(self, path: str) -> list[Any]:
+        """Authenticated GET returning a JSON array (the chat-messages shape)."""
+        self._credentials.require()
+        request = httpx.Request("GET", self.url(path), headers=self._headers())
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        if response.status_code >= 400:
+            self._raise(response)
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise ChannelApiError("WAHA returned a malformed (non-JSON) response") from exc
+        if not isinstance(body, list):
+            raise ChannelApiError("WAHA returned an unexpected JSON shape; expected an array")
+        return body
 
     async def close(self) -> None:
         if self._http is not None:

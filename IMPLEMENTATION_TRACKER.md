@@ -12,14 +12,15 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 and QR-02 add no migration, no route, no RBAC entry and no generated type
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-04 — WAHA webhook ingestion: raw-body sha512 HMAC verification and provider event normalization onto the **existing** `ChannelAdapter` webhook seam and `webhook_events` ingest authority. Dedupe identity is scoped by session **and** event type because certification proved `envelope.id` alone is not unique. Declares `SESSION_STREAM`. **No new route, table or migration; no send path, no delivery-state persistence, no teardown, no history/media execution and no UI.**
+- **Latest change:** QR-05 — WAHA send path and delivery-state reconciliation: outbound text through the configured session, canonical provider-id capture, acknowledgement translation onto the platform's **existing** monotonic `messages.status` vocabulary, and an endpoint-scoped reconcile-before-resend primitive. Declares `TEXT`. **No blind retry, no teardown/reconnect, no media/history, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
+- **Previous change:** QR-04 — WAHA webhook ingestion: raw-body sha512 HMAC verification and provider event normalization onto the **existing** `ChannelAdapter` webhook seam and `webhook_events` ingest authority. Dedupe identity is scoped by session **and** event type because certification proved `envelope.id` alone is not unique. Declares `SESSION_STREAM`. **No new route, table or migration; no send path, no delivery-state persistence, no teardown, no history/media execution and no UI.**
 - **Previous change:** QR-03 — WAHA QR pairing: create a session with the certified store configuration, fetch the transient QR challenge, and report provider-neutral pairing state. First declared capability since QR-01 (`QR_AUTH`). **QR-03 can bring a session up and cannot take one down — no stop/restart/logout/delete, no webhook ingestion, no send path, no media/history transfer, no session runtime, no public route and no UI.**
 - **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` · Module 13 `48%` · Chat History `55%` — all unchanged. QR-01 is adapter foundation only and raises no completion percentage; WhatsApp Scan/QR login remains unimplemented and non-functional.
 - **Backend evidence:** Ruff PASS · strict mypy PASS (292 files) · 1099 full pytest tests PASS (1036 before QR-01; +63 WAHA adapter tests) · previously 999 (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. The physical-phone evidence that record required was produced on 2026-08-08 and PASSED; the record itself still reads **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** and needs an **owner decision** to advance, which QR-02 does not make on its own authority. QR-01 registers a `waha` adapter limited to an authenticated server probe; QR-02 adds a read-only session lifecycle mapping; `ProviderRuntimeRegistry` still has no WAHA runtime.
 - **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02.
-- **Next milestone:** `QR-05 — send path`. Not started. See the QR-05 acknowledgement-ordering carry-forward under Remaining work before designing delivery-state persistence.
+- **Next milestone:** `QR-06 — reconnect/health/teardown`. Not started.
 - **Last synchronized:** `2026-08-08T00:00:00+05:30`
 
 ## Delivered
@@ -70,6 +71,29 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Known gap, pre-existing:** no CI pipeline exists in this repository, and the local quality gate
   does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
   execution path today — it runs only when a developer manually starts MySQL first.
+
+### QR-05 — WAHA send path and delivery-state reconciliation
+
+- **Delivered:** `app/channels/waha/delivery.py` (ack vocabulary, `map_ack()`, `to_status_update()`,
+  `extract_sent_id()`, `WahaSendIndeterminate`), client `send_text()`/`message_exists()`, adapter
+  `_dispatch()`/`to_status_update()`/`reconcile_send()`, and `WahaCredentials.session` +
+  `WAHA_SESSION_NAME`. Declares `TEXT`.
+- **Monotonicity carry-forward closed:** the QR-05 acknowledgement-ordering constraint is satisfied
+  by *reusing* `STATUS_RANK`/`advances()` rather than adding a second ordering. The certified
+  out-of-order `DEVICE(2) → SERVER(1) → READ(3)` is proven to end at `read`, and every permutation
+  of an interleaved ack sequence converges. Duplicate acks are idempotent; `failed` is terminal.
+- **Ambiguous-send safety:** a transport failure is `WahaSendIndeterminate` — explicitly not a
+  `ChannelTransportError`, so generic retry cannot sweep it up. Reconcile first; resend only on
+  proven absence; a failed lookup stays indeterminate. No resend path exists.
+- **Endpoint scoping is structural:** sends and lookups both go through `require_session()`, and the
+  reconcile query runs inside that session's own chat. No global provider-message lookup.
+- **QR-04 review:** the 128-character `event_identity` truncation was re-inspected. No collision
+  defect was found — the envelope id is placed last so the discriminating component survives — so
+  QR-04 was left unchanged.
+- **Tests:** 46 new hermetic tests (`tests/test_channel_waha_delivery.py`); 241 across all five WAHA
+  suites. Full suite 1277 passed (1232 before QR-05).
+- **Unchanged:** migration head, OpenAPI (200 paths, zero QR routes), RBAC, generated types,
+  frontend, Meta behaviour, prohibited capabilities, and the absence of a WAHA runtime.
 
 ### QR-04 — WAHA webhook ingestion
 

@@ -79,9 +79,12 @@ QR-02 (session lifecycle mapping) and QR-03 (QR pairing) are delivered under tha
 QR-04 (webhook ingestion) is also delivered: verification and normalization onto the existing
 `webhook_events` authority, with no new route, table or migration.
 
-Still not started, and still requiring their own milestones: messaging/send and delivery-state
-persistence (QR-05), provider history retrieval and media-byte transfer/processing, session
-teardown/reconnect runtime (QR-06) and all UI (QR-07/QR-08).
+QR-05 (text send and delivery-state reconciliation) is also delivered, reusing the existing
+monotonic `messages` status authority rather than adding a second ordering.
+
+Still not started, and still requiring their own milestones: provider history retrieval and
+media-byte transfer/processing, session teardown/reconnect runtime (QR-06) and all UI
+(QR-07/QR-08).
 
 ## Phase 0 — Governance and scope lock
 

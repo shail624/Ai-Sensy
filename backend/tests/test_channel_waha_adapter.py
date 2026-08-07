@@ -24,7 +24,7 @@ from app.channels.errors import (
     ChannelNotSupported,
     ChannelTransportError,
 )
-from app.channels.models import MessageType, OutboundMessage, TextContent
+from app.channels.models import MessageType, OutboundMessage
 from app.channels.runtime_registry import ProviderRuntimeRegistry
 from app.channels.waha import (
     PROHIBITED_CAPABILITIES,
@@ -88,7 +88,12 @@ def test_declares_only_implemented_capabilities() -> None:
     still withheld; see the parametrized test below.
     """
     assert WahaChannelAdapter.capabilities == frozenset(
-        {Capability.HEALTH, Capability.QR_AUTH, Capability.SESSION_STREAM}
+        {
+            Capability.HEALTH,
+            Capability.QR_AUTH,
+            Capability.SESSION_STREAM,
+            Capability.TEXT,
+        }
     )
 
 
@@ -98,7 +103,6 @@ def test_declares_only_implemented_capabilities() -> None:
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
-        Capability.TEXT,
         Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,
@@ -152,17 +156,27 @@ async def test_template_send_is_refused_by_the_capability_gate() -> None:
         await adapter.send_template("999", "any_template", "en_US")
 
 
-async def test_text_send_is_refused_by_the_capability_gate() -> None:
-    """The outbound path is QR-05; today the gate stops it before any dispatch."""
+async def test_unimplemented_send_types_are_refused_by_the_capability_gate() -> None:
+    """QR-05 implements text only; every other send type is still stopped before dispatch.
+
+    Updated by QR-05: ``send_text`` is now a real path (see the QR-05 suite). Interactive remains
+    undeclared and unimplemented.
+    """
     adapter = WahaChannelAdapter(CREDS)
     with pytest.raises(ChannelNotSupported):
-        await adapter.send_text("999", "hello")
+        await adapter.send_interactive("999", {"type": "button"})
 
 
-async def test_dispatch_refuses_even_if_reached_directly() -> None:
-    """Defence in depth behind the capability gate."""
+async def test_dispatch_refuses_non_text_even_if_reached_directly() -> None:
+    """Defence in depth: a non-text message must never be degraded into a text send."""
+    from app.channels.models import MediaContent, MediaKind
+
     adapter = WahaChannelAdapter(CREDS)
-    message = OutboundMessage(to="999", type=MessageType.TEXT, content=TextContent("hi", False))
+    message = OutboundMessage(
+        to="999",
+        type=MessageType.MEDIA,
+        content=MediaContent(kind=MediaKind.IMAGE, link="http://x/y.png"),
+    )
     with pytest.raises(ChannelNotSupported):
         await adapter._dispatch(message)
 
@@ -503,16 +517,17 @@ def test_adapter_exposes_no_teardown_or_messaging_surface() -> None:
     assert not forbidden & set(dir(WahaChannelAdapter))
 
 
-def test_adapter_declares_no_webhook_ingestion() -> None:
-    """Delivery-state translation is QR-05; that inherited default must remain unimplemented.
+def test_adapter_declares_no_official_webhook_handshake() -> None:
+    """The Meta-only subscription handshake must never be implemented for a QR provider.
 
-    Updated by QR-04: ``verify_webhook_signature``/``parse_webhook`` are now implemented (webhook
-    ingestion was always scoped to QR-04). ``to_status_update`` is not — QR-04 records
-    acknowledgement events but applies no delivery state.
+    Re-pointed by QR-05: ``verify_webhook_signature``/``parse_webhook`` landed in QR-04 and
+    ``to_status_update`` in QR-05, both by design. ``webhook_challenge`` belongs to Meta's
+    ``OFFICIAL_WEBHOOKS`` capability, which this provider must never declare.
     """
     adapter = WahaChannelAdapter(CREDS)
     with pytest.raises(ChannelNotSupported):
-        adapter.to_status_update({})
+        adapter.webhook_challenge({"hub.mode": "subscribe"})
+    assert Capability.OFFICIAL_WEBHOOKS not in WahaChannelAdapter.capabilities
 
 
 async def test_adapter_cannot_transfer_media() -> None:

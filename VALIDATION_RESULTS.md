@@ -7,6 +7,47 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-05 — WAHA send path and delivery-state reconciliation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Successful text send | PASS | `POST /api/sendText` carries the configured session; the certified response yields `accepted=True` and the canonical id `3EB0D11C8F76C5EB15AD6B`. |
+| Provider ID extraction/canonicalization | PASS | `key.id` is taken directly; a composite `true_…@c.us_<ID>` is reduced to the same trailing value; an absent id yields `None`. |
+| Send without provider id is not accepted | PASS | `accepted=False` — nothing could correlate an ack or be reconciled, so it is not reported as success. |
+| Send requires an endpoint scope | PASS | An unconfigured session raises `ChannelConfigError` and opens **no** connection; an invalid session name (`../admin`) is rejected before any request. |
+| Non-text refused, not degraded | PASS | Media, interactive and template sends raise `ChannelNotSupported`, including when `_dispatch` is called directly. |
+| Ambiguous send is indeterminate | PASS | A transport failure raises `WahaSendIndeterminate` whose message directs the caller to reconcile, and which is asserted **not** to be a `ChannelTransportError` so generic retry cannot sweep it up. |
+| No blind retry path exists | PASS | `resend`/`retry_send`/`send_with_retry`/`auto_resend` are asserted absent from adapter and client. |
+| Reconcile — known present | PASS | A matching id in the session's chat returns `True`; the message must not be resent. |
+| Reconcile — known absent | PASS | A non-matching chat returns `False`. |
+| Reconcile across addressing forms | PASS | A `@lid`-addressed history entry matches a `@c.us` send id on the trailing component. |
+| Reconcile failure never downgrades to absent | PASS | A 5xx during lookup raises `ChannelApiError`; the outcome stays indeterminate rather than becoming "safe to resend". |
+| Reconcile is endpoint-scoped | PASS | The request path is `/api/{configured session}/chats/...`; another session's name never appears. No global provider-message lookup. |
+| ACK mapping | PASS | `ERROR→failed`, `PENDING→accepted`, `SERVER→sent`, `DEVICE→delivered`, `READ→read`, mapped onto the platform's own `messages.status` vocabulary. |
+| Out-of-order chain stays monotonic | PASS | The certified `DEVICE(2) → SERVER(1) → READ(3)` becomes `delivered → sent → read`; the late `sent` is ignored by `advances()` and the message ends `read`. Last-write-wins would have regressed it. |
+| Ordering respects the platform's ranks | PASS | Mapped statuses are asserted to be in ascending `STATUS_RANK` order — QR-05 imposes no second ordering. |
+| Concurrent / interleaved ACKs converge | PASS | **Every permutation** of `[DEVICE, SERVER, READ, DEVICE]` converges on `read`. |
+| Duplicate ACK idempotency | PASS | Re-applying `DEVICE` five times never advances state — required because QR-04 delivery is at-least-once. |
+| Regressive ACK never moves state back | PASS | `PENDING`/`SERVER`/`DEVICE` are all refused against `read`. |
+| `failed` is terminal | PASS | `MSG_FAILED` is in `TERMINAL_STATUSES` and no later ack overwrites it. |
+| Unknown ACK fails closed | PASS | `99`, `-7`, `None`, `"3"`, `True`, `1.5` and dicts all map to `None`; `to_status_update` raises rather than applying an invented state. |
+| ACK without message id rejected | PASS | Raises `ChannelApiError`. |
+| `@c.us`/`@lid` correlation | PASS | An ack arriving `@lid` correlates to a send response id from `@s.whatsapp.net` on the trailing component. |
+| Wrong endpoint cannot advance a message | PASS | A different session's chat does not contain the message, so reconciliation returns `False` and cannot confirm it. |
+| Capability gating | PASS | Without `SESSION_STREAM`, `to_status_update` raises; `reconcile_send` requires `TEXT`. |
+| Secret/log safety | PASS | A 401 during send is asserted free of the API key; `WahaCredentials.__repr__` shows the session scope but never the key. `WAHA_SESSION_NAME` defaults to `""`. |
+| Prohibited capabilities remain absent | PASS | `BULK`/`CAMPAIGNS`/`TEMPLATE` disjoint; a template send is still refused, so QR is not a route around campaign controls. |
+| No later capability | PASS | `MEDIA`, `MEDIA_UPLOAD`, `MEDIA_DOWNLOAD`, `INTERACTIVE`, `REACTION`, `LOCATION`, `CONTACT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`, `HISTORY_SYNC` all remain undeclared. |
+| Meta regression | PASS | Full suite passes with Meta send, webhook, status-reconciliation and Inbox suites unmodified. |
+| QR-01..04 regression | PASS | 241 tests across all five WAHA suites pass together. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in **296** source files (295 before QR-05). |
+| Full backend suite | PASS | **1277 passed**, 0 skipped (1232 before QR-05; +45). |
+| Migration invariance | PASS | Head `0042_scope_provider_message_identity`, **43 revisions, unchanged**. QR-05 reuses the existing `messages` authority; no migration is justified. |
+| OpenAPI / routes | PASS | **200 paths, unchanged**; zero `qr`/`pair`/`waha` routes. |
+| Frontend | PASS (unchanged) | `git status frontend/` reports zero changed files. |
+
+
 ## QR-04 — WAHA webhook ingestion
 
 | Validation item | Status | Latest evidence |

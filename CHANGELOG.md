@@ -11,6 +11,58 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-05: WAHA send path and delivery-state reconciliation
+
+**Added**
+- `app/channels/waha/delivery.py` — `WahaAck`, `ACK_TO_STATUS`, `map_ack()`, `to_status_update()`,
+  `extract_sent_id()` and `WahaSendIndeterminate`.
+- `WahaClient.send_text()` (`POST /api/sendText`) and `message_exists()` — the endpoint-scoped
+  reconcile-before-resend lookup.
+- `WahaChannelAdapter._dispatch()`, `to_status_update()` and `reconcile_send()`.
+- `WahaCredentials.session` / `require_session()` and `WAHA_SESSION_NAME`, mirroring Meta's
+  `require_phone_number()`. **This is the endpoint scope.**
+- **`TEXT` declared** — text send is implemented and was proven cross-account by certification.
+- 46 tests in `tests/test_channel_waha_delivery.py`.
+
+**Behaviour**
+- **Monotonicity is inherited, not reinvented.** `messages` already ranks
+  `accepted < sent < delivered < read` and `advances()` refuses anything that does not move forward
+  (Doc 06 §11.3 / D16). QR-05 only *maps* provider acknowledgements onto that vocabulary — no second
+  ordering, no last-write-wins path, no parallel status column. Certification's out-of-order
+  `DEVICE(2) → SERVER(1) → READ(3)` becomes `delivered → sent → read`, the late `sent` is ignored,
+  and the message ends `read`. Proven for **every permutation** of an interleaved ack sequence.
+- **Duplicate acks are idempotent** — QR-04 delivery is at-least-once, so a repeated ack simply does
+  not advance. `failed` is terminal and is never overwritten.
+- **Unknown acks fail closed.** An uncertified code maps to `None` (no state change) and
+  `to_status_update()` raises rather than guessing. A guess could invent progress or, at a low rank,
+  look like a regression.
+- **Ambiguous sends are never blindly retried.** A transport failure raises `WahaSendIndeterminate`,
+  which is deliberately **not** a `ChannelTransportError` so generic retry handling cannot sweep it
+  up. A caller must reconcile first and may resend only if the message is proven *absent*; if the
+  reconcile lookup itself fails, the error propagates and the outcome stays indeterminate rather
+  than being downgraded to "safe to resend". No `resend`/`retry_send` path exists anywhere.
+- **Endpoint scoping is structural.** Sends and reconcile lookups both run through
+  `require_session()`, and the lookup queries that session's own chat — so one endpoint can never
+  confirm or advance another's message, and there is no global provider-message search.
+- **Correlation is on the canonical trailing provider id.** The send response is `@s.whatsapp.net`,
+  the ack arrives `@lid`, history is `@c.us`; only the trailing component is stable, and that is
+  what is matched. Reconciliation matches across all three forms.
+- **Text only.** A media, interactive or template send is refused, never degraded into a text send.
+- A send that returns no provider id reports `accepted=False`: nothing could correlate an ack or be
+  reconciled later, so it is not a success.
+
+**Changed**
+- Eight milestone-boundary tests were re-pointed as `TEXT` moved from withheld to declared. Two that
+  asserted "QR-05 is not pulled forward" were re-aimed at what genuinely remains unimplemented
+  (interactive/media), and the webhook-seam guard now protects Meta's `OFFICIAL_WEBHOOKS`
+  handshake, which this provider must never declare.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions), OpenAPI 200 paths, zero QR
+  routes, RBAC, generated types, **frontend untouched**, Meta behaviour, and the absence of any WAHA
+  entry in `ProviderRuntimeRegistry`. `BULK`/`CAMPAIGNS`/`TEMPLATE` remain permanently prohibited
+  and disjoint. No teardown, reconnect, media, history, interactive, reaction, location or contact.
+
 ### 2026-08-08 — QR-04: WAHA webhook ingestion
 
 **Added**

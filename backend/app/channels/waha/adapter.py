@@ -21,9 +21,12 @@ QR-04: **inbound stream** — raw-body HMAC verification and normalization of pr
 canonical :class:`InboundEvent` values for the existing ``webhook_events`` ingest authority
 (:mod:`app.channels.waha.webhook`). This is the milestone that earns ``SESSION_STREAM``.
 
+QR-05: **send and delivery state** — outbound text through the configured session, provider-id
+capture, acknowledgement translation onto the platform's existing monotonic status vocabulary, and
+the reconcile-before-resend primitive (:mod:`app.channels.waha.delivery`). This earns ``TEXT``.
+
 The asymmetry is deliberate: QR-03 can bring a session **up** but has no way to stop, restart or log
-one out. Teardown is QR-06, so nothing here can destroy a working pairing. Likewise QR-04 *receives*
-events but sends nothing and applies no delivery state — that is QR-05.
+one out. Teardown is QR-06, so nothing here can destroy a working pairing.
 
 ## Why the capability set is (almost) empty
 
@@ -43,7 +46,8 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 | ``SESSION_STREAM`` | **yes** | QR-04. Raw-body sha512 HMAC verification and event normalization into the existing ``webhook_events`` ingest authority. |
 | ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | no | Session runtime is QR-06. QR-03 can bring a session **up**; it deliberately cannot stop, restart or log one out. |
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
-| ``TEXT`` / ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | Send path is QR-05 and none is proven with a paired account. |
+| ``TEXT`` | **yes** | QR-05. :meth:`_dispatch` sends text through the configured session, and certification proved an external cross-account delivery reaching ``READ``. |
+| ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | QR-05 sends text only; media transfer is a later milestone. |
 | ``INTERACTIVE`` / ``REACTION`` / ``LOCATION`` / ``CONTACT`` | no | Neither implemented nor evidenced. |
 | ``BULK`` / ``CAMPAIGNS`` / ``TEMPLATE`` | **never** | Permanently prohibited — see below. |
 
@@ -79,11 +83,15 @@ from app.channels.models import (
     HealthSignal,
     InboundEvent,
     InboundMessage,
+    MessageType,
     OutboundMessage,
     SendResult,
+    StatusUpdate,
+    TextContent,
 )
 from app.channels.runtime import PairingState
 from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
+from app.channels.waha.delivery import extract_sent_id, to_status_update
 from app.channels.waha.lifecycle import WahaSessionSnapshot
 from app.channels.waha.pairing import WahaQrChallenge
 from app.channels.waha.webhook import parse_events, to_inbound_message, verify_signature
@@ -111,7 +119,12 @@ class WahaChannelAdapter(ChannelAdapter):
     connector_type = CONNECTOR_WAHA
     #: Only what this adapter can actually do today. See the module docstring for the full rationale.
     capabilities = frozenset(
-        {Capability.HEALTH, Capability.QR_AUTH, Capability.SESSION_STREAM}
+        {
+            Capability.HEALTH,
+            Capability.QR_AUTH,
+            Capability.SESSION_STREAM,
+            Capability.TEXT,
+        }
     )
 
     def __init__(
@@ -317,18 +330,57 @@ class WahaChannelAdapter(ChannelAdapter):
         self.require(Capability.SESSION_STREAM)
         return to_inbound_message(payload)
 
-    # --- Outbound (not implemented at QR-01) --------------------------------
-    async def _dispatch(self, message: OutboundMessage) -> SendResult:
-        """Unreachable: :meth:`ChannelAdapter.send` gates on a capability this adapter withholds.
+    def to_status_update(self, payload: dict[str, Any]) -> StatusUpdate:
+        """A ``message.ack`` event's payload → the delivery-state change it represents.
 
-        Implemented anyway as defence in depth — if a future change ever declared a send
-        capability without writing a send path, this fails loudly instead of silently doing
-        nothing.
+        Returns the platform's own status vocabulary, so ``messages`` applies it through the
+        existing monotonic :func:`~app.models.message.advances` guard. An uncertified
+        acknowledgement raises rather than being guessed at — see :mod:`app.channels.waha.delivery`.
         """
-        raise ChannelNotSupported(
-            f"{self.connector_type!r} cannot send messages: the outbound path is not implemented "
-            "at QR-01 (QR-05)."
+        self.require(Capability.SESSION_STREAM)
+        return to_status_update(payload)
+
+    # --- Outbound (QR-05) ----------------------------------------------------
+    async def _dispatch(self, message: OutboundMessage) -> SendResult:
+        """Send one text through the configured session.
+
+        Only text is implemented, so a non-text message is refused rather than silently degraded
+        into one. A transport failure surfaces as :class:`WahaSendIndeterminate`, which is **not**
+        retry-safe: reconcile with :meth:`reconcile_send` before considering any resend.
+        """
+        if message.type is not MessageType.TEXT:
+            raise ChannelNotSupported(
+                f"{self.connector_type!r} can send text only at QR-05; "
+                f"{message.type.value!r} is not implemented."
+            )
+        content = message.content
+        if not isinstance(content, TextContent):
+            raise ChannelNotSupported("A text send requires TextContent.")
+
+        body = await self._client.send_text(chat_id=message.to, text=content.body)
+        provider_id = extract_sent_id(body)
+        # `accepted` is false without an id: the provider answered, but nothing identifies the
+        # message, so it can never be correlated to an acknowledgement or reconciled later.
+        return SendResult(
+            to=message.to,
+            channel_message_id=provider_id,
+            accepted=bool(provider_id),
+            raw=body,
         )
+
+    async def reconcile_send(self, *, to: str, canonical_id: str) -> bool:
+        """Whether ``canonical_id`` exists at the provider — the reconcile-before-resend primitive.
+
+        Endpoint-scoped by construction: the lookup runs inside the configured session's own chat,
+        so it cannot confirm a message belonging to another endpoint and performs no global search.
+
+        ``True`` means the message **is** present and must not be resent. ``False`` means this
+        session's recent history does not contain it. A caller may only resend on ``False``; if the
+        lookup itself fails, the error propagates and the outcome stays indeterminate rather than
+        being downgraded to "absent".
+        """
+        self.require(Capability.TEXT)
+        return await self._client.message_exists(chat_id=to, canonical_id=canonical_id)
 
     async def close(self) -> None:
         await self._client.close()

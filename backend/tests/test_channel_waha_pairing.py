@@ -353,11 +353,15 @@ def test_qr03_adds_no_waha_specific_qr04_or_qr05_surface() -> None:
 
 
 @pytest.mark.anyio
-async def test_inherited_send_path_still_refuses() -> None:
-    """QR-05 is not pulled forward: the inherited send seam remains unusable."""
+async def test_unimplemented_send_types_still_refuse() -> None:
+    """Re-pointed by QR-05: text sending is now implemented, media and interactive are not.
+
+    The guard still does its job — the inherited seam must not quietly accept a type no milestone
+    has built.
+    """
     adapter = _adapter(lambda r: httpx.Response(200, json=WORKING_BODY))
     with pytest.raises(ChannelNotSupported):
-        await adapter.send_text("919355585553", "should never send")
+        await adapter.send_interactive("919355585553", {"type": "button"})
 
 
 def test_qr03_declares_no_runtime_or_messaging_capability() -> None:
@@ -366,7 +370,6 @@ def test_qr03_declares_no_runtime_or_messaging_capability() -> None:
         Capability.SESSION_RECONNECT,
         Capability.SESSION_LOGOUT,
         Capability.HISTORY_SYNC,
-        Capability.TEXT,
         Capability.MEDIA,
     }
     assert not (WahaChannelAdapter.capabilities & withheld)
