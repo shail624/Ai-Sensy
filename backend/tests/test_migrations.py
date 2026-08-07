@@ -144,7 +144,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0041_channel_sync_control_plane"
+        assert version == "0042_scope_provider_message_identity"
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -321,7 +321,7 @@ def test_single_migration_head() -> None:
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_heads() == ["0041_channel_sync_control_plane"]
+    assert script.get_heads() == ["0042_scope_provider_message_identity"]
 
 
 def test_revision_chain_is_linear() -> None:

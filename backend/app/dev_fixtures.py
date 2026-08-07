@@ -411,7 +411,10 @@ async def _seed_thread(
 
     for seq in range(1, message_count + 1):
         wamid = _message_wamid(contact_index, seq)
-        if await messages_repo.get_by_wamid(wamid) is not None:
+        if (
+            await messages_repo.get_by_provider_message_id(wamid, phone_number_id=number.id)
+            is not None
+        ):
             continue  # already seeded on a prior run — idempotent
 
         occurred_at = thread_end - step * (message_count - seq)

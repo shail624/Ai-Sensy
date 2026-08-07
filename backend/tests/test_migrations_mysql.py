@@ -258,7 +258,7 @@ def test_fresh_mysql_database_upgrades_base_to_head(
 
     command.upgrade(cfg, "head")
 
-    assert _current_version(throwaway_database) == "0041_channel_sync_control_plane"
+    assert _current_version(throwaway_database) == "0042_scope_provider_message_identity"
     assert _version_column_type(throwaway_database) == "varchar(255)"
     asyncio.run(dispose_engine())
 
@@ -281,7 +281,7 @@ def test_mysql_database_at_0035_upgrades_to_head(
     # before 0035a_widen_version_table existed.
     command.upgrade(cfg, "head")
 
-    assert _current_version(throwaway_database) == "0041_channel_sync_control_plane"
+    assert _current_version(throwaway_database) == "0042_scope_provider_message_identity"
     assert _version_column_type(throwaway_database) == "varchar(255)"
     asyncio.run(dispose_engine())
 

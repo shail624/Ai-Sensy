@@ -11,6 +11,62 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-07 — QR-00: WAHA Class B provider selection and provider-message identity foundation
+
+**Added**
+- `docs/evidence/provider-evaluations/waha-class-b-selection-record.md` — the Design Document 33
+  §6.4 provider-selection record. WAHA 2026.7.2 (tier CORE, engine NOWEB, Apache-2.0) is selected as
+  the ADR-0021 **Class B** owner-approved internal self-hosted candidate. Owner Approval,
+  Architecture Approval, Security Approval and explicit acceptance of WhatsApp restriction/ban risk
+  are recorded verbatim. Certification remains **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE
+  REQUIRED**; production certification is not granted. Succeeds, without rewriting, the earlier
+  `waha-class-b-evaluation.md`.
+- `app/channels/attention.py` — provider-neutral `SessionAttentionState` projection supplying the
+  four Design Document 33 §6.1 operator signals (Healthy / Warning / Critical / Re-auth Required)
+  by **deriving** re-authentication from the existing `SessionState` + `PairingState` rather than
+  adding a fourth persisted health value. Re-auth outranks observed health; a `TERMINATED` session
+  never reports re-auth.
+- `alembic/versions/0042_scope_provider_message_identity.py` — additive, index-only migration adding
+  `ix_msg_endpoint_wamid (phone_number_id, wamid)`. No column added, no backfill, no data change.
+- 21 tests in `tests/test_provider_message_identity.py` covering endpoint/tenant isolation and the
+  full re-authentication projection.
+
+**Fixed**
+- **Provider message identity was globally resolvable.** `MessageRepository.get_by_wamid(wamid)`
+  looked a provider message id up with no organization, connection or endpoint filter. Safe only
+  while Meta — whose `wamid` is globally unique — was the sole provider; a QR/multi-device provider's
+  ids are session-scoped and may legitimately repeat across endpoints, which would have let one
+  endpoint resolve, or a delivery receipt advance, another endpoint's or another tenant's message.
+  This contradicted ADR-0020 ("provider message identity is scoped by connection/endpoint").
+  Replaced by `get_by_provider_message_id(provider_message_id, *, phone_number_id)`, whose scope is
+  keyword-only and required so an unscoped lookup cannot be written; no global variant remains.
+  `apply_status` now receives the endpoint the callback arrived on.
+
+**Verified**
+- No backfill was required: `messages.organization_id`/`phone_number_id` have been `NOT NULL` since
+  `0016_conversations_messages`, so ownership is already explicit rather than derived. Live database
+  check: 191 messages, 0 null owners, 0 orphaned endpoints, 0 organization mismatches, 0 duplicate
+  `(phone_number_id, wamid)` pairs.
+- A UNIQUE constraint is impossible and is recorded as such: MySQL error **1503** rejects a unique
+  index that omits the partitioning columns, and `messages` is `PARTITION BY RANGE
+  COLUMNS(created_at)`. Reproduced on MySQL 8.0.46. Uniqueness remains enforced by the scoped read
+  plus the persist-first ingestion path, as it already was for Meta.
+- Real MySQL 8: fresh base → `0042` and `0041` → `0042` with pre-existing data preserved.
+- Ruff, strict mypy (289 files), **1036 backend tests (0 skipped)**, `export_openapi.py --check`
+  (200 paths, unchanged) and `quality_gate.py static` all pass.
+
+**Preserved**
+- Meta Cloud behaviour is unchanged — webhook ingestion, inbound deduplication, delivery/read
+  reconciliation and Inbox suites pass unmodified. No API route, schema, RBAC entry, generated
+  frontend type or frontend file changed.
+- **QR login is not implemented and is not claimed.** QR-00 adds no WAHA client, adapter, Docker
+  service, provider runtime registration, QR API, QR image endpoint, QR persistence, QR frontend,
+  webhook endpoint, inbound ingestion, outbound send, history sync, media sync, session worker or
+  reconnect runtime. Only `meta_cloud` is a registered adapter. QR-01 through QR-09 and
+  physical-phone certification all remain pending; no Production Ready, Host Validated or M13-07
+  claim is made.
+
+
 ### 2026-08-07 — Alembic version-table MySQL fix: support long revision ids
 
 **Fixed**

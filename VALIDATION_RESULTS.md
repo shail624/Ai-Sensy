@@ -4,8 +4,36 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T03:00:00+05:30`.
+Last synchronized: `2026-08-07T04:00:00+05:30`.
 
+
+## QR-00 — WAHA Class B provider selection and provider-message identity foundation
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Provider selection record | PASS | `docs/evidence/provider-evaluations/waha-class-b-selection-record.md` records WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) as the ADR-0021 Class B candidate, with Owner/Architecture/Security approval and explicit WhatsApp restriction/ban risk acceptance quoted verbatim. Succeeds, and does not rewrite, the earlier `waha-class-b-evaluation.md`. |
+| Certification status unchanged | Honestly recorded | Remains **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. QR-00 does not upgrade it. Four Required criteria (message identity, inbound replay, ambiguous send, plus media/history byte-level behaviour) remain PENDING until a physical handset is paired. |
+| Message identity root cause | PASS | `MessageRepository.get_by_wamid(wamid)` resolved a provider message id globally with no organization/connection/endpoint filter — contradicting ADR-0020 "provider message identity is scoped by connection/endpoint". |
+| Endpoint-scoped lookup | PASS | Replaced by `get_by_provider_message_id(provider_message_id, *, phone_number_id)`. Scope is keyword-only and required; `test_lookup_scope_cannot_be_omitted` asserts this by signature inspection and asserts `get_by_wamid` no longer exists. No global variant remains (`grep` returns zero call sites). |
+| Tenant isolation | PASS | `test_organizations_cannot_resolve_each_others_messages`: the same provider message id in two organizations resolves to each tenant's own row and never the other's. `phone_numbers.organization_id` is NOT NULL, so an endpoint-scoped read cannot cross an organization boundary. |
+| Endpoint isolation | PASS | `test_same_provider_message_id_can_exist_on_two_endpoints` and `test_endpoints_cannot_resolve_each_others_messages`: a colliding id resolves per endpoint; a foreign endpoint returns `None`. |
+| Deterministic ownership / backfill | PASS | **No backfill required.** `messages.organization_id`/`phone_number_id` NOT NULL since `0016_conversations_messages`. Live database: 191 messages, 0 null `phone_number_id`, 0 null `organization_id`, 0 orphaned endpoints, 0 organization mismatches, 0 duplicate `(phone_number_id, wamid)` pairs. Nothing derived or invented. |
+| UNIQUE constraint impossibility | Honestly recorded | `CREATE UNIQUE INDEX uq_msg_endpoint_wamid ON messages (phone_number_id, wamid)` fails with MySQL **error 1503** — "A UNIQUE INDEX must include all columns in the table's partitioning function" — reproduced on MySQL 8.0.46 against this schema (`messages` is `PARTITION BY RANGE COLUMNS(created_at)`). Recorded as an architectural limit; uniqueness stays enforced by the scoped read plus persist-first ingestion. |
+| Migration graph | PASS | Single head `0042_scope_provider_message_identity`; 43 revisions; walk-chain length 43 equals revision count (linear, no branch/merge); base unchanged. |
+| Real MySQL: fresh base → head | PASS | Throwaway MySQL 8 database: reaches `0042_scope_provider_message_identity`; `ix_msg_endpoint_wamid` present as `(phone_number_id, wamid)` **non-unique**. |
+| Real MySQL: 0041 → head with data | PASS | Stopped at `0041`, seeded a representative message, upgraded to head: message preserved (1), 0 null endpoint owners, index created over real data. |
+| Live-MySQL migration suite | PASS | `tests/test_migrations_mysql.py` 11/11 against real MySQL 8, head pins updated to `0042`. |
+| Re-authentication health design | PASS | Option **B** (derived projection) chosen over a new persisted state: `app/channels/attention.py` projects `ProviderHealthState` + `SessionState` + `PairingState` into Healthy/Warning/Critical/Re-auth Required. Avoids duplicating state and avoids widening `CHECK` constraints on three columns across three tables. Re-auth outranks observed health; `TERMINATED` never reports re-auth; projection proven total over every state combination. |
+| Provider neutrality | PASS | `test_projection_introduces_no_provider_specific_state` asserts the vocabulary contains no vendor name. No WAHA identifier exists anywhere in `app/`, `tests/` or `frontend/src`. |
+| Meta Cloud compatibility | PASS | `test_api_webhooks.py`, `test_api_messages.py`, `test_api_inbox*.py`, `test_api_message_reactions.py`, `test_channels.py`, `test_channel_foundation.py`, `test_dev_fixtures.py` — 166 passed unmodified. Meta webhook ingestion, inbound dedupe and delivery/read reconciliation unchanged. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — no issues in 289 source files. |
+| Full backend suite | PASS | **1036 passed**, 0 skipped (1015 before QR-00; +21), with MySQL reachable so every live test genuinely ran. |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` up to date; **200 paths, unchanged**; no route added. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` — all 6 steps pass. |
+| Security posture | PASS | QR-00 introduces no provider credential, no QR material, no secret logging, no WAHA network path, no bulk/campaign/template capability, and no change to Meta webhook signature verification. |
+| Scope discipline | PASS | No WAHA client/adapter/Docker service, provider runtime registration, QR API, QR image endpoint, QR persistence, QR frontend, webhook endpoint, inbound ingestion, outbound send, history sync, media sync, session worker or reconnect runtime was added. Only `meta_cloud` is a registered adapter. |
+| UI preview | NOT APPLICABLE | QR-00 contains no user-facing QR interface. Running-app screenshots become mandatory at QR-07. |
 
 ## MySQL migration evidence hardening (independent audit follow-up)
 

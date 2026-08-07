@@ -112,9 +112,12 @@ class MessageService:
             raise LedgerError(f"phone number {row.phone_number_id} no longer exists")
 
         message = self._to_inbound_message(row.payload_json)
-        # Redelivery lands here as a second task for the same `wamid` (Doc 06 §2.3 idempotency
-        # key): the thread must not gain a second copy or a second unread.
-        existing = await self._messages.get_by_wamid(message.channel_message_id)
+        # Redelivery lands here as a second task for the same provider message id (Doc 06 §2.3
+        # idempotency key): the thread must not gain a second copy or a second unread. Scoped to
+        # the receiving endpoint — a provider message id is only unique inside it (ADR-0020).
+        existing = await self._messages.get_by_provider_message_id(
+            message.channel_message_id, phone_number_id=number.id
+        )
         if existing is not None:
             return {
                 "status": DUPLICATE,
@@ -180,15 +183,24 @@ class MessageService:
             raise LedgerError(f"inbound payload cannot be read: {exc}") from exc
 
     # --- Status callbacks (Doc 06 §11.3/§11.4) ------------------------------
-    async def apply_status(self, update: StatusUpdate) -> str:
+    async def apply_status(self, update: StatusUpdate, *, phone_number_id: int) -> str:
         """Advance a message's delivery state (FR-WA-06/07).
 
         Does **not** commit: the caller settles the webhook event in the same transaction, so an
         applied status and the event that carried it can never disagree.
+
+        ``phone_number_id`` is the endpoint the callback arrived on. It is required so a delivery
+        receipt can only ever advance a message belonging to that endpoint — reconciliation must
+        not cross an endpoint or tenant boundary (ADR-0020; Doc 33 §6.1 "Message identity").
         """
-        message = await self._messages.get_by_wamid(update.channel_message_id)
+        message = await self._messages.get_by_provider_message_id(
+            update.channel_message_id, phone_number_id=phone_number_id
+        )
         if message is None:
-            raise MessageNotFound(f"no message for wamid {update.channel_message_id!r}")
+            raise MessageNotFound(
+                f"no message for provider message id {update.channel_message_id!r} "
+                f"on endpoint {phone_number_id}"
+            )
 
         # Append first: the log is the record of what the channel *told* us, which is true even
         # when the transition it describes is stale (Doc 03 §9.3 — append-only).

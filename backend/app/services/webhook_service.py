@@ -223,7 +223,12 @@ class WebhookService:
             service = MessageService(self._session, connector_type=self._connector_type)
             # One transaction for the applied status *and* the event that carried it: settling the
             # event while the transition it describes rolled back would be a durable lie.
-            outcome = await service.apply_status(service.to_status_update(row.payload_json))
+            # `row.phone_number_id` is guaranteed non-None above; it scopes the reconciliation to
+            # the endpoint the callback arrived on (ADR-0020 provider message identity).
+            outcome = await service.apply_status(
+                service.to_status_update(row.payload_json),
+                phone_number_id=row.phone_number_id,
+            )
 
         row.status = WH_PROCESSED
         row.processed_at = utcnow()

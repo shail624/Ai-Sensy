@@ -6,24 +6,76 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `MySQL migration evidence hardening (independent audit follow-up) — governance-record and test-only, on top of the Alembic version-table MySQL fix` |
+| Latest change | `QR-00 — WAHA Class B provider selection record, provider-message identity/tenant-isolation hardening, and provider-neutral re-authentication health projection (foundation only; no QR runtime)` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
 | Current phase | `Repository-owned history/media control plane validated; provider certification still blocks all live M13-06 execution` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0041_channel_sync_control_plane` (42 linear revisions — `0035a_widen_version_table` inserted between `0035_notification_center` and `0036_customer_identity_resolution`; head and order unchanged) |
+| Migration head | `0042_scope_provider_message_identity` (43 linear revisions — QR-00 adds one additive, index-only migration after `0041_channel_sync_control_plane`; no column added, no backfill, no data change) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
-| Backend evidence | Ruff PASS · strict mypy PASS · 999 full pytest tests PASS (991 before this evidence-hardening follow-up, 985 before the `0035a_widen_version_table` remediation) |
+| Backend evidence | Ruff PASS · strict mypy PASS · 1036 full pytest tests PASS (1015 before QR-00; +21 provider-message-identity and re-authentication-projection tests) |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 766 tests PASS (754 before this hardening pass) · production build PASS without the campaign circular chunk-order warning |
 | Bundle evidence | Main `207.50/57.27 kB gzip`, against `207.50/57.23 kB gzip` before this hardening pass (raw unchanged, `+0.04 kB` gzip — the optional `refetchInterval` parameter on the shared hooks only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
-| QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
-| Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
+| QR provider | WAHA 2026.7.2 (CORE, NOWEB engine, Apache-2.0) is **selected as the ADR-0021 Class B candidate** and is **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** (`docs/evidence/provider-evaluations/waha-class-b-selection-record.md`). Owner Approval, Architecture Approval, Security Approval and explicit Risk Acceptance are recorded. **No WAHA adapter, client, runtime, container service, provider registration, QR API, QR image, webhook ingestion, send path or UI exists** — QR-00 is foundation only. QR login does not work and is not claimed to |
+| Next Module 13 milestone | `QR-01 — provider adapter` is authorized to begin. Physical-phone certification evidence remains mandatory before any live provider-dependent execution or production enablement |
 | Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, automated CI execution of the live-MySQL migration tests, and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | Frontend-only Chat History pagination/polling/accessibility hardening over the existing workspace, plus synchronized tracking; no backend, migration, API, RBAC, provider adapter or live execution |
-| Last update | `2026-08-07T03:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | QR-00 foundation: provider-selection record, endpoint-scoped provider-message identity (one additive index migration), and a derived re-authentication health projection. No provider adapter, QR API, QR UI, webhook ingestion, send path or live execution |
+| Last update | `2026-08-07T04:00:00+05:30` (Asia/Kolkata) |
+
+## QR-00 — WAHA Class B provider selection and provider-message identity foundation
+
+- **Scope:** foundation only. QR-00 adds a provider-selection governance record, hardens
+  provider-message identity/tenant isolation, and adds a provider-neutral re-authentication health
+  projection. **It does not implement QR login.** No WAHA adapter, client, Docker service, provider
+  runtime registration, QR API, QR image endpoint, QR persistence, QR frontend, webhook endpoint,
+  inbound ingestion, outbound send, history sync, media sync, session worker or reconnect runtime
+  exists. Only `meta_cloud` is a registered adapter.
+- **Provider selection:** WAHA 2026.7.2 (tier CORE, engine NOWEB, Apache-2.0) is selected as the
+  ADR-0021 Class B candidate and is **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. The
+  owner's Architecture Approval, Security Approval and explicit Risk Acceptance — including
+  acceptance that WhatsApp may restrict or permanently ban connected numbers — are recorded verbatim
+  in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. NOWEB was chosen because
+  it is the engine the certification spike actually exercised.
+- **Message identity root cause:** `MessageRepository.get_by_wamid(wamid)` resolved a provider
+  message id **globally**, with no organization, connection or endpoint filter. Meta's `wamid` is
+  globally unique so this was survivable with a single provider; a QR/multi-device provider's ids are
+  session-scoped and may legitimately repeat across endpoints, which would have allowed a second
+  provider to resolve — or a delivery receipt to advance — another endpoint's or another tenant's
+  message. Contradicted ADR-0020 ("provider message identity is scoped by connection/endpoint").
+- **Fix:** replaced by `get_by_provider_message_id(provider_message_id, *, phone_number_id)`. The
+  endpoint scope is keyword-only and required, so an unscoped lookup cannot be written; there is
+  deliberately no global variant. `phone_numbers.organization_id` is `NOT NULL`, so the endpoint
+  transitively pins the tenant. All three call sites (inbound dedupe, status reconciliation, dev
+  fixtures) pass an endpoint they already held; `apply_status` now takes the endpoint the callback
+  arrived on.
+- **No backfill was required.** `messages.organization_id` and `messages.phone_number_id` have been
+  `NOT NULL` since `0016_conversations_messages`, so every existing row already carries explicit,
+  authoritative endpoint ownership — nothing had to be derived or invented. Verified against the
+  live database: 191 messages, 0 null owners, 0 orphaned endpoints, 0 organization mismatches, 0
+  duplicate `(phone_number_id, wamid)` pairs.
+- **A UNIQUE constraint is impossible, and that is recorded rather than worked around.** `messages`
+  is `PARTITION BY RANGE COLUMNS(created_at)`; MySQL requires every unique key on a partitioned table
+  to contain the partitioning columns (error 1503, reproduced on MySQL 8.0.46 against this schema).
+  Including `created_at` would permit the very duplicate the rule exists to prevent. Uniqueness
+  therefore remains enforced by the scoped read plus the persist-first ingestion path, exactly as it
+  already is for Meta. Migration `0042_scope_provider_message_identity` adds only the supporting
+  non-unique index `ix_msg_endpoint_wamid (phone_number_id, wamid)`.
+- **Re-authentication health:** implemented as a **derived projection**, not a new persisted state.
+  `app/channels/attention.py` projects the existing `ProviderHealthState` + `SessionState` +
+  `PairingState` into the four Doc 33 §6.1 operator signals (Healthy / Warning / Critical /
+  Re-auth Required). Adding a fourth stored health value would have duplicated information those
+  columns already carry and required widening `CHECK` constraints on three columns across three
+  tables. Re-auth outranks observed health; `TERMINATED` never reports re-auth.
+- **Meta compatibility:** unchanged. Meta webhook ingestion, inbound dedupe, delivery/read
+  reconciliation and the Inbox are all covered by the existing suites, which pass unmodified.
+  OpenAPI remains 200 paths; no route, schema, RBAC entry or generated type changed.
+- **Still pending, unchanged by QR-00:** QR-01 provider adapter, QR-02 session lifecycle, QR-03 QR
+  endpoint/state, QR-04 webhook ingestion, QR-05 send, QR-06 reconnect/health, QR-07 UI, QR-08
+  Unified Inbox integration, QR-09 production validation, and physical-phone certification evidence.
+  No Production Ready, Host Validated, provider-certified or M13-07 claim is made.
 
 ## Alembic version-table MySQL fix — support long revision ids
 
