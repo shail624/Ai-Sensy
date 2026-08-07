@@ -4,7 +4,29 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-07T02:00:00+05:30`.
+Last synchronized: `2026-08-07T03:00:00+05:30`.
+
+
+## MySQL migration evidence hardening (independent audit follow-up)
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Migration graph unchanged | PASS | Head remains `0041_channel_sync_control_plane`; revision count remains 42; `0035a_widen_version_table`, `0036_customer_identity_resolution`, and `0040_channel_sync_media_foundation` are byte-for-byte unchanged (`git diff` against the prior commit is empty for all three). |
+| Fresh MySQL 8: base → head, with real column-width proof | PASS | `SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='alembic_version' AND COLUMN_NAME='version_num'` returns `varchar(255)` after upgrade to head — asserted directly in `test_fresh_mysql_database_upgrades_base_to_head`, not inferred from migration source. |
+| MySQL stamped at 0035 → head, with real column-width proof | PASS | Same `information_schema` query returns `varchar(32)` immediately after reaching `0035_notification_center` and `varchar(255)` after reaching head — asserted directly in `test_mysql_database_at_0035_upgrades_to_head`. |
+| `create-owner` idempotency, with real row-count proof | PASS | `test_create_owner_after_mysql_upgrade_is_idempotent_on_rerun` calls `bootstrap_owner` twice: the first call reports `owner_created=True`/`organization_created=True`; the second reports both `False`. `SELECT COUNT(*) FROM users WHERE email = ...` is asserted `== 1` after both calls — real database inspection, not just the returned dataclass. |
+| Reachable-but-misconfigured MySQL no longer silently skips | PASS | Reproduced independently: pointing `MYSQL_ROOT_PASSWORD` at a wrong value against the live local MySQL container previously produced `3 skipped`; it now produces `3 errors` (fixture setup failure) with the message "a MySQL server is reachable at ... but rejected the configured root credentials (MySQL error 1045) — check DB_HOST/DB_PORT/MYSQL_ROOT_PASSWORD" — no credential value in the message. |
+| Genuinely absent MySQL still skips cleanly | PASS | Reproduced independently: pointing `DB_PORT` at a port nothing listens on reproduces the original clean-skip behaviour (`SKIPPED ... no MySQL server answered ... error 2003`); the default hermetic suite (no MySQL running at all) behaves identically. |
+| Skip/fail classification logic itself has coverage | PASS | 6 new hermetic tests (no network access) exercise `_classify_connection_error` directly against synthetic exceptions carrying real pymysql error codes (2003/2005 → unreachable, 1045/1130 → misconfigured, plus a credential-leak guard); 2 further tests confirm the "reachable and correctly configured" and "reachable but rejects a wrong password" states end-to-end against the real local MySQL 8 server. |
+| Governance wording corrected | PASS | `PROJECT_STATE.md`'s "Host evidence" row no longer claims "Target-host MySQL migration is now verified"; it now states this is repository/local-host `docker compose` evidence and that genuine target-host evidence remains pending, reconciling it with `IMPLEMENTATION_TRACKER.md`'s "Remaining work" list, which already correctly listed target-host evidence as pending. No valid evidence was removed. |
+| Pre-existing real-MySQL downgrade defect recorded, not fixed | Honestly recorded | Historical `VALIDATION_RESULTS.md` rows for `0036`/`0040` downgrade are annotated: they are hermetic/SQLite-only and do not prove MySQL rollback safety; the real-MySQL downgrade defect at these two revisions (`DROP INDEX ... needed in a foreign key constraint`) remains a verified, separately tracked open defect. Remediation is explicitly out of scope for this follow-up; `0036`/`0040` migration code is unchanged. |
+| Ruff | PASS | `ruff check app tests scripts ../scripts` clean. |
+| Strict mypy | PASS | `mypy app` — "Success: no issues found in 287 source files" (unchanged; this follow-up touches no `app` file). |
+| Full backend test suite | PASS | 999 passed (991 before this follow-up; +8 — `test_migrations_mysql.py` grew from 3 to 11 tests, with MySQL reachable and correctly configured so every live test genuinely ran). |
+| OpenAPI drift | PASS | `scripts/export_openapi.py --check` — "openapi.json is up to date"; 200 paths, unchanged. |
+| Static quality gate | PASS | `scripts/quality_gate.py static` — all 6 steps pass; confirms no frontend, application, or migration file was touched. |
+| Application/domain/migration unchanged | PASS | `git diff --name-status` against the prior commit shows exactly 3 modified governance/record files (`IMPLEMENTATION_TRACKER.md`, `PROJECT_STATE.md`, `VALIDATION_RESULTS.md`) and 1 modified test file (`backend/tests/test_migrations_mysql.py`). No migration, application endpoint/model/schema, RBAC, OpenAPI, provider/Meta/WAHA, or frontend file appears in the diff. |
+| Remaining scope | Honestly recorded | Genuine target-host MySQL evidence, the real-MySQL rollback defect at `0036`/`0040`, automated CI execution of the live-MySQL tests, and the separate Chat History populated-UI-preview fixture/data blocker all remain pending — none are addressed by this follow-up. No Host Validated or Production Ready claim is made. |
 
 
 ## Alembic version-table MySQL fix — support long revision ids
@@ -24,7 +46,7 @@ Last synchronized: `2026-08-07T02:00:00+05:30`.
 | OpenAPI drift | PASS | `scripts/export_openapi.py --check` — "openapi.json is up to date"; path count unchanged. |
 | Static quality gate | PASS | `scripts/quality_gate.py static` — all 6 steps pass (backend lint, backend strict types, OpenAPI drift, frontend lint, frontend types, browser test types), confirming no frontend file was touched. |
 | Application/domain unchanged | PASS | No endpoint, model, schema, RBAC definition, ADR, provider/Meta/WAHA code, or frontend file appears in the diff — `git status --porcelain` shows exactly 2 modified files (`0036_customer_identity_resolution.py`, `test_migrations.py`) and 2 new files (`0035a_widen_version_table.py`, `test_migrations_mysql.py`). |
-| Remaining scope | Honestly recorded | This fix repairs the MySQL schema/auth blocker only. A real, populated `/chat-history` UI preview remains blocked by the separate, pre-existing absence of an approved development fixture mechanism for conversation/message data (requires live Meta WhatsApp Business API credentials to register a phone number and create genuine conversations, which this environment correctly does not have). No Host Validated or Production Ready claim is made. |
+| Remaining scope | Honestly recorded | This fix repairs the MySQL schema/auth blocker only. A real, populated `/chat-history` UI preview remains blocked by the separate, pre-existing absence of an approved development fixture mechanism for conversation/message data (requires live Meta WhatsApp Business API credentials to register a phone number and create genuine conversations, which this environment correctly does not have). Evidence above is repository/local-host (`docker compose`) evidence, not target-host validation, which remains pending; a pre-existing, unrelated real-MySQL downgrade defect at `0036`/`0040` and the absence of CI execution for these tests are recorded separately below. No Host Validated or Production Ready claim is made. |
 
 
 ## Chat History pagination/polling/accessibility hardening (audit findings D1–D8)
@@ -290,7 +312,7 @@ Last synchronized: `2026-08-07T02:00:00+05:30`.
 | Backend tests | PASS | 18 focused channel/sync/media/migration tests and all 979 backend tests pass in workflow `30946554198`. |
 | Frontend gates | PASS | Unchanged frontend passes production audit threshold, ESLint, TypeScript, Vitest and production build. |
 | OpenAPI / generated client | PASS | OpenAPI remains semantically unchanged at 200 paths and generated TypeScript has no drift. |
-| Migration | PASS | Additive `0040_channel_sync_media_foundation` upgrades, downgrades to `0039`, and upgrades again. |
+| Migration | PASS | Additive `0040_channel_sync_media_foundation` upgrades, downgrades to `0039`, and upgrades again (hermetic SQLite suite). Real-MySQL downgrade at this revision is a separately tracked, verified open defect — see the "Alembic version-table MySQL fix" entry above; SQLite evidence does not prove MySQL rollback safety. |
 | Dependency / security boundary | PASS | No dependency changed; Bandit and dependency audit pass. |
 | Performance impact | PASS | No API query, worker, provider runtime or frontend bundle path changed; indexed bounded repository queries are the only new executable persistence surface. |
 | Host validation | PENDING – Host Machine Validation | MySQL migration/rollback, production-scale query plans, real provider runtime, account/device evidence, monitoring, kill switch, recovery and certification remain unproven. |
@@ -383,7 +405,7 @@ Last synchronized: `2026-08-07T02:00:00+05:30`.
 | Backend tests | PASS | 22 focused identity/contact/channel tests and all 961 backend tests pass. |
 | Frontend gates | PASS | Production audit, ESLint, TypeScript, Vitest and production build pass; application source is unchanged. |
 | OpenAPI / generated client | PASS | OpenAPI 3.1 has 200 paths and generated TypeScript authority is current. |
-| Migration | PASS | `0036_customer_identity_resolution` upgrades, downgrades to `0035`, and upgrades again with all three tables present. |
+| Migration | PASS | `0036_customer_identity_resolution` upgrades, downgrades to `0035`, and upgrades again with all three tables present (hermetic SQLite suite). Real-MySQL downgrade at this revision is a separately tracked, verified open defect — see the "Alembic version-table MySQL fix" entry above; SQLite evidence does not prove MySQL rollback safety. |
 | Bundle impact | PASS | Generated contract only; CSS, main and lazy-route application bundles remain unchanged and the existing >500 kB warning remains. |
 | Host validation | PENDING – Host Machine Validation | Target-host MySQL migration, representative operator review, production feature-flag rollout and runtime/security commissioning remain unproven. |
 | Milestone boundary | PASS | M13-01 is unchanged and M13-03/provider/runtime/QR/UI work is absent. |

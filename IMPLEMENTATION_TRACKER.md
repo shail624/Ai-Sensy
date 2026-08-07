@@ -3,22 +3,22 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-07 · Alembic version-table MySQL fix (long revision ids), on top of the Chat History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
+_Last updated: 2026-08-07 · MySQL migration evidence hardening (independent audit follow-up), on top of the Alembic version-table MySQL fix (long revision ids), the Chat History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still blocks every live history, media, event and adapter behavior._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
-- **Starting HEAD:** `4e745718a73e76630742aac5ba98f808367053f7`
+- **Starting HEAD:** `2774498966edb4a4a911416e8d3642e1a6466d68` (`fix(migrations): support long alembic revision ids`)
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0041_channel_sync_control_plane` (42 revisions, was 41) · 200 paths — head and OpenAPI path count both unchanged by this remediation; one revision inserted before the existing head
+- **Migration/OpenAPI:** `0041_channel_sync_control_plane` (42 revisions, unchanged) · 200 paths — head, revision count, and OpenAPI path count all unchanged by this follow-up; no migration file touched
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** Repaired a verified MySQL-only migration failure (`alembic_version.version_num` too narrow for this repository's revision-id length) with a dedicated inserted revision, `0035a_widen_version_table` — a backend-migrations-only fix, not a roadmap milestone and not M13-07
-- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged · Chat History `55%` unchanged (this fix removes a schema/auth blocker, not the separate UI-preview data blocker)
-- **Backend evidence:** Ruff PASS · strict mypy PASS · 991 full pytest tests PASS (985 before this remediation; +6: 3 hermetic migration-graph checks + 3 live-MySQL migration/create-owner checks)
-- **Frontend evidence:** unchanged by this remediation (no frontend file touched); static quality gate frontend steps still pass
+- **Latest change:** MySQL migration evidence hardening (independent audit follow-up) — corrected the "target-host" wording overclaim in `PROJECT_STATE.md`/`IMPLEMENTATION_TRACKER.md`, added real `information_schema` `VARCHAR(255)` and idempotent-create-owner assertions to `test_migrations_mysql.py`, and replaced the skip logic so a reachable-but-misconfigured MySQL server fails loudly instead of silently skipping. Test-only and governance-record-only; no migration file, application code, or frontend file touched.
+- **Completion:** Shared Enterprise Design System `94%` · Global Search `85%` · Reactivation `94%` unchanged · Module 13 `48%` unchanged · Chat History `55%` unchanged (unaffected by this follow-up)
+- **Backend evidence:** Ruff PASS · strict mypy PASS · 999 full pytest tests PASS (985 before the `0035a_widen_version_table` remediation, 991 after it; +8 in this evidence-hardening follow-up: `test_migrations_mysql.py` grew from 3 to 11 tests — the original 3 gained real `information_schema` `VARCHAR(255)`/idempotent-create-owner assertions in place, plus 8 new tests for the reachable/unreachable/misconfigured MySQL classification, 6 of which are hermetic and always run)
+- **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA evaluation requires additional evidence; no provider is certified or registered
 - **Next milestone:** `None`; provider certification and separate owner instruction are required before any live M13-06 work
-- **Last synchronized:** `2026-08-07T02:00:00+05:30`
+- **Last synchronized:** `2026-08-07T03:00:00+05:30`
 
 ## Delivered
 
@@ -45,7 +45,9 @@ _Last updated: 2026-08-07 · Alembic version-table MySQL fix (long revision ids)
   reproducing the documented CLI workflow manually against a fresh `docker compose` instance: a
   fresh database upgrades base→head; a database stamped at `0035_notification_center` (the exact
   historical failure point) upgrades to head; `python -m app.cli create-owner` succeeds
-  immediately afterward, including its documented idempotent re-run behaviour.
+  immediately afterward, including its documented idempotent re-run behaviour. This is
+  repository/local-host evidence (a local `docker compose` MySQL 8 container) — not genuine
+  target-host validation, which remains pending.
 - Regression coverage added: three hermetic checks in `test_migrations.py` (single head, linear
   chain, every revision id fits the widened column with an early-warning margin) plus a new
   `test_migrations_mysql.py` — three tests against real, throwaway MySQL databases, skipped
@@ -57,6 +59,58 @@ _Last updated: 2026-08-07 · Alembic version-table MySQL fix (long revision ids)
   `/chat-history` screenshot still requires either live Meta WhatsApp Business API credentials (to
   register a phone number and create genuine conversations/messages) or an approved development
   fixture mechanism, neither of which exists. This fix repairs the schema/auth path only.
+- **Known open defect, pre-existing and unrelated to this fix:** downgrading past
+  `0036_customer_identity_resolution` or `0040_channel_sync_media_foundation` fails on real MySQL 8
+  with `DROP INDEX ... needed in a foreign key constraint`; reproduced identically against the
+  pre-fix migration graph, confirming it is not caused by `0035a_widen_version_table`. Hermetic
+  (SQLite) downgrade coverage for these revisions passes and remains valid for what it tests, but
+  does not prove MySQL rollback safety. Remediation is out of scope for this fix.
+- **Known gap, pre-existing:** no CI pipeline exists in this repository, and the local quality gate
+  does not provision MySQL before running tests, so `test_migrations_mysql.py` has no automated
+  execution path today — it runs only when a developer manually starts MySQL first.
+
+### MySQL migration evidence hardening (independent audit follow-up)
+
+- **Governance correction:** the "Host evidence" row in `PROJECT_STATE.md` previously read
+  "Target-host MySQL migration is now verified" — an overclaim, since the evidence was a local
+  `docker compose` MySQL 8 container, not the project's target deployment host (the term
+  "target-host" is used elsewhere in this repository specifically for that distinction). Reworded
+  to state plainly that this is repository/local-host evidence and that genuine target-host
+  evidence remains pending. No valid evidence was removed. `IMPLEMENTATION_TRACKER.md`'s own
+  "Remaining work" list already correctly listed target-host evidence as pending — that
+  inconsistency between the two files is now resolved.
+- **Governance correction:** historical `VALIDATION_RESULTS.md` rows recording SQLite-hermetic
+  downgrade passes for `0036_customer_identity_resolution` and `0040_channel_sync_media_foundation`
+  are annotated to state plainly that they are hermetic/SQLite-only and do not prove MySQL rollback
+  safety, cross-referencing the verified open real-MySQL downgrade defect recorded above. The
+  historical PASS rows themselves, and the migration code they describe, are unchanged.
+- **Test hardening:** `test_migrations_mysql.py`'s three live-MySQL tests now assert directly
+  against `information_schema.COLUMNS` that `alembic_version.version_num` is genuinely
+  `varchar(32)` before the repair and `varchar(255)` after it (both for a fresh base→head run and
+  for the historical 0035→head transition) — real database inspection, not migration source text.
+  `create-owner` is now exercised twice in one test: the first call creates the owner, the second
+  is asserted idempotent (`owner_created`/`organization_created` both `False` on rerun), and a raw
+  `SELECT COUNT(*) FROM users WHERE email = ...` confirms exactly one row exists after both calls —
+  independent of what the returned dataclass claims.
+- **Skip-logic hardening:** MySQL reachability is now classified into three states instead of two.
+  A connection failure whose MySQL/pymysql error code indicates nobody answered (connection
+  refused, timed out, unknown host) is `MySQLUnavailable` and skips cleanly, exactly as before —
+  ordinary developers without Docker running still get a clean hermetic run. Any other failure
+  (most commonly MySQL error 1045, "Access denied") means a real server answered and rejected the
+  configured credentials; this is now `MySQLMisconfigured` and fails the live-MySQL tests loudly
+  with a message naming the `DB_HOST`/`DB_PORT`/`MYSQL_ROOT_PASSWORD` environment variables to
+  check — never the credential value itself, which pymysql's own error text already omits. Six new
+  tests cover the classification logic hermetically (no network access), plus two new tests
+  confirm the "reachable and correctly configured" and "reachable but rejects a wrong password"
+  states against the real local MySQL 8 server when one is available.
+- **Preserved, not modified:** `0035a_widen_version_table`, `0036_customer_identity_resolution`,
+  and `0040_channel_sync_media_foundation` migration files are byte-for-byte unchanged; migration
+  head remains `0041_channel_sync_control_plane`, revision count remains 42; no application
+  endpoint, model, schema, RBAC definition, OpenAPI path, or frontend file changed;
+  `scripts/export_openapi.py --check` and the full static quality gate both pass unchanged. No CI
+  system was added — the real-MySQL downgrade defect at 0036/0040 and the absence of automated CI
+  execution for `test_migrations_mysql.py` both remain open, explicitly recorded, and out of scope
+  for this follow-up.
 
 ### Dedicated Chat History read workspace over the existing conversation and message contract
 
@@ -246,7 +300,15 @@ provider history retrieval, media-byte transfer/processing, sending, incoming we
 
 ## Remaining work
 
-- Target-host MySQL migration and rollback evidence.
+- Genuine target-host MySQL migration evidence (repository/local-host `docker compose` evidence
+  exists for upgrade paths — see `0035a_widen_version_table` remediation — but target-host itself
+  remains unvalidated).
+- Real-MySQL rollback/downgrade fix at `0036_customer_identity_resolution` and
+  `0040_channel_sync_media_foundation` — a verified open defect (`DROP INDEX ... needed in a
+  foreign key constraint`), pre-existing and confirmed unrelated to the `0035a` remediation;
+  remediation is not part of that fix or this follow-up.
+- Automated CI execution of the live-MySQL migration tests (`test_migrations_mysql.py`) — no CI
+  pipeline exists in this repository today.
 - Real multi-node runtime/lease/fencing contention and stale-runtime recovery validation.
 - Runtime supervisor, heartbeat, reconnect/re-authentication and alerting commissioning.
 - Production KMS custody for referenced provider credentials.

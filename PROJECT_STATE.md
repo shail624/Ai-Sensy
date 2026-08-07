@@ -6,7 +6,7 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `Alembic version-table MySQL fix — support long revision ids (backend migrations only)` |
+| Latest change | `MySQL migration evidence hardening (independent audit follow-up) — governance-record and test-only, on top of the Alembic version-table MySQL fix` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
 | Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
 | Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
@@ -14,16 +14,16 @@
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0041_channel_sync_control_plane` (42 linear revisions — `0035a_widen_version_table` inserted between `0035_notification_center` and `0036_customer_identity_resolution`; head and order unchanged) |
 | OpenAPI | `3.1.0` · `200` paths · additive Reactivation `offset` query; no new route |
-| Backend evidence | Ruff PASS · strict mypy PASS · 5 focused M13-06B tests PASS · 985 full pytest tests PASS |
+| Backend evidence | Ruff PASS · strict mypy PASS · 999 full pytest tests PASS (991 before this evidence-hardening follow-up, 985 before the `0035a_widen_version_table` remediation) |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 766 tests PASS (754 before this hardening pass) · production build PASS without the campaign circular chunk-order warning |
 | Bundle evidence | Main `207.50/57.27 kB gzip`, against `207.50/57.23 kB gzip` before this hardening pass (raw unchanged, `+0.04 kB` gzip — the optional `refetchInterval` parameter on the shared hooks only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
 | QR provider | WAHA evaluation requires additional evidence; no provider is certified and no adapter, QR image, protocol or live login exists |
 | Next Module 13 milestone | None authorized; provider certification host evidence is mandatory before live provider-dependent M13-06 work |
-| Host evidence | Target-host MySQL migration is now verified: `alembic upgrade head` succeeds on a real MySQL 8 instance both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward — see `0035a_widen_version_table` remediation below. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
+| Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, automated CI execution of the live-MySQL migration tests, and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
 | Worktree expectation | Frontend-only Chat History pagination/polling/accessibility hardening over the existing workspace, plus synchronized tracking; no backend, migration, API, RBAC, provider adapter or live execution |
-| Last update | `2026-08-07T02:00:00+05:30` (Asia/Kolkata) |
+| Last update | `2026-08-07T03:00:00+05:30` (Asia/Kolkata) |
 
 ## Alembic version-table MySQL fix — support long revision ids
 
@@ -62,6 +62,16 @@
   outside approved commands, which remains out of scope). This migration fix removes the schema/
   auth blocker only; it does not by itself unblock the UI preview. No Host Validated or Production
   Ready claim is made.
+- **Evidence scope correction (this follow-up):** the MySQL migration evidence above is
+  repository/local-host evidence (a local `docker compose` MySQL 8 container), not genuine
+  target-host validation; the "Host evidence" row previously overstated this as "target-host"
+  verified, which has been corrected. Independently of this fix, a real-MySQL downgrade defect
+  was found at `0036_customer_identity_resolution` and `0040_channel_sync_media_foundation`
+  (`DROP INDEX ... needed in a foreign key constraint`) — pre-existing, not introduced by this
+  commit, and recorded as a separate open defect; its remediation is not part of this follow-up.
+  Automated CI execution of the live-MySQL migration tests also remains pending — no CI pipeline
+  exists in this repository, so `test_migrations_mysql.py` currently only runs when a developer
+  manually starts MySQL first.
 
 ## Dedicated Chat History read workspace over the existing conversation and message contract
 
