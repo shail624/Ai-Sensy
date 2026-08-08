@@ -19,6 +19,38 @@ authorities are reused; separate heavy SIM fulfilment and Activation operations 
 
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
+## Module 13 — QR-09 Production Validation
+
+- **Milestone status:** `QR-09 — Production Validation — PARTIAL (BLOCKED)`. Validation attempted
+  against production-representative infrastructure; not closed.
+- **Completion:** `52%` evidence-based estimate — **unchanged**. QR-09 is validation, not feature
+  delivery, so Module 13 completion does not move.
+- **Environment:** real MySQL `8.0.46`, real Redis `7.4.9` (this repository's own
+  `docker compose up -d`), and the real pinned WAHA container at the exact certified digest
+  (`sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`, 2026.7.2/NOWEB/CORE) —
+  in place of QR-08's SQLite-only preview evidence. No physical handset was available; physical-phone
+  pairing/inbound/outbound/ACK evidence is not claimed.
+- **Confirmed on real infrastructure:** the QR-08 stored-message dedupe contract (one underlying
+  provider message delivered 4 ways collapses to exactly one stored message); Meta + WAHA coexisting
+  in one Inbox; prohibited-capability enforcement; disabled-by-default staged rollout (`connect()`
+  refused `403` until the org flag is enabled); real-Redis idempotency (closing the QR-08 preview's
+  `503` limitation).
+- **Two Major defects found and left open** (validation defect policy: discover, record, stop — do
+  not silently remediate inside a validation milestone): QR-09-D1, `0043`'s real-MySQL `downgrade()`
+  fails (index dropped before the foreign key that depends on it); QR-09-D2, the QR operator status
+  endpoint returns `500` when the real provider is up but the session is gone. One Minor
+  (QR-09-D3, oversized webhook body maps to `500` instead of a 4xx).
+- **One required repository gate genuinely fails:** OpenAPI drift. Investigated and found to be a
+  deterministic ASCII-escaping artifact difference (207 paths, exactly-equal parsed objects) — this
+  **corrects** a previously recorded explanation elsewhere in governance ("resolver key-order
+  mismatch"), which does not hold for this artifact.
+- **Preserved:** migration head, OpenAPI path count, RBAC catalog, WAHA capabilities, prohibited
+  capabilities (`BULK`/`CAMPAIGNS`/`TEMPLATE`), the WAHA selection/certification record. QR-01
+  through QR-08 unaffected; QR-08 remains `COMPLETE`.
+- **Classification:** `Repository Validated: NO` · `Host Validated: NO` · `Provider Validated: NO` ·
+  `Production Ready: NO`.
+- **Next:** `QR-09A — Production Validation Remediation`. Not started.
+
 ## Module 13 — QR-08 Unified Inbox integration
 
 - **Milestone status:** `QR-08 — Unified Inbox integration — COMPLETE`.
@@ -39,7 +71,8 @@ Last synchronized: `2026-08-08T00:00:00+05:30`.
   rerouted to Meta.
 - **Preserved:** Meta behaviour, prohibited capabilities (`BULK`/`CAMPAIGNS`/`TEMPLATE`), no
   MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT for WAHA, no history/media transfer.
-- **Next:** `QR-09 — production validation`. Not started.
+- **Next:** `QR-09 — production validation` — attempted; see the section above (`PARTIAL — BLOCKED`).
+  This QR-08 record and its `COMPLETE` status are unaffected.
 
 ## Module 13 — M13-06B Provider-neutral History & Media Control Plane
 

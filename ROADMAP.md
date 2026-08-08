@@ -96,8 +96,17 @@ Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside th
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
 
+QR-09 (production validation) has been attempted and is `PARTIAL — BLOCKED`: real MySQL `8.0.46`,
+real Redis `7.4.9`, and the real pinned WAHA container confirmed the QR-08 dedupe/routing/idempotency
+contract, but two Major defects (a real-MySQL `0043` downgrade failure; a `500` on the QR operator
+status endpoint when the provider is up but the session is absent) and one genuinely-failing required
+gate (OpenAPI drift — investigated and corrected to an ASCII-escaping cause, not the previously
+recorded resolver key-order explanation) remain open. No product, migration, OpenAPI, or capability
+change was made. Full evidence: `VALIDATION_RESULTS.md` "QR-09 — Production Validation". The
+recommended next milestone, `QR-09A — Production Validation Remediation`, is not started.
+
 Still not started, and still requiring their own milestones: provider history retrieval and
-media-byte transfer/processing, and QR-09 (production validation).
+media-byte transfer/processing.
 
 ## Phase 0 — Governance and scope lock
 

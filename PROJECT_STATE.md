@@ -6,24 +6,68 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-08 — Unified Inbox integration: Meta + WAHA conversations in one Inbox, endpoint-scoped inbound dedupe, server-derived outbound routing, provider-aware composer` |
+| Latest change | `QR-09 — Production Validation attempted: PARTIAL (BLOCKED) — real MySQL/Redis/WAHA evidence, two Major defects found, one required gate (OpenAPI drift) genuinely red; no product change` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (QR-08 closeout; resolve after push) |
-| Current milestone | `QR-08 — Unified Inbox integration — COMPLETE` |
-| Current phase | `Both providers now share one Inbox; provider certification still blocks history/media execution` |
+| Current Git HEAD | `HEAD` (QR-09 evidence-only closeout; resolve after push) |
+| Current milestone | `QR-09 — Production Validation — PARTIAL (BLOCKED)`. `QR-08 — Unified Inbox integration` remains `COMPLETE` and unaffected. |
+| Current phase | `QR-09 validated the QR-08 contract against real infrastructure and found it correct where reached; two Major defects and one required gate block closure` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0043_conversation_channel_endpoints` (44 linear revisions — additive expand stage: nullable `channel_endpoint_id` on `conversations`/`messages`/`webhook_events`, `conversations.phone_number_id` widened to nullable, `ck_conv_endpoint_owner` exactly-one-owner check; no column dropped or renamed, no existing row's `phone_number_id` touched) |
-| OpenAPI | `3.1.0` · `207` paths — QR-08 adds `POST /webhooks/waha` (206 → 207); QR-07 added 6 authorized routes under `/channels/whatsapp-qr` (200 → 206) |
-| Backend evidence | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / 793 tests PASS (789 before QR-08; +4) · production build PASS |
-| Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — the channel badge and provider-aware composer logic; no other route's chunk grew |
+| Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged by QR-09**; validated on real MySQL, including a reproduced real-MySQL downgrade failure (QR-09-D1, not fixed) |
+| OpenAPI | `3.1.0` · `207` paths — **unchanged by QR-09**. Required drift gate is genuinely `FAIL`: generation is deterministic and the committed/generated JSON parse equal (207 paths, byte-exact once re-encoded with matching ASCII-escaping); the difference is ASCII-escaping only, not the previously-recorded "resolver key-order" cause |
+| Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
+| Backend evidence (QR-09, real MySQL) | **1385 passed, 0 skipped** (11/11 live-MySQL tests genuinely ran, vs 5 always-skipped without MySQL) · Ruff PASS · strict mypy PASS · Bandit 0 High/0 Medium/28 Low · `pip-audit` 1 production advisory (`cryptography 49.0.0` → `PYSEC-2026-3552`, not upgraded) |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / 793 tests PASS · production build PASS — unchanged by QR-09; `npm audit --omit=dev` 2 moderate (react-router SSR advisory; app is client-rendered) |
+| Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — unchanged by QR-09 |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `52%` evidence-based estimate (was 48%): QR-08 is the first milestone that makes WAHA operator-visible in a real, shared workflow rather than an isolated control-plane/session surface |
-| QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-08. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT. QR login/session lifecycle unchanged from QR-01..07 |
-| Next Module 13 milestone | `QR-09 — production validation`. Not started |
-| Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, and automated CI execution of the live-MySQL migration tests remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-08 Unified Inbox integration: additive migration, endpoint-scoped inbound/outbound wiring, mixed-provider Inbox UI. No history/media sync, no campaign/bulk/template, no interactive/reaction/location/contact for WAHA |
+| Module 13 implementation | `52%` evidence-based estimate — **unchanged by QR-09** (validation delivers no new feature, so completion does not move) |
+| QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-09. QR-09 ran the real pinned image (`sha256:33ecd1b7…`) but had no physical handset, so it does not advance certification. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT |
+| Next Module 13 milestone | `QR-09A — Production Validation Remediation` (fix QR-09-D1/D2/D3, regenerate `openapi.json` deterministically, define a WAHA compose/deployment service with persistent session storage, triage the `cryptography` advisory, rerun QR-09). Not started |
+| Host evidence | Repository/local-host MySQL/Redis/WAHA evidence (not target-host): real MySQL 8.0.46 and Redis 7.4.9 via this repository's own `docker compose up -d`, and the real pinned WAHA container, all on the development workstation. QR-09 additionally reproduced a **second** real-MySQL downgrade defect (`0043`, same class as the pre-existing `0036`/`0040` one) and a provider-up/session-absent `500` on the operator status endpoint. Genuine target-host evidence, physical-phone pairing, and the full browser/device matrix remain pending; no Host Validated or Production Ready claim |
+| Worktree expectation | QR-09 is evidence/governance-only: no product source, migration, OpenAPI artifact, dependency, or capability changed. Only `CHANGELOG.md`, `IMPLEMENTATION_TRACKER.md`, `PROJECT_STATE.md`, `VALIDATION_RESULTS.md`, `MODULE_STATUS.md`, `ROADMAP.md` are touched |
 | Last update | `2026-08-08T00:00:00+05:30` (Asia/Kolkata) |
+
+## QR-09 — Production Validation (PARTIAL — BLOCKED)
+
+- **Scope:** validate QR-08's contract against production-representative infrastructure — real
+  MySQL, real Redis, the real pinned WAHA container — instead of QR-08's own SQLite-only preview
+  evidence. Validation only; no feature, migration, route, or capability work.
+- **Environment:** MySQL `8.0.46` and Redis `7.4.9` via this repository's own `docker compose`;
+  WAHA `2026.7.2`/`NOWEB`/`CORE` at the exact certified digest
+  (`sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`). No physical handset
+  was available, so physical-phone pairing/inbound/outbound/ACK-chain evidence is not claimed.
+- **Closed a QR-08 evidence gap:** QR-08's preview recorded a `503 idempotency_unavailable` because
+  its throwaway environment had no Redis. Against real Redis: normal send succeeds; a duplicate
+  `Idempotency-Key` replays the original response with no second row; 6 concurrent requests sharing
+  one key produce exactly one message; a Redis outage fails closed (`503`, zero rows); a Redis
+  restart recovers.
+- **Proved the decisive QR-08 dedupe claim on real MySQL, not only SQLite:** one underlying provider
+  message delivered as `message`×2 + `message.any`×2 (4 deliveries) produced 4 `webhook_events` rows
+  (event-layer persistence is intentionally at-least-once) but exactly **1** stored `messages` row.
+- **QR-09-D1 (Major, open):** `0043_conversation_channel_endpoints`'s `downgrade()` fails on real
+  MySQL — `uq_conv_endpoint_contact` is dropped before the foreign key that depends on it
+  (`MySQL 1553`). The upgrade path itself is unaffected and independently verified to preserve
+  existing Meta data byte-for-byte. Same defect class as the pre-existing, separately tracked
+  `0036`/`0040` real-MySQL downgrade defect.
+- **QR-09-D2 (Major, open):** `GET /channels/whatsapp-qr/session` returns `HTTP 500` when the real
+  provider is reachable but the named session no longer exists there (reproduced deterministically
+  after a provider restart with no persistent session storage) — `ChannelApiError`/404 is not
+  translated into a truthful recoverable status, unlike genuine provider outage, which is handled
+  correctly and distinctly.
+- **QR-09-D3 (Minor, open):** an oversized webhook body is correctly refused before hashing but
+  surfaces as `500` instead of a 4xx.
+- **Required OpenAPI drift gate genuinely fails**, but this milestone **corrects** the previously
+  recorded explanation: investigation proved generation is deterministic and the committed/generated
+  JSON parse to exactly-equal objects (207 paths both); the sole byte difference is ASCII-escaping.
+  Not a resolver key-order artifact as previously stated elsewhere in this repository's governance.
+- **Unchanged:** migration head, OpenAPI path count, RBAC catalog, WAHA capabilities, prohibited
+  capabilities, the WAHA selection/certification record. QR-01 through QR-08 unaffected; QR-08
+  remains `COMPLETE`.
+- **Classification:** `Repository Validated: NO` (a required gate is red and two Major defects are
+  open) · `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+- **Next milestone (not started):** `QR-09A — Production Validation Remediation` — fix D1/D2/D3,
+  regenerate `openapi.json` with consistent ASCII-escaping, add a WAHA compose/deployment service
+  with persistent session storage, triage the `cryptography` advisory, rerun QR-09, then pursue
+  physical-phone and full browser/host evidence.
 
 ## QR-08 — Unified Inbox integration
 

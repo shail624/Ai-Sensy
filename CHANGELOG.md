@@ -11,6 +11,106 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-09: Production Validation — PARTIAL (BLOCKED, evidence-only)
+
+**No product code, migration, OpenAPI, dependency, or capability change.** This entry records a
+validation attempt only. Migration head remains `0043_conversation_channel_endpoints` (44
+revisions); OpenAPI remains 207 paths; WAHA capabilities remain unchanged
+(`HEALTH`/`QR_AUTH`/`SESSION_STREAM`/`TEXT`/`SESSION_RECONNECT`/`SESSION_LOGOUT`;
+`BULK`/`CAMPAIGNS`/`TEMPLATE` still permanently prohibited).
+
+**Environment.** Real MySQL `8.0.46` and Redis `7.4.9` (this repository's own
+`docker compose up -d`), and the real pinned WAHA container
+(`devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`,
+2026.7.2 / NOWEB / CORE — the exact certified digest). No physical handset was available, so QR
+scan-to-`WORKING`, real external inbound/outbound, ACK-chain reconciliation, reconnect-without-a-
+new-QR, and logout/re-auth were **not** exercised.
+
+**Closed a QR-08 preview limitation.** QR-08's own preview evidence was blocked by the absence of
+Redis in that throwaway environment (`503 idempotency_unavailable`). Against real Redis, the full
+contract holds: a normal send succeeds; a duplicate `Idempotency-Key` replays the original response
+and writes no second row; 6 concurrent requests sharing one key produce exactly one message; a
+Redis outage fails closed (`503`); a Redis restart recovers.
+
+**Decisive dual-provider proof on real MySQL.** Delivering one underlying provider message as
+`message` **and** `message.any`, each retried once (4 deliveries total), produced 4
+`webhook_events` rows (event-layer persistence is intentionally at-least-once) but **exactly one**
+stored `messages` row (`apply_inbound` outcomes: `applied`, then three `duplicate`) — proving
+QR-08's endpoint-scoped stored-message dedupe end to end against real MySQL, not just SQLite.
+
+**Two Major defects found, reproduced, and left unfixed (per validation defect policy — this
+milestone stops on discovery, it does not silently remediate).**
+
+- **QR-09-D1.** `0043_conversation_channel_endpoints`'s `downgrade()` fails on real MySQL 8:
+  `(1553, "Cannot drop index 'uq_conv_endpoint_contact': needed in a foreign key constraint")`.
+  `uq_conv_endpoint_contact` (leading column `channel_endpoint_id`) backs
+  `fk_conv_channel_endpoint`; the downgrade drops the index before the foreign key. Because MySQL
+  DDL is non-transactional, the failed attempt left `messages`/`webhook_events` columns already
+  dropped while `alembic_version` still read `0043` — a schema matching neither revision. Same
+  defect class as the already-tracked `0036`/`0040` real-MySQL downgrade defect. The upgrade path
+  (`0042` → `0043`) is unaffected: verified to preserve seeded Meta rows byte-for-byte and to
+  correctly enforce the exactly-one-owner `CHECK` at the database level.
+- **QR-09-D2.** `GET /channels/whatsapp-qr/session` returns `HTTP 500` whenever the real provider
+  is reachable but the named session no longer exists there (reproduced deterministically after a
+  WAHA container restart with no persistent session volume — 30/30 calls during the performance
+  run). Root cause: the provider's `404 Session not found` becomes `ChannelApiError`, which
+  `WhatsAppQrService._reconcile()` only catches as `ChannelTransportError` and
+  `get_status()` only suppresses as `ConflictError` — neither matches, so it propagates. A genuine
+  provider outage (container stopped) is handled correctly today
+  (`reconnect_blocked_reason: "provider_unavailable"`, `requires_reauthentication: false`); this
+  specific state — provider up, session gone — is not.
+- **QR-09-D3 (Minor).** An oversized WAHA webhook body is correctly refused before hashing
+  (`WahaBodyTooLarge`, the 1 MiB bound holds) but surfaces as `HTTP 500` rather than a 4xx, because
+  the exception has no HTTP mapping — inviting the provider's at-least-once retry rather than
+  stopping it.
+
+**A required repository gate genuinely fails.** `scripts/quality_gate.py`'s OpenAPI drift check
+(`scripts/export_openapi.py --check`) reports `openapi.json` stale. Investigated rather than
+dismissed: generation is deterministic (identical SHA-256 across processes); the committed file and
+a fresh generation parse to **exactly equal** objects with **207 paths both**; re-encoding the
+committed file with `ensure_ascii=False` (the exporter's own setting) produces a **byte-exact**
+match to the fresh generation. Key order and content are identical — the only difference is JSON
+ASCII-escaping (the committed artifact was written with `ensure_ascii=True` at some point in its
+history). This **corrects** the explanation recorded elsewhere in this repository attributing
+OpenAPI generation non-determinism to "a pre-existing JSON key-order mismatch under the unpinned
+FastAPI/Pydantic resolver" — that explanation does not hold for this artifact; the true cause is a
+one-time ASCII-escaping setting difference, not resolver non-determinism. The gate is real and
+required, and it is red; QR-09 cannot close while it is.
+
+**Real-infrastructure gate results.** Backend full suite **1385 passed, 0 skipped** (was 1380 passed
++ 5 skipped without MySQL) — the 5 previously-always-skipped live-MySQL tests now genuinely ran.
+11/11 live-MySQL tests pass. Frontend 38 files / 793 tests, ESLint, TypeScript, and production build
+all pass. Ruff and strict mypy (300 files) pass. Bandit: 0 High, 0 Medium, 28 Low (the documented
+pre-existing `assert`-usage class, none new). `pip-audit`: one production advisory,
+`cryptography 49.0.0` → `PYSEC-2026-3552`, fixed in `50.0.0` — **not upgraded** in this milestone.
+`npm audit --omit=dev`: 2 moderate (a `react-router` SSR-hydration advisory; this is a
+client-rendered SPA, not SSR). Latency measured against this repository's own documented budgets
+(Doc 01 §5.1 `NFR-PERF-01` p95 < 300 ms reads; Doc 06 webhook ack < 200 ms) on a single developer
+workstation: mixed-Inbox list p95 12.8 ms, thread load p95 5.2 ms, WAHA thread load p95 4.7 ms,
+webhook ingest ACK p95 10.4 ms — all within budget, but **not** target-host, concurrency, soak, or
+1M-contact-scale evidence.
+
+**Infrastructure gap found.** No WAHA service, image pin, or persistent session volume is defined
+in `docker-compose.yml`, `docker-compose.production.yml`, or `deploy/DEPLOYMENT.md` — the absence
+that made QR-09-D2 reachable outside a lab environment is a genuine deployment gap, not only a
+validation-harness artifact.
+
+**Preserved, unchanged by this milestone.** QR-01 through QR-08 remain exactly as delivered; QR-08
+remains `COMPLETE`. The WAHA selection record
+(`docs/evidence/provider-evaluations/waha-class-b-selection-record.md`) and its
+`CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED` status are untouched. No capability was
+added, expanded, or removed. No migration, route, RBAC entry, or dependency was changed.
+
+**Classification.** `Repository Validated: NO` (a required gate is red and two Major defects are
+open) · `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`. Recommended next
+milestone (not started): `QR-09A — Production Validation Remediation` — fix D1 (reorder the FK-then
+-index drop in `downgrade()`, add a real-MySQL down/up regression test), fix D2 (translate a
+provider-up/session-absent `ChannelApiError`/404 into a truthful recoverable status, add a
+regression), fix D3 (map `WahaBodyTooLarge` to a 4xx), regenerate `openapi.json` with consistent
+ASCII-escaping and correct the stale explanation elsewhere in governance, add a WAHA service
+definition with persistent session storage to compose/deployment/runbook, triage the `cryptography`
+advisory, rerun QR-09, then pursue physical-phone/host-browser evidence.
+
 ### 2026-08-08 — QR-08: Unified Inbox integration
 
 **Added**
