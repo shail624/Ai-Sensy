@@ -201,9 +201,11 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/notifications/read-all",
     }
     assert expected <= set(schema["paths"])
-    # QR-07 adds the first public WhatsApp QR connection surface (6 routes); the Vi domain
-    # paths above are unaffected — this only re-baselines the total count.
-    assert len(schema["paths"]) == 206
+    # QR-07 added the first public WhatsApp QR connection surface (6 routes, 200 -> 206); QR-08
+    # adds one more (`POST /webhooks/waha`, the WAHA analogue of `/webhooks/whatsapp`) to actually
+    # receive the events QR-04 could already verify and parse but had no route delivering to it.
+    # The Vi domain paths above are unaffected — this only re-baselines the total count.
+    assert len(schema["paths"]) == 207
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

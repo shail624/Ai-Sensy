@@ -11,7 +11,7 @@
           "Health"
         ],
         "summary": "Liveness probe",
-        "description": "Liveness: the process is running. No dependency checks (Doc 04 §22).",
+        "description": "Liveness: the process is running. No dependency checks (Doc 04 \u00a722).",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -33,7 +33,7 @@
           "Health"
         ],
         "summary": "Readiness probe",
-        "description": "Readiness: verify each dependency; ``503`` if any is down (Doc 04 §22).",
+        "description": "Readiness: verify each dependency; ``503`` if any is down (Doc 04 \u00a722).",
         "operationId": "ready_ready_get",
         "responses": {
           "200": {
@@ -1892,7 +1892,7 @@
           "Contacts"
         ],
         "summary": "Start a CSV import (async)",
-        "description": "Enqueue the import and return immediately — no bytes are parsed on this path.",
+        "description": "Enqueue the import and return immediately \u2014 no bytes are parsed on this path.",
         "operationId": "start_import_api_v1_contacts_import_post",
         "requestBody": {
           "content": {
@@ -1987,7 +1987,7 @@
           "Contacts"
         ],
         "summary": "Start an export (async)",
-        "description": "Enqueue the export and return immediately — no contacts are read on this path.",
+        "description": "Enqueue the export and return immediately \u2014 no contacts are read on this path.",
         "operationId": "start_export_api_v1_contacts_export_post",
         "requestBody": {
           "content": {
@@ -2082,7 +2082,7 @@
           "Contacts"
         ],
         "summary": "Bulk edit tags/attributes over a selection or filter (async)",
-        "description": "Enqueue the edit and return immediately — no contact is touched on this path.",
+        "description": "Enqueue the edit and return immediately \u2014 no contact is touched on this path.",
         "operationId": "bulk_update_contacts_api_v1_contacts_bulk_update_post",
         "requestBody": {
           "content": {
@@ -2174,7 +2174,7 @@
         "tags": [
           "Contacts"
         ],
-        "summary": "Run a duplicate scan — report or merge (async)",
+        "summary": "Run a duplicate scan \u2014 report or merge (async)",
         "operationId": "deduplicate_contacts_api_v1_contacts_deduplicate_post",
         "requestBody": {
           "content": {
@@ -2221,7 +2221,7 @@
           "Contacts"
         ],
         "summary": "Bulk job progress + partial-success result",
-        "description": "The §29 partial-success envelope.\n\nBulk progress lives here rather than on ``GET /jobs/{uuid}`` (Doc 04 §30): that surface is\ngated by ``system:read`` (§22) and ``job_metadata`` carries no organization, so it can serve\nneither a ``contacts:write`` operator nor tenant scoping. This mirrors the import/export\npoll endpoints §14.1 already defines.",
+        "description": "The \u00a729 partial-success envelope.\n\nBulk progress lives here rather than on ``GET /jobs/{uuid}`` (Doc 04 \u00a730): that surface is\ngated by ``system:read`` (\u00a722) and ``job_metadata`` carries no organization, so it can serve\nneither a ``contacts:write`` operator nor tenant scoping. This mirrors the import/export\npoll endpoints \u00a714.1 already defines.",
         "operationId": "bulk_progress_api_v1_contacts_bulk__bulk_id__get",
         "security": [
           {
@@ -4917,7 +4917,7 @@
           "WhatsApp Infrastructure"
         ],
         "summary": "Pull phone numbers from Meta (async)",
-        "description": "Enqueue the sync and return immediately — no Meta call on this path.",
+        "description": "Enqueue the sync and return immediately \u2014 no Meta call on this path.",
         "operationId": "sync_waba_api_v1_waba__waba_id__sync_post",
         "security": [
           {
@@ -5096,7 +5096,7 @@
           "WhatsApp Infrastructure"
         ],
         "summary": "Quality rating, messaging tier & limits",
-        "description": "Stored health — cheap and always available. Use ``/refresh`` to re-pull from Meta.",
+        "description": "Stored health \u2014 cheap and always available. Use ``/refresh`` to re-pull from Meta.",
         "operationId": "phone_number_health_api_v1_phone_numbers__number_id__health_get",
         "security": [
           {
@@ -5193,7 +5193,7 @@
           "Webhooks"
         ],
         "summary": "Meta verification handshake (public)",
-        "description": "Echo ``hub.challenge`` when ``hub.verify_token`` matches (Doc 04 §23).\n\nMeta requires the bare challenge as the body — not JSON, not an envelope — or it refuses to\nactivate the subscription.",
+        "description": "Echo ``hub.challenge`` when ``hub.verify_token`` matches (Doc 04 \u00a723).\n\nMeta requires the bare challenge as the body \u2014 not JSON, not an envelope \u2014 or it refuses to\nactivate the subscription.",
         "operationId": "verify_webhook_api_v1_webhooks_whatsapp_get",
         "responses": {
           "200": {
@@ -5218,6 +5218,28 @@
         "summary": "Receive inbound messages & status callbacks (public, signature-gated)",
         "description": "Persist the delivery and ack; processing happens on the ``webhooks.*`` queues.",
         "operationId": "receive_webhook_api_v1_webhooks_whatsapp_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/waha": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receive WAHA inbound events (public, HMAC-gated) \u2014 QR-08",
+        "description": "The WAHA analogue of :func:`receive_webhook` (QR-04 built the verify/parse/dedupe logic in\n``app.channels.waha.webhook``; this is the first HTTP route that reaches it).\n\nNo GET handshake: unlike Meta, WAHA has no subscription challenge to answer \u2014 it is configured\nwith this URL directly and simply starts posting. The gate is the same shape as Meta's: an\nHMAC over the raw body, checked before anything is parsed, failing closed on an unconfigured\nsecret. Persist-first, process-async is unchanged \u2014 this endpoint does no more than\n:func:`receive_webhook` does for Meta.",
+        "operationId": "receive_waha_webhook_api_v1_webhooks_waha_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5284,7 +5306,7 @@
           "Messaging"
         ],
         "summary": "Send a reaction emoji (async)",
-        "description": "React to a message, or clear a reaction with an empty emoji (Doc 04 §18.2 v1.4).\n\nA reaction is free-form (needs the open 24-hour window); it is accepted then delivered through\nSendService → the Meta adapter exactly like a send — ``202`` with ``wamid`` null.",
+        "description": "React to a message, or clear a reaction with an empty emoji (Doc 04 \u00a718.2 v1.4).\n\nA reaction is free-form (needs the open 24-hour window); it is accepted then delivered through\nSendService \u2192 the Meta adapter exactly like a send \u2014 ``202`` with ``wamid`` null.",
         "operationId": "send_reaction_api_v1_messages__message_id__reaction_post",
         "security": [
           {
@@ -5391,7 +5413,7 @@
           "Messaging"
         ],
         "summary": "Delivery/read/failed timeline",
-        "description": "What the channel told us about this message, in the order it told us (Doc 03 §9.3).",
+        "description": "What the channel told us about this message, in the order it told us (Doc 03 \u00a79.3).",
         "operationId": "message_status_history_api_v1_messages__message_id__status_history_get",
         "security": [
           {
@@ -5574,7 +5596,7 @@
           "WhatsApp QR Connection",
           "WhatsApp QR Connection"
         ],
-        "summary": "Log out — invalidates WhatsApp credentials and requires a new scan",
+        "summary": "Log out \u2014 invalidates WhatsApp credentials and requires a new scan",
         "operationId": "logout_api_v1_channels_whatsapp_qr_session_logout_post",
         "requestBody": {
           "content": {
@@ -5691,7 +5713,7 @@
           "Templates"
         ],
         "summary": "Sync templates + statuses from Meta (async)",
-        "description": "Enqueue the sync and return immediately — no Meta call on this path.",
+        "description": "Enqueue the sync and return immediately \u2014 no Meta call on this path.",
         "operationId": "sync_templates_api_v1_templates_sync_post",
         "responses": {
           "202": {
@@ -5861,7 +5883,7 @@
           "Templates"
         ],
         "summary": "Render with sample variables",
-        "description": "Pure render (FR-TPL-08): nothing is stored and nothing is sent.\n\nSample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this\na `GET` — it is a projection of the template, not a change to it.",
+        "description": "Pure render (FR-TPL-08): nothing is stored and nothing is sent.\n\nSample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 \u00a715 makes this\na `GET` \u2014 it is a projection of the template, not a change to it.",
         "operationId": "preview_template_api_v1_templates__template_id__preview_get",
         "security": [
           {
@@ -6221,7 +6243,7 @@
           "Campaigns"
         ],
         "summary": "Pre-send cost estimate from the rate card",
-        "description": "Price the materialized roster from the rate card (FR-CAM-11; Doc 04 §17).\n\nNo body: the estimate is derived from what would actually be sent, not a fresh audience query.\nAn empty or incomplete card answers `422 rate_card_not_configured` rather than a misleading\npartial total. The endpoint stays on `campaigns:read` because its only write is caching the\nquote on the campaign's own row (Doc 03 §8.5.5).",
+        "description": "Price the materialized roster from the rate card (FR-CAM-11; Doc 04 \u00a717).\n\nNo body: the estimate is derived from what would actually be sent, not a fresh audience query.\nAn empty or incomplete card answers `422 rate_card_not_configured` rather than a misleading\npartial total. The endpoint stays on `campaigns:read` because its only write is caching the\nquote on the campaign's own row (Doc 03 \u00a78.5.5).",
         "operationId": "estimate_campaign_cost_api_v1_campaigns__campaign_id__estimate_cost_post",
         "security": [
           {
@@ -6367,7 +6389,7 @@
           "Campaigns"
         ],
         "summary": "Schedule a campaign (one-time/recurring/drip)",
-        "description": "Write the schedule and park the campaign in ``scheduled``. Nothing fires on this path:\n``scheduler.tick`` reads the row when it comes due (Doc 06 §10.2 — the DB is the schedule).",
+        "description": "Write the schedule and park the campaign in ``scheduled``. Nothing fires on this path:\n``scheduler.tick`` reads the row when it comes due (Doc 06 \u00a710.2 \u2014 the DB is the schedule).",
         "operationId": "schedule_campaign_api_v1_campaigns__campaign_id__schedule_post",
         "security": [
           {
@@ -6474,7 +6496,7 @@
           "Campaigns"
         ],
         "summary": "Pause a running campaign",
-        "description": "Flips the switch every send reads. In-flight tasks are not chased — they will decline.",
+        "description": "Flips the switch every send reads. In-flight tasks are not chased \u2014 they will decline.",
         "operationId": "pause_campaign_api_v1_campaigns__campaign_id__pause_post",
         "security": [
           {
@@ -6669,7 +6691,7 @@
           "Inbox"
         ],
         "summary": "Inbox list",
-        "description": "The inbox, newest activity first (Doc 04 §18.1).\n\nCursor-paginated by ``last_message_at``; filtered by status/assignee/number and searched by\n``q`` (the customer's name or number) — exactly the frozen filter set, nothing more.\n\nBoth spellings of each filter are accepted and declared: the short form (``status=open``) and\nthe frozen bracket form (``filter[status][eq]=open``), the bracket form winning when both are\nsent. Declaring them as parameters (rather than reading them off the raw request) is what puts\nthem in the OpenAPI contract, so the generated client can express them.",
+        "description": "The inbox, newest activity first (Doc 04 \u00a718.1).\n\nCursor-paginated by ``last_message_at``; filtered by status/assignee/number and searched by\n``q`` (the customer's name or number) \u2014 exactly the frozen filter set, nothing more.\n\nBoth spellings of each filter are accepted and declared: the short form (``status=open``) and\nthe frozen bracket form (``filter[status][eq]=open``), the bracket form winning when both are\nsent. Declaring them as parameters (rather than reading them off the raw request) is what puts\nthem in the OpenAPI contract, so the generated client can express them.",
         "operationId": "list_conversations_api_v1_conversations_get",
         "security": [
           {
@@ -7157,7 +7179,7 @@
           "Inbox"
         ],
         "summary": "Mark read (reset unread count)",
-        "description": "Reset the thread's shared unread counter to zero (Doc 04 §18.1).\n\nRead state is the denormalized ``unread_count`` (Doc 03 §9.1); the frozen schema has no last-read\nmarker. Idempotent and unaudited — see :meth:`InboxService.mark_read`.",
+        "description": "Reset the thread's shared unread counter to zero (Doc 04 \u00a718.1).\n\nRead state is the denormalized ``unread_count`` (Doc 03 \u00a79.1); the frozen schema has no last-read\nmarker. Idempotent and unaudited \u2014 see :meth:`InboxService.mark_read`.",
         "operationId": "mark_conversation_read_api_v1_conversations__conversation_id__read_post",
         "security": [
           {
@@ -7361,7 +7383,7 @@
           "Inbox"
         ],
         "summary": "Add tag(s) to a conversation",
-        "description": "Attach existing org tags to a thread (Doc 04 §18.1 v1.3).\n\nIdempotent — a tag already present is a no-op; returns the thread's full tag set. Unknown/foreign\ntag → 422; unknown conversation → 404.",
+        "description": "Attach existing org tags to a thread (Doc 04 \u00a718.1 v1.3).\n\nIdempotent \u2014 a tag already present is a no-op; returns the thread's full tag set. Unknown/foreign\ntag \u2192 422; unknown conversation \u2192 404.",
         "operationId": "add_conversation_tags_api_v1_conversations__conversation_id__tags_post",
         "security": [
           {
@@ -7420,7 +7442,7 @@
           "Inbox"
         ],
         "summary": "Remove a tag from a conversation",
-        "description": "Detach a tag from a thread (Doc 04 §18.1 v1.3). 404 if the conversation or association is absent.",
+        "description": "Detach a tag from a thread (Doc 04 \u00a718.1 v1.3). 404 if the conversation or association is absent.",
         "operationId": "remove_conversation_tag_api_v1_conversations__conversation_id__tags__tag_id__delete",
         "security": [
           {
@@ -7472,7 +7494,7 @@
           "Inbox"
         ],
         "summary": "List quick replies",
-        "description": "The caller's personal replies plus all shared ones (Doc 04 §18.2).",
+        "description": "The caller's personal replies plus all shared ones (Doc 04 \u00a718.2).",
         "operationId": "list_quick_replies_api_v1_quick_replies_get",
         "responses": {
           "200": {
@@ -7497,7 +7519,7 @@
           "Inbox"
         ],
         "summary": "Create a quick reply",
-        "description": "Create a personal (default) or shared canned reply; duplicate shortcut in-scope → 409.",
+        "description": "Create a personal (default) or shared canned reply; duplicate shortcut in-scope \u2192 409.",
         "operationId": "create_quick_reply_api_v1_quick_replies_post",
         "requestBody": {
           "content": {
@@ -7544,7 +7566,7 @@
           "Inbox"
         ],
         "summary": "Edit a quick reply",
-        "description": "Edit shortcut/title/body (partial). Unknown/foreign uuid → 404; shortcut clash → 409.",
+        "description": "Edit shortcut/title/body (partial). Unknown/foreign uuid \u2192 404; shortcut clash \u2192 409.",
         "operationId": "update_quick_reply_api_v1_quick_replies__quick_reply_id__patch",
         "security": [
           {
@@ -7601,7 +7623,7 @@
           "Inbox"
         ],
         "summary": "Delete a quick reply",
-        "description": "Soft-delete a reply (Doc 04 §18.2). Unknown/foreign uuid → 404.",
+        "description": "Soft-delete a reply (Doc 04 \u00a718.2). Unknown/foreign uuid \u2192 404.",
         "operationId": "delete_quick_reply_api_v1_quick_replies__quick_reply_id__delete",
         "security": [
           {
@@ -7643,7 +7665,7 @@
           "Tasks"
         ],
         "summary": "List tasks",
-        "description": "A filtered, bucketed, cursor-paginated page of tasks (Doc 14 §7.2/§7.3).",
+        "description": "A filtered, bucketed, cursor-paginated page of tasks (Doc 14 \u00a77.2/\u00a77.3).",
         "operationId": "list_tasks_api_v1_tasks_get",
         "security": [
           {
@@ -7987,7 +8009,7 @@
           "Tasks"
         ],
         "summary": "Work-queue counts",
-        "description": "Overdue / due-today / upcoming / completed-today counts for an agent (Doc 14 §11).",
+        "description": "Overdue / due-today / upcoming / completed-today counts for an agent (Doc 14 \u00a711).",
         "operationId": "task_stats_api_v1_tasks_stats_get",
         "security": [
           {
@@ -8994,7 +9016,7 @@
           "Analytics"
         ],
         "summary": "Headline KPIs for a range",
-        "description": "Range totals plus every derived KPI (Doc 15 §11), with the freshness of the answer.",
+        "description": "Range totals plus every derived KPI (Doc 15 \u00a711), with the freshness of the answer.",
         "operationId": "analytics_summary_api_v1_analytics_summary_get",
         "security": [
           {
@@ -9144,7 +9166,7 @@
           "Analytics"
         ],
         "summary": "Derived KPIs only",
-        "description": "The §11 ratios and averages without the raw counters — the KPI-card payload.",
+        "description": "The \u00a711 ratios and averages without the raw counters \u2014 the KPI-card payload.",
         "operationId": "analytics_kpis_api_v1_analytics_kpis_get",
         "security": [
           {
@@ -9275,7 +9297,7 @@
           "Analytics"
         ],
         "summary": "A range beside its comparison window",
-        "description": "Current vs previous period or previous year, for delta display (Doc 15 §14.2).",
+        "description": "Current vs previous period or previous year, for delta display (Doc 15 \u00a714.2).",
         "operationId": "analytics_comparison_api_v1_analytics_comparison_get",
         "security": [
           {
@@ -9439,7 +9461,7 @@
           "Analytics"
         ],
         "summary": "Dense, timezone-folded time series",
-        "description": "One series per metric, dense across the range — no gaps for a chart to guess at.",
+        "description": "One series per metric, dense across the range \u2014 no gaps for a chart to guess at.",
         "operationId": "analytics_series_api_v1_analytics_series_get",
         "security": [
           {
@@ -9603,7 +9625,7 @@
           "Analytics"
         ],
         "summary": "Trend series with its comparison window",
-        "description": "A series always paired with its comparison — the trend view of the same §10 envelope.",
+        "description": "A series always paired with its comparison \u2014 the trend view of the same \u00a710 envelope.",
         "operationId": "analytics_trends_api_v1_analytics_trends_get",
         "security": [
           {
@@ -9948,7 +9970,7 @@
           "Analytics"
         ],
         "summary": "Failures grouped by Meta error code",
-        "description": "FR-AN-07 — the failure leaderboard; drill-down goes to the message list by error code.",
+        "description": "FR-AN-07 \u2014 the failure leaderboard; drill-down goes to the message list by error code.",
         "operationId": "analytics_failures_api_v1_analytics_failures_get",
         "security": [
           {
@@ -10075,7 +10097,7 @@
           "Analytics"
         ],
         "summary": "Campaign performance table",
-        "description": "FR-AN-02 — per-campaign funnel; campaign names resolve at read time (AN-CD2).",
+        "description": "FR-AN-02 \u2014 per-campaign funnel; campaign names resolve at read time (AN-CD2).",
         "operationId": "analytics_campaigns_api_v1_analytics_campaigns_get",
         "security": [
           {
@@ -10202,7 +10224,7 @@
           "Analytics"
         ],
         "summary": "Agent performance table",
-        "description": "FR-AN-02/J6 — the agent is a *dimension* of the conversation rollup, not its own table.",
+        "description": "FR-AN-02/J6 \u2014 the agent is a *dimension* of the conversation rollup, not its own table.",
         "operationId": "analytics_agents_api_v1_analytics_agents_get",
         "security": [
           {
@@ -10329,7 +10351,7 @@
           "Analytics"
         ],
         "summary": "Spend breakdown (executive)",
-        "description": "FR-AN-03 — spend by message type. Cost is copied from the ledger, never recomputed here.",
+        "description": "FR-AN-03 \u2014 spend by message type. Cost is copied from the ledger, never recomputed here.",
         "operationId": "analytics_costs_api_v1_analytics_costs_get",
         "security": [
           {
@@ -10456,7 +10478,7 @@
           "Analytics"
         ],
         "summary": "Executive dashboard (executive)",
-        "description": "Doc 15 §12 — a composition of existing metrics, including spend. No new measure.",
+        "description": "Doc 15 \u00a712 \u2014 a composition of existing metrics, including spend. No new measure.",
         "operationId": "analytics_executive_api_v1_analytics_executive_get",
         "security": [
           {
@@ -10623,7 +10645,7 @@
         "tags": [
           "Analytics"
         ],
-        "summary": "Rollup watermarks — how stale the data is",
+        "summary": "Rollup watermarks \u2014 how stale the data is",
         "description": "A dashboard that cannot say how stale it is will eventually be trusted when it shouldn't.",
         "operationId": "analytics_freshness_api_v1_analytics_freshness_get",
         "responses": {
@@ -10651,7 +10673,7 @@
           "Analytics"
         ],
         "summary": "Start a report export (async)",
-        "description": "Always ``202`` — a large report is exactly the request that must not hold a worker.\n\nReuses the frozen export system end to end: the ``exports`` row, the ``exports`` queue, the\nformat writers and the signed-download flow. Only the ``entity`` and the row generator differ.",
+        "description": "Always ``202`` \u2014 a large report is exactly the request that must not hold a worker.\n\nReuses the frozen export system end to end: the ``exports`` row, the ``exports`` queue, the\nformat writers and the signed-download flow. Only the ``entity`` and the row generator differ.",
         "operationId": "start_report_export_api_v1_analytics_reports_export_post",
         "requestBody": {
           "content": {
@@ -10698,7 +10720,7 @@
           "Analytics"
         ],
         "summary": "Report export progress + signed download link",
-        "description": "The same progress envelope contact exports use — one download flow for every artifact.",
+        "description": "The same progress envelope contact exports use \u2014 one download flow for every artifact.",
         "operationId": "report_export_progress_api_v1_analytics_reports__export_id__get",
         "security": [
           {
@@ -14824,7 +14846,7 @@
           "totals"
         ],
         "title": "AnalyticsBreakdownResponse",
-        "description": "A grouped table — the entry point to drill-down (Doc 15 §16).\n\nRows are a ranked leaderboard, not a dump: drilling into one takes the caller to the owning\nmodule's list endpoint, which analytics never re-implements."
+        "description": "A grouped table \u2014 the entry point to drill-down (Doc 15 \u00a716).\n\nRows are a ranked leaderboard, not a dump: drilling into one takes the caller to the owning\nmodule's list endpoint, which analytics never re-implements."
       },
       "AnalyticsComparisonResponse": {
         "properties": {
@@ -14847,7 +14869,7 @@
           "current"
         ],
         "title": "AnalyticsComparisonResponse",
-        "description": "A range beside its comparison window, for delta display (Doc 15 §14.2)."
+        "description": "A range beside its comparison window, for delta display (Doc 15 \u00a714.2)."
       },
       "AnalyticsFreshnessResponse": {
         "properties": {
@@ -14864,7 +14886,7 @@
           "data"
         ],
         "title": "AnalyticsFreshnessResponse",
-        "description": "``GET /analytics/freshness`` — so a dashboard can state how stale it is (Doc 15 §17)."
+        "description": "``GET /analytics/freshness`` \u2014 so a dashboard can state how stale it is (Doc 15 \u00a717)."
       },
       "AnalyticsFreshnessRow": {
         "properties": {
@@ -15099,7 +15121,7 @@
         },
         "type": "object",
         "title": "AnalyticsKpiResponse",
-        "description": "The derived ratios and averages of Doc 15 §11.\n\nEvery field is nullable: a rate over an empty denominator is *unknown*, not zero, and a\ndashboard that shows 0% for \"no messages sent\" is lying."
+        "description": "The derived ratios and averages of Doc 15 \u00a711.\n\nEvery field is nullable: a rate over an empty denominator is *unknown*, not zero, and a\ndashboard that shows 0% for \"no messages sent\" is lying."
       },
       "AnalyticsMetricsResponse": {
         "properties": {
@@ -15205,7 +15227,7 @@
         },
         "type": "object",
         "title": "AnalyticsRangeFilters",
-        "description": "The shared range/granularity/timezone filter set (Doc 15 §14.2).\n\nEndpoints declare these as query parameters; this model is the single definition of their\ntypes, defaults and mutual constraints."
+        "description": "The shared range/granularity/timezone filter set (Doc 15 \u00a714.2).\n\nEndpoints declare these as query parameters; this model is the single definition of their\ntypes, defaults and mutual constraints."
       },
       "AnalyticsSeriesResponse": {
         "properties": {
@@ -15291,7 +15313,7 @@
           "totals"
         ],
         "title": "AnalyticsSeriesResponse",
-        "description": "The §10 envelope — one shape every chart in the frontend can render."
+        "description": "The \u00a710 envelope \u2014 one shape every chart in the frontend can render."
       },
       "AnalyticsSummaryResponse": {
         "properties": {
@@ -15346,7 +15368,7 @@
           "kpis"
         ],
         "title": "AnalyticsSummaryResponse",
-        "description": "Scalar KPI cards for a range (Doc 15 §16, family 1)."
+        "description": "Scalar KPI cards for a range (Doc 15 \u00a716, family 1)."
       },
       "ApiKeyCreateRequest": {
         "properties": {
@@ -15472,7 +15494,7 @@
           "secret"
         ],
         "title": "ApiKeyCreateResponse",
-        "description": "Returned once on creation — includes the plaintext secret (never shown again)."
+        "description": "Returned once on creation \u2014 includes the plaintext secret (never shown again)."
       },
       "ApiKeyResponse": {
         "properties": {
@@ -15898,7 +15920,7 @@
         },
         "type": "object",
         "title": "AudienceRef",
-        "description": "Which segment/tags/contacts the audience selects (Doc 03 §8.1 ``audience_ref_json``)."
+        "description": "Which segment/tags/contacts the audience selects (Doc 03 \u00a78.1 ``audience_ref_json``)."
       },
       "AuditLogPage": {
         "properties": {
@@ -16894,7 +16916,7 @@
           "kpis"
         ],
         "title": "BreakdownRow",
-        "description": "One dimension value with its summed measures and derived KPIs (Doc 15 §16, family 3)."
+        "description": "One dimension value with its summed measures and derived KPIs (Doc 15 \u00a716, family 3)."
       },
       "BulkDeleteRequest": {
         "properties": {
@@ -16938,7 +16960,7 @@
         },
         "type": "object",
         "title": "BulkDeleteRequest",
-        "description": "``POST /contacts/bulk-delete`` — soft-delete over a selection or filter (FR-CON-08)."
+        "description": "``POST /contacts/bulk-delete`` \u2014 soft-delete over a selection or filter (FR-CON-08)."
       },
       "BulkFilter": {
         "properties": {
@@ -16957,7 +16979,7 @@
         },
         "type": "object",
         "title": "BulkFilter",
-        "description": "A filter that resolves to an audience (Doc 04 §30 addressing mode (b))."
+        "description": "A filter that resolves to an audience (Doc 04 \u00a730 addressing mode (b))."
       },
       "BulkItemError": {
         "properties": {
@@ -16987,7 +17009,7 @@
           "message"
         ],
         "title": "BulkItemError",
-        "description": "One per-item failure (§29 ``errors[]``)."
+        "description": "One per-item failure (\u00a729 ``errors[]``)."
       },
       "BulkProgressResponse": {
         "properties": {
@@ -17076,7 +17098,7 @@
           "completed_at"
         ],
         "title": "BulkProgressResponse",
-        "description": "``GET /contacts/bulk/{uuid}`` — the §29 ``PartialSuccessResult`` for an async job."
+        "description": "``GET /contacts/bulk/{uuid}`` \u2014 the \u00a729 ``PartialSuccessResult`` for an async job."
       },
       "BulkSummary": {
         "properties": {
@@ -17117,7 +17139,7 @@
           "skipped"
         ],
         "title": "BulkSummary",
-        "description": "The §29 summary block; ``processed`` drives the live progress bar (§30)."
+        "description": "The \u00a729 summary block; ``processed`` drives the live progress bar (\u00a730)."
       },
       "BulkUpdateRequest": {
         "properties": {
@@ -17173,7 +17195,7 @@
           "action"
         ],
         "title": "BulkUpdateRequest",
-        "description": "``POST /contacts/bulk-update`` — add/remove tags or set attributes (FR-CON-07)."
+        "description": "``POST /contacts/bulk-update`` \u2014 add/remove tags or set attributes (FR-CON-07)."
       },
       "CampaignConfig": {
         "properties": {
@@ -17306,7 +17328,7 @@
           "notes"
         ],
         "title": "CampaignEstimateResponse",
-        "description": "Pre-send cost estimate (FR-CAM-11; Doc 04 §17).\n\nInvariant: ``recipients == sum(b.count for b in breakdown) + unresolved.count``."
+        "description": "Pre-send cost estimate (FR-CAM-11; Doc 04 \u00a717).\n\nInvariant: ``recipients == sum(b.count for b in breakdown) + unresolved.count``."
       },
       "CampaignListResponse": {
         "properties": {
@@ -17390,7 +17412,7 @@
           "samples"
         ],
         "title": "CampaignPreviewResponse",
-        "description": "Audience size + sample renders (Doc 04 §17)."
+        "description": "Audience size + sample renders (Doc 04 \u00a717)."
       },
       "CampaignProgressResponse": {
         "properties": {
@@ -17693,7 +17715,7 @@
           "schedule_type"
         ],
         "title": "CampaignScheduleRequest",
-        "description": "When a campaign should fire (Doc 04 §17; FR-CAM-03/04).\n\nOne model over three shapes, because they are one decision — \"when\" — and the fields that do\nnot apply are simply absent. The service rejects a shape missing what it needs (422)."
+        "description": "When a campaign should fire (Doc 04 \u00a717; FR-CAM-03/04).\n\nOne model over three shapes, because they are one decision \u2014 \"when\" \u2014 and the fields that do\nnot apply are simply absent. The service rejects a shape missing what it needs (422)."
       },
       "CampaignScheduleResponse": {
         "properties": {
@@ -17754,7 +17776,7 @@
           "failed_count"
         ],
         "title": "CampaignStateResponse",
-        "description": "The campaign after a lifecycle transition (Doc 04 §17)."
+        "description": "The campaign after a lifecycle transition (Doc 04 \u00a717)."
       },
       "CampaignUpdateRequest": {
         "properties": {
@@ -17977,7 +17999,7 @@
           "attributes"
         ],
         "title": "ContactAttributesRequest",
-        "description": "Set custom attribute values on a contact; ``null`` clears a value (Doc 04 §14.1)."
+        "description": "Set custom attribute values on a contact; ``null`` clears a value (Doc 04 \u00a714.1)."
       },
       "ContactCreateRequest": {
         "properties": {
@@ -18274,7 +18296,7 @@
           "phone"
         ],
         "title": "ContactRef",
-        "description": "Who the conversation is with — enough to render an inbox row (Doc 05 B7 pane 2)."
+        "description": "Who the conversation is with \u2014 enough to render an inbox row (Doc 05 B7 pane 2)."
       },
       "ContactResponse": {
         "properties": {
@@ -18572,7 +18594,7 @@
           "tags"
         ],
         "title": "ContactTagsRequest",
-        "description": "Attach one or more existing tags to a contact (Doc 04 §14.1)."
+        "description": "Attach one or more existing tags to a contact (Doc 04 \u00a714.1)."
       },
       "ContactTimelinePage": {
         "properties": {
@@ -18740,7 +18762,7 @@
           "assignee_id"
         ],
         "title": "ConversationAssignRequest",
-        "description": "Assign or reassign a conversation to a user (Doc 04 §18.1)."
+        "description": "Assign or reassign a conversation to a user (Doc 04 \u00a718.1)."
       },
       "ConversationMessagesPage": {
         "properties": {
@@ -18761,7 +18783,7 @@
           "page"
         ],
         "title": "ConversationMessagesPage",
-        "description": "A page of a thread's message history (Doc 04 §18.1), newest first."
+        "description": "A page of a thread's message history (Doc 04 \u00a718.1), newest first."
       },
       "ConversationReadResponse": {
         "properties": {
@@ -18791,7 +18813,7 @@
           "updated_at"
         ],
         "title": "ConversationReadResponse",
-        "description": "A conversation after its unread counter is reset (Doc 04 §18.1).\n\nRead state in the frozen schema is exactly the denormalized ``unread_count`` (Doc 03 §9.1) —\nthere is no last-read marker — so this echoes the counter (now ``0``) and the version it settled\nat, mirroring the state the sibling write actions return."
+        "description": "A conversation after its unread counter is reset (Doc 04 \u00a718.1).\n\nRead state in the frozen schema is exactly the denormalized ``unread_count`` (Doc 03 \u00a79.1) \u2014\nthere is no last-read marker \u2014 so this echoes the counter (now ``0``) and the version it settled\nat, mirroring the state the sibling write actions return."
       },
       "ConversationResponse": {
         "properties": {
@@ -18811,6 +18833,10 @@
           "channel_type": {
             "type": "string",
             "title": "Channel Type"
+          },
+          "connector_type": {
+            "type": "string",
+            "title": "Connector Type"
           },
           "assigned_to": {
             "anyOf": [
@@ -18901,6 +18927,7 @@
           "id",
           "status",
           "channel_type",
+          "connector_type",
           "assigned_to",
           "contact",
           "tags",
@@ -18914,7 +18941,7 @@
           "updated_at"
         ],
         "title": "ConversationResponse",
-        "description": "A conversation as the inbox list and detail render it (Doc 04 §18.1)."
+        "description": "A conversation as the inbox list and detail render it (Doc 04 \u00a718.1)."
       },
       "ConversationStateResponse": {
         "properties": {
@@ -18956,7 +18983,7 @@
           "updated_at"
         ],
         "title": "ConversationStateResponse",
-        "description": "A conversation after an assignment or status transition (Doc 04 §18.1)."
+        "description": "A conversation after an assignment or status transition (Doc 04 \u00a718.1)."
       },
       "ConversationStatusRequest": {
         "properties": {
@@ -18976,7 +19003,7 @@
           "status"
         ],
         "title": "ConversationStatusRequest",
-        "description": "Move a conversation's status (Doc 04 §18.1)."
+        "description": "Move a conversation's status (Doc 04 \u00a718.1)."
       },
       "ConversationTagsRequest": {
         "properties": {
@@ -18996,7 +19023,7 @@
           "tag_ids"
         ],
         "title": "ConversationTagsRequest",
-        "description": "Add existing tag(s) to a conversation (Doc 04 §18.1 v1.3)."
+        "description": "Add existing tag(s) to a conversation (Doc 04 \u00a718.1 v1.3)."
       },
       "ConversationTagsResponse": {
         "properties": {
@@ -19013,7 +19040,7 @@
           "data"
         ],
         "title": "ConversationTagsResponse",
-        "description": "A conversation's full tag set after an add (Doc 04 §18.1 v1.3)."
+        "description": "A conversation's full tag set after an add (Doc 04 \u00a718.1 v1.3)."
       },
       "ConversationsPage": {
         "properties": {
@@ -19034,7 +19061,7 @@
           "page"
         ],
         "title": "ConversationsPage",
-        "description": "A page of the inbox list (Doc 04 §3 envelope)."
+        "description": "A page of the inbox list (Doc 04 \u00a73 envelope)."
       },
       "DeduplicateRequest": {
         "properties": {
@@ -19053,7 +19080,7 @@
         },
         "type": "object",
         "title": "DeduplicateRequest",
-        "description": "``POST /contacts/deduplicate`` — dedup scan, report or merge (FR-CON-06)."
+        "description": "``POST /contacts/deduplicate`` \u2014 dedup scan, report or merge (FR-CON-06)."
       },
       "DelayConfig": {
         "properties": {
@@ -19907,7 +19934,7 @@
           "subtotal"
         ],
         "title": "EstimateBreakdownEntry",
-        "description": "One priced ``(country, category)`` group (Doc 04 §17).\n\n``unit`` and ``subtotal`` are decimals serialized as fixed-scale strings — a JSON number cannot\ncarry scale and lands in a binary float, which is what money must never touch."
+        "description": "One priced ``(country, category)`` group (Doc 04 \u00a717).\n\n``unit`` and ``subtotal`` are decimals serialized as fixed-scale strings \u2014 a JSON number cannot\ncarry scale and lands in a binary float, which is what money must never touch."
       },
       "EstimateUnresolved": {
         "properties": {
@@ -19926,7 +19953,7 @@
           "count"
         ],
         "title": "EstimateUnresolved",
-        "description": "Recipients that could not be priced (Doc 03 §8.5.4).\n\nReported rather than dropped: excluding them from the total while hiding the count would\nunderstate the number FR-CAM-11 calls exact."
+        "description": "Recipients that could not be priced (Doc 03 \u00a78.5.4).\n\nReported rather than dropped: excluding them from the total while hiding the count would\nunderstate the number FR-CAM-11 calls exact."
       },
       "ExportCreateRequest": {
         "properties": {
@@ -19950,7 +19977,7 @@
         },
         "type": "object",
         "title": "ExportCreateRequest",
-        "description": "``POST /contacts/export`` — filters reuse the segment/search rule shape."
+        "description": "``POST /contacts/export`` \u2014 filters reuse the segment/search rule shape."
       },
       "ExportProgressResponse": {
         "properties": {
@@ -20035,7 +20062,7 @@
           "completed_at"
         ],
         "title": "ExportProgressResponse",
-        "description": "``GET /contacts/export/{uuid}`` — progress + signed download link."
+        "description": "``GET /contacts/export/{uuid}`` \u2014 progress + signed download link."
       },
       "FeatureFlagPatchRequest": {
         "properties": {
@@ -20800,7 +20827,7 @@
           "mapping"
         ],
         "title": "ImportCreateRequest",
-        "description": "``POST /contacts/import`` (Doc 04 §14.1 sample)."
+        "description": "``POST /contacts/import`` (Doc 04 \u00a714.1 sample)."
       },
       "ImportInspectRequest": {
         "properties": {
@@ -20820,7 +20847,7 @@
           "upload_id"
         ],
         "title": "ImportInspectRequest",
-        "description": "``POST /contacts/import/inspect`` — read an uploaded file's shape, import nothing."
+        "description": "``POST /contacts/import/inspect`` \u2014 read an uploaded file's shape, import nothing."
       },
       "ImportInspectResponse": {
         "properties": {
@@ -20984,7 +21011,7 @@
           "completed_at"
         ],
         "title": "ImportProgressResponse",
-        "description": "``GET /contacts/import/{uuid}`` — progress + error report link (FR-CON-05)."
+        "description": "``GET /contacts/import/{uuid}`` \u2014 progress + error report link (FR-CON-05)."
       },
       "JobAcceptedResponse": {
         "properties": {
@@ -20997,7 +21024,7 @@
           "job"
         ],
         "title": "JobAcceptedResponse",
-        "description": "``202 Accepted`` — the only response a long-running operation returns (Doc 04 §3)."
+        "description": "``202 Accepted`` \u2014 the only response a long-running operation returns (Doc 04 \u00a73)."
       },
       "JobEnvelope": {
         "properties": {
@@ -21026,7 +21053,7 @@
           "poll_url"
         ],
         "title": "JobEnvelope",
-        "description": "The ``job`` object of a 202 response (Doc 04 §3)."
+        "description": "The ``job`` object of a 202 response (Doc 04 \u00a73)."
       },
       "JobResponse": {
         "properties": {
@@ -22423,7 +22450,7 @@
           "expires_in"
         ],
         "title": "MediaContentResponse",
-        "description": "A signed, expiring URL for the asset (Doc 04 §16, FR-MED-09)."
+        "description": "A signed, expiring URL for the asset (Doc 04 \u00a716, FR-MED-09)."
       },
       "MediaListResponse": {
         "properties": {
@@ -22523,7 +22550,7 @@
           "kind"
         ],
         "title": "MediaPayload",
-        "description": "Media to send. Exactly one source — the adapter can only attach one thing.\n\n``media_asset_id`` is the platform's own stored asset (Doc 07 §17.3): it is uploaded to the\nchannel on the send lane and the resulting id is cached, so the same file sent a hundred times\nis uploaded once. ``link``/``media_id`` hand a channel-side reference straight through."
+        "description": "Media to send. Exactly one source \u2014 the adapter can only attach one thing.\n\n``media_asset_id`` is the platform's own stored asset (Doc 07 \u00a717.3): it is uploaded to the\nchannel on the send lane and the resulting id is cached, so the same file sent a hundred times\nis uploaded once. ``link``/``media_id`` hand a channel-side reference straight through."
       },
       "MediaResponse": {
         "properties": {
@@ -22666,7 +22693,7 @@
           "queued_at"
         ],
         "title": "MessageAcceptedResponse",
-        "description": "The ``202`` a send answers with (Doc 04 §18.2)."
+        "description": "The ``202`` a send answers with (Doc 04 \u00a718.2)."
       },
       "MessageReactionRequest": {
         "properties": {
@@ -22681,7 +22708,7 @@
           "emoji"
         ],
         "title": "MessageReactionRequest",
-        "description": "React to a message (Doc 04 §18.2 v1.4).\n\n``emoji`` is a **single emoji**; the **empty string** removes a prior reaction. The single-emoji\nrule (reject multiple emoji / non-emoji text → ``invalid_emoji``) is enforced in the send service,\nwhich owns the ``422`` code; the length bound here only caps the payload."
+        "description": "React to a message (Doc 04 \u00a718.2 v1.4).\n\n``emoji`` is a **single emoji**; the **empty string** removes a prior reaction. The single-emoji\nrule (reject multiple emoji / non-emoji text \u2192 ``invalid_emoji``) is enforced in the send service,\nwhich owns the ``422`` code; the length bound here only caps the payload."
       },
       "MessageResponse": {
         "properties": {
@@ -22806,14 +22833,40 @@
       "MessageSendRequest": {
         "properties": {
           "phone_number_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Phone Number Id"
           },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "to": {
-            "type": "string",
-            "maxLength": 24,
-            "minLength": 5,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24,
+                "minLength": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "To",
             "examples": [
               "+14155552671"
@@ -22874,12 +22927,10 @@
         },
         "type": "object",
         "required": [
-          "phone_number_id",
-          "to",
           "type"
         ],
         "title": "MessageSendRequest",
-        "description": "A send (Doc 04 §18.2).\n\n``type`` selects which payload is read; the others must be absent. Sending is deliberately not\na discriminated union of free-form JSON: the ledger stores canonical content, so what a client\nmay say is the same shape the adapter is handed."
+        "description": "A send (Doc 04 \u00a718.2).\n\n``type`` selects which payload is read; the others must be absent. Sending is deliberately not\na discriminated union of free-form JSON: the ledger stores canonical content, so what a client\nmay say is the same shape the adapter is handed.\n\nExactly one of ``phone_number_id``/``conversation_id`` routes the send (QR-08). The first is\nthe original \"send to any number\" contract, unchanged. The second is a reply to an existing\nthread: the server resolves *which* provider owns it from the conversation's own durable\nownership and ignores this request's opinion \u2014 a client cannot supply, forge, or override that\nchoice through this field, which is exactly why replying by conversation exists as its own path\nrather than accepting a client-declared provider/endpoint. ``to`` is required only for the\nnumber-addressed form; a conversation reply derives its recipient from the thread's own contact."
       },
       "MetricDescriptor": {
         "properties": {
@@ -22898,7 +22949,7 @@
           "label"
         ],
         "title": "MetricDescriptor",
-        "description": "One addressable metric — lets the frontend build a chart picker from the contract."
+        "description": "One addressable metric \u2014 lets the frontend build a chart picker from the contract."
       },
       "NoteCreateRequest": {
         "properties": {
@@ -22914,7 +22965,7 @@
           "body"
         ],
         "title": "NoteCreateRequest",
-        "description": "Add a staff-only note (Doc 04 §18.1)."
+        "description": "Add a staff-only note (Doc 04 \u00a718.1)."
       },
       "NoteResponse": {
         "properties": {
@@ -22951,7 +23002,7 @@
           "created_at"
         ],
         "title": "NoteResponse",
-        "description": "One internal note (Doc 03 §9.5)."
+        "description": "One internal note (Doc 03 \u00a79.5)."
       },
       "NotesListResponse": {
         "properties": {
@@ -23367,7 +23418,7 @@
           "has_more"
         ],
         "title": "Page",
-        "description": "The ``page`` object of a collection envelope (Doc 04 §3)."
+        "description": "The ``page`` object of a collection envelope (Doc 04 \u00a73)."
       },
       "PermissionResponse": {
         "properties": {
@@ -23497,7 +23548,7 @@
           "last_synced_at"
         ],
         "title": "PhoneNumberHealthResponse",
-        "description": "``GET /phone-numbers/{uuid}/health`` (Doc 04 §13.3 sample)."
+        "description": "``GET /phone-numbers/{uuid}/health`` (Doc 04 \u00a713.3 sample)."
       },
       "PhoneNumberResponse": {
         "properties": {
@@ -23676,7 +23727,7 @@
         },
         "type": "object",
         "title": "PhoneNumberUpdateRequest",
-        "description": "``PATCH /phone-numbers/{uuid}`` — operator-owned fields only (Doc 04 §13.3).\n\nMeta-owned facts (quality rating, tier, verified name) are not settable here: they arrive via\nsync/refresh, so letting an operator type them would create a lie the next sync silently undoes."
+        "description": "``PATCH /phone-numbers/{uuid}`` \u2014 operator-owned fields only (Doc 04 \u00a713.3).\n\nMeta-owned facts (quality rating, tier, verified name) are not settable here: they arrive via\nsync/refresh, so letting an operator type them would create a lie the next sync silently undoes."
       },
       "PhoneNumbersListResponse": {
         "properties": {
@@ -23794,7 +23845,7 @@
           "dead_letter_parked"
         ],
         "title": "QueuesResponse",
-        "description": "``GET /queues`` — depth/throughput per queue plus fleet health (Doc 06 §13.2)."
+        "description": "``GET /queues`` \u2014 depth/throughput per queue plus fleet health (Doc 06 \u00a713.2)."
       },
       "QuickRepliesListResponse": {
         "properties": {
@@ -23811,7 +23862,7 @@
           "data"
         ],
         "title": "QuickRepliesListResponse",
-        "description": "The visible quick replies (Doc 04 §3 envelope). Bounded per org — not paginated."
+        "description": "The visible quick replies (Doc 04 \u00a73 envelope). Bounded per org \u2014 not paginated."
       },
       "QuickReplyCreateRequest": {
         "properties": {
@@ -23846,7 +23897,7 @@
           "body"
         ],
         "title": "QuickReplyCreateRequest",
-        "description": "Create a personal or shared quick reply (Doc 04 §18.2)."
+        "description": "Create a personal or shared quick reply (Doc 04 \u00a718.2)."
       },
       "QuickReplyResponse": {
         "properties": {
@@ -23897,7 +23948,7 @@
           "updated_at"
         ],
         "title": "QuickReplyResponse",
-        "description": "A quick reply as returned by the CRUD endpoints (Doc 04 §18.2)."
+        "description": "A quick reply as returned by the CRUD endpoints (Doc 04 \u00a718.2)."
       },
       "QuickReplyUpdateRequest": {
         "properties": {
@@ -23943,7 +23994,7 @@
         },
         "type": "object",
         "title": "QuickReplyUpdateRequest",
-        "description": "Edit a quick reply (Doc 04 §18.2). Every field optional — only those present change."
+        "description": "Edit a quick reply (Doc 04 \u00a718.2). Every field optional \u2014 only those present change."
       },
       "ReactivationCaseListResponse": {
         "properties": {
@@ -25098,7 +25149,7 @@
           "filters"
         ],
         "title": "ReportExportRequest",
-        "description": "``POST /analytics/reports/export`` — always async, always 202 (Doc 15 §19).\n\nThe resolved range travels into ``exports.filters_json`` so an artifact is reproducible and\nself-describing. The response envelope is the frozen ``ExportProgressResponse``; a report is an\nexport, not a second export system."
+        "description": "``POST /analytics/reports/export`` \u2014 always async, always 202 (Doc 15 \u00a719).\n\nThe resolved range travels into ``exports.filters_json`` so an artifact is reproducible and\nself-describing. The response envelope is the frozen ``ExportProgressResponse``; a report is an\nexport, not a second export system."
       },
       "RoleCreateRequest": {
         "properties": {
@@ -25328,7 +25379,7 @@
           "is_active"
         ],
         "title": "ScheduleEntry",
-        "description": "One stored schedule row (Doc 03 §8.2)."
+        "description": "One stored schedule row (Doc 03 \u00a78.2)."
       },
       "SegmentContactsPage": {
         "properties": {
@@ -26781,7 +26832,7 @@
           "color"
         ],
         "title": "TagSummary",
-        "description": "Compact tag shape embedded in a contact (Doc 04 §14 contact schema)."
+        "description": "Compact tag shape embedded in a contact (Doc 04 \u00a714 contact schema)."
       },
       "TagUpdateRequest": {
         "properties": {
@@ -26842,7 +26893,7 @@
           "task_ids"
         ],
         "title": "TaskBulkDeleteRequest",
-        "description": "``POST /tasks/bulk-delete`` — soft-delete a selection (Doc 14 §7.1)."
+        "description": "``POST /tasks/bulk-delete`` \u2014 soft-delete a selection (Doc 14 \u00a77.1)."
       },
       "TaskBulkResultResponse": {
         "properties": {
@@ -26932,7 +26983,7 @@
           "task_ids"
         ],
         "title": "TaskBulkUpdateRequest",
-        "description": "``POST /tasks/bulk-update`` — apply a change set to a selection (Doc 14 §7.1)."
+        "description": "``POST /tasks/bulk-update`` \u2014 apply a change set to a selection (Doc 14 \u00a77.1)."
       },
       "TaskCompleteRequest": {
         "properties": {
@@ -27073,7 +27124,7 @@
           "due_at"
         ],
         "title": "TaskCreateRequest",
-        "description": "Create a follow-up task (Doc 14 §7.4). ``assigned_agent_id`` defaults to the caller."
+        "description": "Create a follow-up task (Doc 14 \u00a77.4). ``assigned_agent_id`` defaults to the caller."
       },
       "TaskEventResponse": {
         "properties": {
@@ -27176,7 +27227,7 @@
           "data"
         ],
         "title": "TaskHistoryResponse",
-        "description": "A task's immutable history, oldest→newest (Doc 14 §5.2)."
+        "description": "A task's immutable history, oldest\u2192newest (Doc 14 \u00a75.2)."
       },
       "TaskReasonRequest": {
         "properties": {
@@ -27207,7 +27258,7 @@
         },
         "type": "object",
         "title": "TaskReasonRequest",
-        "description": "Shared body for skip / cancel (Doc 14 §8) — an optional reason plus the concurrency guard."
+        "description": "Shared body for skip / cancel (Doc 14 \u00a78) \u2014 an optional reason plus the concurrency guard."
       },
       "TaskReassignRequest": {
         "properties": {
@@ -27252,7 +27303,7 @@
         },
         "type": "object",
         "title": "TaskReopenRequest",
-        "description": "Body for reopen — no reason field: reopening carries no outcome (Doc 14 §4.4)."
+        "description": "Body for reopen \u2014 no reason field: reopening carries no outcome (Doc 14 \u00a74.4)."
       },
       "TaskRescheduleRequest": {
         "properties": {
@@ -27520,7 +27571,7 @@
           "row_version"
         ],
         "title": "TaskResponse",
-        "description": "A task as returned by the CRUD and action endpoints (Doc 14 §7.4)."
+        "description": "A task as returned by the CRUD and action endpoints (Doc 14 \u00a77.4)."
       },
       "TaskSnoozeRequest": {
         "properties": {
@@ -27576,7 +27627,7 @@
           "completed_today"
         ],
         "title": "TaskStatsResponse",
-        "description": "Work-queue counts for the widget (Doc 14 §7.3, §11)."
+        "description": "Work-queue counts for the widget (Doc 14 \u00a77.3, \u00a711)."
       },
       "TaskUpdateRequest": {
         "properties": {
@@ -27692,7 +27743,7 @@
         },
         "type": "object",
         "title": "TaskUpdateRequest",
-        "description": "Edit task fields (Doc 14 §7.1). Every field optional — only those present change."
+        "description": "Edit task fields (Doc 14 \u00a77.1). Every field optional \u2014 only those present change."
       },
       "TasksPage": {
         "properties": {
@@ -27713,7 +27764,7 @@
           "page"
         ],
         "title": "TasksPage",
-        "description": "A keyset page of tasks (Doc 04 §3 envelope)."
+        "description": "A keyset page of tasks (Doc 04 \u00a73 envelope)."
       },
       "TemplateButtonPayload": {
         "properties": {
@@ -27746,7 +27797,7 @@
           "value"
         ],
         "title": "TemplateButtonPayload",
-        "description": "A value bound to one of the template's buttons (Doc 04 §18.2 `buttons[]`)."
+        "description": "A value bound to one of the template's buttons (Doc 04 \u00a718.2 `buttons[]`)."
       },
       "TemplateCreateRequest": {
         "properties": {
@@ -27805,7 +27856,7 @@
           "components"
         ],
         "title": "TemplateCreateRequest",
-        "description": "A template definition (Doc 04 §15).\n\n``components`` is the platform's own structure — header/body/footer/buttons — validated before\nMeta ever sees it. ``submit`` is what separates \"save a draft\" from \"ask Meta\"; the default is\nto submit, because a template nobody submits can never be sent."
+        "description": "A template definition (Doc 04 \u00a715).\n\n``components`` is the platform's own structure \u2014 header/body/footer/buttons \u2014 validated before\nMeta ever sees it. ``submit`` is what separates \"save a draft\" from \"ask Meta\"; the default is\nto submit, because a template nobody submits can never be sent."
       },
       "TemplateHeaderMedia": {
         "properties": {
@@ -27922,7 +27973,7 @@
           "id"
         ],
         "title": "TemplatePayload",
-        "description": "A template send (Doc 04 §18.2).\n\nValues, not components: the caller names the template and supplies the positional variables it\ndeclares. Whether those are approved and correctly counted is the server's business, and what\nGraph wants them to look like is the adapter's."
+        "description": "A template send (Doc 04 \u00a718.2).\n\nValues, not components: the caller names the template and supplies the positional variables it\ndeclares. Whether those are approved and correctly counted is the server's business, and what\nGraph wants them to look like is the adapter's."
       },
       "TemplatePreviewResponse": {
         "properties": {
@@ -28701,7 +28752,7 @@
         },
         "type": "object",
         "title": "VariableMap",
-        "description": "Mappings positioned to the template's ``{{1}}, {{2}} …``, per component."
+        "description": "Mappings positioned to the template's ``{{1}}, {{2}} \u2026``, per component."
       },
       "VariableMapping": {
         "properties": {
@@ -28831,7 +28882,7 @@
           "access_token"
         ],
         "title": "WabaCreateRequest",
-        "description": "``POST /waba`` — connect a WABA with its system-user token."
+        "description": "``POST /waba`` \u2014 connect a WABA with its system-user token."
       },
       "WabaListResponse": {
         "properties": {
@@ -29047,7 +29098,7 @@
         },
         "type": "object",
         "title": "WabaUpdateRequest",
-        "description": "``PATCH /waba/{uuid}`` — rotate the token or amend metadata."
+        "description": "``PATCH /waba/{uuid}`` \u2014 rotate the token or amend metadata."
       },
       "WaitConfig": {
         "properties": {
@@ -29145,7 +29196,7 @@
           "events"
         ],
         "title": "WebhookAckResponse",
-        "description": "The body behind a fast ``200``.\n\nMeta only reads the status code, so this exists for operators and tests: it states how many\nevents the delivery was durably split into (Doc 06 §11.2)."
+        "description": "The body behind a fast ``200``.\n\nMeta only reads the status code, so this exists for operators and tests: it states how many\nevents the delivery was durably split into (Doc 06 \u00a711.2)."
       },
       "WebhookConfig": {
         "properties": {
@@ -29297,7 +29348,7 @@
           "healthy": {
             "type": "boolean",
             "title": "Healthy",
-            "description": "Session-level health — never server-only reachability."
+            "description": "Session-level health \u2014 never server-only reachability."
           },
           "health_detail": {
             "type": "string",
@@ -29375,7 +29426,7 @@
           "qr_available"
         ],
         "title": "WhatsAppQrStatus",
-        "description": "Current WhatsApp QR connection status for the caller's organization.\n\n``configured=False`` covers every reason the screen has nothing to operate on — WAHA\nunconfigured, the organization not assigned, feature flags disabled — collapsed into one\nhonest \"not available\" signal rather than distinguishing operator-irrelevant deployment detail."
+        "description": "Current WhatsApp QR connection status for the caller's organization.\n\n``configured=False`` covers every reason the screen has nothing to operate on \u2014 WAHA\nunconfigured, the organization not assigned, feature flags disabled \u2014 collapsed into one\nhonest \"not available\" signal rather than distinguishing operator-irrelevant deployment detail."
       },
       "WindowState": {
         "properties": {
@@ -29415,7 +29466,7 @@
           "last_inbound_at"
         ],
         "title": "WindowState",
-        "description": "The 24-hour customer-service window (Doc 03 §9.1; FR-WA-12).\n\n``is_open`` is computed at read time, not read from the denormalized flag: a window closes by\ntime passing, not by anything writing a row (Doc 03 §9.1)."
+        "description": "The 24-hour customer-service window (Doc 03 \u00a79.1; FR-WA-12).\n\n``is_open`` is computed at read time, not read from the denormalized flag: a window closes by\ntime passing, not by anything writing a row (Doc 03 \u00a79.1)."
       },
       "WorkerResponse": {
         "properties": {

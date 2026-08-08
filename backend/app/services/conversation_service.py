@@ -24,6 +24,7 @@ from app.channels.capabilities import ChannelType
 from app.db.mixins import utcnow
 from app.models.audit import ACTOR_SYSTEM
 from app.models.business_event import BUSINESS_EVENT_ACTOR_SYSTEM
+from app.models.channel_connection import ChannelEndpoint
 from app.models.contact import Contact
 from app.models.contact_event import EVENT_CONTACT_CREATED
 from app.models.conversation import PREVIEW_LENGTH, WINDOW, Conversation
@@ -181,6 +182,50 @@ class ConversationService:
             conversation.last_inbound_at = occurred_at
             conversation.window_expires_at = occurred_at + WINDOW
         # Denormalized for `ix_conv_window`; `Conversation.window_is_open` is the read-time truth.
+        conversation.is_window_open = conversation.window_is_open
+        await self._conversations.flush()
+        return conversation
+
+    # --- Provider-neutral (channel-endpoint-owned, e.g. WAHA) analogues (QR-08) -----------------
+    #
+    # Kept as their own straight-line methods rather than unifying `number`/`endpoint` behind one
+    # signature: ADR-0020 asks for independent failure domains between providers, and the two owner
+    # columns (`phone_number_id` / `channel_endpoint_id`) are already mutually exclusive at the
+    # database level (`ck_conv_endpoint_owner`) — a shared method would only reintroduce, in code,
+    # the ambiguity the schema was built to rule out.
+
+    async def thread_for_endpoint(
+        self, *, endpoint: ChannelEndpoint, contact: Contact
+    ) -> Conversation:
+        """The thread for a (channel endpoint, contact) pair, created on first contact."""
+        conversation = await self._conversations.get_for_endpoint_contact(endpoint.id, contact.id)
+        if conversation is None:
+            conversation = Conversation(
+                organization_id=endpoint.organization_id,
+                channel_endpoint_id=endpoint.id,
+                contact_id=contact.id,
+                channel_type=ChannelType.WHATSAPP.value,
+            )
+            await self._conversations.add(conversation)
+        elif conversation.deleted_at is not None:
+            conversation.deleted_at = None
+        await self._conversations.flush()
+        return conversation
+
+    async def open_for_inbound_endpoint(
+        self, *, endpoint: ChannelEndpoint, contact: Contact, occurred_at: datetime
+    ) -> Conversation:
+        """The provider-neutral analogue of :meth:`open_for_inbound`.
+
+        Still records ``last_inbound_at``/``window_expires_at`` — an honest fact about when the
+        contact last wrote in, useful in the Inbox UI regardless of provider — but nothing in the
+        WAHA send path *enforces* the Meta-only 24-hour customer-service-window rule those fields
+        back; WhatsApp Multi-Device carries no such restriction.
+        """
+        conversation = await self.thread_for_endpoint(endpoint=endpoint, contact=contact)
+        if conversation.last_inbound_at is None or occurred_at > conversation.last_inbound_at:
+            conversation.last_inbound_at = occurred_at
+            conversation.window_expires_at = occurred_at + WINDOW
         conversation.is_window_open = conversation.window_is_open
         await self._conversations.flush()
         return conversation

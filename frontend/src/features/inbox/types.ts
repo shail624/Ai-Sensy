@@ -50,3 +50,20 @@ export interface InboxFilters {
 
 /** Emoji offered by the reaction picker (the API accepts any single emoji). */
 export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+/**
+ * Which provider owns a conversation (QR-08) — display-only, the same field the server derives
+ * from durable ownership and never a value a client may set or trust for routing.
+ */
+export const CONNECTOR_LABELS: Record<string, string> = {
+  meta_cloud: "Official WhatsApp",
+  waha: "WhatsApp (QR)",
+};
+
+export function isWahaConversation(conversation: Conversation): boolean {
+  return conversation.connector_type === "waha";
+}
+
+export function connectorLabel(conversation: Conversation): string {
+  return CONNECTOR_LABELS[conversation.connector_type] ?? "WhatsApp";
+}

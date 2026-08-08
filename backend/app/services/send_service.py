@@ -25,9 +25,10 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channels.base import ChannelAdapter
+from app.channels.base import ChannelAdapter, get_adapter
 from app.channels.errors import ChannelError
 from app.channels.models import (
     InteractiveContent,
@@ -40,10 +41,13 @@ from app.channels.models import (
     TemplateContent,
     TextContent,
 )
+from app.channels.runtime import PairingState
+from app.channels.session import SessionState
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
-from app.models.contact import OPT_IN_OPTED_OUT
+from app.models.channel_connection import ChannelConnection, ChannelEndpoint
+from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.conversation import Conversation
 from app.models.media import MediaAsset
 from app.models.message import (
@@ -57,7 +61,10 @@ from app.models.template import MessageTemplate
 from app.models.user import User
 from app.models.waba import PhoneNumber
 from app.queue.retry import FailureClass, register_error_map
+from app.repositories.channel_connection import ChannelEndpointRepository
+from app.repositories.channel_session import ChannelSessionRepository
 from app.repositories.contact import ContactRepository
+from app.repositories.conversation import ConversationRepository
 from app.repositories.media import MediaRepository
 from app.repositories.message import MessageRepository, MessageStatusHistoryRepository
 from app.repositories.template import TemplateRepository
@@ -127,6 +134,31 @@ def _classify_send(exc: BaseException) -> FailureClass | None:
 
 
 register_error_map("sends", _classify_send)
+
+
+class ChannelNotConnectedError(ValidationError):
+    """The channel endpoint has no currently active, paired session (QR-08).
+
+    A truthful refusal, not an attempted send left to fail later at delivery: provider outage or a
+    re-authentication requirement must never be silently accepted and only discovered downstream —
+    the same "composer truthfully refuses" rule QR-07's Inbox-adjacent UI already follows for
+    session state applies here to the send path itself.
+    """
+
+    code = "channel_not_connected"
+    title = "Channel Not Connected"
+
+
+class ChannelCapabilityNotSupportedError(ValidationError):
+    """The owning connector does not declare a capability this send needs (QR-08; ADR-0020).
+
+    WAHA declares text only — permanently, not "not yet" — so media/interactive/template/reaction
+    against a channel-endpoint-owned conversation land here rather than reaching the adapter and
+    failing less legibly.
+    """
+
+    code = "capability_not_supported"
+    title = "Capability Not Supported"
 
 
 class TemplateNotSendableError(ValidationError):
@@ -210,6 +242,9 @@ class SendService:
         self._templates = TemplateRepository(session)
         self._numbers = PhoneNumberRepository(session)
         self._wabas = WabaRepository(session)
+        self._conversation_repo = ConversationRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
+        self._sessions = ChannelSessionRepository(session)
         self._conversations = ConversationService(session)
         self._audit = AuditService(session)
 
@@ -305,6 +340,135 @@ class SendService:
                 entity_id=message.id,
                 after={"type": message.message_type, "conversation_id": conversation.public_id},
             )
+        await self._session.commit()
+        return message
+
+    # --- Conversation-scoped reply (request path, QR-08) ---------------------
+    async def accept_for_conversation(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        conversation_public_id: uuidlib.UUID,
+        message_type: MessageType,
+        content: dict[str, Any],
+    ) -> Message:
+        """A reply to an existing thread. The provider is the thread's own, never the caller's.
+
+        This is the routing decision QR-08 exists to make server-side: the conversation's durable
+        ownership (``phone_number_id`` xor ``channel_endpoint_id``, ``ck_conv_endpoint_owner``)
+        decides whether this reply goes to Meta or WAHA. A caller cannot express a different
+        provider through this path — there is no provider field to forge, because the recipient and
+        the connector are both derived from the conversation row, not accepted from the request.
+        """
+        conversation = await self._conversation_repo.get_active_by_uuid(
+            organization_id, conversation_public_id.bytes
+        )
+        if conversation is None:
+            raise NotFoundError("Conversation not found.")
+        contact = await self._contacts.get_by_id(conversation.contact_id)
+        if contact is None:
+            raise NotFoundError("Conversation not found.")
+
+        if conversation.phone_number_id is not None:
+            number = await self._numbers.get_by_id(conversation.phone_number_id)
+            if number is None:
+                raise NotFoundError("Conversation not found.")
+            return await self.accept(
+                organization_id=organization_id,
+                actor=actor,
+                number=number,
+                to=contact.phone_e164,
+                message_type=message_type,
+                content=content,
+            )
+
+        # `ck_conv_endpoint_owner` guarantees exactly one of the two is set.
+        assert conversation.channel_endpoint_id is not None
+        if message_type is not MessageType.TEXT:
+            raise ChannelCapabilityNotSupportedError(
+                "This WhatsApp number only supports text messages."
+            )
+        endpoint = await self._endpoints.get_by_id(conversation.channel_endpoint_id)
+        if endpoint is None:
+            raise NotFoundError("Conversation not found.")
+        return await self.accept_endpoint(
+            organization_id=organization_id,
+            actor=actor,
+            endpoint=endpoint,
+            conversation=conversation,
+            contact=contact,
+            body=content.get("body", ""),
+        )
+
+    async def accept_endpoint(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        endpoint: ChannelEndpoint,
+        conversation: Conversation,
+        contact: Contact,
+        body: str,
+    ) -> Message:
+        """Accept a text reply on a channel-endpoint-owned (WAHA) thread (QR-08).
+
+        The provider-neutral analogue of :meth:`accept`, deliberately not the same method: it skips
+        every Meta-only compliance rule this text send does not carry — the 24-hour window (a Meta
+        Business Platform obligation, not a WhatsApp protocol restriction WAHA is subject to), the
+        per-number rate gate and quality-rating pause (WABA-specific), and template/media resolution
+        (WAHA has neither capability). Opt-out is **not** skipped: it is a Contact-level preference
+        (ADR-0020 "One Contact authority"), not a Meta rule, so it is honored across both providers.
+        """
+        if contact.opt_in_status == OPT_IN_OPTED_OUT:
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
+        if not body.strip():
+            raise ValidationError("A text message requires a non-empty body.")
+        session_row = await self._sessions.get_current_for_connection(
+            organization_id, endpoint.connection_id
+        )
+        connected = (
+            session_row is not None
+            and SessionState(session_row.state) is SessionState.ACTIVE
+            and PairingState(session_row.pairing_state) is PairingState.PAIRED
+        )
+        if not connected:
+            # Refused honestly, at accept time — not silently queued to fail later at delivery.
+            # This is the same "provider outage/re-auth is not unpaired" truth QR-07's status read
+            # already tells the operator; the send path must not accept what the composer would
+            # have refused to offer.
+            raise ChannelNotConnectedError(
+                "WhatsApp is not currently connected; reconnect before sending."
+            )
+
+        now = utcnow()
+        content = {"body": body}
+        message = Message(
+            organization_id=organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            message_type=MessageType.TEXT.value,
+            content_json=content,
+            status=MSG_ACCEPTED,
+            created_at=now,
+        )
+        await self._messages.add(message)
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(MessageType.TEXT.value, content),
+            occurred_at=now,
+        )
+        await self._audit.record(
+            AuditAction.MESSAGE_SENT,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="message",
+            entity_id=message.id,
+            after={"type": message.message_type, "conversation_id": conversation.public_id},
+        )
         await self._session.commit()
         return message
 
@@ -444,6 +608,9 @@ class SendService:
             raise NotReactableError(
                 "This message has not been acknowledged by the channel yet and cannot be reacted to."
             )
+        if target.phone_number_id is None:
+            # REACTION is a Meta-only capability (QR-08); WAHA never gains it.
+            raise NotReactableError("Reactions are not supported on this message's channel.")
         number = await self._numbers.get_by_id(target.phone_number_id)
         contact = await self._contacts.get_by_id(target.contact_id)
         if number is None or contact is None:
@@ -473,6 +640,10 @@ class SendService:
             return {"status": "already_sent", "message_pk": message_pk, "wamid": message.wamid}
         if message.status == MSG_FAILED:
             return {"status": MSG_FAILED, "message_pk": message_pk}
+        if message.channel_endpoint_id is not None:
+            return await self._deliver_endpoint(message)
+        if message.phone_number_id is None:
+            raise ChannelError("the sending number is no longer connected")
 
         number = await self._numbers.get_by_id(message.phone_number_id)
         waba = await self._wabas.get_by_id(number.waba_id) if number else None
@@ -517,6 +688,57 @@ class SendService:
         await self._messages.flush()
         await self._session.commit()
         return {"status": "sent", "message_pk": message_pk, "wamid": message.wamid}
+
+    async def _deliver_endpoint(self, message: Message) -> dict[str, Any]:
+        """The channel-endpoint-owned (WAHA) analogue of the body of :meth:`deliver` (QR-08).
+
+        No rate gate, no quality pause, no media/template resolution — none apply to a text-only
+        WAHA send. The one thing that must differ from Meta's path: **no automatic retry**. A send
+        failure is caught and resolved to :meth:`fail` *here*, inside this method, rather than
+        raised for ``send_message``'s retry-classification handler to see — so whether a WAHA send
+        is ever retried does not depend on how ``classify()`` happens to categorize the exception
+        today or after some unrelated future change to the shared ``sends`` error map. The outcome
+        is recorded honestly as indeterminate (a transport failure does not prove the message never
+        arrived), never silently resent.
+        """
+        assert message.channel_endpoint_id is not None
+        endpoint = await self._endpoints.get_by_id(message.channel_endpoint_id)
+        if endpoint is None:
+            raise ChannelError("the sending channel endpoint is no longer connected")
+        connector_type = await self._connector_type_for(endpoint.connection_id)
+        contact = await self._contacts.get_by_id(message.contact_id)
+        if contact is None:
+            raise ChannelError("the recipient contact no longer exists")
+        recipient = f"{contact.wa_id}@c.us"
+
+        adapter = get_adapter(connector_type)
+        try:
+            result = await adapter.send(self._outbound(message, to=recipient))
+        except ChannelError as exc:
+            # Deliberately not re-raised through `sends`'s classifier: an unclassified exception is
+            # `FailureClass.UNKNOWN` (`max_attempts=0`), so the task fails this attempt once and
+            # `send_message`'s own handler marks the message failed — it does not retry.
+            return await self.fail(
+                message.id,
+                error=f"Send outcome could not be confirmed: {exc}",
+                code="indeterminate",
+            )
+        finally:
+            await adapter.close()
+
+        message.wamid = result.channel_message_id
+        await self._messages.flush()
+        await self._session.commit()
+        return {"status": "sent", "message_pk": message.id, "wamid": message.wamid}
+
+    async def _connector_type_for(self, connection_id: int) -> str:
+        stmt = select(ChannelConnection.connector_type).where(
+            ChannelConnection.id == connection_id
+        )
+        connector_type = (await self._session.scalars(stmt)).first()
+        if connector_type is None:
+            raise ChannelError(f"channel connection {connection_id} no longer exists")
+        return connector_type
 
     async def _resolve_media(
         self, message: Message, adapter: ChannelAdapter

@@ -90,7 +90,10 @@ from app.db.mixins import utcnow
 from app.models.channel_connection import ChannelConnection
 from app.models.channel_session import ChannelSession
 from app.models.user import User
-from app.repositories.channel_connection import ChannelConnectionRepository
+from app.repositories.channel_connection import (
+    ChannelConnectionRepository,
+    ChannelEndpointRepository,
+)
 from app.repositories.channel_session import ChannelSessionRepository
 from app.services.channel_connection_service import ChannelConnectionService
 from app.services.rbac_service import RBACService
@@ -221,6 +224,8 @@ class WhatsAppQrService:
 
         row, connection = await self._current(organization_id)
         if row is not None:
+            assert connection is not None
+            await self._ensure_endpoint(organization_id, actor, connection)
             return self._state_from_row(row)
 
         if connection is None:
@@ -234,6 +239,7 @@ class WhatsAppQrService:
                 desired_state=ProviderDesiredState.ENABLED,
                 capability_snapshot=_SESSION_CAPABILITIES,
             )
+        await self._ensure_endpoint(organization_id, actor, connection)
 
         row = await self._session_manager.register_session(
             organization_id=organization_id,
@@ -242,6 +248,35 @@ class WhatsAppQrService:
             capability_references=_SESSION_CAPABILITIES,
         )
         return self._state_from_row(row)
+
+    async def _ensure_endpoint(
+        self, organization_id: int, actor: User, connection: ChannelConnection
+    ) -> None:
+        """Idempotently give the connection its one addressable identity (QR-08).
+
+        The Inbox needs a durable, stable owner to link a WAHA conversation/message to — exactly
+        what ``channel_endpoints`` (M13-03) exists for, and exactly what QR-07 never created because
+        nothing needed it yet. The WAHA session name is used as ``provider_endpoint_id`` rather than
+        the paired phone number: it is known immediately (before any pairing) and stays stable across
+        a logout/re-pair cycle, unlike the phone number behind it — WAHA is a single, session-scoped
+        endpoint for the deployment's lifetime, not one per paired number.
+        """
+        endpoints = await ChannelEndpointRepository(self._session).list_for_connection(
+            organization_id, connection.id
+        )
+        if endpoints:
+            return
+        session_name = self._provider_session_name()
+        await ChannelConnectionService(self._session).create_endpoint(
+            organization_id=organization_id,
+            actor=actor,
+            connection_public_id=uuidlib.UUID(connection.public_id),
+            endpoint_type="whatsapp_qr",
+            normalized_address=session_name,
+            provider_endpoint_id=session_name,
+            display_name="WhatsApp (WAHA)",
+            enabled=True,
+        )
 
     # --- Pairing -----------------------------------------------------------------------------
 

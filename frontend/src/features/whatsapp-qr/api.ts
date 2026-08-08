@@ -34,12 +34,13 @@ function isTransient(status: WhatsAppQrStatus | undefined): boolean {
  * connection reaches a stable outcome so an idle, already-connected screen does not poll at the
  * same rate as one mid-pairing.
  */
-export function useWhatsAppQrStatus() {
+export function useWhatsAppQrStatus(enabled = true) {
   return useQuery({
     queryKey: whatsAppQrKeys.status,
     queryFn: async (): Promise<WhatsAppQrStatus> =>
       unwrap(await api.GET("/api/v1/channels/whatsapp-qr/session")),
     refetchInterval: (query) => (isTransient(query.state.data) ? FAST_POLL_MS : SLOW_POLL_MS),
+    enabled,
   });
 }
 

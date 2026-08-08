@@ -81,6 +81,22 @@ class MessageRepository(BaseRepository[Message]):
         )
         return (await self.session.scalars(stmt)).first()
 
+    async def get_by_provider_message_id_for_endpoint(
+        self, provider_message_id: str, *, channel_endpoint_id: int
+    ) -> Message | None:
+        """The channel-endpoint-scoped analogue of :meth:`get_by_provider_message_id` (QR-08).
+
+        Same rule, same reasoning, same deliberate absence of an unscoped variant — a WAHA provider
+        message id is session-scoped and may legitimately repeat across a different endpoint or
+        tenant, so this never searches beyond the one endpoint given (ADR-0020, Doc 33 §6.1).
+        Backed by ``ix_msg_channel_endpoint_wamid``.
+        """
+        stmt = select(Message).where(
+            Message.channel_endpoint_id == channel_endpoint_id,
+            Message.wamid == provider_message_id,
+        )
+        return (await self.session.scalars(stmt)).first()
+
 
 class MessageStatusHistoryRepository(BaseRepository[MessageStatusHistory]):
     model = MessageStatusHistory

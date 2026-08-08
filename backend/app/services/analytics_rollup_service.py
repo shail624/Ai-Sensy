@@ -489,6 +489,9 @@ class AnalyticsRollupService:
         Their components are written as 0 here and are the first thing A6 needs; the columns exist
         so the schema does not change when that walk lands.
         """
+        # This rollup's dimension is "by Meta number"; a channel-endpoint-owned (WAHA) conversation
+        # has no `phone_number_id` and no number to attribute throughput to, so it is excluded here
+        # rather than counted under a fabricated dimension (QR-08 introduces no WAHA analytics).
         opened = await self._pairs(
             select(
                 Conversation.phone_number_id,
@@ -497,6 +500,7 @@ class AnalyticsRollupService:
             )
             .where(
                 Conversation.organization_id == organization_id,
+                Conversation.phone_number_id.is_not(None),
                 Conversation.created_at >= lower,
                 Conversation.created_at < upper,
             )
@@ -510,6 +514,7 @@ class AnalyticsRollupService:
             )
             .where(
                 Conversation.organization_id == organization_id,
+                Conversation.phone_number_id.is_not(None),
                 Conversation.status == CONV_RESOLVED,
                 Conversation.updated_at >= lower,
                 Conversation.updated_at < upper,
@@ -806,7 +811,7 @@ class AnalyticsRollupService:
         return int((await self._session.scalar(stmt)) or 0)
 
     async def _pairs(
-        self, stmt: Select[tuple[int, int | None, int]]
+        self, stmt: Select[tuple[int | None, int | None, int]]
     ) -> dict[tuple[int | None, int | None], int]:
         return {
             (first, second): int(count or 0)

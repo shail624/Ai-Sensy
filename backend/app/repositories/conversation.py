@@ -29,6 +29,20 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
         return (await self.session.scalars(stmt)).first()
 
+    async def get_for_endpoint_contact(
+        self, channel_endpoint_pk: int, contact_pk: int
+    ) -> Conversation | None:
+        """The thread for a (channel endpoint, contact) pair — the ``uq_conv_endpoint_contact``
+        key (QR-08). The provider-neutral analogue of :meth:`get_for_number_contact`, kept as its
+        own straight-line method rather than a unified/branching one so a WAHA read can never be
+        satisfied by a Meta row or vice versa (ADR-0020 "independent failure domains").
+        """
+        stmt = select(Conversation).where(
+            Conversation.channel_endpoint_id == channel_endpoint_pk,
+            Conversation.contact_id == contact_pk,
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def get_active_by_uuid(
         self, organization_id: int, public_id: bytes
     ) -> Conversation | None:

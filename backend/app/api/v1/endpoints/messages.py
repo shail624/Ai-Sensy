@@ -62,17 +62,29 @@ async def send_message(
         return MessageAcceptedResponse(**replayed)
 
     try:
-        number = await PhoneNumberService(session).get_number(
-            actor.organization_id, payload.phone_number_id
-        )
-        message = await SendService(session).accept(
-            organization_id=actor.organization_id,
-            actor=actor,
-            number=number,
-            to=payload.to,
-            message_type=payload.message_type(),
-            content=payload.content(),
-        )
+        if payload.conversation_id is not None:
+            # A reply to an existing thread — the provider is the conversation's own, never a
+            # field on this request (QR-08; see `MessageSendRequest`'s docstring).
+            message = await SendService(session).accept_for_conversation(
+                organization_id=actor.organization_id,
+                actor=actor,
+                conversation_public_id=payload.conversation_id,
+                message_type=payload.message_type(),
+                content=payload.content(),
+            )
+        else:
+            assert payload.phone_number_id is not None and payload.to is not None
+            number = await PhoneNumberService(session).get_number(
+                actor.organization_id, payload.phone_number_id
+            )
+            message = await SendService(session).accept(
+                organization_id=actor.organization_id,
+                actor=actor,
+                number=number,
+                to=payload.to,
+                message_type=payload.message_type(),
+                content=payload.content(),
+            )
     except Exception:
         # Nothing was accepted, so the key must not answer for a send that never happened.
         await idempotency.release(redis, key)

@@ -1,4 +1,4 @@
-import { MessageCircle, PanelRightOpen, UserRound } from "lucide-react";
+import { MessageCircle, PanelRightOpen, QrCode, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge, EmptyState, ErrorState, Spinner } from "@/components/ui";
@@ -15,6 +15,7 @@ import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
 import type { TagSummary } from "@/features/inbox/types";
+import { connectorLabel, isWahaConversation } from "@/features/inbox/types";
 import { useHasPermission } from "@/lib/auth";
 
 interface Props {
@@ -63,12 +64,22 @@ export function ConversationThread({ conversationId, tags, pinned = false, onTog
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-sm font-bold text-text-primary">{contactName}</h2>
-              <div className="mt-0.5 flex items-center gap-2">
+              <div className="mt-0.5 flex flex-wrap items-center gap-2">
                 <p className="truncate text-xs text-text-secondary">{thread.contact?.phone}</p>
-                <Badge tone={thread.window.is_open ? "success" : "neutral"}>
-                  <MessageCircle aria-hidden className="mr-1 h-3 w-3" />
-                  {thread.window.is_open ? "Reply open" : "Template only"}
+                <Badge tone={isWahaConversation(thread) ? "info" : "neutral"}>
+                  {isWahaConversation(thread) ? (
+                    <QrCode aria-hidden className="mr-1 h-3 w-3" />
+                  ) : (
+                    <ShieldCheck aria-hidden className="mr-1 h-3 w-3" />
+                  )}
+                  {connectorLabel(thread)}
                 </Badge>
+                {isWahaConversation(thread) ? null : (
+                  <Badge tone={thread.window.is_open ? "success" : "neutral"}>
+                    <MessageCircle aria-hidden className="mr-1 h-3 w-3" />
+                    {thread.window.is_open ? "Reply open" : "Template only"}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

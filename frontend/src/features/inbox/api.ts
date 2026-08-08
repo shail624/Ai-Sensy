@@ -8,6 +8,7 @@ import {
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import type {
   Conversation,
   ConversationsPage,
@@ -16,7 +17,6 @@ import type {
   InboxFilters,
   MessagesPage,
   Note,
-  PhoneNumber,
   QuickReply,
   TagSummary,
   UserSummary,
@@ -34,7 +34,6 @@ export const inboxKeys = {
   notes: (id: string) => ["inbox", "conversation", id, "notes"] as const,
   quickReplies: ["quick-replies"] as const,
   assignees: ["users", "assignable"] as const,
-  numbers: ["phone-numbers"] as const,
 };
 
 /**
@@ -161,18 +160,6 @@ export function useAssignableUsers() {
         email: user.email,
         is_superuser: user.is_superuser,
       }));
-    },
-    staleTime: 5 * 60_000,
-  });
-}
-
-/** The sending number — the composer needs one to post an outbound message. */
-export function useDefaultPhoneNumber() {
-  return useQuery({
-    queryKey: inboxKeys.numbers,
-    queryFn: async (): Promise<PhoneNumber | null> => {
-      const list = unwrap(await api.GET("/api/v1/phone-numbers")).data;
-      return list.find((number) => number.is_default) ?? list[0] ?? null;
     },
     staleTime: 5 * 60_000,
   });
@@ -321,23 +308,22 @@ export function useRemoveConversationTag(conversationId: string) {
   });
 }
 
+/**
+ * A reply to an open thread (QR-08). Conversation-scoped, not number-scoped: the provider is the
+ * conversation's own durable ownership, decided entirely server-side — this request carries no
+ * `phone_number_id`/provider field for a caller to set, forge, or need to get right.
+ */
 export function useSendMessage(conversationId: string) {
   return useConversationMutation(
     conversationId,
-    async ({
-      phoneNumberId,
-      to,
-      body,
-    }: {
-      phoneNumberId: string;
-      to: string;
-      body: string;
-    }) =>
+    async ({ body }: { body: string }) =>
       unwrap(
         await api.POST("/api/v1/messages/send", {
+          // Not a declared OpenAPI header parameter (the endpoint reads it off the raw request,
+          // Doc 04 §8) — set via the fetch-level `headers` option rather than `params.header`.
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: {
-            phone_number_id: phoneNumberId,
-            to,
+            conversation_id: conversationId,
             type: "text",
             text: { body, preview_url: false },
           },

@@ -321,10 +321,12 @@ def test_outbound_echo_is_not_ingested_as_inbound() -> None:
     assert parse_events(delivery)[0].type is InboundEventType.UNKNOWN
 
 
-def test_ack_event_is_recorded_not_applied() -> None:
+def test_ack_event_is_routed_as_a_status() -> None:
+    """QR-08: an acknowledgement now routes to QR-05's already-built `to_status_update` translation
+    rather than being merely recorded — completing the wiring QR-04 deliberately left inert."""
     delivery = _inbound(event="message.ack")
     delivery["payload"]["fromMe"] = True
-    assert parse_events(delivery)[0].type is InboundEventType.UNKNOWN
+    assert parse_events(delivery)[0].type is InboundEventType.STATUSES
 
 
 @pytest.mark.parametrize("event", ["session.status", "state.change", "totally.unknown"])

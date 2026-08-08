@@ -86,10 +86,14 @@ APPROVED_ALGORITHM: Final = "sha512"
 #: refused rather than hashed, so an unauthenticated caller cannot force unbounded work.
 MAX_BODY_BYTES: Final = 1_048_576
 
-#: Provider event names QR-04 interprets. Everything else becomes ``UNKNOWN`` (dead-lettered).
+#: Provider event names QR-04/QR-08 interpret. Everything else becomes ``UNKNOWN`` (dead-lettered).
 EVENT_MESSAGE: Final = "message"
 EVENT_MESSAGE_ANY: Final = "message.any"
 _INBOUND_MESSAGE_EVENTS: Final[frozenset[str]] = frozenset({EVENT_MESSAGE, EVENT_MESSAGE_ANY})
+#: An outbound-send acknowledgement (QR-05's ``app.channels.waha.delivery.EVENT_MESSAGE_ACK``,
+#: restated here rather than imported to keep this module's dependency direction one-way — delivery
+#: already imports from webhook, not the reverse).
+EVENT_MESSAGE_ACK: Final = "message.ack"
 
 
 class WahaBodyTooLarge(ValueError):
@@ -202,9 +206,14 @@ def parse_events(delivery: dict[str, Any]) -> list[InboundEvent]:
 
     if type_name in _INBOUND_MESSAGE_EVENTS and payload_obj.get("fromMe") is False:
         kind = InboundEventType.MESSAGES
+    elif type_name == EVENT_MESSAGE_ACK:
+        # A delivery acknowledgement for something we sent (QR-05's `to_status_update` already
+        # translates its payload; QR-08 is what first routes it there via `InboundEventType.STATUSES`
+        # rather than recording it inert).
+        kind = InboundEventType.STATUSES
     else:
-        # Includes outbound echoes (``fromMe`` true), acknowledgements and session events. QR-04
-        # does not interpret delivery state — that is QR-05 — so they are recorded, not applied.
+        # Includes outbound message echoes (``fromMe`` true) and session events, which nothing here
+        # interprets — recorded, not applied.
         kind = InboundEventType.UNKNOWN
 
     return [

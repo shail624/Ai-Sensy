@@ -6,24 +6,58 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-01 — WAHA provider adapter foundation: connector identity, minimal typed client, authenticated server probe, deterministic error mapping, engine/version guard (no session, QR, pairing or messaging)` |
+| Latest change | `QR-08 — Unified Inbox integration: Meta + WAHA conversations in one Inbox, endpoint-scoped inbound dedupe, server-derived outbound routing, provider-aware composer` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (M13-06B closeout; resolve after push) |
-| Current milestone | `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED` |
-| Current phase | `Repository-owned history/media control plane validated; provider certification still blocks all live M13-06 execution` |
+| Current Git HEAD | `HEAD` (QR-08 closeout; resolve after push) |
+| Current milestone | `QR-08 — Unified Inbox integration — COMPLETE` |
+| Current phase | `Both providers now share one Inbox; provider certification still blocks history/media execution` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0042_scope_provider_message_identity` (43 linear revisions — QR-00 adds one additive, index-only migration after `0041_channel_sync_control_plane`; no column added, no backfill, no data change) |
-| OpenAPI | `3.1.0` · `206` paths — QR-07 adds 6 authorized routes under `/channels/whatsapp-qr` (the first public surface over the pairing control plane); 200 through QR-06, plus the earlier additive Reactivation `offset` query |
-| Backend evidence | Ruff PASS · strict mypy PASS (292 files) · 1099 full pytest tests PASS (1036 before QR-01; +63 WAHA adapter tests) |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 37 Vitest files / 766 tests PASS (754 before this hardening pass) · production build PASS without the campaign circular chunk-order warning |
-| Bundle evidence | Main `207.50/57.27 kB gzip`, against `207.50/57.23 kB gzip` before this hardening pass (raw unchanged, `+0.04 kB` gzip — the optional `refetchInterval` parameter on the shared hooks only); the Chat History workspace itself is verified absent from the main chunk (zero matches for panel-unique text) and present only in its own lazy `ChatHistoryPage` chunk |
+| Migration head | `0043_conversation_channel_endpoints` (44 linear revisions — additive expand stage: nullable `channel_endpoint_id` on `conversations`/`messages`/`webhook_events`, `conversations.phone_number_id` widened to nullable, `ck_conv_endpoint_owner` exactly-one-owner check; no column dropped or renamed, no existing row's `phone_number_id` touched) |
+| OpenAPI | `3.1.0` · `207` paths — QR-08 adds `POST /webhooks/waha` (206 → 207); QR-07 added 6 authorized routes under `/channels/whatsapp-qr` (200 → 206) |
+| Backend evidence | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / 793 tests PASS (789 before QR-08; +4) · production build PASS |
+| Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — the channel badge and provider-aware composer logic; no other route's chunk grew |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `48%` evidence-based estimate: M13-01–M13-05 plus M13-06A persistence and M13-06B repository-owned lifecycle controls |
-| QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) selected as the ADR-0021 Class B candidate — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**. QR-01 adds a registered `waha` adapter performing **an authenticated server probe only** (version/engine banner and server health). It declares exactly one capability (`HEALTH`); `BULK`/`CAMPAIGNS`/`TEMPLATE` are permanently prohibited and test-enforced. **No WhatsApp session, QR generation, pairing, webhook ingestion, send path, history/media transfer, session runtime or UI exists.** `ProviderRuntimeRegistry` has no WAHA runtime. Unconfigured and disabled by default. QR login does not work and is not claimed to |
-| Next Module 13 milestone | `QR-08 — Unified Inbox integration`. Not started. Physical-phone certification **PASSED** on 2026-08-08 — paired session reaching `WORKING`, external inbound text and JPEG, external outbound with `DEVICE`/`READ` acknowledgement, HMAC-verified webhooks, history/fullSync correlation and logout are all certified — and has now been consumed by QR-02 (lifecycle mapping) and QR-03 (pairing) |
-| Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, automated CI execution of the live-MySQL migration tests, and a real, populated UI preview (blocked separately by the lack of an approved conversation/message fixture mechanism) remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-01 adapter foundation: connector identity, minimal typed WAHA client, authenticated server probe, deterministic error mapping, engine/version guard, conservative capabilities. No migration, OpenAPI, RBAC or frontend change; no session, QR, pairing, webhook, send or runtime |
-| Last update | `2026-08-07T05:00:00+05:30` (Asia/Kolkata) |
+| Module 13 implementation | `52%` evidence-based estimate (was 48%): QR-08 is the first milestone that makes WAHA operator-visible in a real, shared workflow rather than an isolated control-plane/session surface |
+| QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-08. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT. QR login/session lifecycle unchanged from QR-01..07 |
+| Next Module 13 milestone | `QR-09 — production validation`. Not started |
+| Host evidence | Repository/local-host MySQL migration evidence (not target-host): against a real MySQL 8 instance run via this repository's own `docker compose up -d` on the development workstation, `alembic upgrade head` succeeds both from a fresh database and from one already stamped at `0035_notification_center` (the state every prior real MySQL attempt was capped at), and `python -m app.cli create-owner` succeeds afterward and is idempotent on rerun — see `0035a_widen_version_table` remediation below. This is local Docker evidence only; genuine target-host MySQL migration and rollback evidence remain pending. A real-MySQL downgrade defect at `0036_customer_identity_resolution`/`0040_channel_sync_media_foundation` (`DROP INDEX ... needed in a foreign key constraint`) is a separately tracked open defect, pre-existing and not introduced by this fix; remediation is out of scope here. Real multi-node runtime/lease contention, provider certification, runtime supervision/monitoring, KMS custody, staged tenant/RBAC/flag commissioning, and automated CI execution of the live-MySQL migration tests remain pending; no Host Validated or Production Ready claim |
+| Worktree expectation | QR-08 Unified Inbox integration: additive migration, endpoint-scoped inbound/outbound wiring, mixed-provider Inbox UI. No history/media sync, no campaign/bulk/template, no interactive/reaction/location/contact for WAHA |
+| Last update | `2026-08-08T00:00:00+05:30` (Asia/Kolkata) |
+
+## QR-08 — Unified Inbox integration
+
+- **Scope:** wires QR-04's inbound and QR-05's outbound/ack translation into the **same** existing
+  `Conversation`/`Message`/`MessageService`/`ConversationService`/`InboxQueryService`/`SendService`
+  authorities Meta already uses — not a second Inbox. Reuses the M13-03 `channel_endpoints` table
+  QR-07 never populated (`WhatsAppQrService.connect()` now creates one idempotently).
+- **Additive migration (`0043`):** `conversations`/`messages`/`webhook_events` gain a nullable
+  `channel_endpoint_id`; `conversations.phone_number_id` widens to nullable, guarded by
+  `ck_conv_endpoint_owner` (exactly one owner). No column dropped or renamed; no existing row
+  changed.
+- **Inbound stored-message dedupe is endpoint-scoped + canonical-provider-id, independent of
+  event-level dedupe:** `message`/`message.any` (same envelope, two valid events per QR-04) collapse
+  to one stored row; a same-event redelivery collapses too; the same provider id on two different
+  endpoints does not collide.
+- **Outbound routing is entirely server-derived.** `SendService.accept_for_conversation` resolves
+  the provider from the conversation's own durable ownership; `MessageSendRequest.conversation_id`
+  carries no provider field for a client to forge. A WAHA send that cannot be confirmed is marked
+  `failed`/`indeterminate`, never auto-retried.
+- **WAHA composer refuses to send truthfully** when the session is not `ACTIVE`+`PAIRED`, reusing
+  QR-07's own live status read (no automatic reconnect from opening a conversation).
+- **OpenAPI 206 → 207 paths** — `POST /webhooks/waha`, the WAHA analogue of the pre-existing
+  `/webhooks/whatsapp` route QR-04 never got an HTTP route wired to.
+- **Two real defects found and fixed**, both pre-existing in already-shipped QR-06/QR-07 code:
+  QR-07's `_REAUTH_PAIRING` incorrectly included `UNPAIRED` (diverged from QR-06's own canonical
+  definition); QR-04's `message.ack` classified `UNKNOWN` despite QR-05 already having built the
+  translator for it.
+- **Unchanged:** Meta behaviour, RBAC catalog, prohibited capabilities
+  (`BULK`/`CAMPAIGNS`/`TEMPLATE`), no MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT for WAHA.
+- **Still pending:** QR-09 production validation. History and media transfer remain unimplemented
+  and are not assigned to a delivered milestone.
+- **Known limitation:** the existing Meta-number-scoped analytics rollup excludes WAHA
+  conversations rather than counting them under a fabricated dimension; QR-08 adds no WAHA
+  analytics.
 
 ## QR-07 — WhatsApp Scan/Connect interface
 

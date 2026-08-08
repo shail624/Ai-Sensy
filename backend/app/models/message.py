@@ -73,6 +73,9 @@ class Message(IntPKMixin, UUIDMixin, Base):
         Index("ix_msg_conversation", "conversation_id", "created_at"),
         # Webhook status lookup by wamid; also the inbound idempotency key (Doc 06 §2.3).
         Index("ix_msg_wamid", "wamid"),
+        # The channel-endpoint-scoped analogue of ``ix_msg_endpoint_wamid`` (0042) — WAHA's
+        # provider message identity lookup (QR-08).
+        Index("ix_msg_channel_endpoint_wamid", "channel_endpoint_id", "wamid"),
         Index("ix_msg_org_created", "organization_id", "created_at"),
         Index("ix_msg_campaign", "campaign_id"),
         Index("ix_msg_contact", "contact_id", "created_at"),
@@ -84,7 +87,14 @@ class Message(IntPKMixin, UUIDMixin, Base):
     organization_id: Mapped[int] = mapped_column(big_id(), nullable=False)
     #: App-enforced FK to ``conversations.id`` (this table is partitioned).
     conversation_id: Mapped[int] = mapped_column(big_id(), nullable=False)
-    phone_number_id: Mapped[int] = mapped_column(big_id(), nullable=False)
+    #: Set for a Meta-owned message; ``NULL`` for a channel-endpoint-owned one (QR-08). App-enforced
+    #: like ``channel_endpoint_id`` below — this table is partitioned and cannot hold either as a
+    #: real FK.
+    phone_number_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
+    #: Set for a provider-neutral (WAHA) message; ``NULL`` for a Meta-owned one (QR-08). Scopes
+    #: provider message identity the same way ``phone_number_id`` already does for Meta
+    #: (ADR-0020, ``ix_msg_channel_endpoint_wamid``).
+    channel_endpoint_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     contact_id: Mapped[int] = mapped_column(big_id(), nullable=False)
     campaign_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     direction: Mapped[str] = mapped_column(String(8), nullable=False)

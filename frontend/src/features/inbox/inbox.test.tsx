@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toListQuery } from "@/features/inbox/api";
 import { ConversationFilters } from "@/features/inbox/ConversationFilters";
@@ -10,6 +10,7 @@ import { ConversationList } from "@/features/inbox/ConversationList";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import type { Conversation, Message } from "@/features/inbox/types";
+import { useWhatsAppQrStatus } from "@/features/whatsapp-qr/api";
 
 // The composer and controls read permissions from the session; stub a fully entitled agent.
 const permissions = { value: ["inbox:read", "inbox:write", "inbox:assign", "messages:send"] };
@@ -24,12 +25,19 @@ vi.mock("@/lib/auth", () => ({
   useHasPermission: (code: string) => permissions.value.includes(code),
 }));
 
+// QR-08: the composer consults QR-07's live session status for a WAHA-owned conversation. Mocked
+// here for deterministic control; the real hook is exercised by whatsapp-qr.test.tsx.
+vi.mock("@/features/whatsapp-qr/api", () => ({
+  useWhatsAppQrStatus: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
+
 function conversationFixture(overrides: Partial<Conversation> = {}): Conversation {
   return {
     id: "conv1",
     type: "conversation",
     status: "open",
     channel_type: "whatsapp",
+    connector_type: "meta_cloud",
     assigned_to: null,
     contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" },
     tags: [],
@@ -43,6 +51,16 @@ function conversationFixture(overrides: Partial<Conversation> = {}): Conversatio
     updated_at: "2026-07-22T10:00:00Z",
     ...overrides,
   };
+}
+
+/** A channel-endpoint-owned (WAHA) conversation — QR-08's second provider. */
+function wahaConversationFixture(overrides: Partial<Conversation> = {}): Conversation {
+  return conversationFixture({
+    id: "conv-waha-1",
+    connector_type: "waha",
+    phone_number_id: null,
+    ...overrides,
+  });
 }
 
 function messageFixture(overrides: Partial<Message> = {}): Message {
@@ -121,6 +139,22 @@ describe("ConversationList", () => {
     expect(screen.getByText("Open")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("Window open")).toBeInTheDocument();
+  });
+
+  it("shows a distinct channel badge for a Meta conversation and a WAHA one, in one mixed list (QR-08)", () => {
+    withProviders(
+      <ConversationList
+        conversations={[
+          conversationFixture({ id: "conv-meta", contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" } }),
+          wahaConversationFixture({ contact: { id: "c2", name: "Priya S.", phone: "+919990000002" } }),
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTitle("Official WhatsApp")).toBeInTheDocument();
+    expect(screen.getByTitle("WhatsApp (QR)")).toBeInTheDocument();
   });
 
   it("marks the selected conversation and reports selection", () => {
@@ -244,6 +278,10 @@ describe("MessageBubble", () => {
 });
 
 describe("MessageComposer", () => {
+  afterEach(() => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({ data: undefined, isLoading: false } as never);
+  });
+
   it("blocks composing when the service window is closed", () => {
     withProviders(
       <MessageComposer
@@ -255,6 +293,52 @@ describe("MessageComposer", () => {
 
     expect(screen.getByText(/24-hour service window is closed/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Message")).toBeDisabled();
+  });
+
+  it("does not apply Meta's 24-hour window rule to a WAHA conversation (QR-08)", () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: { configured: true, connected: true } as never,
+      isLoading: false,
+    } as never);
+    withProviders(
+      <MessageComposer
+        conversation={wahaConversationFixture({
+          window: { is_open: false, expires_at: null, last_inbound_at: null },
+        })}
+      />,
+    );
+
+    expect(screen.queryByText(/24-hour service window is closed/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toBeEnabled();
+  });
+
+  it("truthfully refuses to send on a WAHA conversation that is not currently connected (QR-08)", async () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: {
+        configured: true,
+        connected: false,
+        health_detail: "WhatsApp is not currently connected.",
+      } as never,
+      isLoading: false,
+    } as never);
+    withProviders(<MessageComposer conversation={wahaConversationFixture()} />);
+
+    await waitFor(() =>
+      expect(screen.getByText("WhatsApp is not currently connected.")).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText("Message")).toBeDisabled();
+    expect(screen.getByPlaceholderText("WhatsApp not connected")).toBeInTheDocument();
+  });
+
+  it("allows composing on a WAHA conversation once the session is connected (QR-08)", async () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: { configured: true, connected: true } as never,
+      isLoading: false,
+    } as never);
+    withProviders(<MessageComposer conversation={wahaConversationFixture()} />);
+
+    await waitFor(() => expect(screen.getByLabelText("Message")).toBeEnabled());
+    expect(screen.queryByText(/not currently connected/i)).not.toBeInTheDocument();
   });
 
   it("offers a quick-reply toggle inside an open window", () => {

@@ -25,6 +25,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import MAX_LIMIT, Page, clamp_limit, decode_cursor, encode_cursor
+from app.channels.capabilities import CONNECTOR_META_CLOUD
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.schemas.conversation import (
@@ -104,13 +105,20 @@ async def list_conversations(
         ConversationResponse.from_conversation(
             c,
             contact=result.contacts.get(c.contact_id),
-            phone_number_public_id=result.numbers.get(c.phone_number_id),
+            phone_number_public_id=(
+                result.numbers.get(c.phone_number_id) if c.phone_number_id is not None else None
+            ),
             assigned_to=(
                 result.assignees.get(c.assigned_user_id)
                 if c.assigned_user_id is not None
                 else None
             ),
             tags=result.tags.get(c.id, []),
+            connector_type=(
+                result.endpoint_connectors.get(c.channel_endpoint_id, CONNECTOR_META_CLOUD)
+                if c.channel_endpoint_id is not None
+                else CONNECTOR_META_CLOUD
+            ),
         )
         for c in result.conversations
     ]
@@ -141,6 +149,7 @@ async def get_conversation(
         phone_number_public_id=detail.phone_number_public_id,
         assigned_to=detail.assigned_to,
         tags=detail.tags,
+        connector_type=detail.connector_type,
     )
 
 

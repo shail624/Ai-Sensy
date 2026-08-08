@@ -19,8 +19,10 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
 from app.api.deps import SessionDep
+from app.channels.capabilities import CONNECTOR_WAHA
 from app.channels.errors import ChannelConfigError
 from app.channels.meta.webhooks import SIGNATURE_HEADER
+from app.channels.waha.webhook import SIGNATURE_HEADER as WAHA_SIGNATURE_HEADER
 from app.core.exceptions import AppError
 from app.schemas.webhook import WebhookAckResponse
 from app.services.webhook_service import WebhookService
@@ -80,5 +82,33 @@ async def receive_webhook(request: Request, session: SessionDep) -> WebhookAckRe
     # After the commit, never before: the task must not outrun the rows it reads (Doc 06 §11.2).
     # If the broker is down this raises, Meta retries, and the redelivery dedups (FR-WA-07) —
     # better than acking work that nothing will pick up.
+    ingest_webhook_events.apply_async(args=[event_ids])
+    return WebhookAckResponse(events=len(event_ids))
+
+
+@router.post(
+    "/webhooks/waha",
+    response_model=WebhookAckResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Receive WAHA inbound events (public, HMAC-gated) — QR-08",
+)
+async def receive_waha_webhook(request: Request, session: SessionDep) -> WebhookAckResponse:
+    """The WAHA analogue of :func:`receive_webhook` (QR-04 built the verify/parse/dedupe logic in
+    ``app.channels.waha.webhook``; this is the first HTTP route that reaches it).
+
+    No GET handshake: unlike Meta, WAHA has no subscription challenge to answer — it is configured
+    with this URL directly and simply starts posting. The gate is the same shape as Meta's: an
+    HMAC over the raw body, checked before anything is parsed, failing closed on an unconfigured
+    secret. Persist-first, process-async is unchanged — this endpoint does no more than
+    :func:`receive_webhook` does for Meta.
+    """
+    from app.channels.tasks import ingest_webhook_events
+
+    try:
+        event_ids = await WebhookService(session, connector_type=CONNECTOR_WAHA).ingest(
+            body=await request.body(), signature=request.headers.get(WAHA_SIGNATURE_HEADER)
+        )
+    except ChannelConfigError as exc:
+        raise WebhookNotConfiguredError(str(exc)) from exc
     ingest_webhook_events.apply_async(args=[event_ids])
     return WebhookAckResponse(events=len(event_ids))

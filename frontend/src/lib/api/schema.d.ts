@@ -1566,6 +1566,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/waha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive WAHA inbound events (public, HMAC-gated) — QR-08
+         * @description The WAHA analogue of :func:`receive_webhook` (QR-04 built the verify/parse/dedupe logic in
+         *     ``app.channels.waha.webhook``; this is the first HTTP route that reaches it).
+         *
+         *     No GET handshake: unlike Meta, WAHA has no subscription challenge to answer — it is configured
+         *     with this URL directly and simply starts posting. The gate is the same shape as Meta's: an
+         *     HMAC over the raw body, checked before anything is parsed, failing closed on an unconfigured
+         *     secret. Persist-first, process-async is unchanged — this endpoint does no more than
+         *     :func:`receive_webhook` does for Meta.
+         */
+        post: operations["receive_waha_webhook_api_v1_webhooks_waha_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/messages/send": {
         parameters: {
             query?: never;
@@ -5270,6 +5297,8 @@ export interface components {
             status: string;
             /** Channel Type */
             channel_type: string;
+            /** Connector Type */
+            connector_type: string;
             /** Assigned To */
             assigned_to: string | null;
             contact: components["schemas"]["ContactRef"] | null;
@@ -6745,18 +6774,25 @@ export interface components {
          *     ``type`` selects which payload is read; the others must be absent. Sending is deliberately not
          *     a discriminated union of free-form JSON: the ledger stores canonical content, so what a client
          *     may say is the same shape the adapter is handed.
+         *
+         *     Exactly one of ``phone_number_id``/``conversation_id`` routes the send (QR-08). The first is
+         *     the original "send to any number" contract, unchanged. The second is a reply to an existing
+         *     thread: the server resolves *which* provider owns it from the conversation's own durable
+         *     ownership and ignores this request's opinion — a client cannot supply, forge, or override that
+         *     choice through this field, which is exactly why replying by conversation exists as its own path
+         *     rather than accepting a client-declared provider/endpoint. ``to`` is required only for the
+         *     number-addressed form; a conversation reply derives its recipient from the thread's own contact.
          */
         MessageSendRequest: {
-            /**
-             * Phone Number Id
-             * Format: uuid
-             */
-            phone_number_id: string;
+            /** Phone Number Id */
+            phone_number_id?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
             /**
              * To
              * @example +14155552671
              */
-            to: string;
+            to?: string | null;
             /**
              * Type
              * @enum {string}
@@ -12563,6 +12599,26 @@ export interface operations {
         };
     };
     receive_webhook_api_v1_webhooks_whatsapp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookAckResponse"];
+                };
+            };
+        };
+    };
+    receive_waha_webhook_api_v1_webhooks_waha_post: {
         parameters: {
             query?: never;
             header?: never;

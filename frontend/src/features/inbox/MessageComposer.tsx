@@ -2,13 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ErrorState } from "@/components/ui";
-import {
-  apiErrorMessage,
-  useDefaultPhoneNumber,
-  useQuickReplies,
-  useSendMessage,
-} from "@/features/inbox/api";
+import { apiErrorMessage, useQuickReplies, useSendMessage } from "@/features/inbox/api";
 import type { Conversation } from "@/features/inbox/types";
+import { isWahaConversation } from "@/features/inbox/types";
+import { useWhatsAppQrStatus } from "@/features/whatsapp-qr/api";
 import { useHasPermission } from "@/lib/auth";
 
 interface Props {
@@ -17,8 +14,15 @@ interface Props {
 
 /**
  * Outbound text composer with quick-reply insertion (FR-INB-04). Sending is gated on
- * `messages:send`; outside the 24-hour service window the API rejects free-form text, so the
- * composer says so rather than letting the user compose into a guaranteed failure.
+ * `messages:send`; who actually receives the send — which provider, which endpoint — is a
+ * decision the server makes from the conversation's own durable ownership (QR-08), never a value
+ * this component sends.
+ *
+ * The two providers refuse to send for different, provider-true reasons: outside Meta's 24-hour
+ * service window the API rejects free-form text (FR-WA-12); a WAHA thread carries no such window,
+ * but genuinely refuses when the underlying session is not currently connected — read here from
+ * QR-07's own live status (a passive read, the same one the Channels page polls; opening this
+ * conversation never triggers a reconnect or pairing attempt on its own).
  */
 export function MessageComposer({ conversation }: Props): JSX.Element {
   const [body, setBody] = useState("");
@@ -26,20 +30,21 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
   const canSend = useHasPermission("messages:send");
   const canManageQuickReplies = useHasPermission("inbox:write");
   const quickReplies = useQuickReplies();
-  const phoneNumber = useDefaultPhoneNumber();
   const send = useSendMessage(conversation.id);
 
-  const windowOpen = conversation.window.is_open;
+  const isWaha = isWahaConversation(conversation);
+  const qrStatus = useWhatsAppQrStatus(isWaha);
+
   const to = conversation.contact?.phone ?? "";
-  const numberId = phoneNumber.data?.id ?? "";
-  const disabled = !canSend || !windowOpen || !to || !numberId || send.isPending;
+  const metaWindowClosed = !isWaha && !conversation.window.is_open;
+  const wahaStatusUnknown = isWaha && qrStatus.isLoading;
+  const wahaNotConnected = isWaha && !qrStatus.isLoading && qrStatus.data?.connected !== true;
+  const refused = metaWindowClosed || wahaNotConnected || wahaStatusUnknown;
+  const disabled = !canSend || !to || send.isPending || refused;
 
   function submit(): void {
     if (!body.trim() || disabled) return;
-    send.mutate(
-      { phoneNumberId: numberId, to, body: body.trim() },
-      { onSuccess: () => setBody("") },
-    );
+    send.mutate({ body: body.trim() }, { onSuccess: () => setBody("") });
   }
 
   if (!canSend) {
@@ -50,11 +55,25 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
     );
   }
 
+  const placeholder = metaWindowClosed
+    ? "Window closed"
+    : wahaStatusUnknown
+      ? "Checking connection…"
+      : wahaNotConnected
+        ? "WhatsApp not connected"
+        : "Write a reply…";
+
   return (
     <div className="border-t border-border p-3">
-      {!windowOpen ? (
+      {metaWindowClosed ? (
         <p className="mb-2 text-xs text-warning">
           The 24-hour service window is closed. Reply with an approved template to reopen it.
+        </p>
+      ) : null}
+      {wahaNotConnected ? (
+        <p className="mb-2 text-xs text-danger">
+          {qrStatus.data?.health_detail ??
+            "WhatsApp is not currently connected. Reconnect it from Settings → WhatsApp before sending."}
         </p>
       ) : null}
 
@@ -107,7 +126,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
             submit();
           }
         }}
-        placeholder={windowOpen ? "Write a reply…" : "Window closed"}
+        placeholder={placeholder}
         className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary disabled:opacity-50"
       />
 

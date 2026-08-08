@@ -7,6 +7,33 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-08 — Unified Inbox integration
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Real BFF, not a stub | PASS | `MessageService`/`ConversationService`/`SendService`/`InboxQueryService`/`WebhookService` are the **same** classes Meta's inbound/outbound path already uses — no parallel Inbox/service family for WAHA. |
+| Additive migration only | PASS | `0043_conversation_channel_endpoints`: nullable `channel_endpoint_id` added to `conversations`/`messages`/`webhook_events`; `conversations.phone_number_id` widened to nullable; `ck_conv_endpoint_owner` requires exactly one owner. No column dropped, renamed, or narrowed; no existing row's `phone_number_id` changed. Verified on SQLite via `alembic upgrade head`, both directions test-covered (`test_migrations.py`). |
+| Stored-message dedupe ≠ event dedupe | PASS | `test_message_and_message_any_produce_one_stored_message` proves `message`/`message.any` (same envelope, two valid QR-04 events) collapse to one stored row; `test_concurrent_duplicate_waha_delivery_produces_one_message` proves a same-event redelivery does too; `test_same_provider_message_id_on_different_endpoints_does_not_collide` proves the same provider id on two endpoints does not collide. |
+| No unscoped endpoint lookup | PASS | `get_by_provider_message_id_for_endpoint`'s `channel_endpoint_id` is keyword-only, required, no default — asserted directly (`test_endpoint_scoped_lookup_has_no_unscoped_variant`), mirroring QR-00's own `phone_number_id` discipline. |
+| Outbound routing is server-derived | PASS | `test_meta_reply_routes_through_meta`/`test_waha_reply_routes_through_waha`/`test_forged_frontend_provider_cannot_reroute_a_waha_conversation` — `accept_for_conversation` takes no provider parameter at all; routing comes only from `conversation.phone_number_id`/`channel_endpoint_id`. |
+| Prohibited capability enforced at send time | PASS | A `TEMPLATE` send against a WAHA conversation raises `ChannelCapabilityNotSupportedError`, asserted in the forged-provider test above; MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT remain absent from the WAHA adapter (QR-01..07 invariant, re-verified by the unchanged prohibited-capability test). |
+| Ambiguous WAHA send never auto-retried | PASS | `test_ambiguous_waha_send_is_marked_indeterminate_not_auto_retried` — a transport failure is caught inside `_deliver_endpoint` and resolved to `fail(..., code="indeterminate")` directly, never re-raised to the queue's retry-classification handler; the message is left `failed`, `wamid` stays `null`. |
+| Unavailable WAHA session blocks send truthfully | PASS | `test_waha_send_blocked_truthfully_when_not_connected` — `accept_endpoint` checks the current `ChannelSession` is `ACTIVE`+`PAIRED` before writing anything; refuses with `ChannelNotConnectedError`, zero messages written. |
+| RBAC / tenant scoping | PASS | `test_cross_org_conversation_read_and_send_are_rejected` and `test_same_org_user_without_permission_cannot_read_or_send_to_waha_conversation` — reuses `inbox:read`/`inbox:write`/`inbox:assign`/`messages:send` unchanged; no separate, weaker WAHA permission surface. |
+| No secret crosses the boundary | PASS | `ConversationResponse.connector_type` is a plain string (`meta_cloud`/`waha`); no WAHA credential, session id, or endpoint internals newly exposed. |
+| Mixed Inbox list | PASS | `test_mixed_meta_and_waha_conversations_appear_in_one_inbox_list` — one `InboxQueryService.list_conversations` call returns both providers' threads; live-preview screenshot confirms the same at the UI layer (see below). |
+| Contact identity unified across providers | PASS | WAHA's `<digits>@c.us` sender reduces through the existing `wa_id_from_e164` to the same key Meta's `wa_id` uses — asserted via the same-phone-number Contact resolution in the inbound test; no second identity/normalization path added. |
+| Backend suite | PASS | **1380 passed**, 5 skipped (no MySQL locally), 0 failed. 13 new QR-08 tests (`test_qr08_inbox_integration.py`); two pre-existing OpenAPI-path-count invariants updated 206→207 with rationale. |
+| Backend ruff / mypy / bandit | PASS | `ruff check` clean; `mypy app` — no issues in 300 source files; `bandit -r` on every changed file — only pre-existing Low `assert`-usage findings in QR-07 code, no new findings. |
+| Frontend typecheck / lint / tests | PASS | `tsc --noEmit` clean; `eslint .` clean; **793 passed** (789 before; +4), 0 failed. |
+| Frontend build | PASS | Production build succeeds; `InboxPage` chunk `37.28 kB` / gzip `10.28 kB`. |
+| OpenAPI | PASS (changed, authorized) | **206 → 207 paths** (`POST /webhooks/waha`). `openapi.json` regenerated; frontend client regenerated (`npm run gen:api`). |
+| Migration graph | PASS (changed, authorized) | 44 revisions (was 43), single linear head `0043_conversation_channel_endpoints`. |
+| UI preview | PASS | Real running app (backend + frontend, throwaway SQLite, representative persisted preview fixtures — not fabricated provider connectivity): desktop mixed list, desktop selected Meta conversation, desktop + mobile selected WAHA conversation showing the genuine "Session state: degraded." / composer-disabled refuse-to-send state, mobile mixed list. See QR-08 final report for exact route/viewport/state per screenshot. |
+| Defects found and fixed | PASS (disclosed) | QR-07's `_REAUTH_PAIRING` incorrectly included `UNPAIRED` (diverged from QR-06's canonical definition) — fixed to match. QR-04's `parse_events` classified `message.ack` as `UNKNOWN` despite QR-05 already building `to_status_update` for it — now routed as `STATUSES`. Both disclosed in CHANGELOG, not silently folded in. |
+| Known limitation disclosed | PASS | The existing Meta-number-scoped analytics rollup excludes WAHA conversations rather than counting them under a fabricated dimension; no WAHA analytics added by this milestone. |
+
+
 ## QR-07 — WhatsApp Scan/Connect interface
 
 | Validation item | Status | Latest evidence |

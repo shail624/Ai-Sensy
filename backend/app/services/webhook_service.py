@@ -99,6 +99,16 @@ class WebhookService:
         self._numbers = PhoneNumberRepository(session)
         self._audit = AuditService(session)
 
+    @property
+    def _endpoint_routed(self) -> bool:
+        """Whether this connector routes by ``channel_endpoints`` rather than ``phone_numbers``.
+
+        Meta is the one connector with a ``phone_numbers`` provisioning record (ADR-0020); every
+        other connector — WAHA today — is provisioned through the provider-neutral control plane
+        instead (QR-08), so it routes by ``channel_endpoint_id``.
+        """
+        return self._connector_type != CONNECTOR_META_CLOUD
+
     def adapter(self) -> ChannelAdapter:
         """The inbound adapter — no per-WABA credentials: a delivery is verified app-wide."""
         return get_adapter(self._connector_type)
@@ -131,14 +141,22 @@ class WebhookService:
             raise ForbiddenError("Invalid webhook signature.")
 
         events, unreadable = self._read(adapter, body)
-        routing = await self._events.resolve_numbers(
-            {event.channel_number_id for event in events if event.channel_number_id}
-        )
+        channel_number_ids = {event.channel_number_id for event in events if event.channel_number_id}
+        if self._endpoint_routed:
+            endpoint_routing = await self._events.resolve_endpoints(
+                channel_number_ids, connector_type=self._connector_type
+            )
+            number_routing: dict[str, int] = {}
+        else:
+            endpoint_routing = {}
+            number_routing = await self._events.resolve_numbers(channel_number_ids)
+        routing = endpoint_routing | number_routing
 
         rows = [
             WebhookEvent(
                 event_id=(event.event_id or None) and event.event_id[:128],
-                phone_number_id=routing.get(event.channel_number_id),
+                phone_number_id=number_routing.get(event.channel_number_id),
+                channel_endpoint_id=endpoint_routing.get(event.channel_number_id),
                 object_type=event.type.value,
                 signature_ok=True,
                 payload_json=event.payload,
@@ -208,8 +226,10 @@ class WebhookService:
 
         if row.object_type not in _ROUTABLE:
             raise WebhookUnprocessable(f"unknown event type {row.object_type!r}")
-        if row.phone_number_id is None:
-            raise WebhookUnprocessable("event is for a phone number this platform does not own")
+        if row.phone_number_id is None and row.channel_endpoint_id is None:
+            raise WebhookUnprocessable(
+                "event is for a number or channel endpoint this platform does not own"
+            )
         if row.event_id and await self._events.has_processed_sibling(
             row.event_id, exclude_id=row.id
         ):
@@ -222,12 +242,14 @@ class WebhookService:
         if row.object_type == InboundEventType.STATUSES.value:
             service = MessageService(self._session, connector_type=self._connector_type)
             # One transaction for the applied status *and* the event that carried it: settling the
-            # event while the transition it describes rolled back would be a durable lie.
-            # `row.phone_number_id` is guaranteed non-None above; it scopes the reconciliation to
-            # the endpoint the callback arrived on (ADR-0020 provider message identity).
+            # event while the transition it describes rolled back would be a durable lie. Exactly
+            # one of `phone_number_id`/`channel_endpoint_id` is set (guaranteed non-None above); it
+            # scopes the reconciliation to the endpoint the callback arrived on (ADR-0020 provider
+            # message identity).
             outcome = await service.apply_status(
                 service.to_status_update(row.payload_json),
                 phone_number_id=row.phone_number_id,
+                channel_endpoint_id=row.channel_endpoint_id,
             )
 
         row.status = WH_PROCESSED

@@ -24,6 +24,7 @@ function conversationFixture(overrides: Partial<Conversation> = {}): Conversatio
     type: "conversation",
     status: "open",
     channel_type: "whatsapp",
+    connector_type: "meta_cloud",
     assigned_to: null,
     contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" },
     tags: [],

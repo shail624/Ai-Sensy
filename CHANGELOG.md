@@ -11,6 +11,92 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-08: Unified Inbox integration
+
+**Added**
+- `backend/alembic/versions/0043_conversation_channel_endpoints.py` — additive expand-stage
+  migration: `conversations` gains a nullable, real-FK `channel_endpoint_id` and its
+  `phone_number_id` widens to nullable, guarded by a new `ck_conv_endpoint_owner` check (exactly
+  one of the two set); `messages`/`webhook_events` (both partitioned on MySQL) gain the same
+  nullable, app-enforced `channel_endpoint_id` alongside their existing `phone_number_id`. No
+  column dropped, renamed, or narrowed; every existing row's `phone_number_id` is untouched.
+- `POST /webhooks/waha` — the WAHA analogue of the existing `/webhooks/whatsapp` route. QR-04
+  (2026) built the HMAC verification and event parsing but never wired an HTTP route to it; this
+  is that route, unchanged in shape from Meta's (public, signature-gated, persist-then-ack).
+- `SendService.accept_for_conversation` / `.accept_endpoint` / `._deliver_endpoint` — the WAHA
+  outbound path. Text-only; no window check (WAHA carries no Meta customer-service-window rule);
+  refuses to send when the underlying session is not `ACTIVE`+`PAIRED`
+  (`ChannelNotConnectedError`); a send whose outcome cannot be confirmed is marked
+  `failed`/`error_code=indeterminate` and is never retried automatically.
+- `MessageService._apply_inbound_endpoint` / `WebhookService` endpoint routing /
+  `ConversationService.thread_for_endpoint` / `.open_for_inbound_endpoint` — the WAHA inbound
+  path, mirroring the existing Meta path method-for-method rather than branching inside it
+  (ADR-0020 "independent failure domains").
+- `MessageRepository.get_by_provider_message_id_for_endpoint` /
+  `ConversationRepository.get_for_endpoint_contact` /
+  `WebhookEventRepository.resolve_endpoints` — the endpoint-scoped analogues of the existing
+  phone-number-scoped lookups (ADR-0020, QR-00's provider-message-identity scoping), keyword-only
+  and required, with no unscoped variant.
+- `MessageSendRequest.conversation_id` (optional) — a reply to an existing thread. The provider is
+  resolved entirely server-side from the conversation's own durable ownership; the request carries
+  no provider/endpoint field for a caller to set. `phone_number_id`+`to` remain for the original
+  "send to any number" contract, unchanged.
+- `ConversationResponse.connector_type` — which provider owns the thread (`meta_cloud`/`waha`),
+  display-only, server-derived.
+- `frontend/src/features/inbox/` — mixed-provider channel badge (conversation list + thread
+  header) and a provider-aware composer: no 24h-window check for a WAHA thread, and a truthful
+  disabled/refuse state (reusing QR-07's own live session-status read, `useWhatsAppQrStatus`) when
+  the WAHA session is not currently connected.
+- `backend/tests/test_qr08_inbox_integration.py` — 13 new hermetic backend tests. `frontend`
+  gains 4 new Inbox tests.
+
+**Behaviour**
+- **Stored-message dedupe is not event dedupe.** `message`/`message.any` share one `envelope.id`
+  and represent the same underlying WAHA message; QR-04's event-level dedupe (scoped by session +
+  event type) correctly treats them as two distinct, both-valid events — but
+  `MessageService._apply_inbound_endpoint` additionally dedupes by
+  `(channel_endpoint_id, canonical_provider_message_id)` before ever inserting a row, so the two
+  events collapse to one stored message. Proven for a same-event redelivery too, and proven *not*
+  to collapse across two different endpoints holding the same provider message id.
+- **Contact identity is unified across providers without a second normalization rule.** A WAHA
+  sender arrives as `<digits>@c.us`/`@lid`/`@s.whatsapp.net`; the existing `wa_id_from_e164`
+  (digit-stripping) already reduces it to the same key Meta's `wa_id` uses, so the same phone
+  number resolves to the same `Contact` regardless of which provider it messaged through
+  (ADR-0020 "One Contact authority") — no new identity code was needed.
+- **No cross-provider failover, enforced structurally, not by convention.** `conversations`'
+  `ck_conv_endpoint_owner` check makes "owned by both" or "owned by neither" a schema violation,
+  not just a code discipline; `accept_for_conversation` has no provider parameter to override.
+- **Reused, not duplicated, QR-07's own `channel_endpoints`.** `WhatsAppQrService.connect()` (QR-07
+  code) now also idempotently creates the connection's one `ChannelEndpoint`
+  (`provider_endpoint_id` = the WAHA session name — stable across a logout/re-pair cycle, unlike
+  the phone number behind it) — the durable, addressable identity a conversation is anchored to.
+  QR-07 never created one because nothing needed it yet.
+
+**Defects found and fixed (both pre-existing in already-shipped QR-06/QR-07 code, surfaced only
+once QR-08 exercised paths nothing had exercised before)**
+- QR-07's `_REAUTH_PAIRING` constant included `PairingState.UNPAIRED`, diverging from the
+  canonical definition QR-06 already established (`app.channels.waha.recovery`, which correctly
+  excludes it). Harmless in QR-07 alone; became load-bearing once QR-08 needed `connect()` +
+  `_ensure_endpoint()` to always succeed for a fresh connection. Fixed to match QR-06's definition.
+- QR-04's `parse_events` classified `message.ack` as `UNKNOWN` even though QR-05 had already built
+  `to_status_update` specifically to translate it — the wiring between the two was simply never
+  completed. Now routed as `InboundEventType.STATUSES`, reaching the existing monotonic
+  `messages.status` machinery QR-05 targeted from the start.
+
+**Permanently absent for WAHA (unchanged from QR-01..07, enforced again here at the send-routing
+layer)**
+- MEDIA, INTERACTIVE, REACTION, LOCATION, CONTACT, TEMPLATE, CAMPAIGNS, BULK — a non-text reply
+  against a WAHA conversation is refused with `ChannelCapabilityNotSupportedError`, not silently
+  downgraded or routed to Meta.
+- WAHA history retrieval and media-byte transfer remain unimplemented; unrelated to this milestone
+  and not silently added. Unsupported media in an inbound WAHA message continues to render
+  truthfully (`message_type: "unsupported"`, per QR-04), never as blank text.
+
+**Known limitation**
+- Analytics' existing "throughput by number × agent" rollup (`AnalyticsRollupService`) is a
+  Meta-number-specific dimension; a WAHA conversation (no `phone_number_id`) is excluded from it
+  rather than counted under a fabricated dimension. QR-08 introduces no WAHA analytics.
+
 ### 2026-08-08 — QR-07: WhatsApp Scan/Connect interface
 
 **Added**

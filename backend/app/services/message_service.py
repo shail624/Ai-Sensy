@@ -17,6 +17,7 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
@@ -25,6 +26,7 @@ from app.channels.models import InboundMessage, StatusUpdate
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
+from app.models.channel_connection import ChannelConnection
 from app.models.message import (
     DIRECTION_INBOUND,
     MSG_ACCEPTED,
@@ -33,10 +35,12 @@ from app.models.message import (
     MessageStatusHistory,
     advances,
 )
+from app.repositories.channel_connection import ChannelEndpointRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.message import MessageRepository, MessageStatusHistoryRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.repositories.webhook import WebhookEventRepository
+from app.services.contact_service import wa_id_from_e164
 from app.services.conversation_service import ConversationService
 from app.services.media_ingest_service import media_reference
 
@@ -73,6 +77,7 @@ class MessageService:
         self._history = MessageStatusHistoryRepository(session)
         self._conversation_repo = ConversationRepository(session)
         self._numbers = PhoneNumberRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
         self._events = WebhookEventRepository(session)
         self._conversations = ConversationService(session)
 
@@ -99,11 +104,18 @@ class MessageService:
 
         Commits: this is the top of its own task, and the contact, the thread, the window and the
         message are one fact about one moment — a partial application would be worse than none.
+
+        Routes on the event's own persisted ownership (``phone_number_id`` vs
+        ``channel_endpoint_id``), not on how this service was constructed: the dispatching task
+        (``process_inbound_message``) has no reason to know which provider owns any given event
+        before reading its row, so the row itself is the single source of truth for which path runs.
         """
         row = await self._events.get_by_id(event_pk)
         if row is None:
             logger.warning("inbound_event_missing", extra={"event_pk": event_pk})
             return {"status": "missing", "event_pk": event_pk}
+        if row.channel_endpoint_id is not None:
+            return await self._apply_inbound_endpoint(event_pk, row.channel_endpoint_id, row.payload_json)
         if row.phone_number_id is None:
             raise LedgerError("inbound event is not routed to a phone number")
 
@@ -111,7 +123,7 @@ class MessageService:
         if number is None:
             raise LedgerError(f"phone number {row.phone_number_id} no longer exists")
 
-        message = self._to_inbound_message(row.payload_json)
+        message = self._to_inbound_message(row.payload_json, connector_type=CONNECTOR_META_CLOUD)
         # Redelivery lands here as a second task for the same provider message id (Doc 06 §2.3
         # idempotency key): the thread must not gain a second copy or a second unread. Scoped to
         # the receiving endpoint — a provider message id is only unique inside it (ADR-0020).
@@ -172,34 +184,137 @@ class MessageService:
             "media_pending": self._media_pending(stored),
         }
 
+    async def _apply_inbound_endpoint(
+        self, event_pk: int, channel_endpoint_id: int, payload: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """The channel-endpoint-owned analogue of the body of :meth:`apply_inbound` (QR-08).
+
+        Same contract, same idempotency guarantee, same commit boundary — kept as its own
+        straight-line method (see :mod:`app.services.conversation_service`'s equivalent note) so a
+        WAHA event can never resolve against a Meta number or vice versa.
+        """
+        endpoint = await self._endpoints.get_by_id(channel_endpoint_id)
+        if endpoint is None:
+            raise LedgerError(f"channel endpoint {channel_endpoint_id} no longer exists")
+        connector_type = await self._connector_type_for(endpoint.connection_id)
+
+        message = self._to_inbound_message(payload, connector_type=connector_type)
+        existing = await self._messages.get_by_provider_message_id_for_endpoint(
+            message.channel_message_id, channel_endpoint_id=endpoint.id
+        )
+        if existing is not None:
+            return {
+                "status": DUPLICATE,
+                "event_pk": event_pk,
+                "message_id": existing.public_id,
+                "message_pk": existing.id,
+                "media_pending": self._media_pending(existing),
+            }
+
+        occurred_at = message.occurred_at or utcnow()
+        # The provider addresses a contact as e.g. `<digits>@c.us`/`@lid`/`@s.whatsapp.net`;
+        # `wa_id_from_e164` strips everything but the digits, which is exactly the same
+        # normalization Meta's `wa_id` already uses — so the same phone number resolves to the
+        # same Contact regardless of which provider it messaged through (ADR-0020 "One Contact
+        # authority"), without inventing a second normalization rule.
+        wa_id = wa_id_from_e164(message.from_id)
+        if not wa_id:
+            raise LedgerError(f"WAHA inbound message has no usable sender id: {message.from_id!r}")
+        contact = await self._conversations.resolve_contact(
+            organization_id=endpoint.organization_id,
+            wa_id=wa_id,
+            profile_name=message.profile_name,
+            occurred_at=occurred_at,
+        )
+        conversation = await self._conversations.open_for_inbound_endpoint(
+            endpoint=endpoint, contact=contact, occurred_at=occurred_at
+        )
+
+        stored = Message(
+            organization_id=endpoint.organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_INBOUND,
+            wamid=message.channel_message_id,
+            message_type=message.message_type,
+            content_json=message.content,
+            status=MSG_ACCEPTED,
+            created_at=occurred_at,
+        )
+        await self._messages.add(stored)
+        await self._conversations.record_inbound_message(
+            conversation,
+            preview=ConversationService.preview_of(message.message_type, message.content),
+            occurred_at=occurred_at,
+        )
+        await self._session.commit()
+        return {
+            "status": APPLIED,
+            "event_pk": event_pk,
+            "message_id": stored.public_id,
+            "message_pk": stored.id,
+            "conversation_id": conversation.public_id,
+            "contact_id": contact.public_id,
+            "media_pending": self._media_pending(stored),
+        }
+
+    async def _connector_type_for(self, connection_id: int) -> str:
+        stmt = select(ChannelConnection.connector_type).where(ChannelConnection.id == connection_id)
+        connector_type = (await self._session.scalars(stmt)).first()
+        if connector_type is None:
+            raise LedgerError(f"channel connection {connection_id} no longer exists")
+        return connector_type
+
     @staticmethod
     def _media_pending(message: Message) -> bool:
         return message.media_asset_id is None and media_reference(message) is not None
 
-    def _to_inbound_message(self, payload: dict[str, Any] | None) -> InboundMessage:
+    def _to_inbound_message(
+        self, payload: dict[str, Any] | None, *, connector_type: str
+    ) -> InboundMessage:
         try:
-            return self.adapter().to_inbound_message(payload or {})
+            return get_adapter(connector_type).to_inbound_message(payload or {})
         except Exception as exc:  # noqa: BLE001 - any translation failure is the same verdict
             raise LedgerError(f"inbound payload cannot be read: {exc}") from exc
 
     # --- Status callbacks (Doc 06 §11.3/§11.4) ------------------------------
-    async def apply_status(self, update: StatusUpdate, *, phone_number_id: int) -> str:
+    async def apply_status(
+        self,
+        update: StatusUpdate,
+        *,
+        phone_number_id: int | None = None,
+        channel_endpoint_id: int | None = None,
+    ) -> str:
         """Advance a message's delivery state (FR-WA-06/07).
 
         Does **not** commit: the caller settles the webhook event in the same transaction, so an
         applied status and the event that carried it can never disagree.
 
-        ``phone_number_id`` is the endpoint the callback arrived on. It is required so a delivery
-        receipt can only ever advance a message belonging to that endpoint — reconciliation must
-        not cross an endpoint or tenant boundary (ADR-0020; Doc 33 §6.1 "Message identity").
+        Exactly one of ``phone_number_id``/``channel_endpoint_id`` — the endpoint the callback
+        arrived on — must be given. Required, not optional, so a delivery receipt can only ever
+        advance a message belonging to that one endpoint — reconciliation must not cross an
+        endpoint or tenant boundary (ADR-0020; Doc 33 §6.1 "Message identity").
         """
-        message = await self._messages.get_by_provider_message_id(
-            update.channel_message_id, phone_number_id=phone_number_id
-        )
+        if (phone_number_id is None) == (channel_endpoint_id is None):
+            raise LedgerError(
+                "apply_status requires exactly one of phone_number_id/channel_endpoint_id"
+            )
+        if channel_endpoint_id is not None:
+            message = await self._messages.get_by_provider_message_id_for_endpoint(
+                update.channel_message_id, channel_endpoint_id=channel_endpoint_id
+            )
+            endpoint_label = f"channel endpoint {channel_endpoint_id}"
+        else:
+            assert phone_number_id is not None
+            message = await self._messages.get_by_provider_message_id(
+                update.channel_message_id, phone_number_id=phone_number_id
+            )
+            endpoint_label = f"endpoint {phone_number_id}"
         if message is None:
             raise MessageNotFound(
                 f"no message for provider message id {update.channel_message_id!r} "
-                f"on endpoint {phone_number_id}"
+                f"on {endpoint_label}"
             )
 
         # Append first: the log is the record of what the channel *told* us, which is true even

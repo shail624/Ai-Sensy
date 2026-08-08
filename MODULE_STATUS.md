@@ -17,12 +17,34 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-07T05:00:00+05:30`.
+Last synchronized: `2026-08-08T00:00:00+05:30`.
+
+## Module 13 — QR-08 Unified Inbox integration
+
+- **Milestone status:** `QR-08 — Unified Inbox integration — COMPLETE`.
+- **Completion:** `52%` evidence-based estimate (was 48% through M13-06B/QR-07).
+- **Delivered:** Meta and WAHA conversations in one Inbox — endpoint-scoped inbound stored-message
+  dedupe (independent of QR-04's event-level dedupe), server-derived outbound provider routing
+  (`SendService.accept_for_conversation`, no client-suppliable provider field), a channel badge and
+  provider-aware composer in the existing Inbox UI, and a truthful refuse-to-send state when the
+  WAHA session is not connected. Reuses `channel_endpoints` (M13-03) via `WhatsAppQrService.connect()`
+  now creating one, rather than a second Contact/Conversation/endpoint authority.
+- **Migration:** `0043_conversation_channel_endpoints` — additive expand stage; nullable
+  `channel_endpoint_id` on `conversations`/`messages`/`webhook_events`,
+  `conversations.phone_number_id` widened to nullable, `ck_conv_endpoint_owner` exactly-one-owner
+  check. OpenAPI 206 → 207 paths (`POST /webhooks/waha`).
+- **Security:** RBAC unchanged (`inbox:read`/`inbox:write`/`inbox:assign`/`messages:send` reused
+  uniformly for both providers); cross-org conversation read/send rejected; a non-text send against
+  a WAHA conversation refused (`ChannelCapabilityNotSupportedError`), never silently downgraded or
+  rerouted to Meta.
+- **Preserved:** Meta behaviour, prohibited capabilities (`BULK`/`CAMPAIGNS`/`TEMPLATE`), no
+  MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT for WAHA, no history/media transfer.
+- **Next:** `QR-09 — production validation`. Not started.
 
 ## Module 13 — M13-06B Provider-neutral History & Media Control Plane
 
 - **Milestone status:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`.
-- **Completion:** `48%` evidence-based estimate.
+- **Completion:** `48%` evidence-based estimate (superseded by QR-08 above, `52%`).
 - **Delivered:** lifecycle management for existing history checkpoints and media references, dedicated
   RBAC/flag gates, tenant/object/capability checks, optimistic concurrency, monotonic progress,
   resume/fresh-run semantics, idempotent media identity and immutable Audit evidence.
@@ -42,7 +64,7 @@ Last synchronized: `2026-08-07T05:00:00+05:30`.
 - **Delivered:** provider-neutral history checkpoint and media-reference records, bounded progress/expiry state, tenant-scoped repositories, non-secret metadata validation and migration `0040`.
 - **Security:** organization predicates, existing foreign authorities, no secret-shaped metadata, uniqueness/check constraints and optimistic row versions fail closed.
 - **Preserved:** no provider certification, adapter, dependency, QR/login, live event ingestion, history execution, media transfer/processing, queue task, API, generated contract or frontend change.
-- **Next:** physical-phone WAHA certification **PASSED** on 2026-08-08 and the adapter has since reached QR-03 (pairing). QR-04 event ingestion, QR-05 send/delivery reconciliation, QR-06 session recovery/teardown and QR-07 (the first real operator UI, over the existing session/pairing control plane; OpenAPI 200 to 206 paths) are delivered. Provider history retrieval and media-byte transfer remain unimplemented and are not assigned to a delivered milestone.
+- **Next:** physical-phone WAHA certification **PASSED** on 2026-08-08 and the adapter has since reached QR-03 (pairing). QR-04 event ingestion, QR-05 send/delivery reconciliation, QR-06 session recovery/teardown, QR-07 (the first real operator UI, over the existing session/pairing control plane; OpenAPI 200 to 206 paths) and QR-08 (Unified Inbox integration; OpenAPI 206 to 207 paths) are delivered. Provider history retrieval and media-byte transfer remain unimplemented and are not assigned to a delivered milestone. `QR-09 — production validation` is next; not started.
 
 ## Module 13 — M13-05 QR Pairing & Provider Runtime Foundation
 

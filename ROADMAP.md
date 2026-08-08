@@ -90,8 +90,14 @@ adapter, bridging it to the existing M13-03/04/05 connection/session/pairing con
 also the first milestone in the QR sequence to add public API routes (OpenAPI 200 → 206 paths),
 which is expected and authorized at this stage rather than a drift regression.
 
+QR-08 (Unified Inbox integration) is also delivered: Meta and WAHA conversations share the same
+existing Inbox, Conversation/Message ledger and Contact authorities rather than a second Inbox.
+Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
+`phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
+webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
 Still not started, and still requiring their own milestones: provider history retrieval and
-media-byte transfer/processing, and QR-08 (Unified Inbox integration).
+media-byte transfer/processing, and QR-09 (production validation).
 
 ## Phase 0 — Governance and scope lock
 
