@@ -4,7 +4,31 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-08T00:00:00+05:30`.
+Last synchronized: `2026-08-09T04:30:00+05:30`.
+
+## QR-09B — WAHA Runtime Healthcheck Remediation
+
+**Milestone status: `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`.**
+QR-09-D4 is closed by repository/runtime evidence; QR-09 remains `PARTIAL (BLOCKED)`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline and D4 reproduction | PASS | Branch/HEAD matched `ui/taste-modernization` at `835e5253…`; only pre-existing `.claude/` was untracked. Both Compose files used `wget`. Exact-image Docker health output: `exec: "wget": executable file not found in $PATH`. |
+| Certified-image executable inventory | PASS | `/usr/bin/tini --` + `/entrypoint.sh`; Node `v24.11.1` with built-in fetch, `/bin/sh`, Bash `5.2.15`, curl `7.88.1`; no wget, BusyBox or Python. |
+| Health endpoint semantics | PASS | Unauthenticated `/health` and `/api/server/status` return `401`; provider-owned `/ping` returns `200 {"message":"pong"}` without a secret and represents service/API liveness, not pairing state. |
+| Selected probe | PASS | Exec-form `curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3000/ping`; bounded, no shell, no external package, no key on the command line, and non-zero on transport or failing HTTP status. |
+| Compose models | PASS | Development config and `--profile waha` resolve; production `--profile waha` resolves. Exact digest, restart policy and `waha-sessions:/app/.sessions` unchanged. |
+| Positive runtime proof | PASS | Exact certified WAHA `2026.7.2` / `NOWEB` / `CORE` reaches Docker `healthy`; committed health command exits 0. No false `starting` loop. |
+| Negative runtime proof | PASS | The same curl flags against controlled unavailable loopback endpoint `127.0.0.1:1` exit non-zero. No stopped-container `unhealthy` claim and no session/image corruption. |
+| Restart and persistence | PASS | WAHA reaches healthy before and after restart; same named session volume remains mounted and no pre-existing session file is removed. No QR pairing performed. |
+| Networking | PASS | Development publishes only `127.0.0.1:3000`; production publishes no WAHA port. No Docker socket/host-path mount introduced. |
+| Startup dependencies | PASS | No service depends on WAHA or `condition: service_healthy`; no new startup coupling introduced. |
+| Runtime regression | PASS | `scripts/validate_waha_healthcheck.py` validates both rendered Compose models, exact image/provider identity, executable health success/failure, Docker health/restart, exposure, dependency and volume contracts; it is step 16 of the release gate. |
+| Full release gate | PASS | **21/21 PASS** in 373.4s: backend **1397**, frontend **796**, lint/types/OpenAPI/build/SAST/audits/source secret-IaC scan/Compose/release and image contracts/app-image vulnerability scans/SBOMs. Exact WAHA image also passes the pinned Trivy image gate. |
+| Contract invariants | PASS | Migration head `0043` (44 revisions), OpenAPI 207 paths, 25 application tasks, RBAC and WAHA capabilities unchanged. The stale image smoke assertion was synchronized 193 → 207. |
+| UI preview | PASS | Not applicable: infrastructure healthcheck only; no operator-facing UI change and no screenshot claimed. |
+| QR-09 boundary | PASS | No QR displayed/scanned and no phone/provider/host acceptance evidence invented. QR-09/QR-09A history preserved; certification approval and Host/Provider/Production Ready statuses unchanged. |
 
 
 ## QR-09A — Production Validation Remediation

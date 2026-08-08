@@ -198,6 +198,10 @@ def _release_steps(python: str, docker: str) -> list[Step]:
             "REDIS_PASSWORD",
             "META_APP_SECRET",
             "META_WEBHOOK_VERIFY_TOKEN",
+            # Compose interpolates required values before profile selection, so the optional WAHA
+            # service's required API key also needs a conspicuous build-only sentinel here. The
+            # release gate never starts WAHA from the production model and never reads a real key.
+            "WAHA_API_KEY",
         )
     }
     compose_env["IMAGE_TAG"] = tag
@@ -206,6 +210,11 @@ def _release_steps(python: str, docker: str) -> list[Step]:
         Step(
             "development Compose model",
             (docker, "compose", "-f", "docker-compose.yml", "config", "--quiet"),
+        ),
+        Step(
+            "certified WAHA runtime healthcheck",
+            (python, os.fspath(ROOT / "scripts" / "validate_waha_healthcheck.py")),
+            env={"WA_QUALITY_DOCKER": docker},
         ),
         Step(
             "production release contract",

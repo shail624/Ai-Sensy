@@ -11,6 +11,41 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09B: WAHA Runtime Healthcheck Remediation
+
+Records and repairs **QR-09-D4 (Major)** without rewriting QR-09 or QR-09A history: both Compose
+files invoked `wget` from the certified WAHA image, but that executable is absent, so Docker could
+never leave its `starting` health state even while the provider API was responsive. The exact pinned
+image contains `curl 7.88.1`; its API-key-protected `/health` endpoint returns `401` without a
+credential, while the provider-owned unauthenticated `/ping` liveness endpoint returns `200`.
+
+Both development and production definitions now use an exec-form, five-second bounded
+`curl --fail` probe against `http://127.0.0.1:3000/ping`. The command contains no secret and tests
+provider process/API responsiveness only — never WhatsApp pairing state. A new runtime regression
+starts the exact certified digest, proves Docker becomes `healthy`, executes the committed command
+successfully, proves the same probe fails against an unavailable loopback endpoint, restarts WAHA,
+proves it becomes healthy again, and verifies the same named session volume remains mounted with no
+pre-existing file removed. It also enforces loopback-only development exposure, no production WAHA
+port, unchanged restart policy, and no new `service_healthy` startup coupling.
+
+The release gate now runs that real-container regression. Its build-only Compose environment gained
+only a conspicuous WAHA API-key sentinel because Compose interpolates required profile values before
+profile selection; no real credential is read or printed. The backend image contract was synchronized
+from its stale historical 193-path assertion to the repository's existing **207-path** OpenAPI
+contract (25 registered application tasks unchanged).
+
+All **21 release gates pass**: backend **1397 passed**, frontend **796 passed**, lint/types/OpenAPI
+drift/build/SAST/dependency audits/source secret-IaC scan/Compose/release and image contracts/app-image
+vulnerability scans and SBOMs all pass. The exact WAHA image also passes the repository's pinned
+Trivy image gate. Migration head remains `0043_conversation_channel_endpoints` (44 revisions),
+OpenAPI remains 207 paths, capabilities/RBAC/application behavior are unchanged, production WAHA
+remains internal-only, and no QR was displayed or scanned.
+
+**Status boundary:** QR-09B is `REPOSITORY VALIDATED`; QR-09 remains `PARTIAL (BLOCKED)` pending its
+real physical-phone and target-host/browser evidence. QR-09A remains preserved as historical
+repository validation with this factual superseding D4 note. Provider certification approval,
+`Host Validated`, `Provider Validated`, and `Production Ready` are not advanced.
+
 ### 2026-08-08 — QR-09A: Production Validation Remediation
 
 Repairs exactly the blockers QR-09 recorded, and nothing else. **QR-09 itself remains

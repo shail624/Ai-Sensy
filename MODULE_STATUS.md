@@ -17,7 +17,25 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-08T00:00:00+05:30`.
+Last synchronized: `2026-08-09T04:30:00+05:30`.
+
+## Module 13 — QR-09B WAHA Runtime Healthcheck Remediation
+
+- **Milestone status:** `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs deployment liveness
+  reporting and adds no product capability.
+- **Defect:** QR-09-D4 (Major) — the exact certified image lacks the `wget` executable required by
+  both committed healthchecks, leaving Docker in `starting` despite a responsive provider API.
+- **Fix:** verified in-image curl `7.88.1`, exec-form and bounded to five seconds, checks provider-owned
+  unauthenticated `/ping`; it does not check WhatsApp pairing/session state and contains no secret.
+- **Evidence:** exact digest, WAHA `2026.7.2` / `NOWEB` / `CORE`; Docker healthy before and after
+  restart; positive command exit 0 and unavailable-endpoint exit non-zero; development loopback-only,
+  production internal-only, same persistent volume, no startup coupling. Full release gate 21/21,
+  backend 1397 and frontend 796.
+- **Preserved:** QR-09 and QR-09A historical evidence, migration/OpenAPI/RBAC/capabilities, provider
+  certification status and session data. No UI or physical-phone evidence.
+- **Next:** QR-09 remains `PARTIAL (BLOCKED)` pending explicit approval to resume real phone and
+  target-host/browser validation. `Host Validated`, `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09A Production Validation Remediation
 

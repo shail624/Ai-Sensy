@@ -6,16 +6,16 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-09A — Production Validation Remediation: D1/D2/D3 fixed, OpenAPI required gate green, WAHA deployment + persistent session volume + runbook added, cryptography advisory resolved. QR-09 itself stays PARTIAL (BLOCKED).` |
+| Latest change | `QR-09B — WAHA Runtime Healthcheck Remediation: QR-09-D4 fixed with a verified in-image curl /ping probe and real-container regression. QR-09 itself stays PARTIAL (BLOCKED).` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (QR-09A remediation closeout; resolve after push) |
-| Current milestone | `QR-09A — Production Validation Remediation — REPOSITORY VALIDATED`. `QR-09 — Production Validation` remains `PARTIAL (BLOCKED)` and `QR-08` remains `COMPLETE`; both are unaffected. |
-| Current phase | `Every blocker QR-09 recorded is repaired and re-verified against real infrastructure. What still blocks QR-09 closure is external evidence this environment cannot produce: physical-phone provider E2E and the browser/target-host matrix.` |
+| Current Git HEAD | `HEAD` (QR-09B remediation closeout; resolve after push) |
+| Current milestone | `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`. `QR-09 — Production Validation` remains `PARTIAL (BLOCKED)`; QR-09A history and QR-08 completion remain preserved. |
+| Current phase | `QR-09-D4 is repaired and runtime-verified. QR-09 closure still requires real physical-phone provider E2E and browser/target-host evidence.` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged**. QR-09A repaired `0043`'s `downgrade()` ordering without adding a revision; the upgrade path, revision id and resulting schema are byte-for-byte unchanged, and up/down/up is now proven on real MySQL |
 | OpenAPI | `3.1.0` · **`207` paths, unchanged**. Required drift gate now **PASSES**: the artifact was regenerated through the canonical exporter (the committed copy had been written with `ensure_ascii=True` while the exporter emits `ensure_ascii=False`). Zero route/schema churn; the only delta is D2's additive `provider_session_missing` property. No FastAPI/Pydantic version was pinned or changed |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
-| Backend evidence (QR-09A, real MySQL) | **1397 passed, 0 skipped** (1385 before; +12) · live-MySQL suite **12 passed** (11 before) · QR-01..08 regression **371 passed** together · Ruff PASS · strict mypy PASS (300 files) · Bandit 0 High/0 Medium/28 Low · `pip-audit` **no known vulnerabilities** (`cryptography` floor raised to `>=50`) · `scripts/quality_gate.py static` passes all six steps |
+| Backend evidence (QR-09B release gate) | **1397 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **21/21 PASS**, including certified WAHA runtime health, Compose/release contracts, image contracts and scans |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / **796 tests** PASS (793 before; +3 D2 view-state tests) · production build PASS · `npm audit --omit=dev` 2 moderate (react-router SSR advisory; app is client-rendered, unchanged by this milestone) |
 | Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — unchanged by QR-09 |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
@@ -23,8 +23,33 @@
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-09. QR-09 ran the real pinned image (`sha256:33ecd1b7…`) but had no physical handset, so it does not advance certification. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT |
 | Next Module 13 milestone | Rerun QR-09's remaining external gates: physical-phone provider E2E (real scan → `WORKING`, real inbound/outbound, ACK chain, reconnect-without-new-QR, logout/re-auth, credential survival across restart) and the supported-browser/target-host matrix. Not started; both need evidence this environment cannot produce |
 | Host evidence | Repository/local-host MySQL/Redis/WAHA evidence (not target-host): real MySQL 8.0.46 and Redis 7.4.9 via this repository's own `docker compose up -d`, and the real pinned WAHA container, all on the development workstation. QR-09 additionally reproduced a **second** real-MySQL downgrade defect (`0043`, same class as the pre-existing `0036`/`0040` one) and a provider-up/session-absent `500` on the operator status endpoint. Genuine target-host evidence, physical-phone pairing, and the full browser/device matrix remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-09A touches only the recorded blockers: `0043`'s `downgrade()` body, the WAHA session-absent path (client/lifecycle/service/schema + QR frontend view state), the webhook 413 mapping, the regenerated OpenAPI artifact and client types, both compose files, `deploy/DEPLOYMENT.md`, the `cryptography` floor, their tests, and governance records. No new migration, route, RBAC entry or capability |
-| Last update | `2026-08-08T00:00:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | QR-09B changes both Compose healthchecks, adds the real certified-image runtime regression and release-gate wiring, synchronizes the stale backend image-contract path assertion, and updates governance. No application source, migration, route, schema, RBAC entry, provider capability, session data, or UI change |
+| Last update | `2026-08-09T04:30:00+05:30` (Asia/Kolkata) |
+
+## QR-09B — WAHA Runtime Healthcheck Remediation (REPOSITORY VALIDATED)
+
+- **QR-09-D4 (Major) reproduced:** both Compose files invoked `wget`, which does not exist in the
+  exact certified image; Docker health output was `exec: "wget": executable file not found in
+  $PATH`, so the container remained `starting` although the provider API was responsive.
+- **Certified-image inventory:** entrypoint `/usr/bin/tini --` with `/entrypoint.sh`; Node
+  `v24.11.1` (built-in fetch available), `/bin/sh`, Bash `5.2.15`, and curl `7.88.1` exist; wget,
+  BusyBox and Python do not. `/health` and `/api/server/status` require authentication (`401`
+  without a key); provider-owned `/ping` is unauthenticated and returns `200 {"message":"pong"}`.
+- **Remediation:** exec-form curl probe against loopback `/ping`, `--fail`, five-second maximum.
+  It exposes no key and asserts process/API liveness only, not pairing/session `WORKING` state.
+- **Runtime proof:** exact digest is WAHA `2026.7.2` / `NOWEB` / `CORE`; Docker transitions to
+  `healthy`, the exact command succeeds against `/ping`, the same command returns non-zero against
+  unavailable `127.0.0.1:1`, and Docker returns to `healthy` after restart.
+- **Topology/storage:** development remains loopback-only; production publishes no WAHA port;
+  restart policy is unchanged; the same named `waha-sessions` volume remains at `/app/.sessions`
+  with no pre-existing file removed. No service depends on WAHA health, so no coupling was added.
+- **Regression/gates:** `scripts/validate_waha_healthcheck.py` enforces the Compose and real-runtime
+  contract in the release gate. All 21 release gates pass: backend 1397, frontend 796, source
+  secret/IaC and dependency scans, builds, Compose/release/image contracts, app-image scans/SBOMs.
+  The exact WAHA image separately passes the pinned Trivy image gate.
+- **Boundary:** no QR displayed/scanned, no physical-phone evidence, no application/UI/capability
+  change. QR-09 remains `PARTIAL (BLOCKED)`; provider certification approval and Host/Provider/
+  Production Ready classifications are unchanged.
 
 ## QR-09A — Production Validation Remediation (REPOSITORY VALIDATED)
 

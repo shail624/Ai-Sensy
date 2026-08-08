@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-05T17:00:00+05:30`.
+Last synchronized: `2026-08-09T04:30:00+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED**
+**Current status: QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,16 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09B (WAHA runtime healthcheck remediation) is **REPOSITORY VALIDATED**. It preserves QR-09's
+failed-attempt history and records QR-09-D4 (Major): both Compose files called `wget`, which is not
+present in the exact certified image. The corrected exec-form, bounded in-image curl probe uses the
+provider-owned unauthenticated `/ping` liveness endpoint and deliberately does not assert WhatsApp
+pairing state. A real certified-image regression proves Docker healthy before and after restart,
+positive and deterministic negative command behavior, loopback-only development exposure, no
+production port, and unchanged persistent session-volume/startup semantics. All 21 release gates
+pass. No application behavior, migration, OpenAPI, RBAC, capability or provider-certification state
+changed.
 
 QR-09A (production validation remediation) is **REPOSITORY VALIDATED**: it repairs exactly the
 blockers QR-09 recorded — `0043`'s real-MySQL downgrade (no new revision; up/down/up now proven with

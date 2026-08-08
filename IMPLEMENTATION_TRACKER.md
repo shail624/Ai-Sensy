@@ -3,8 +3,9 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-08 · QR-09 Production Validation attempted (PARTIAL — BLOCKED; evidence-only,
-no product change), on top of QR-08 Unified Inbox integration, QR-01 WAHA provider adapter
+_Last updated: 2026-08-09 · QR-09B WAHA Runtime Healthcheck Remediation is REPOSITORY VALIDATED;
+QR-09 remains PARTIAL — BLOCKED, on top of QR-09A remediation, QR-08 Unified Inbox integration,
+QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
 migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat
 History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User
@@ -17,8 +18,16 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09A — Production Validation Remediation — REPOSITORY VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; `QR-08` remains `COMPLETE`. Both are unaffected.
-- **Latest change:** QR-09A — Production Validation Remediation: repairs exactly the blockers QR-09
+- **Current milestone:** `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; QR-09A remains preserved historical evidence and QR-08 remains `COMPLETE`.
+- **Latest change:** QR-09B repairs QR-09-D4: the certified image lacks the committed `wget`
+  executable. Both Compose models now use the image's verified `curl 7.88.1` against the
+  unauthenticated provider-owned `/ping` endpoint with a five-second bound. A real-container
+  regression proves positive health, deterministic failure against an unavailable endpoint,
+  Docker `healthy` before and after restart, exact digest/provider identity, network boundaries,
+  and session-volume preservation. All 21 release gates pass (backend 1397; frontend 796); no
+  migration, route, RBAC, capability, application behavior, pairing, or certification-state change.
+  `Host Validated`/`Provider Validated`/`Production Ready` remain NO.
+- **Previous change:** QR-09A — Production Validation Remediation: repairs exactly the blockers QR-09
   recorded, and nothing else. **D1** — `0043`'s `downgrade()` released `uq_conv_endpoint_contact`
   before the foreign key InnoDB borrows it for; all conversation-side drops now run in one batch in
   dependency order, so the revision is reversible on real MySQL. No new revision was created (the
@@ -80,8 +89,13 @@ blocks every live history, media, event and adapter behavior._
 - **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02; it does not itself constitute Host Validated / Production Ready evidence for QR-08.
 - **QR-09 real-infrastructure evidence (PARTIAL — BLOCKED):** real MySQL `8.0.46` + Redis `7.4.9` + the certified WAHA digest (`sha256:33ecd1b7…`). Backend full suite **1385 passed, 0 skipped** (11/11 live-MySQL tests genuinely ran, vs 5 always-skipped without MySQL). Frontend 38 files / 793 tests, ESLint, TypeScript, build all PASS. Ruff/mypy PASS. Bandit 0 High/0 Medium/28 Low. `pip-audit`: 1 production advisory (`cryptography 49.0.0`, not upgraded). `npm audit --omit=dev`: 2 moderate. Latency within this repository's own documented budgets (Doc 01 `NFR-PERF-01` p95 < 300 ms; Doc 06 webhook ack < 200 ms) on a single workstation. **Two Major defects open** (QR-09-D1 real-MySQL `0043` downgrade failure; QR-09-D2 QR status `500` when provider is up but session is absent), **one Minor** (QR-09-D3 oversized-webhook `500`), and **one required gate red** (OpenAPI drift — investigated and found to be a genuine ASCII-escaping artifact difference, not the previously-recorded "resolver key-order" cause). Full detail: `VALIDATION_RESULTS.md` "QR-09 — Production Validation".
 - **QR-09A remediation evidence:** real MySQL `8.0.46` + Redis `7.4.9` + the certified WAHA digest. Backend **1397 passed, 0 skipped** (1385 before; +12) · live-MySQL **12 passed** (11 before) · QR-01..08 regression **371 passed** together · frontend **796 passed** (793 before; +3) · Ruff/strict mypy/ESLint/TypeScript/production build PASS · `scripts/quality_gate.py static` passes **all six steps**, including the previously red OpenAPI drift step · Bandit unchanged (0 High/0 Medium/28 Low) · `pip-audit` **no known vulnerabilities**. Full detail: `VALIDATION_RESULTS.md` "QR-09A — Production Validation Remediation".
+- **QR-09B runtime evidence:** exact certified digest; WAHA `2026.7.2` / `NOWEB` / `CORE`; exec-form
+  `curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3000/ping`; Docker healthy before
+  and after restart; negative unavailable-endpoint probe non-zero; development `127.0.0.1:3000`
+  only; production no published WAHA port; `waha-sessions:/app/.sessions` preserved; no startup
+  coupling. Full `scripts/quality_gate.py release`: **21/21 PASS**, backend 1397, frontend 796.
 - **Next milestone:** rerun QR-09's remaining external gates — physical-phone provider E2E (real scan → `WORKING`, real inbound/outbound, ACK chain, reconnect-without-new-QR, logout/re-auth, and credential survival across a restart) and the supported-browser/target-host matrix. Not started; both need evidence this environment cannot produce.
-- **Last synchronized:** `2026-08-08T00:00:00+05:30`
+- **Last synchronized:** `2026-08-09T04:30:00+05:30`
 
 ## Delivered
 
