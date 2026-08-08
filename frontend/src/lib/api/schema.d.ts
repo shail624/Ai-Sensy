@@ -1643,6 +1643,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels/whatsapp-qr/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get WhatsApp QR connection status */
+        get: operations["get_session_status_api_v1_channels_whatsapp_qr_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a WhatsApp QR connection */
+        post: operations["connect_api_v1_channels_whatsapp_qr_session_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Begin pairing and request a QR */
+        post: operations["begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch the current transient QR image */
+        get: operations["get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconnect a paired session */
+        post: operations["reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log out — invalidates WhatsApp credentials and requires a new scan */
+        post: operations["logout_api_v1_channels_whatsapp_qr_session_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates": {
         parameters: {
             query?: never;
@@ -8856,6 +8958,107 @@ export interface components {
             config: components["schemas"]["WebhookConfig"];
         };
         /**
+         * WhatsAppQrLogoutRequest
+         * @description Explicit confirmation required before an irreversible logout.
+         */
+        WhatsAppQrLogoutRequest: {
+            /**
+             * Confirm
+             * @description Must be true. Logout invalidates WhatsApp credentials and requires a new scan.
+             */
+            confirm: boolean;
+        };
+        /**
+         * WhatsAppQrStatus
+         * @description Current WhatsApp QR connection status for the caller's organization.
+         *
+         *     ``configured=False`` covers every reason the screen has nothing to operate on — WAHA
+         *     unconfigured, the organization not assigned, feature flags disabled — collapsed into one
+         *     honest "not available" signal rather than distinguishing operator-irrelevant deployment detail.
+         */
+        WhatsAppQrStatus: {
+            /**
+             * Configured
+             * @description Whether a WhatsApp QR connection is available to configure/operate.
+             */
+            configured: boolean;
+            /**
+             * Session Public Id
+             * @description Durable session identifier once a connection has been started.
+             */
+            session_public_id?: string | null;
+            /**
+             * Row Version
+             * @description Optimistic-concurrency version.
+             */
+            row_version?: number | null;
+            /**
+             * Session State
+             * @description Provider-neutral session lifecycle (SessionState).
+             */
+            session_state?: string | null;
+            /**
+             * Pairing State
+             * @description Provider-neutral pairing lifecycle (PairingState), or null when the provider's current status cannot determine it (e.g. mid-transition).
+             */
+            pairing_state?: string | null;
+            /**
+             * Provider Status
+             * @description Informational only: the raw provider status last observed. Not authoritative.
+             */
+            provider_status?: string | null;
+            /**
+             * Connected
+             * @description Whether this WhatsApp session can carry traffic now.
+             */
+            connected: boolean;
+            /**
+             * Requires Reauthentication
+             * @description Whether only a fresh scan can resolve the current state.
+             */
+            requires_reauthentication: boolean;
+            /**
+             * Healthy
+             * @description Session-level health — never server-only reachability.
+             */
+            healthy: boolean;
+            /**
+             * Health Detail
+             * @description Human-readable, secret-free health explanation.
+             */
+            health_detail: string;
+            /**
+             * Can Reconnect
+             * @description Whether a reconnect action is currently safe.
+             */
+            can_reconnect: boolean;
+            /**
+             * Reconnect Blocked Reason
+             * @description Why reconnect is unavailable right now, when can_reconnect is false.
+             */
+            reconnect_blocked_reason?: string | null;
+            /**
+             * Identity Masked
+             * @description Paired account identity with digits partly masked.
+             */
+            identity_masked?: string | null;
+            /**
+             * Push Name
+             * @description Paired account display name.
+             */
+            push_name?: string | null;
+            /**
+             * Qr Available
+             * @description Whether GET /whatsapp/qr will currently return an image.
+             */
+            qr_available: boolean;
+            /**
+             * Updated At
+             * @description When this status was last reconciled against the provider.
+             */
+            updated_at?: string | null;
+        };
+        /**
          * WindowState
          * @description The 24-hour customer-service window (Doc 03 §9.1; FR-WA-12).
          *
@@ -12496,6 +12699,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatusHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_status_api_v1_channels_whatsapp_qr_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    connect_api_v1_channels_whatsapp_qr_session_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/png": unknown;
+                };
+            };
+        };
+    };
+    reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    logout_api_v1_channels_whatsapp_qr_session_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppQrLogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
                 };
             };
             /** @description Validation Error */

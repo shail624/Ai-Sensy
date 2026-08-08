@@ -42,7 +42,7 @@ Last synchronized: `2026-08-07T05:00:00+05:30`.
 - **Delivered:** provider-neutral history checkpoint and media-reference records, bounded progress/expiry state, tenant-scoped repositories, non-secret metadata validation and migration `0040`.
 - **Security:** organization predicates, existing foreign authorities, no secret-shaped metadata, uniqueness/check constraints and optimistic row versions fail closed.
 - **Preserved:** no provider certification, adapter, dependency, QR/login, live event ingestion, history execution, media transfer/processing, queue task, API, generated contract or frontend change.
-- **Next:** physical-phone WAHA certification **PASSED** on 2026-08-08 and the adapter has since reached QR-03 (pairing). QR-04 event ingestion, QR-05 send/delivery reconciliation and QR-06 session recovery/teardown are delivered. Provider history retrieval and media-byte transfer remain unimplemented and are not assigned to a delivered milestone.
+- **Next:** physical-phone WAHA certification **PASSED** on 2026-08-08 and the adapter has since reached QR-03 (pairing). QR-04 event ingestion, QR-05 send/delivery reconciliation, QR-06 session recovery/teardown and QR-07 (the first real operator UI, over the existing session/pairing control plane; OpenAPI 200 to 206 paths) are delivered. Provider history retrieval and media-byte transfer remain unimplemented and are not assigned to a delivered milestone.
 
 ## Module 13 — M13-05 QR Pairing & Provider Runtime Foundation
 

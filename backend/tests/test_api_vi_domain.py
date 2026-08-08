@@ -201,7 +201,9 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/notifications/read-all",
     }
     assert expected <= set(schema["paths"])
-    assert len(schema["paths"]) == 200
+    # QR-07 adds the first public WhatsApp QR connection surface (6 routes); the Vi domain
+    # paths above are unaffected — this only re-baselines the total count.
+    assert len(schema["paths"]) == 206
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

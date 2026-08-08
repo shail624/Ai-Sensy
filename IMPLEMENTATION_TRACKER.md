@@ -10,9 +10,10 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Branch:** `ui/taste-modernization`
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · 200 paths — QR-01 and QR-02 add no migration, no route, no RBAC entry and no generated type
+- **Migration/OpenAPI:** `0042_scope_provider_message_identity` (43 revisions, unchanged) · **206 paths** (200 through QR-06; QR-07 adds 6 authorized routes under `/channels/whatsapp-qr`, the first public surface over the pairing control plane) — no migration and no RBAC catalog entry
 - **Current milestone:** `M13-06B — Provider-neutral History & Media Control Plane — REPOSITORY VALIDATED`
-- **Latest change:** QR-06 — WAHA session recovery, health and teardown: start/stop/logout behind a runtime lease, bounded reconnect planning driven by durable pairing truth rather than the provider's ambiguous `STARTING`, and a session-scoped health projection. Declares `SESSION_RECONNECT` and `SESSION_LOGOUT`. Runtime registration is **opt-in** — importing the package still registers no runtime. **No history/media sync, no session deletion, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
+- **Latest change:** QR-07 — WhatsApp Scan/Connect interface: the first real operator-facing surface over the WAHA adapter, bridging it to the existing M13-03/04/05 connection/session/pairing control plane. 6 new routes under `/channels/whatsapp-qr` (own `channels:read`/`channels:authenticate` gate; no RBAC catalog change), a live-polling frontend covering all 12 required states, and no-store QR delivery. **OpenAPI 200 → 206 paths (authorized, unlike every prior QR milestone)**; no migration (reuses existing tables); no QR-08 (Unified Inbox), history/media sync, campaign/bulk/template, or interactive/reaction/location/contact.
+- **Previous change:** QR-06 — WAHA session recovery, health and teardown: start/stop/logout behind a runtime lease, bounded reconnect planning driven by durable pairing truth rather than the provider's ambiguous `STARTING`, and a session-scoped health projection. Declares `SESSION_RECONNECT` and `SESSION_LOGOUT`. Runtime registration is **opt-in** — importing the package still registers no runtime. **No history/media sync, no session deletion, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
 - **Previous change:** QR-05 — WAHA send path and delivery-state reconciliation: outbound text through the configured session, canonical provider-id capture, acknowledgement translation onto the platform's **existing** monotonic `messages.status` vocabulary, and an endpoint-scoped reconcile-before-resend primitive. Declares `TEXT`. **No blind retry, no teardown/reconnect, no media/history, no interactive/reaction/location/contact, no route, table or migration, and no UI.**
 - **Previous change:** QR-04 — WAHA webhook ingestion: raw-body sha512 HMAC verification and provider event normalization onto the **existing** `ChannelAdapter` webhook seam and `webhook_events` ingest authority. Dedupe identity is scoped by session **and** event type because certification proved `envelope.id` alone is not unique. Declares `SESSION_STREAM`. **No new route, table or migration; no send path, no delivery-state persistence, no teardown, no history/media execution and no UI.**
 - **Previous change:** QR-03 — WAHA QR pairing: create a session with the certified store configuration, fetch the transient QR challenge, and report provider-neutral pairing state. First declared capability since QR-01 (`QR_AUTH`). **QR-03 can bring a session up and cannot take one down — no stop/restart/logout/delete, no webhook ingestion, no send path, no media/history transfer, no session runtime, no public route and no UI.**
@@ -21,7 +22,7 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
 - **Frontend evidence:** unchanged by this follow-up (no frontend file touched); static quality gate frontend steps still pass
 - **Provider selection:** WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0), ADR-0021 Class B. Approvals recorded in `docs/evidence/provider-evaluations/waha-class-b-selection-record.md`. The physical-phone evidence that record required was produced on 2026-08-08 and PASSED; the record itself still reads **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED** and needs an **owner decision** to advance, which QR-02 does not make on its own authority. QR-01 registers a `waha` adapter limited to an authenticated server probe; QR-02 adds a read-only session lifecycle mapping; `ProviderRuntimeRegistry` still has no WAHA runtime.
 - **Physical-phone certification:** **PASSED** (2026-08-08) against the pinned certified build. Real QR pairing to `WORKING`, controlled-restart reconnect with no new QR, external outbound with `SERVER`/`DEVICE`/`READ` acknowledgement, external inbound text, external inbound JPEG with verified download, HMAC-verified webhook delivery, history/fullSync correlation, and logout with re-auth required. This unblocked QR-02.
-- **Next milestone:** `QR-07 — QR frontend`. Not started.
+- **Next milestone:** `QR-08 — Unified Inbox integration`. Not started.
 - **Last synchronized:** `2026-08-08T00:00:00+05:30`
 
 ## Delivered
@@ -99,6 +100,37 @@ _Last updated: 2026-08-07 · QR-01 WAHA provider adapter foundation, on top of t
   collided on the same inputs the new algorithm now discriminates, plus five delimiter-injection
   cases and a determinism/no-`hash()` assertion. Full QR-04 suite 64 passed (52 before); all five
   WAHA suites 253 passed together; full backend suite 1289 passed (1277 before).
+
+### QR-07 — WhatsApp Scan/Connect interface
+
+- **Delivered:** `app/services/whatsapp_qr_service.py` (bridges live WAHA I/O to
+  `ChannelConnectionService`/`SessionManager`/`PairingManager`), `app/api/v1/endpoints/whatsapp_qr.py`
+  (6 routes), `app/schemas/whatsapp_qr.py`, WAHA runtime registration wired into
+  `get_channel_foundation()` (opt-in, gated on full configuration), and
+  `frontend/src/features/whatsapp-qr/` (status polling, QR display, connect/pair/reconnect/logout,
+  route `/channels/whatsapp-qr`).
+- **Real defects found and fixed while integrating, not hidden:** (1) `PairingManager` requires
+  `INITIALIZING`/`WAITING_FOR_PAIRING` for any pairing transition — reaching `ACTIVE` must happen
+  strictly after pairing lands, not before, so `_apply_snapshot` orders the two conditionally.
+  (2) `PairingState.PAIRED` is terminal in the existing state machine — logout terminates the
+  paired revision and registers a fresh `UNPAIRED` one rather than attempting an illegal reverse
+  transition. (3) `SessionManager.acquire_lock` refuses a `PAUSED` session — reconnect exits
+  `PAUSED` via the lease-free write path before leasing.
+- **Single-organization scope (ADR-0021):** `WAHA_ORGANIZATION_ID` names the one org the surface
+  exists for; every other org — and an unconfigured deployment — sees the identical
+  `configured=false`, so existence is never confirmed to a caller who does not own it.
+- **QR still never persisted:** fetched fresh per request, `Cache-Control: no-store, private`, held
+  client-side only as a revoked-on-replace object URL.
+- **Known limitation, disclosed not hidden:** retrying an expired never-scanned QR surfaces the
+  provider's real "session already exists" error (proven in QR-03's own suite) rather than a
+  fabricated success — a dedicated provider restart path is not built in this milestone.
+- **Tests:** 30 new hermetic backend tests + 23 new frontend tests. Backend suite 1364 passed
+  (0 before this milestone's two path-count fixes); frontend suite 789 passed (766 before; +23).
+- **OpenAPI:** 200 → 206 paths — the first authorized public surface over the pairing control
+  plane. Two pre-existing exact-count invariant tests were updated with rationale; the
+  no-secret-shaped-field assertions they also carry are unchanged and still pass.
+- **Unchanged:** migration head `0042` (43 revisions, reuses existing tables), RBAC catalog
+  (permissions pre-existed from M13-05), Meta behaviour, prohibited capabilities.
 
 ### QR-06 — WAHA session recovery, health and teardown
 

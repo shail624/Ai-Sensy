@@ -1,0 +1,718 @@
+"""QR-07 — WhatsApp Scan/Connect orchestration.
+
+QR-01..06 built a WAHA adapter that can probe, pair, ingest, send and recover a session, but
+nothing before this milestone ever bridged its **live** provider I/O to the durable,
+tenant/RBAC/lease-governed control plane M13-03/04/05 already built (`ChannelConnection`,
+`ChannelSession`, :class:`SessionManager`, :class:`PairingManager`). This module is exactly that
+bridge, and nothing else: it creates no table, no parallel session/lease/pairing model, and no
+provider-specific persistence. Every durable fact lives in the columns those services already own.
+
+## Why exactly one connection, not a per-organization store
+
+ADR-0021's deployment scope for WAHA is explicit: **internal, self-hosted, single organization —
+not multi-tenant SaaS**. QR-01..06 already reflect that: WAHA credentials come from process-wide
+settings (`WahaCredentials.from_settings()`), never a per-tenant secret. This service keeps that
+architecture rather than building a multi-tenant credential store WAHA was never designed for:
+`settings.waha_organization_id` names the single organization the QR surface exists for, and every
+other organization sees ``configured=False`` — indistinguishable from "WAHA isn't deployed here" so
+the API never confirms or denies which organization owns it to a caller who does not.
+
+## Every mutation holds the real M13-05 lease
+
+Every method that can change durable state — connect, pair, refresh (read-repair), reconnect,
+logout — acquires the session's actual database lease via :class:`SessionManager` before touching
+the provider and releases it before returning. A second request arriving mid-operation gets the
+`SessionManager`'s own "lease is held by another active runtime" conflict, not a bespoke lock this
+module invented. This is what "only the current lease holder may mutate" means reused rather than
+reinvented, and it is also what prevents two concurrent clicks from racing a pairing transition.
+
+## Pairing safety carried forward
+
+:func:`~app.channels.waha.recovery.plan_reconnect` — built in QR-06 specifically because QR-02
+proved ``STARTING`` is ambiguous — is the only thing allowed to authorize a reconnect. Read-repair
+never overwrites durable ``pairing_state`` when the live snapshot's mapping is ``None`` (ambiguous),
+and it never regresses ``session_state`` either: every transition it applies is checked against the
+existing ``can_transition``/``can_transition_pairing`` legality tables, so an ambiguous or
+out-of-order observation can advance state but never walk it backwards.
+
+## Logout retires a revision; it does not reverse one
+
+``PairingState.PAIRED`` is **terminal** in the existing M13-05 pairing state machine — the same rule
+that requires a brand-new session revision to re-authenticate an already-``EXPIRED`` one. Logout
+respects that rather than working around it: it terminates the paired revision (an honest, queryable
+historical record — "this revision was paired, then explicitly logged out") and registers a fresh
+``UNPAIRED`` revision on the same connection. The session identity the caller sees therefore changes
+after logout; that is the correct signal that a new pairing attempt is required, not an artefact.
+
+## The QR image is never persisted
+
+:meth:`WhatsAppQrService.qr_image` calls :meth:`WahaChannelAdapter.pairing_challenge` fresh on every
+request and returns the bytes directly to the caller. Nothing here writes them to a row, a log, or
+an audit payload — the existing "QR images and challenge bytes are deliberately absent" boundary
+from M13-05 is preserved, not widened.
+"""
+
+from __future__ import annotations
+
+import re
+import uuid as uuidlib
+from contextlib import suppress
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
+from app.channels.errors import ChannelApiError, ChannelError, ChannelTransportError
+from app.channels.flags import ChannelFeatureFlagResolver, OmnichannelFeatureFlag
+from app.channels.foundation import ProviderDesiredState
+from app.channels.registry import ProviderRegistry
+from app.channels.runtime import PairingState
+from app.channels.runtime_registry import ProviderRuntimeRegistry
+from app.channels.session import SessionState
+from app.channels.waha import (
+    ReconnectDecision,
+    WahaChannelAdapter,
+    WahaQrChallenge,
+    WahaSessionSnapshot,
+    map_session_status,
+    plan_reconnect,
+)
+from app.channels.waha import RuntimeLease as WahaRuntimeLease
+from app.core.exceptions import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ServiceUnavailableError,
+)
+from app.db.mixins import utcnow
+from app.models.channel_connection import ChannelConnection
+from app.models.channel_session import ChannelSession
+from app.models.user import User
+from app.repositories.channel_connection import ChannelConnectionRepository
+from app.repositories.channel_session import ChannelSessionRepository
+from app.services.channel_connection_service import ChannelConnectionService
+from app.services.rbac_service import RBACService
+from app.services.session_manager import SessionManager
+
+if TYPE_CHECKING:
+    from app.services.pairing_manager import PairingManager
+
+#: RBAC permission gating this entire surface — matches the vocabulary
+#: ``PairingManager.AUTHENTICATE_PERMISSION`` already established for "manage pairing lifecycle".
+OPERATE_PERMISSION = "channels:authenticate"
+READ_PERMISSION = "channels:read"
+
+#: Capabilities recorded against the session so `PairingManager` will operate on it (it requires
+#: `qr_auth` to be declared) — mirrors exactly what the adapter implements, no more.
+_SESSION_CAPABILITIES = [
+    Capability.HEALTH.value,
+    Capability.QR_AUTH.value,
+    Capability.SESSION_STREAM.value,
+    Capability.TEXT.value,
+    Capability.SESSION_RECONNECT.value,
+    Capability.SESSION_LOGOUT.value,
+]
+
+_IDENTITY_DIGITS = re.compile(r"\d{6,15}")
+
+
+def _mask_identity(raw: str | None) -> str | None:
+    """Mask the digit run of a provider identity, keeping only enough to recognise the account."""
+
+    if not raw:
+        return None
+
+    def _mask(match: re.Match[str]) -> str:
+        digits = match.group()
+        if len(digits) <= 7:
+            return "*" * len(digits)
+        return digits[:4] + "*" * (len(digits) - 7) + digits[-3:]
+
+    return _IDENTITY_DIGITS.sub(_mask, raw)
+
+
+@dataclass(frozen=True, slots=True)
+class WhatsAppQrState:
+    """Everything the API layer needs to build a response — no ORM row escapes this module."""
+
+    configured: bool
+    session_public_id: str | None = None
+    row_version: int | None = None
+    session_state: SessionState | None = None
+    pairing_state: PairingState | None = None
+    provider_status: str | None = None
+    connected: bool = False
+    requires_reauthentication: bool = False
+    healthy: bool = False
+    health_detail: str = "WhatsApp is not configured for this organization."
+    can_reconnect: bool = False
+    reconnect_blocked_reason: str | None = None
+    identity_masked: str | None = None
+    push_name: str | None = None
+    qr_available: bool = False
+    updated_at: datetime | None = None
+
+
+#: Pairing states that can only be resolved by a human re-pairing — mirrors
+#: `app.channels.waha.recovery`'s `_REAUTH_PAIRING` exactly. `UNPAIRED` is deliberately excluded:
+#: it is the idle starting state of every fresh session (first-ever connect, or the new revision
+#: `logout()` registers) and is resolved by starting pairing, not by "re-authenticating" — folding
+#: it into this set stops `deriveViewState` from ever reaching "creating-session" and its
+#: "Begin pairing" action after `connect()`, a dead end caught live in the QR-07 UI preview.
+_REAUTH_PAIRING = frozenset({PairingState.PAIRING_EXPIRED, PairingState.PAIRING_CANCELLED})
+
+
+class WhatsAppQrService:
+    """Organization-scoped façade over the WAHA adapter and the existing session control plane."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        providers: ProviderRegistry,
+        runtimes: ProviderRuntimeRegistry,
+        adapter: WahaChannelAdapter | None = None,
+    ) -> None:
+        self._session = session
+        self._connections = ChannelConnectionRepository(session)
+        self._sessions = ChannelSessionRepository(session)
+        self._session_manager = SessionManager(session, providers=providers)
+        self._flags = ChannelFeatureFlagResolver(session)
+        self._rbac = RBACService(session)
+        self._runtimes = runtimes
+        self._adapter = adapter or WahaChannelAdapter()
+
+    # --- Read ------------------------------------------------------------------------------
+
+    async def get_status(self, *, organization_id: int, actor: User) -> WhatsAppQrState:
+        """Read current status, live-reconciling durable state under the session's own lease.
+
+        A live provider check on every read keeps the screen honest without a background poller;
+        WAHA's own reads are cheap and this is a low-traffic admin surface. Reconciliation never
+        claims a pairing state the live status cannot determine (see the module docstring).
+        """
+        if not await self._available(organization_id, actor, require=READ_PERMISSION):
+            return WhatsAppQrState(configured=False)
+
+        row, connection = await self._current(organization_id)
+        if row is None or connection is None:
+            return WhatsAppQrState(configured=True, health_detail="WhatsApp is not connected yet.")
+
+        # Another request may be reconciling right now; report the last-known durable state
+        # rather than failing a read for lease contention.
+        with suppress(ConflictError):
+            await self._reconcile(organization_id=organization_id, actor=actor, row=row)
+        row = await self._sessions.get_scoped(organization_id, uuidlib.UUID(row.public_id))
+        assert row is not None
+        return self._state_from_row(row)
+
+    # --- Bootstrap ---------------------------------------------------------------------------
+
+    async def connect(self, *, organization_id: int, actor: User) -> WhatsAppQrState:
+        """Idempotently ensure a durable connection/session exists. Does not begin pairing."""
+
+        if not self._provider_configured():
+            raise ConflictError("WAHA is not configured on this deployment.")
+        if organization_id != self._organization_scope():
+            raise ForbiddenError("WhatsApp QR connection is not assigned to this organization.")
+        await self._require_permission(actor, OPERATE_PERMISSION)
+
+        row, connection = await self._current(organization_id)
+        if row is not None:
+            return self._state_from_row(row)
+
+        if connection is None:
+            connection = await ChannelConnectionService(self._session).create_connection(
+                organization_id=organization_id,
+                actor=actor,
+                channel_family=ChannelType.WHATSAPP.value,
+                connector_type=CONNECTOR_WAHA,
+                display_name="WhatsApp (WAHA)",
+                provider_connection_id=self._adapter.client.credentials.session or None,
+                desired_state=ProviderDesiredState.ENABLED,
+                capability_snapshot=_SESSION_CAPABILITIES,
+            )
+
+        row = await self._session_manager.register_session(
+            organization_id=organization_id,
+            actor=actor,
+            connection_public_id=uuidlib.UUID(connection.public_id),
+            capability_references=_SESSION_CAPABILITIES,
+        )
+        return self._state_from_row(row)
+
+    # --- Pairing -----------------------------------------------------------------------------
+
+    async def begin_pairing(self, *, organization_id: int, actor: User) -> WhatsAppQrState:
+        """Create/start the WAHA session and mark pairing as requested, then available."""
+
+        row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
+        lease = await self._session_manager.acquire_lock(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=uuidlib.UUID(row.public_id),
+            runtime_id=self._request_runtime_id(),
+            lease_seconds=self._lease_seconds(),
+            expected_row_version=row.row_version,
+        )
+        try:
+            snapshot = await self._adapter.begin_pairing(self._provider_session_name())
+            row = await self._apply_snapshot(
+                organization_id=organization_id,
+                actor=actor,
+                row=row,
+                lease_runtime_id=lease.holder_runtime_id,
+                fencing_token=lease.fencing_token,
+                snapshot=snapshot,
+                request_pairing=True,
+            )
+        except ChannelError as exc:
+            raise ServiceUnavailableError(
+                "WhatsApp couldn't be reached to start pairing. Try again in a moment."
+            ) from exc
+        finally:
+            await self._release(organization_id, actor, row, lease)
+        row = await self._refetch(organization_id, row)
+        return self._state_from_row(row)
+
+    async def qr_image(self, *, organization_id: int, actor: User) -> WahaQrChallenge:
+        """Fetch the transient QR. Never persisted, never logged, returned exactly once per call."""
+
+        row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
+        if PairingState(row.pairing_state) is not PairingState.PAIRING_AVAILABLE:
+            raise ConflictError("No QR is currently available; refresh the connection status.")
+        try:
+            return await self._adapter.pairing_challenge(self._provider_session_name())
+        except ChannelApiError as exc:
+            raise ConflictError(str(exc)) from exc
+
+    # --- Reconnect ---------------------------------------------------------------------------
+
+    async def reconnect(self, *, organization_id: int, actor: User) -> WhatsAppQrState:
+        row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
+
+        # Live-plan first, with no lease held: this is a read-only check and must be cheap to
+        # repeat (the frontend disables the button on `can_reconnect`, and the API re-validates).
+        decision = await self._adapter.plan_session_recovery(
+            self._provider_session_name(),
+            durable_pairing_state=PairingState(row.pairing_state),
+            attempts=row.reconnect_attempts,
+            max_attempts=row.max_reconnect_attempts,
+        )
+        if decision is ReconnectDecision.CONNECTED:
+            return self._state_from_row(row)
+        if decision is not ReconnectDecision.RECONNECT:
+            raise ConflictError(f"Reconnect is not currently possible: {decision.value}.")
+
+        # `SessionManager.acquire_lock` refuses to lease a PAUSED session outright (a durable
+        # invariant, not a QR-07 choice) — a paused session must leave PAUSED before it can be
+        # driven. PAUSED -> INITIALIZING is legal without a lease (`channels:manage`), and puts
+        # the row in a leasable state for the actual reconnect attempt that follows.
+        if SessionState(row.state) is SessionState.PAUSED:
+            row = await self._session_manager.transition_session(
+                organization_id=organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(row.public_id),
+                expected_row_version=row.row_version,
+                target_state=SessionState.INITIALIZING,
+            )
+
+        lease = await self._session_manager.acquire_lock(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=uuidlib.UUID(row.public_id),
+            runtime_id=self._request_runtime_id(),
+            lease_seconds=self._lease_seconds(),
+            expected_row_version=row.row_version,
+        )
+        try:
+            snapshot = await self._adapter.reconnect_session(
+                self._provider_session_name(), lease=self._waha_lease(row, lease)
+            )
+            row = await self._apply_snapshot(
+                organization_id=organization_id,
+                actor=actor,
+                row=row,
+                lease_runtime_id=lease.holder_runtime_id,
+                fencing_token=lease.fencing_token,
+                snapshot=snapshot,
+                request_pairing=False,
+            )
+        except ChannelError as exc:
+            raise ServiceUnavailableError(
+                "WhatsApp couldn't be reached to reconnect. Try again in a moment."
+            ) from exc
+        finally:
+            await self._release(organization_id, actor, row, lease)
+        row = await self._refetch(organization_id, row)
+        return self._state_from_row(row)
+
+    # --- Logout (destructive, explicit) --------------------------------------------------------
+
+    async def logout(self, *, organization_id: int, actor: User, confirm: bool) -> WhatsAppQrState:
+        """Invalidate WhatsApp credentials. Requires explicit confirmation; never auto-triggered.
+
+        ``PairingState.PAIRED`` is terminal in the existing pairing state machine — by design, a
+        pairing attempt does not reverse, it retires (the same rule that requires a *new session
+        revision* to re-authenticate an expired one). Logout therefore does not try to walk the
+        current row backwards: it terminates this revision, recording that it was explicitly
+        logged out, and registers a fresh ``UNPAIRED`` revision for the same connection so a new
+        pairing attempt can begin. The returned identity is the new revision's.
+        """
+
+        if not confirm:
+            raise ConflictError("Logout requires explicit confirmation.")
+        row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
+        connection_id = row.connection_id
+        lease = await self._session_manager.acquire_lock(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=uuidlib.UUID(row.public_id),
+            runtime_id=self._request_runtime_id(),
+            lease_seconds=self._lease_seconds(),
+            expected_row_version=row.row_version,
+        )
+        try:
+            await self._adapter.logout_session(
+                self._provider_session_name(), lease=self._waha_lease(row, lease)
+            )
+            row = await self._session_manager.transition_session(
+                organization_id=organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(row.public_id),
+                expected_row_version=row.row_version,
+                target_state=SessionState.TERMINATED,
+                detail="Logged out by operator; credentials invalidated.",
+                runtime_id=lease.holder_runtime_id,
+                fencing_token=lease.fencing_token,
+            )
+        except ChannelError as exc:
+            # Do not claim a local "logged out" success we can't back up with a confirmed remote
+            # invalidation — the same honesty rule the rest of this module follows.
+            raise ServiceUnavailableError(
+                "WhatsApp couldn't be reached to log out. Try again in a moment."
+            ) from exc
+        finally:
+            await self._release(organization_id, actor, row, lease)
+
+        connection = await self._connections.get_by_id(connection_id)
+        assert connection is not None
+        new_row = await self._session_manager.register_session(
+            organization_id=organization_id,
+            actor=actor,
+            connection_public_id=uuidlib.UUID(connection.public_id),
+            capability_references=_SESSION_CAPABILITIES,
+        )
+        return self._state_from_row(new_row)
+
+    # --- Internal --------------------------------------------------------------------------
+
+    async def _reconcile(
+        self, *, organization_id: int, actor: User, row: ChannelSession
+    ) -> ChannelSession:
+        lease = await self._session_manager.acquire_lock(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=uuidlib.UUID(row.public_id),
+            runtime_id=self._request_runtime_id(),
+            lease_seconds=self._lease_seconds(),
+            expected_row_version=row.row_version,
+        )
+        try:
+            try:
+                snapshot = await self._adapter.session_snapshot(self._provider_session_name())
+            except ChannelTransportError:
+                return row
+            return await self._apply_snapshot(
+                organization_id=organization_id,
+                actor=actor,
+                row=row,
+                lease_runtime_id=lease.holder_runtime_id,
+                fencing_token=lease.fencing_token,
+                snapshot=snapshot,
+                request_pairing=False,
+            )
+        finally:
+            await self._release(organization_id, actor, row, lease)
+
+    async def _apply_snapshot(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        row: ChannelSession,
+        lease_runtime_id: str,
+        fencing_token: int,
+        snapshot: WahaSessionSnapshot,
+        request_pairing: bool,
+    ) -> ChannelSession:
+        """Apply one live snapshot to durable state, ordered so `PairingManager` never refuses.
+
+        `PairingManager` only accepts a pairing transition while the session is still
+        INITIALIZING/WAITING_FOR_PAIRING (Doc's own pairing-session-state guard). That makes the
+        ordering state-dependent rather than fixed:
+
+        * Reaching a *non-ACTIVE* session target (INITIALIZING, WAITING_FOR_PAIRING, ...) must
+          happen **before** the pairing step, because pairing may need that state to have already
+          arrived (e.g. requesting pairing needs INITIALIZING to exist first).
+        * Reaching ACTIVE must happen **after** the pairing step, because pairing can only land
+          (e.g. PAIRING_AVAILABLE -> PAIRED) while the session is still WAITING_FOR_PAIRING —
+          advancing to ACTIVE first would make that transition (correctly) refuse.
+        """
+        target_session_state, target_pairing_state = map_session_status(snapshot.status)
+        session_args = (organization_id, actor, lease_runtime_id, fencing_token)
+
+        if target_session_state is not SessionState.ACTIVE:
+            row = await self._advance_session(row, target_session_state, *session_args)
+            row = await self._advance_pairing(
+                row, target_pairing_state, request_pairing, *session_args
+            )
+        else:
+            row = await self._advance_pairing(
+                row, target_pairing_state, request_pairing, *session_args
+            )
+            row = await self._advance_session(row, target_session_state, *session_args)
+
+        row.provider_metadata_json = {
+            "provider_status": snapshot.status.value,
+            "identity": snapshot.identity,
+            "lid": snapshot.lid,
+            "push_name": snapshot.push_name,
+        }
+        row.health_state = "healthy" if snapshot.connected else "degraded"
+        row.health_observed_at = utcnow()
+        row.updated_by = actor.id
+        row.row_version += 1
+        await self._sessions.flush()
+        await self._session.commit()
+        return row
+
+    async def _advance_session(
+        self,
+        row: ChannelSession,
+        target: SessionState,
+        organization_id: int,
+        actor: User,
+        lease_runtime_id: str,
+        fencing_token: int,
+    ) -> ChannelSession:
+        current = SessionState(row.state)
+        if target is current or not self._can_advance_session(current, target):
+            return row
+        return await self._session_manager.transition_session(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=uuidlib.UUID(row.public_id),
+            expected_row_version=row.row_version,
+            target_state=target,
+            runtime_id=lease_runtime_id,
+            fencing_token=fencing_token,
+        )
+
+    async def _advance_pairing(
+        self,
+        row: ChannelSession,
+        target: PairingState | None,
+        request_pairing: bool,
+        organization_id: int,
+        actor: User,
+        lease_runtime_id: str,
+        fencing_token: int,
+    ) -> ChannelSession:
+        current = PairingState(row.pairing_state)
+
+        if request_pairing and current is PairingState.UNPAIRED:
+            row = await self._pairing_manager().transition_pairing(
+                organization_id=organization_id,
+                actor=actor,
+                session_public_id=uuidlib.UUID(row.public_id),
+                runtime_id=lease_runtime_id,
+                fencing_token=fencing_token,
+                expected_row_version=row.row_version,
+                target_state=PairingState.PAIRING_REQUESTED,
+            )
+            current = PairingState.PAIRING_REQUESTED
+
+        # Ambiguous live status (target is None) never overwrites durable truth — the QR-02/QR-06
+        # safety rule enforced at the one place that could regress it.
+        if target is None or target is current or not self._can_advance_pairing(current, target):
+            return row
+
+        expires_at = None
+        if target is PairingState.PAIRING_AVAILABLE:
+            ttl = self._runtimes.require(CONNECTOR_WAHA).pairing_ttl_seconds
+            expires_at = utcnow() + timedelta(seconds=ttl)
+        return await self._pairing_manager().transition_pairing(
+            organization_id=organization_id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id=lease_runtime_id,
+            fencing_token=fencing_token,
+            expected_row_version=row.row_version,
+            target_state=target,
+            expires_at=expires_at,
+        )
+
+    @staticmethod
+    def _can_advance_session(current: SessionState, target: SessionState) -> bool:
+        from app.channels.session import can_transition
+
+        return can_transition(current, target)
+
+    @staticmethod
+    def _can_advance_pairing(current: PairingState, target: PairingState) -> bool:
+        from app.channels.runtime import can_transition_pairing
+
+        return can_transition_pairing(current, target)
+
+    @staticmethod
+    def _waha_lease(row: ChannelSession, lease: object) -> WahaRuntimeLease:
+        """Translate the real M13-05 DB lease into the adapter's own lease proof (QR-06).
+
+        The adapter's :func:`~app.channels.waha.recovery.assert_lease_current` check is a
+        lightweight non-``None`` guard by design (see its own docstring) — the durable
+        enforcement is the DB lease this wraps, acquired moments earlier via
+        :meth:`SessionManager.acquire_lock`.
+        """
+        from app.channels.session import SessionLease
+
+        assert isinstance(lease, SessionLease)
+        return WahaRuntimeLease(
+            session_public_id=row.public_id,
+            runtime_id=lease.holder_runtime_id,
+            fencing_token=lease.fencing_token,
+        )
+
+    async def _release(
+        self, organization_id: int, actor: User, row: ChannelSession, lease: object
+    ) -> None:
+        from app.channels.session import SessionLease
+
+        assert isinstance(lease, SessionLease)
+        try:
+            fresh = await self._sessions.get_scoped(organization_id, uuidlib.UUID(row.public_id))
+            if fresh is None or fresh.holder_runtime_id != lease.holder_runtime_id:
+                return
+            await self._session_manager.release_lock(
+                organization_id=organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(row.public_id),
+                runtime_id=lease.holder_runtime_id,
+                fencing_token=lease.fencing_token,
+                expected_row_version=fresh.row_version,
+            )
+        except ConflictError:
+            # The lease already expired or moved on; nothing to release.
+            pass
+
+    def _pairing_manager(self) -> PairingManager:
+        from app.services.pairing_manager import PairingManager
+
+        return PairingManager(self._session, runtimes=self._runtimes)
+
+    async def _refetch(self, organization_id: int, row: ChannelSession) -> ChannelSession:
+        """Re-read a row after a service call that may have committed a new revision.
+
+        A small helper rather than repeating the null-check at every call site: the row is known
+        to exist (we just transitioned it), so the assertion documents that invariant once.
+        """
+        fresh = await self._sessions.get_scoped(organization_id, uuidlib.UUID(row.public_id))
+        assert fresh is not None
+        return fresh
+
+    def _state_from_row(self, row: ChannelSession) -> WhatsAppQrState:
+        session_state = SessionState(row.state)
+        pairing_state = PairingState(row.pairing_state)
+        metadata = row.provider_metadata_json or {}
+        provider_status = metadata.get("provider_status")
+        connected = session_state is SessionState.ACTIVE and pairing_state is PairingState.PAIRED
+        requires_reauth = pairing_state in _REAUTH_PAIRING
+
+        decision = plan_reconnect(
+            provider_status=None,  # status-agnostic pre-check; see reconnect() for the live plan
+            durable_pairing_state=pairing_state,
+            attempts=row.reconnect_attempts,
+            max_attempts=row.max_reconnect_attempts,
+        )
+        can_reconnect = session_state in (SessionState.PAUSED, SessionState.DEGRADED) and (
+            pairing_state is PairingState.PAIRED
+        )
+        blocked_reason = None if can_reconnect else decision.value
+
+        return WhatsAppQrState(
+            configured=True,
+            session_public_id=row.public_id,
+            row_version=row.row_version,
+            session_state=session_state,
+            pairing_state=pairing_state,
+            provider_status=provider_status,
+            connected=connected,
+            requires_reauthentication=requires_reauth,
+            healthy=row.health_state == "healthy",
+            health_detail=row.state_detail or f"Session state: {session_state.value}.",
+            can_reconnect=can_reconnect,
+            reconnect_blocked_reason=blocked_reason,
+            identity_masked=_mask_identity(metadata.get("identity")),
+            push_name=metadata.get("push_name"),
+            qr_available=pairing_state is PairingState.PAIRING_AVAILABLE,
+            updated_at=row.health_observed_at,
+        )
+
+    async def _current(
+        self, organization_id: int
+    ) -> tuple[ChannelSession | None, ChannelConnection | None]:
+        connections = await self._connections.list_scoped(organization_id)
+        connection = next((c for c in connections if c.connector_type == CONNECTOR_WAHA), None)
+        if connection is None:
+            return None, None
+        row = await self._sessions.get_current_for_connection(organization_id, connection.id)
+        return row, connection
+
+    async def _require_row(
+        self, organization_id: int, actor: User, *, permission: str
+    ) -> ChannelSession:
+        if not await self._available(organization_id, actor, require=permission):
+            raise NotFoundError("WhatsApp connection is not available for this organization.")
+        row, connection = await self._current(organization_id)
+        if row is None or connection is None:
+            raise NotFoundError("WhatsApp is not connected yet.")
+        return row
+
+    async def _available(self, organization_id: int, actor: User, *, require: str) -> bool:
+        if not self._provider_configured():
+            return False
+        if organization_id != self._organization_scope():
+            return False
+        if actor.organization_id != organization_id or not actor.is_active:
+            return False
+        snapshot = await self._flags.resolve(organization_id)
+        if not snapshot.is_enabled(OmnichannelFeatureFlag.QR_PROVIDER):
+            return False
+        if not snapshot.is_enabled(OmnichannelFeatureFlag.SESSIONS_READ):
+            return False
+        return await self._rbac.has_permissions(actor, {require})
+
+    async def _require_permission(self, actor: User, permission: str) -> None:
+        if not await self._rbac.has_permissions(actor, {permission}):
+            raise ForbiddenError("The actor cannot manage the WhatsApp QR connection.")
+
+    def _provider_configured(self) -> bool:
+        return self._adapter.configured and self._organization_scope() is not None
+
+    def _organization_scope(self) -> int | None:
+        from app.core.config import settings
+
+        return settings.waha_organization_id
+
+    def _provider_session_name(self) -> str:
+        return self._adapter.client.credentials.session
+
+    @staticmethod
+    def _lease_seconds() -> int:
+        return 60
+
+    @staticmethod
+    def _request_runtime_id() -> str:
+        return f"api:whatsapp-qr:{uuidlib.uuid4()}"

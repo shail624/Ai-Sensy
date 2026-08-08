@@ -5434,6 +5434,187 @@
         }
       }
     },
+    "/api/v1/channels/whatsapp-qr/session": {
+      "get": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Get WhatsApp QR connection status",
+        "operationId": "get_session_status_api_v1_channels_whatsapp_qr_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/connect": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Start a WhatsApp QR connection",
+        "operationId": "connect_api_v1_channels_whatsapp_qr_session_connect_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/pair": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Begin pairing and request a QR",
+        "operationId": "begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/qr": {
+      "get": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Fetch the current transient QR image",
+        "operationId": "get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "image/png": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/reconnect": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Reconnect a paired session",
+        "operationId": "reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/logout": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Log out — invalidates WhatsApp credentials and requires a new scan",
+        "operationId": "logout_api_v1_channels_whatsapp_qr_session_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppQrLogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/templates": {
       "get": {
         "tags": [
@@ -29020,6 +29201,181 @@
           "config"
         ],
         "title": "WebhookNode"
+      },
+      "WhatsAppQrLogoutRequest": {
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "description": "Must be true. Logout invalidates WhatsApp credentials and requires a new scan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "WhatsAppQrLogoutRequest",
+        "description": "Explicit confirmation required before an irreversible logout."
+      },
+      "WhatsAppQrStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "Whether a WhatsApp QR connection is available to configure/operate."
+          },
+          "session_public_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Public Id",
+            "description": "Durable session identifier once a connection has been started."
+          },
+          "row_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Version",
+            "description": "Optimistic-concurrency version."
+          },
+          "session_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session State",
+            "description": "Provider-neutral session lifecycle (SessionState)."
+          },
+          "pairing_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pairing State",
+            "description": "Provider-neutral pairing lifecycle (PairingState), or null when the provider's current status cannot determine it (e.g. mid-transition)."
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status",
+            "description": "Informational only: the raw provider status last observed. Not authoritative."
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "Whether this WhatsApp session can carry traffic now."
+          },
+          "requires_reauthentication": {
+            "type": "boolean",
+            "title": "Requires Reauthentication",
+            "description": "Whether only a fresh scan can resolve the current state."
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "Healthy",
+            "description": "Session-level health — never server-only reachability."
+          },
+          "health_detail": {
+            "type": "string",
+            "title": "Health Detail",
+            "description": "Human-readable, secret-free health explanation."
+          },
+          "can_reconnect": {
+            "type": "boolean",
+            "title": "Can Reconnect",
+            "description": "Whether a reconnect action is currently safe."
+          },
+          "reconnect_blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconnect Blocked Reason",
+            "description": "Why reconnect is unavailable right now, when can_reconnect is false."
+          },
+          "identity_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Masked",
+            "description": "Paired account identity with digits partly masked."
+          },
+          "push_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push Name",
+            "description": "Paired account display name."
+          },
+          "qr_available": {
+            "type": "boolean",
+            "title": "Qr Available",
+            "description": "Whether GET /whatsapp/qr will currently return an image."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "When this status was last reconciled against the provider."
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "connected",
+          "requires_reauthentication",
+          "healthy",
+          "health_detail",
+          "can_reconnect",
+          "qr_available"
+        ],
+        "title": "WhatsAppQrStatus",
+        "description": "Current WhatsApp QR connection status for the caller's organization.\n\n``configured=False`` covers every reason the screen has nothing to operate on — WAHA\nunconfigured, the organization not assigned, feature flags disabled — collapsed into one\nhonest \"not available\" signal rather than distinguishing operator-irrelevant deployment detail."
       },
       "WindowState": {
         "properties": {

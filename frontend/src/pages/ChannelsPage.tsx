@@ -1,7 +1,10 @@
-import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
+import { QrCode } from "lucide-react";
+import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
+import { Button } from "@/components/ui";
 import { CHANNEL_SECTIONS } from "@/features/channels";
+import { useHasPermission } from "@/lib/auth";
 
 /** `/channels` has no content of its own — accounts are the way in. */
 export function ChannelsIndexRedirect(): JSX.Element {
@@ -19,6 +22,7 @@ export function ChannelsPage(): JSX.Element {
   const active = CHANNEL_SECTIONS.find((section) =>
     location.pathname.startsWith(section.path),
   );
+  const canOperateQr = useHasPermission("channels:read");
 
   return (
     <PageContainer>
@@ -34,6 +38,15 @@ export function ChannelsPage(): JSX.Element {
         description={
           active?.description ??
           "Connected accounts, their phone numbers, and the health of both."
+        }
+        actions={
+          canOperateQr ? (
+            <Link to="/channels/whatsapp-qr">
+              <Button variant="secondary" leftIcon={<QrCode aria-hidden className="h-4 w-4" />}>
+                Scan to connect
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 

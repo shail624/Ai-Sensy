@@ -67,6 +67,7 @@ const TemplateDetailPage = lazyNamed(() => import("@/pages/TemplateDetailPage"),
 const TemplateEditPage = lazyNamed(() => import("@/pages/TemplateEditPage"), "TemplateEditPage");
 const TemplatesPage = lazyNamed(() => import("@/pages/TemplatesPage"), "TemplatesPage");
 const WabaDetailPage = lazyNamed(() => import("@/pages/WabaDetailPage"), "WabaDetailPage");
+const WhatsAppQrPage = lazyNamed(() => import("@/pages/WhatsAppQrPage"), "WhatsAppQrPage");
 
 const ApiKeysPanel = lazyNamed(() => import("@/features/admin"), "ApiKeysPanel");
 const AuditPanel = lazyNamed(() => import("@/features/admin"), "AuditPanel");
@@ -256,6 +257,13 @@ export const router = createBrowserRouter([
               { path: "accounts/:wabaId", element: lazyElement(WabaDetailPage) },
               { path: "numbers/:numberId", element: lazyElement(NumberDetailPage) },
             ],
+          },
+          {
+            // WAHA (QR-01..07) is gated on `channels:*`, not `waba:*` — a distinct provider under
+            // ADR-0021 Class B, separate from the Meta Cloud API connection above, so it sits
+            // outside that shell's gate rather than inheriting `waba:read`.
+            path: "channels/whatsapp-qr",
+            element: <RequirePermission code="channels:read">{lazyElement(WhatsAppQrPage)}</RequirePermission>,
           },
           {
             // Leads reuse the CRM permissions rather than defining their own: `contacts:read` to

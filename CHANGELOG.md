@@ -11,6 +11,76 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-07: WhatsApp Scan/Connect interface
+
+**Added**
+- `backend/app/services/whatsapp_qr_service.py` — bridges the live WAHA adapter (QR-01..06) to the
+  existing M13-03/04/05 durable connection/session/pairing control plane
+  (`ChannelConnectionService`, `SessionManager`, `PairingManager`). Single-organization scope per
+  ADR-0021 (`WAHA_ORGANIZATION_ID`); creates no new table.
+- `backend/app/api/v1/endpoints/whatsapp_qr.py` — 6 routes under `/channels/whatsapp-qr`: session
+  status, connect, pair, QR image (binary, `Cache-Control: no-store, private`), reconnect, logout
+  (requires `{"confirm": true}`). Gated on the existing `channels:read`/`channels:authenticate`
+  permissions; no RBAC catalog change.
+- `backend/app/schemas/whatsapp_qr.py` — provider-neutral response contract. No WAHA credential,
+  session secret or QR byte ever appears in a JSON field.
+- WAHA runtime registration is now wired into `get_channel_foundation()` — the QR-06 opt-in entry
+  point — gated on `WAHA_BASE_URL`/`WAHA_API_KEY`/`WAHA_SESSION_NAME` all being set. An
+  unconfigured deployment still registers nothing (asserted by test).
+- `frontend/src/features/whatsapp-qr/` — the operator-facing Scan/Connect screen: live status
+  polling (adaptive rate), QR image as an in-memory object URL (never cached, never persisted),
+  connect/pair/reconnect actions, and an explicit two-step logout confirmation. New route
+  `/channels/whatsapp-qr` (own `channels:read` gate, distinct from the Meta `waba:read` shell),
+  linked from the existing Channels page header.
+- 30 new hermetic backend tests (`tests/test_whatsapp_qr.py`) and 23 new frontend tests
+  (`whatsapp-qr.test.tsx`).
+
+**Behaviour**
+- **STARTING stays ambiguous through the UI, not just the backend.** The frontend's own view-state
+  derivation refuses to call a `STARTING` provider status "connecting" unless durable
+  `pairing_state` is already `paired` — otherwise it reads as "creating session", mirroring
+  QR-02/QR-06 exactly rather than re-deriving the rule loosely in presentation code.
+- **Pairing transitions are ordered around a real M13-05 constraint discovered while building
+  this**: `PairingManager` only accepts a pairing transition while the session is still
+  `INITIALIZING`/`WAITING_FOR_PAIRING`. Reaching `ACTIVE` must therefore happen *after* the pairing
+  step lands, not before — the service now orders session/pairing transitions conditionally rather
+  than in a fixed sequence.
+- **`PairingState.PAIRED` is terminal**, by existing M13-05 design (the same rule that requires a
+  new session revision to re-authenticate an `EXPIRED` one). Logout does not try to reverse a paired
+  revision in place — it terminates it and registers a fresh `UNPAIRED` revision on the same
+  connection, changing the session identity the caller sees. This is the correct signal, not an
+  artefact.
+- **`SessionManager.acquire_lock` refuses to lease a `PAUSED` session** (an existing invariant).
+  Reconnect therefore moves `PAUSED → INITIALIZING` through the lease-free write path
+  (`channels:manage`) before acquiring a lease and driving the actual reconnect.
+- **The QR image is never persisted.** Fetched fresh per request from the adapter, served with
+  `Cache-Control: no-store, private`, held client-side only as a revoked-on-replace object URL.
+- **Every mutating action holds the real M13-05 database lease**, not a bespoke lock — a second
+  request racing a mutation gets the existing "lease held by another active runtime" conflict.
+- **No QR-08 leakage.** No Unified Inbox integration, no history/media sync, no
+  interactive/reaction/location/contact. `BULK`/`CAMPAIGNS`/`TEMPLATE` remain permanently
+  prohibited.
+
+**Known limitation**
+- Retrying an **expired, never-scanned** QR reuses the pairing-request path, which the certified
+  provider correctly refuses once its own session object already exists (`ChannelApiError`,
+  observed and asserted in QR-03's own suite). The UI surfaces that real error rather than hiding
+  it; a dedicated provider-side session restart is not implemented in this milestone. Recorded here
+  rather than silently left for someone to rediscover.
+
+**Unchanged**
+- Migration head `0042_scope_provider_message_identity` (43 revisions — QR-07 reuses the *existing*
+  `channel_connections`/`channel_sessions` tables from M13-03/04, no new migration). RBAC catalog
+  (`channels:read`/`channels:manage`/`channels:authenticate`/`channels:diagnose` already existed
+  from M13-05). Meta behaviour and `BULK`/`CAMPAIGNS`/`TEMPLATE` prohibition.
+
+**OpenAPI**
+- **200 → 206 paths.** The six new routes are QR-07's first public surface over the pairing
+  control plane; two pre-existing invariant tests that asserted an exact path count of 200 were
+  updated to 206 with an explanatory comment, since QR-07 explicitly authorizes this — the
+  assertion that no *secret*-shaped field (`qr_payload`, `pairing_secret`, `pairing_reason_code`)
+  ever appears is preserved unchanged.
+
 ### 2026-08-08 — QR-06: WAHA session recovery, health and teardown
 
 **Added**

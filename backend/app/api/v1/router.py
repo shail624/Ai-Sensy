@@ -39,6 +39,7 @@ from app.api.v1.endpoints import (
     vi_domain,
     waba,
     webhooks,
+    whatsapp_qr,
 )
 
 api_router = APIRouter()
@@ -75,6 +76,10 @@ api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])
 api_router.include_router(webhooks.router, tags=["Webhooks"])
 # Module 4 — outbound send + message reads (Doc 04 §18.2).
 api_router.include_router(messages.router, tags=["Messaging"])
+# QR-07 — WhatsApp Scan/Connect over the WAHA adapter (QR-01..06) and the existing M13-03/04/05
+# session/pairing control plane. Single-organization scope (ADR-0021); no secret ever crosses
+# this boundary and no QR byte is ever persisted.
+api_router.include_router(whatsapp_qr.router, tags=["WhatsApp QR Connection"])
 
 # Module 5 — template registry (Doc 04 §15; Doc 03 §7.1).
 api_router.include_router(templates.router, tags=["Templates"])

@@ -514,8 +514,11 @@ async def test_pairing_lifecycle_is_runtime_owned_persisted_and_no_store(
     from app.main import create_app
 
     openapi = json.dumps(create_app().openapi())
-    assert len(create_app().openapi()["paths"]) == 200
-    assert "pairing_state" not in openapi
+    # QR-07 intentionally builds the first public surface over this pairing state machine
+    # (`/channels/whatsapp-qr/*`, 6 routes) — the path count and `pairing_state` appearing are
+    # therefore expected from this milestone on, not a regression. What must still never appear
+    # is a raw secret shape: no QR bytes, no provider credential, no internal reason code.
+    assert len(create_app().openapi()["paths"]) == 206
     assert "qr_payload" not in openapi
     assert "pairing_secret" not in openapi
     assert "pairing_reason_code" not in openapi

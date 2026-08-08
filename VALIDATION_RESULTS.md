@@ -7,6 +7,32 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-07 — WhatsApp Scan/Connect interface
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Real BFF, not a stub | PASS | `WhatsAppQrService` drives the real WAHA adapter (QR-01..06) and the real `ChannelConnectionService`/`SessionManager`/`PairingManager` — no mock provider path in production code. |
+| No new persistence | PASS | Reuses `channel_connections`/`channel_sessions` from M13-03/04; migration head unchanged at `0042` (43 revisions). |
+| RBAC / tenant scoping | PASS | Routes gated on `channels:read`/`channels:authenticate` (pre-existing catalog entries, no migration). A different organization than `WAHA_ORGANIZATION_ID` receives the same `configured=false` as an unconfigured deployment — existence is never confirmed to a caller who does not own it. |
+| No secret crosses the boundary | PASS | `WhatsAppQrStatus` carries no WAHA API key, HMAC secret, or QR byte; identity is pre-masked server-side. The QR image is a separate binary response, `Cache-Control: no-store, private, max-age=0`. |
+| QR never persisted | PASS | Fetched fresh from the adapter per request; the frontend holds it only as a `URL.createObjectURL` object URL, revoked on refresh/unmount, never written to any store. |
+| STARTING ambiguity preserved end-to-end | PASS | The service's read-repair only advances `pairing_state` when the live mapping is non-`None` and legal; the frontend's `deriveViewState` separately refuses to call `STARTING` "connecting" unless durable `pairing_state` is already `paired`. Both layers independently honour the QR-02/QR-06 rule. |
+| Pairing/session transition ordering | PASS | A real M13-05 constraint (`PairingManager` requires `INITIALIZING`/`WAITING_FOR_PAIRING`) is respected by ordering pairing before session-state whenever the target is `ACTIVE`, and after otherwise; both orders are exercised by the certified-body fixture flow. |
+| Logout is destructive-explicit and correctly modelled | PASS | Requires `{"confirm": true}`; terminates the paired revision (`PairingState.PAIRED` is terminal by existing design) and registers a fresh `UNPAIRED` revision — asserted to produce a new `session_public_id` and to leave the old row's history (`TERMINATED`/`PAIRED`) queryable, not rewritten. |
+| Reconnect eligibility | PASS | `can_reconnect` requires durable `PAIRED` **and** a live `PAUSED`/`DEGRADED` observation; an unpaired session is asserted to refuse reconnect (`ConflictError`) rather than auto-restart into an unrequested QR. |
+| PAUSED lease constraint handled | PASS | `SessionManager.acquire_lock` refuses a `PAUSED` session (existing invariant, not introduced here); reconnect moves it to `INITIALIZING` via the lease-free write path first, then leases normally. |
+| Lease reuse, not reinvention | PASS | Every mutating action acquires/releases the real `SessionManager` DB lease; a concurrent claim on the same session is asserted to raise the existing `ConflictError`. |
+| Frontend: 12 required states | PASS | `deriveViewState` unit-tested for all 12 (not-configured, ready-to-connect, creating-session ×2, qr-available, qr-expired, connecting, connected — priority-checked over stale flags, reconnect-available, provider-unavailable, reauth-required); rendering asserted for not-configured, connect action, qr-available (real `<img>`, not a placeholder), qr-expired retry, connected + logout, reconnect action, reauth-required, permission-denied, read-only actor (no action buttons), and that a QR image is never rendered outside `qr_available`. |
+| Logout confirmation is a real gate | PASS | Asserted: opening the dialog does not call the API; cancelling does not call the API; only the in-dialog confirm button (disambiguated via `within(dialog)`) does. |
+| Backend suite | PASS | **1364 passed**, 0 skipped (0 failed; two pre-existing OpenAPI-path-count invariants updated from 200→206 with rationale, since QR-07 explicitly authorizes new public routes). |
+| Backend ruff / mypy | PASS | `ruff check app tests scripts ../scripts` clean; `mypy app` — no issues in 300 source files. |
+| Frontend typecheck / lint / tests | PASS | `tsc --noEmit` clean; `eslint .` clean; **789 passed** (766 before; +23), 0 failed. |
+| Frontend build | PASS | Production build succeeds; `WhatsAppQrPage` is its own lazy chunk (13.31 kB / 4.24 kB gzip), not inlined into the main bundle. |
+| OpenAPI | PASS (changed, authorized) | **200 → 206 paths.** `openapi.json` regenerated and verified fresh (`export_openapi.py --check`); frontend client regenerated (`npm run gen:api`). |
+| Migration graph | PASS (unchanged) | 43 revisions, head `0042_scope_provider_message_identity`. |
+| Known limitation disclosed | PASS | Retrying an expired, never-scanned QR surfaces the provider's real "already exists" error rather than a fabricated retry success; recorded in CHANGELOG rather than hidden. |
+
+
 ## QR-06 — WAHA session recovery, health and teardown
 
 | Validation item | Status | Latest evidence |

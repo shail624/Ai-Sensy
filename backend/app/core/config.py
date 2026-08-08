@@ -180,6 +180,12 @@ class Settings(BaseSettings):
     #: Session this deployment sends through — the endpoint scope for sends, acknowledgement
     #: correlation and reconcile lookups. Empty by default; a send without one fails closed.
     waha_session_name: str = ""
+    #: The single organization permitted to view or operate the WAHA QR connection surface
+    #: (QR-07). ADR-0021 §"Deployment scope": WAHA is internal, self-hosted, **single
+    #: organization** — not multi-tenant SaaS — so this is a scope, not a per-tenant secret
+    #: store. ``None`` (the default) means every organization sees the QR surface as
+    #: unconfigured, which is the safe default for a deployment that has not assigned it.
+    waha_organization_id: int | None = None
 
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
     # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not

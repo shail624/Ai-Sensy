@@ -85,8 +85,13 @@ monotonic `messages` status authority rather than adding a second ordering.
 QR-06 (session recovery, health and teardown) is also delivered, reusing the existing session
 lease/fencing authority rather than adding a second runtime ownership system.
 
+QR-07 (WhatsApp Scan/Connect interface) is delivered: the first real operator UI over the WAHA
+adapter, bridging it to the existing M13-03/04/05 connection/session/pairing control plane. This is
+also the first milestone in the QR sequence to add public API routes (OpenAPI 200 → 206 paths),
+which is expected and authorized at this stage rather than a drift regression.
+
 Still not started, and still requiring their own milestones: provider history retrieval and
-media-byte transfer/processing, and all UI (QR-07/QR-08).
+media-byte transfer/processing, and QR-08 (Unified Inbox integration).
 
 ## Phase 0 — Governance and scope lock
 
