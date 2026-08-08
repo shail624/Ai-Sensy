@@ -622,3 +622,198 @@ def test_get_channel_foundation_registers_waha_only_when_fully_configured(
     configured = get_channel_foundation()
     assert configured.runtimes.available() == (CONNECTOR_WAHA,)
     get_channel_foundation.cache_clear()
+
+
+# --- QR-09-D2: provider reachable, configured session absent ---------------------------------
+#
+# QR-09 reproduced this against the real pinned WAHA container: restarting the provider without
+# persistent session storage leaves it up and answering, but holding no session under the
+# configured name. Every status read then returned HTTP 500, so the operator could not even load
+# the screen they needed in order to recover. These tests pin the corrected behaviour.
+
+_SESSION_NOT_FOUND_BODY = {
+    "message": "Session not found",
+    "error": "Not Found",
+    "statusCode": 404,
+}
+
+
+def _session_absent_adapter(*, before: list[dict] | None = None) -> WahaChannelAdapter:
+    """Answers each `before` body once, then 404s every session read.
+
+    Models the real provider timeline: the session existed, the provider restarted, and the same
+    GET now returns the provider's genuine "Session not found".
+    """
+    remaining = list(before or [])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/api/sessions":
+            return httpx.Response(201, json=CREATE_BODY)
+        if remaining:
+            return httpx.Response(200, json=remaining.pop(0))
+        return httpx.Response(404, json=_SESSION_NOT_FOUND_BODY)
+
+    return _adapter(handler)
+
+
+@pytest.mark.anyio
+async def test_session_absent_is_not_reported_as_provider_unavailable(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reachable provider holding no session is a different fact from an unreachable one.
+
+    Reporting `provider_unavailable` here would tell the operator to wait out an outage that is
+    not happening, and would hide the action that actually resolves it.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-absent@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service = _service(db_session, providers, runtimes, _session_absent_adapter())
+    await service.connect(organization_id=organization.id, actor=actor)
+    state = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.provider_session_missing is True
+    assert state.reconnect_blocked_reason == "provider_session_missing"
+    assert state.connected is False
+    assert state.healthy is False
+    assert state.can_reconnect is False
+    assert state.qr_available is False
+
+
+@pytest.mark.anyio
+async def test_session_absent_on_a_fresh_connection_is_not_a_reauthentication(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing was ever paired, so this is the ordinary connect-and-scan path, not a re-auth."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-fresh@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service = _service(db_session, providers, runtimes, _session_absent_adapter())
+    await service.connect(organization_id=organization.id, actor=actor)
+    state = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.provider_session_missing is True
+    assert state.requires_reauthentication is False
+    assert "scan the QR code" in state.health_detail
+
+
+@pytest.mark.anyio
+async def test_session_absent_after_pairing_requires_reauth_but_keeps_durable_truth(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A paired account whose provider session vanished genuinely needs a fresh scan.
+
+    The durable pairing record remains the platform's own truth about what was linked, so it must
+    survive the observation unchanged — the projection reports the divergence rather than erasing
+    history.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-paired@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    _, paired, _ = await _reach_paired(db_session, providers, runtimes, organization, actor)
+    assert paired.pairing_state is PairingState.PAIRED
+
+    after_restart = _service(db_session, providers, runtimes, _session_absent_adapter())
+    state = await after_restart.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.provider_session_missing is True
+    assert state.requires_reauthentication is True
+    assert state.connected is False
+    assert "paired again" in state.health_detail
+    assert state.pairing_state is PairingState.PAIRED
+
+
+@pytest.mark.anyio
+async def test_session_absent_does_not_recreate_a_session_or_request_a_qr(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading status must never be a write: no session creation, no pairing, no QR fetch."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-noside@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}")
+        if request.method == "POST" and request.url.path == "/api/sessions":
+            return httpx.Response(201, json=CREATE_BODY)
+        return httpx.Response(404, json=_SESSION_NOT_FOUND_BODY)
+
+    service = _service(db_session, providers, runtimes, _adapter(handler))
+    await service.connect(organization_id=organization.id, actor=actor)
+    calls.clear()
+
+    await service.get_status(organization_id=organization.id, actor=actor)
+    await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert not [c for c in calls if c.startswith("POST")], f"status read wrote: {calls}"
+    assert not [c for c in calls if "auth/qr" in c], f"status read fetched a QR: {calls}"
+
+
+@pytest.mark.anyio
+async def test_reconnect_refuses_when_the_provider_has_no_session(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QR-06 restarts an *existing* session; there is none, so reconnect refuses truthfully."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-reconnect@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    await _reach_paired(db_session, providers, runtimes, organization, actor)
+    after_restart = _service(db_session, providers, runtimes, _session_absent_adapter())
+
+    with pytest.raises(ConflictError):
+        await after_restart.reconnect(organization_id=organization.id, actor=actor)
+
+
+@pytest.mark.anyio
+async def test_provider_unreachable_is_still_an_outage_not_a_missing_session(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QR-06's outage semantics are untouched: unreachable stays unreachable, never 'gone'."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-outage@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    await _reach_paired(db_session, providers, runtimes, organization, actor)
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    outage = _service(db_session, providers, runtimes, _adapter(down))
+    state = await outage.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.provider_session_missing is False
+    assert state.reconnect_blocked_reason != "provider_session_missing"
+    assert state.pairing_state is PairingState.PAIRED
+
+
+@pytest.mark.anyio
+async def test_session_absent_state_leaks_no_credential_url_or_traceback(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The recoverable message is operator-facing prose, never provider internals."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09a-secret@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service = _service(db_session, providers, runtimes, _session_absent_adapter())
+    await service.connect(organization_id=organization.id, actor=actor)
+    state = await service.get_status(organization_id=organization.id, actor=actor)
+
+    rendered = f"{state.health_detail} {state.reconnect_blocked_reason}"
+    assert CREDS.api_key not in rendered
+    assert "waha.internal" not in rendered
+    assert "404" not in rendered
+    assert "Traceback" not in rendered

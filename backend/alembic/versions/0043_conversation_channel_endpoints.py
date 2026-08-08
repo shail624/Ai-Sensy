@@ -103,9 +103,22 @@ def downgrade() -> None:
         batch.drop_column("channel_endpoint_id")
         batch.alter_column("phone_number_id", existing_type=big_id(), nullable=False)
 
-    op.drop_index("uq_conv_endpoint_contact", table_name="conversations")
+    # Order matters here, and it is not the mirror image of ``upgrade()``.
+    #
+    # ``uq_conv_endpoint_contact`` leads with ``channel_endpoint_id``, which makes it the index
+    # InnoDB elects to satisfy ``fk_conv_channel_endpoint``'s mandatory supporting index. MySQL
+    # therefore refuses to drop it while that foreign key still exists:
+    # ``(1553) Cannot drop index 'uq_conv_endpoint_contact': needed in a foreign key constraint``.
+    # The constraint has to be released before the index it is borrowing, so every drop below
+    # happens inside one batch, in dependency order: check -> foreign key -> index -> column.
+    #
+    # This is not cosmetic. MySQL DDL is not transactional, so a downgrade that fails midway
+    # leaves the schema partially reverted while ``alembic_version`` still reports this revision —
+    # a state matching neither revision. Covered by an up/down/up regression against real MySQL in
+    # ``tests/test_migrations_mysql.py``.
     with op.batch_alter_table("conversations") as batch:
         batch.drop_constraint("ck_conv_endpoint_owner", type_="check")
         batch.drop_constraint("fk_conv_channel_endpoint", type_="foreignkey")
+        batch.drop_index("uq_conv_endpoint_contact")
         batch.drop_column("channel_endpoint_id")
         batch.alter_column("phone_number_id", existing_type=big_id(), nullable=False)

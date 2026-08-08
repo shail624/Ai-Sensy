@@ -7,6 +7,66 @@
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
 
+## QR-09A — Production Validation Remediation
+
+**Milestone status: `QR-09A — Production Validation Remediation — REPOSITORY VALIDATED`.** Fixes
+exactly the blockers QR-09 recorded. **QR-09 itself stays `PARTIAL (BLOCKED)`** — the evidence below
+shows the causes are repaired, not that the external validation gates QR-09 could not reach have
+since been satisfied. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| D1 — `0043` downgrade on real MySQL | PASS | `alembic downgrade 0043 → 0042` succeeds on real MySQL 8.0.46. All conversation-side drops now run in one batch in dependency order (check → foreign key → index → column), releasing `fk_conv_channel_endpoint` before the `uq_conv_endpoint_contact` index InnoDB borrows for it. |
+| D1 — up/down/up round trip with data | PASS | `test_qr08_revision_survives_upgrade_downgrade_upgrade_on_real_mysql`: clean DB → `0042` → seed a representative Meta WABA/number/contact/conversation/message → `0043` (rows byte-for-byte identical, `channel_endpoint_id` NULL — no invented backfill) → downgrade → upgrade again. |
+| D1 — no partially-applied schema remains | PASS | After downgrade, asserted directly against `information_schema`: `channel_endpoint_id` absent from all three tables; `uq_conv_endpoint_contact`, `ix_msg_channel_endpoint_wamid`, `ix_whe_endpoint` absent; `ck_conv_endpoint_owner` and `fk_conv_channel_endpoint` absent. |
+| D1 — version truthful after each transition | PASS | `alembic_version` asserted at `0042` after downgrade and `0043` after each upgrade — the state that was previously left lying (version `0043` over a half-reverted schema). |
+| D1 — no new migration introduced | PASS | Head remains `0043_conversation_channel_endpoints`; **44 revisions, unchanged**. Only the broken `downgrade()` body changed; the revision id, `upgrade()` and resulting schema are untouched, so nothing already applied is rewritten. |
+| D1 — hermetic SQLite coverage retained | PASS | `tests/test_migrations.py` unchanged and passing; SQLite batch mode rebuilds the table and never reproduced this, which is why the new regression is asserted against a real server. |
+| D2 — provider up + session absent returns a real state | PASS | Reproduced live against the real pinned WAHA container: provider `/api/server/version` `200`, its session deleted, provider answering `{"message":"Session not found","statusCode":404}`. `GET /channels/whatsapp-qr/session` returned **HTTP 200** with `provider_session_missing: true`. QR-09 recorded HTTP 500 on 30/30 calls. |
+| D2 — not misreported as an outage | PASS | `reconnect_blocked_reason` is `provider_session_missing`, never `provider_unavailable`; `test_session_absent_is_not_reported_as_provider_unavailable`. |
+| D2 — genuine outage semantics preserved (QR-06) | PASS | `test_provider_unreachable_is_still_an_outage_not_a_missing_session`: a transport failure still preserves durable `PAIRED` truth and does **not** set `provider_session_missing`. |
+| D2 — durable pairing truth never destroyed | PASS | `test_session_absent_after_pairing_requires_reauth_but_keeps_durable_truth`: the row still reports `pairing_state = paired` after the observation; the divergence is projected, not persisted. |
+| D2 — credentials-lost vs never-paired distinguished | PASS | Previously paired → `requires_reauthentication: true` and "must be paired again"; fresh connection → `requires_reauthentication: false` and the ordinary connect-and-scan copy. |
+| D2 — no destructive or silent side effects | PASS | `test_session_absent_does_not_recreate_a_session_or_request_a_qr` fails if a status read issues **any** POST or touches `auth/qr`. No automatic session recreation, no silent pairing, no QR fetch. |
+| D2 — reconnect refuses truthfully | PASS | Live: `POST /session/reconnect` → **409** "WhatsApp no longer has this connection's session…". QR-06 restarts an existing session; there is none to restart. `test_reconnect_refuses_when_the_provider_has_no_session`. |
+| D2 — no provider internals leaked | PASS | `test_session_absent_state_leaks_no_credential_url_or_traceback`: no API key, no internal WAHA URL, no `404`, no traceback in the operator-facing detail. |
+| D2 — UI shows a truthful recoverable state | PASS | `deriveViewState` previously returned `creating-session` for this state, rendering "Starting the session…" — false progress. Now `ready-to-connect`, carrying the server's own explanation and the "Connect WhatsApp" action. Three new frontend tests, including one asserting it is **not** `provider-unavailable`. |
+| D3 — oversized body is a client error | PASS | Live: a 1,050,702-byte signed delivery returned **HTTP 413** (`payload_too_large`), where QR-09 recorded 500. Matters operationally: WAHA retries a `5xx`, so the old answer looped redelivery forever. |
+| D3 — bound still enforced before hashing | PASS | Unchanged QR-04 behaviour; `test_oversized_waha_delivery_persists_nothing` asserts zero `webhook_events` and zero `messages` rows. |
+| D3 — no body echoed | PASS | `test_oversized_waha_delivery_echoes_no_body_content`; verified live that the response contains no payload content. |
+| D3 — normal and forged deliveries unchanged | PASS | Live and unit: valid HMAC → `200`, invalid HMAC → `403`. |
+| G1 — OpenAPI drift gate | PASS | `scripts/export_openapi.py --check` reports up to date; `scripts/quality_gate.py static` passes **all six steps** including the OpenAPI drift step that was red. Artifact regenerated through the canonical exporter — not hand-edited. |
+| G1 — no route or schema drift | PASS | **207 paths, unchanged.** Added routes: none. Removed routes: none. Added/removed component schemas: none. The only delta is D2's additive `provider_session_missing` property on `WhatsAppQrStatus`. |
+| G1 — generated client synchronized | PASS | `npm run gen:api` regenerated `schema.d.ts`; the diff is the single corresponding property. |
+| G1 — no dependency pinned or upgraded for this | PASS | FastAPI/Pydantic untouched. The cause was the committed artifact's `ensure_ascii=True` encoding versus the exporter's `ensure_ascii=False`, not resolver behaviour. |
+| G1 — stale explanation corrected, not erased | PASS | The inaccurate "key-order / unpinned resolver" text in `PROJECT_STATE.md` and `VALIDATION_RESULTS.md` is **annotated** in place, preserving the historical record per `REPOSITORY_RULES.md`. |
+| I1 — WAHA service defined | PASS | Added to `docker-compose.yml` and `docker-compose.production.yml`, both behind a `waha` profile so the default stack is unchanged (`docker compose config --services` → `mysql redis`; with `--profile waha` → `mysql redis waha`). |
+| I1 — exact certified digest, not a tag | PASS | `devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`; the running container's image id was verified to equal it. |
+| I1 — NOWEB pinned | PASS | `WHATSAPP_DEFAULT_ENGINE: NOWEB` set explicitly rather than relying on an image default; the adapter fails closed on any other engine. |
+| I1 — not publicly exposed in production | PASS | Production `waha` declares **no `ports:`**; rendered production config shows the only port-publishing service is `nginx`. Development binds `127.0.0.1` only. |
+| I1 — persistent session storage | PASS | `waha-sessions` → `/app/.sessions`, verified on the running container. Path established empirically against this digest: `noweb/waha.sqlite3` (session registry) and `noweb/<session>/` (per-session store/config). |
+| I1 — restart preserves the provider session | PASS | Real `docker compose restart waha` with the volume: session `default` still present afterwards and the app status endpoint returned `200`. Control (same image, no volume, recreated) returned `404 Session not found` — the exact QR-09-D2 condition, confirming the volume is what closes it. |
+| I1 — credentials survive a real pairing | PENDING – Host Machine Validation | Only **pre-pairing** session persistence was demonstrated. Proving that scanned WhatsApp credentials survive a restart requires a physical handset; not simulated, not claimed. |
+| I1 — secrets via existing mechanism | PASS | `WAHA_API_KEY` and `WAHA_WEBHOOK_HMAC_SECRET` come from the environment/secret store like every other credential; production requires the API key when the profile is enabled. Nothing hardcoded. |
+| I1 — disabled by default | PASS | Backend WAHA settings default to empty in production compose; with them unset the adapter reports `configured=false` and registers no runtime, so a deployment that has not adopted the channel is unaffected. |
+| I1 — healthcheck / restart policy | PASS | `/health` probe with a start period; `restart: unless-stopped`, matching the other services. |
+| I1 — operator documentation | PASS | `deploy/DEPLOYMENT.md` §15: topology table, why the volume is not optional, per-failure-mode operator procedures (outage vs session-gone vs paused vs deliberate logout), backup entry for `waha-sessions`, and disable/rollback. No automatic session deletion exists in any path. |
+| S1 — cryptography advisory | PASS | `PYSEC-2026-3552` (affects 49.0.0, fixed in 50.0.0) resolved: `pip-audit` reports **no known vulnerabilities**. Declared floor raised `>=43` → `>=50` because this repository ships no lock file, so the floor is the only guard against a constrained resolve picking a vulnerable build. |
+| S1 — upgrade is safe | PASS | `pip check` clean; 94 crypto/auth/credential/token tests pass; full backend suite passes against the upgraded library. No unrelated dependency changed. |
+| Backend full suite (real MySQL) | PASS | **1397 passed, 0 skipped** (1385 before QR-09A; +12 — one D1 live-MySQL regression, seven D2, four D3). |
+| Live-MySQL migration suite | PASS | **12 passed** (11 before). |
+| QR-01..08 regression | PASS | **371 passed** across all five WAHA suites plus `test_whatsapp_qr`, `test_qr08_inbox_integration`, `test_provider_message_identity`, `test_api_webhooks` and `test_api_messages` run together. |
+| Frontend suite / lint / types / build | PASS | **796 passed** (793 before; +3), 38 files; ESLint, `tsc --noEmit` and production build all clean. |
+| Ruff / strict mypy | PASS | Clean; mypy no issues in 300 source files. |
+| Bandit | PASS | 0 High, 0 Medium, 28 Low — unchanged pre-existing `assert`-usage class, none new. |
+| npm production audit | Honestly recorded | 2 moderate (`react-router` SSR-hydration advisory; this application is client-rendered). Unchanged by this milestone and not in its scope. |
+| Compose config validation | PASS | `docker compose config` and `docker compose -f docker-compose.production.yml --profile waha config` both validate. |
+| Capability boundary | PASS | Declared exactly `health, qr_auth, session_logout, session_reconnect, session_stream, text`; prohibited exactly `bulk, campaigns, template`. Nothing added, nothing relaxed. |
+| Migration / OpenAPI invariants | PASS | Head `0043_conversation_channel_endpoints`, **44 revisions**; OpenAPI **207 paths**. No new revision, route, or RBAC entry. |
+| Running-app UI screenshots | **BLOCKED** | The Browser pane could not composite frames in this environment, so no image was captured. The state itself was verified live at both viewports through the rendered DOM — see the QR-09A final report. |
+| Provider certification record | Unchanged | `docs/evidence/provider-evaluations/waha-class-b-selection-record.md` untouched; still `CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED`. |
+
+
 ## QR-09 — Production Validation
 
 **Milestone status: `PARTIAL — BLOCKED`.** Validation was attempted against real MySQL 8.0.46, real
@@ -704,7 +764,7 @@ remains `COMPLETE`.
 | Ruff / mypy | PASS | Ruff and strict mypy pass. |
 | Backend tests | PASS | 20 focused channel/session/runtime/migration tests and all 976 backend tests pass in workflow `30933007710`. |
 | Frontend gates | PASS | Production audit high threshold, ESLint, TypeScript, 34 Vitest files / 661 tests and production build pass; frontend source is unchanged. |
-| OpenAPI / generated client | PASS | Application and committed OpenAPI are semantically identical at 200 paths and generated TypeScript has no drift. Current dependency resolution exposes a pre-existing JSON key-order-only `--check` mismatch on the untouched M13-04 baseline; M13-05 adds no route/schema. |
+| OpenAPI / generated client | PASS | Application and committed OpenAPI are semantically identical at 200 paths and generated TypeScript has no drift. Current dependency resolution exposes a pre-existing JSON key-order-only `--check` mismatch on the untouched M13-04 baseline; M13-05 adds no route/schema. **Annotation (QR-09A):** the "key-order" attribution here is historically inaccurate and is preserved rather than rewritten — QR-09 proved generation is deterministic and key order identical; the artifact differed only by JSON ASCII-escaping. QR-09A regenerated it canonically and the gate now passes. |
 | Migration | PASS | Additive `0039_qr_pairing_provider_runtime_foundation` upgrades, downgrades to `0038`, and upgrades again without destructive existing-schema changes. |
 | Bandit / dependency / source scan | PASS | Bandit high-severity, Python dependency, frontend/browser audit thresholds and tracked-source vulnerability/secret/IaC scan pass. |
 | Bundle impact | PASS | No frontend source changed; main remains 733.62/178.16 kB gzip, CSS 49.90/9.90 kB gzip and Operational Dashboard 31.96/8.61 kB gzip; existing >500 kB warning remains. |

@@ -30,7 +30,11 @@ dependencies = [
     "python-multipart>=0.0.12",  # multipart/form uploads
     "email-validator>=2.2",      # Pydantic EmailStr validation
     "openpyxl>=3.1",             # .xlsx import/export (FR-CON-04/15)
-    "cryptography>=43",          # AES-GCM at-rest encryption for channel tokens (FR-WA-03)
+    # AES-GCM at-rest encryption for channel tokens (FR-WA-03). Floor raised from >=43 to >=50:
+    # PYSEC-2026-3552 affects 49.0.0 and is fixed in 50.0.0. This repository ships no lock file,
+    # so the declared floor is the only thing that can stop a constrained or offline resolve from
+    # selecting a vulnerable build (QR-09-S1).
+    "cryptography>=50",
 ]
 
 [project.optional-dependencies]

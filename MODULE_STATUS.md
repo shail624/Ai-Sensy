@@ -19,6 +19,41 @@ authorities are reused; separate heavy SIM fulfilment and Activation operations 
 
 Last synchronized: `2026-08-08T00:00:00+05:30`.
 
+## Module 13 — QR-09A Production Validation Remediation
+
+- **Milestone status:** `QR-09A — Production Validation Remediation — REPOSITORY VALIDATED`.
+- **Completion:** `52%` evidence-based estimate — **unchanged**. Remediation restores intended
+  behaviour and adds a deployment definition; it delivers no new product capability, so completion
+  does not move.
+- **Scope:** exactly the blockers QR-09 recorded — D1, D2, D3, the OpenAPI required gate, the WAHA
+  deployment gap and the `cryptography` advisory. No unrelated cleanup.
+- **D1:** `0043`'s `downgrade()` now drops the foreign key before the index InnoDB borrows for it,
+  so the revision is reversible on real MySQL. **No new revision** — the upgrade path, revision id
+  and resulting schema are unchanged; head stays `0043` at 44 revisions. Covered by a live-MySQL
+  up/down/up regression that also proves seeded Meta data survives and no partial schema remains.
+- **D2:** a reachable provider reporting no session is now a truthful recoverable state instead of
+  an HTTP 500. Durable pairing truth is preserved, a previously paired connection is correctly told
+  it needs a fresh scan, reconnect refuses with `409`, and nothing recreates a session or requests a
+  QR on a status read. QR-06 outage semantics are untouched. The UI no longer renders this as
+  "Starting the session…".
+- **D3:** an oversized webhook body is answered `413` rather than `500`; the 1 MiB
+  refuse-before-hashing bound is unchanged.
+- **Required gate:** the OpenAPI drift gate is green — artifact regenerated canonically, 207 paths
+  unchanged, one additive D2 property. The previously recorded "key-order/resolver" explanation is
+  annotated as inaccurate rather than rewritten.
+- **Infrastructure:** digest-pinned WAHA service added to both compose files behind a `waha`
+  profile, publishing no port in production, with a persistent `waha-sessions` volume at
+  `/app/.sessions` and a full operator runbook (`deploy/DEPLOYMENT.md` §15).
+- **Security:** `cryptography` floor raised to `>=50`; `pip-audit` reports no known vulnerabilities.
+- **Evidence:** validated against real MySQL 8.0.46, real Redis 7.4.9 and the real pinned WAHA
+  container. Backend 1397 passed / 0 skipped; frontend 796; 371 QR-01..08 regression tests.
+- **Not advanced:** WAHA capabilities, prohibited capabilities, RBAC, provider certification.
+  Credential survival across restart *after a real scan*, physical-phone E2E, and the browser/host
+  matrix all remain outstanding, so `Host Validated`, `Provider Validated` and `Production Ready`
+  stay **NO** and **QR-09 remains `PARTIAL (BLOCKED)`**.
+- **Next:** rerun QR-09's external validation gates once physical-phone and host/browser evidence
+  can be produced. Not started.
+
 ## Module 13 — QR-09 Production Validation
 
 - **Milestone status:** `QR-09 — Production Validation — PARTIAL (BLOCKED)`. Validation attempted

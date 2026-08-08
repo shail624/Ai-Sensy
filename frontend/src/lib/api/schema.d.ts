@@ -9089,6 +9089,12 @@ export interface components {
              */
             qr_available: boolean;
             /**
+             * Provider Session Missing
+             * @description Whether WhatsApp is reachable but holds no session for this connection. Distinct from an outage: the provider answered. The connection must be paired again; nothing is recreated automatically.
+             * @default false
+             */
+            provider_session_missing: boolean;
+            /**
              * Updated At
              * @description When this status was last reconciled against the provider.
              */

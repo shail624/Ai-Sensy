@@ -23,7 +23,8 @@ from app.channels.capabilities import CONNECTOR_WAHA
 from app.channels.errors import ChannelConfigError
 from app.channels.meta.webhooks import SIGNATURE_HEADER
 from app.channels.waha.webhook import SIGNATURE_HEADER as WAHA_SIGNATURE_HEADER
-from app.core.exceptions import AppError
+from app.channels.waha.webhook import WahaBodyTooLarge
+from app.core.exceptions import AppError, PayloadTooLargeError
 from app.schemas.webhook import WebhookAckResponse
 from app.services.webhook_service import WebhookService
 
@@ -108,6 +109,13 @@ async def receive_waha_webhook(request: Request, session: SessionDep) -> Webhook
         event_ids = await WebhookService(session, connector_type=CONNECTOR_WAHA).ingest(
             body=await request.body(), signature=request.headers.get(WAHA_SIGNATURE_HEADER)
         )
+    except WahaBodyTooLarge as exc:
+        # The bound is enforced *before* the body is hashed (see `waha.webhook.verify_signature`),
+        # so this costs nothing and leaks nothing — but it is a client error, and saying so matters:
+        # WAHA's delivery is at-least-once and retries a 5xx, so answering 500 would turn one
+        # oversized delivery into an endless redelivery loop (QR-09-D3). The provider's body is
+        # never echoed back; only the bound itself is stated.
+        raise PayloadTooLargeError(str(exc)) from exc
     except ChannelConfigError as exc:
         raise WebhookNotConfiguredError(str(exc)) from exc
     ingest_webhook_events.apply_async(args=[event_ids])

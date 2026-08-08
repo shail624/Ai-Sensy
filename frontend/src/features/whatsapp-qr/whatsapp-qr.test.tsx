@@ -72,6 +72,7 @@ function statusFixture(overrides: Partial<WhatsAppQrStatus> = {}): WhatsAppQrSta
     identity_masked: "9193*****553@c.us",
     push_name: "Neha Sharma",
     qr_available: false,
+    provider_session_missing: false,
     updated_at: "2026-08-08T05:00:00Z",
     ...overrides,
   };
@@ -218,6 +219,60 @@ describe("deriveViewState", () => {
         statusFixture({ connected: false, requires_reauthentication: true, healthy: false }),
       ),
     ).toBe("reauth-required");
+  });
+
+  // --- QR-09-D2: provider reachable, its session gone -----------------------------------------
+
+  it("a missing provider session is never rendered as progress", () => {
+    // The durable session record still exists, so every "in progress" branch below would have
+    // matched and shown "Starting…" — false progress the operator would wait on forever.
+    expect(
+      deriveViewState(
+        statusFixture({
+          connected: false,
+          requires_reauthentication: false,
+          provider_session_missing: true,
+          session_state: "registered",
+          pairing_state: "unpaired",
+          provider_status: null,
+          can_reconnect: false,
+          healthy: false,
+        }),
+      ),
+    ).toBe("ready-to-connect");
+  });
+
+  it("a missing provider session on a previously paired connection asks for a new scan", () => {
+    expect(
+      deriveViewState(
+        statusFixture({
+          connected: false,
+          requires_reauthentication: true,
+          provider_session_missing: true,
+          pairing_state: "paired",
+          healthy: false,
+        }),
+      ),
+    ).toBe("reauth-required");
+  });
+
+  it("a missing provider session is not reported as the provider being unreachable", () => {
+    // The provider answered. Saying "can't be reached" would send the operator to check an
+    // outage that is not happening.
+    expect(
+      deriveViewState(
+        statusFixture({
+          connected: false,
+          requires_reauthentication: false,
+          provider_session_missing: true,
+          session_state: "degraded",
+          pairing_state: "unpaired",
+          provider_status: null,
+          can_reconnect: false,
+          healthy: false,
+        }),
+      ),
+    ).not.toBe("provider-unavailable");
   });
 
   it("connected takes priority over every other signal", () => {

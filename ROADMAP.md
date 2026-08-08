@@ -96,7 +96,21 @@ Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside th
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
 
-QR-09 (production validation) has been attempted and is `PARTIAL — BLOCKED`: real MySQL `8.0.46`,
+QR-09A (production validation remediation) is **REPOSITORY VALIDATED**: it repairs exactly the
+blockers QR-09 recorded — `0043`'s real-MySQL downgrade (no new revision; up/down/up now proven with
+data), the provider-up/session-absent HTTP 500 (now a truthful recoverable state that preserves
+durable pairing truth and never auto-recreates a session), the oversized-webhook 500 (now `413`),
+the red OpenAPI drift gate (artifact regenerated canonically; 207 paths unchanged), the missing WAHA
+deployment definition (digest-pinned, profile-gated, no production port, persistent session volume,
+operator runbook), and the `cryptography` advisory (floor raised; `pip-audit` clean). Verified
+against real MySQL 8.0.46, Redis 7.4.9 and the real pinned WAHA container. Capabilities, RBAC,
+migration head and the provider certification record are unchanged.
+
+**QR-09 itself remains `PARTIAL — BLOCKED`** and is not closed by this: physical-phone provider E2E
+(including credential survival across a restart, which was not demonstrated) and the
+browser/target-host matrix still require evidence this environment cannot produce.
+
+QR-09 (production validation) was attempted and is `PARTIAL — BLOCKED`: real MySQL `8.0.46`,
 real Redis `7.4.9`, and the real pinned WAHA container confirmed the QR-08 dedupe/routing/idempotency
 contract, but two Major defects (a real-MySQL `0043` downgrade failure; a `500` on the QR operator
 status endpoint when the provider is up but the session is absent) and one genuinely-failing required

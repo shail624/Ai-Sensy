@@ -68,6 +68,22 @@ def validate_session_name(value: str) -> str:
     return candidate
 
 
+class WahaSessionNotFound(ChannelApiError):
+    """The provider answered, and the named session does not exist on it (HTTP 404).
+
+    Deliberately distinct from :class:`~app.channels.errors.ChannelTransportError`, which means the
+    provider could not be reached at all. Conflating the two would be a lie in both directions: an
+    outage would look like a deleted session (destroying durable pairing truth for a customer whose
+    account is fine), and a genuinely missing session would look like a temporary blip the operator
+    should just wait out.
+
+    This is an **expected** condition, not a fault: a provider restarted without persistent session
+    storage, or a session removed at the provider, both produce it. Callers translate it into a
+    truthful, operator-recoverable state — they must not let it surface as an unhandled 500
+    (QR-09-D1's sibling defect, QR-09-D2).
+    """
+
+
 class WahaSessionStatus(StrEnum):
     """Session statuses observed on the certified build (2026.7.2 / NOWEB / CORE).
 

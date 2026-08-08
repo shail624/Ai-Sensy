@@ -67,6 +67,15 @@ class WhatsAppQrStatus(BaseModel):
         description="Whether GET /whatsapp/qr will currently return an image."
     )
 
+    provider_session_missing: bool = Field(
+        default=False,
+        description=(
+            "Whether WhatsApp is reachable but holds no session for this connection. Distinct "
+            "from an outage: the provider answered. The connection must be paired again; nothing "
+            "is recreated automatically."
+        ),
+    )
+
     updated_at: datetime | None = Field(
         default=None, description="When this status was last reconciled against the provider."
     )

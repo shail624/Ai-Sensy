@@ -42,6 +42,49 @@ services:
       timeout: 5s
       retries: 10
 
+  # WAHA — the Class B QR/WhatsApp provider (ADR-0021; Design Document 33 §6.4).
+  #
+  # Opt-in for local development: it is in the `waha` profile, so a plain `docker compose up -d`
+  # still starts only MySQL and Redis exactly as before. Start it deliberately with:
+  #
+  #     docker compose --profile waha up -d
+  #
+  # Pinned by digest, never by tag. The certification evidence in
+  # `docs/evidence/provider-evaluations/` is for one immutable build; a floating `:noweb-2026.7.2`
+  # could be repointed upstream at any time and would silently invalidate it.
+  waha:
+    image: devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e
+    container_name: wa_waha
+    profiles: ["waha"]
+    restart: unless-stopped
+    environment:
+      # NOWEB is the only engine this adapter is certified against — the adapter fails closed on
+      # any other (`WahaEngineNotApproved`), so pinning it here keeps dev matching production.
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WAHA_API_KEY: ${WAHA_API_KEY:-waha-local-dev-key}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:-waha-local-dev-key}
+    # Bound to the loopback interface on purpose: the QR screen is driven by the backend running on
+    # the host, so the port has to be reachable locally — but binding 0.0.0.0 would expose an
+    # unauthenticated-by-default WhatsApp bridge to the whole network. Production publishes nothing
+    # at all (see docker-compose.production.yml).
+    ports:
+      - "127.0.0.1:${WAHA_PORT:-3000}:3000"
+    volumes:
+      # Session state lives here — verified empirically against this exact digest:
+      # `/app/.sessions/noweb/waha.sqlite3` (the session registry) plus
+      # `/app/.sessions/noweb/<session>/` (per-session store and config). Without this volume a
+      # container restart loses every session, and the provider then answers
+      # `404 Session not found` for a connection the platform still believes is paired — the exact
+      # condition recorded as QR-09-D2.
+      - waha-sessions:/app/.sessions
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 volumes:
   mysql-data:
   redis-data:
+  waha-sessions:

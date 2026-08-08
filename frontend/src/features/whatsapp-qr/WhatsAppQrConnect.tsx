@@ -191,7 +191,15 @@ export function WhatsAppQrConnect(): JSX.Element {
             <EmptyState
               icon={<QrCode aria-hidden className="h-6 w-6" />}
               title="Connect a WhatsApp number"
-              description="Start a connection, then scan the QR code that appears with WhatsApp on the phone."
+              description={
+                // When the provider is reachable but holds no session (QR-09-D2), the server
+                // explains *why* the operator is back at this step. Preferring that over the
+                // generic copy is the difference between "start here" and "this was reset, and
+                // here is what happened" — the same next action either way.
+                status.provider_session_missing
+                  ? status.health_detail
+                  : "Start a connection, then scan the QR code that appears with WhatsApp on the phone."
+              }
               action={
                 canOperate ? (
                   <Button onClick={() => connect.mutate()} loading={connect.isPending}>

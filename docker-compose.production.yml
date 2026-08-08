@@ -58,6 +58,20 @@ x-backend-env: &backend-env
   STORAGE_EXPORT_TTL_DAYS: ${STORAGE_EXPORT_TTL_DAYS:-7}
   META_APP_SECRET: ${META_APP_SECRET:?META_APP_SECRET is required}
   META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:?META_WEBHOOK_VERIFY_TOKEN is required}
+  # ---- QR provider (ADR-0021 Class B), optional ----------------------------------------------
+  # All four are empty by default, and the adapter treats "unconfigured" as disabled: with these
+  # unset the QR surface reports `configured=false` to every caller and registers no runtime, so
+  # the stack behaves exactly as it did before the provider existed. Set them only alongside
+  # `--profile waha`. The service address is the compose network name — never a public URL.
+  WAHA_BASE_URL: ${WAHA_BASE_URL:-}
+  WAHA_API_KEY: ${WAHA_API_KEY:-}
+  WAHA_SESSION_NAME: ${WAHA_SESSION_NAME:-}
+  # Signs inbound provider deliveries (raw-body SHA-512 HMAC, verified before parsing). Empty
+  # rejects every delivery rather than accepting unsigned ones — fail closed, never open.
+  WAHA_WEBHOOK_HMAC_SECRET: ${WAHA_WEBHOOK_HMAC_SECRET:-}
+  # The single organization the QR surface belongs to (ADR-0021: internal, self-hosted, one
+  # organization — not multi-tenant SaaS). Every other organization sees `configured=false`.
+  WAHA_ORGANIZATION_ID: ${WAHA_ORGANIZATION_ID:-}
 
 x-backend-common: &backend-common
   <<: *backend-image
@@ -127,6 +141,48 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # ---- QR provider (ADR-0021 Class B; optional, opt-in) --------------------------------------
+  #
+  # In the `waha` profile, so an operator who has not adopted the QR channel runs the exact stack
+  # they run today. Bring it up deliberately:
+  #
+  #     docker compose -f docker-compose.production.yml --env-file .env.production \
+  #       --profile waha up -d
+  #
+  # **Never published.** There is no `ports:` block, by design: WAHA's API is an unauthenticated
+  # WhatsApp bridge unless an API key is set, and even with one it must not be internet-reachable.
+  # Only the backend talks to it, over the compose network at `http://waha:3000`. Nginx does not
+  # proxy it, and no route to it exists from outside the bridge.
+  #
+  # Pinned by digest, not tag: the provider certification evidence
+  # (`docs/evidence/provider-evaluations/`) is for one immutable build, and a floating tag could be
+  # repointed upstream without notice — silently invalidating it.
+  waha:
+    image: devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e
+    profiles: ["waha"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      # NOWEB is the certified engine. The adapter fails closed on any other
+      # (`WahaEngineNotApproved`), so this is pinned rather than left to an image default.
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WAHA_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
+    volumes:
+      # WhatsApp session state — `/app/.sessions/noweb/waha.sqlite3` (session registry) and
+      # `/app/.sessions/noweb/<session>/` (per-session store/config), verified against this exact
+      # digest. This volume is what makes a restart survivable: without it the provider comes back
+      # holding no session, answers `404 Session not found` for a connection the platform still
+      # records as paired, and the operator must re-scan (QR-09-D2). Treat it as stateful data:
+      # back it up with the database, and never prune it to "clean up disk".
+      - waha-sessions:/app/.sessions
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # ---- Schema (one-shot, must finish before anything serves) --------------------------------
   migrate:
@@ -274,3 +330,4 @@ volumes:
   redis-data:
   media-data:
   beat-data:
+  waha-sessions:

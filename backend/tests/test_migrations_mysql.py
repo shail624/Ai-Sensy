@@ -330,6 +330,238 @@ def test_create_owner_after_mysql_upgrade_is_idempotent_on_rerun(
     assert _user_row_count(throwaway_database, email) == 1
 
 
+_PRE_QR08_REVISION = "0042_scope_provider_message_identity"
+_QR08_REVISION = "0043_conversation_channel_endpoints"
+
+
+def _query_one(db_name: str, sql: str, args: tuple = ()) -> tuple | None:
+    conn = pymysql.connect(
+        host=_ROOT_HOST, port=_ROOT_PORT, user="root", password=_ROOT_PASSWORD, database=db_name
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, args)
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def _execute(db_name: str, sql: str, args: tuple = ()) -> int:
+    conn = pymysql.connect(
+        host=_ROOT_HOST, port=_ROOT_PORT, user="root", password=_ROOT_PASSWORD, database=db_name
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, args)
+            conn.commit()
+            return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def _column_exists(db_name: str, table: str, column: str) -> bool:
+    row = _query_one(
+        db_name,
+        "SELECT COUNT(*) FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+        (db_name, table, column),
+    )
+    assert row is not None
+    return int(row[0]) > 0
+
+
+def _index_exists(db_name: str, table: str, index: str) -> bool:
+    row = _query_one(
+        db_name,
+        "SELECT COUNT(*) FROM information_schema.STATISTICS "
+        "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s",
+        (db_name, table, index),
+    )
+    assert row is not None
+    return int(row[0]) > 0
+
+
+def _constraint_exists(db_name: str, table: str, name_suffix: str) -> bool:
+    """Match by suffix: SQLAlchemy's naming convention prefixes ``ck_<table>_`` onto check names."""
+    row = _query_one(
+        db_name,
+        "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS "
+        "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND CONSTRAINT_NAME LIKE %s",
+        (db_name, table, f"%{name_suffix}"),
+    )
+    assert row is not None
+    return int(row[0]) > 0
+
+
+def _seed_meta_conversation(db_name: str) -> dict[str, int]:
+    """Seed a representative pre-QR-08 Meta thread using only columns that exist at ``0042``.
+
+    Deliberately raw SQL rather than the ORM: the models carry QR-08's ``channel_endpoint_id``,
+    which does not exist at ``0042``, so the ORM cannot describe this database's real shape.
+    """
+    org = _execute(
+        db_name,
+        "INSERT INTO organizations (uuid, name, slug, created_at, updated_at, row_version) "
+        "VALUES (UNHEX(REPLACE(UUID(), '-', '')), 'QR09A Org', 'qr09a-org', "
+        " NOW(6), NOW(6), 1)",
+    )
+    waba = _execute(
+        db_name,
+        "INSERT INTO whatsapp_business_accounts "
+        "(organization_id, waba_id, business_name, access_token_enc, status, "
+        " created_at, updated_at, row_version, uuid) "
+        "VALUES (%s, 'QR09A-WABA', 'QR09A Business', 'cipher', 'active', "
+        " NOW(6), NOW(6), 1, UNHEX(REPLACE(UUID(), '-', '')))",
+        (org,),
+    )
+    number = _execute(
+        db_name,
+        "INSERT INTO phone_numbers "
+        "(organization_id, waba_id, channel_type, phone_number_id, display_number, "
+        " status, is_default, created_at, updated_at, row_version, uuid) "
+        "VALUES (%s, %s, 'whatsapp', 'QR09A-PN', '+999000111', 'connected', 1, "
+        " NOW(6), NOW(6), 1, UNHEX(REPLACE(UUID(), '-', '')))",
+        (org, waba),
+    )
+    contact = _execute(
+        db_name,
+        "INSERT INTO contacts "
+        "(organization_id, wa_id, phone_e164, opt_in_status, is_active_on_wa, "
+        " created_at, updated_at, row_version, uuid) "
+        "VALUES (%s, '999000222', '+999000222', 'opted_in', 1, "
+        " NOW(6), NOW(6), 1, UNHEX(REPLACE(UUID(), '-', '')))",
+        (org,),
+    )
+    conversation = _execute(
+        db_name,
+        "INSERT INTO conversations "
+        "(organization_id, phone_number_id, contact_id, channel_type, status, unread_count, "
+        " last_message_preview, is_window_open, created_at, updated_at, row_version, uuid) "
+        "VALUES (%s, %s, %s, 'whatsapp', 'open', 3, 'QR09A preserved preview', 0, "
+        " NOW(6), NOW(6), 1, UNHEX(REPLACE(UUID(), '-', '')))",
+        (org, number, contact),
+    )
+    message = _execute(
+        db_name,
+        "INSERT INTO messages "
+        "(organization_id, conversation_id, phone_number_id, contact_id, direction, wamid, "
+        " message_type, status, is_billable, created_at, uuid) "
+        "VALUES (%s, %s, %s, %s, 'inbound', 'QR09A-WAMID', 'text', 'accepted', 0, "
+        " NOW(6), UNHEX(REPLACE(UUID(), '-', '')))",
+        (org, conversation, number, contact),
+    )
+    return {"organization": org, "number": number, "contact": contact,
+            "conversation": conversation, "message": message}
+
+
+@_live_mysql_required
+def test_qr08_revision_survives_upgrade_downgrade_upgrade_on_real_mysql(
+    throwaway_database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QR-09-D1 regression: ``0043`` must be reversible on real MySQL, not only on SQLite.
+
+    The original ``downgrade()`` dropped ``uq_conv_endpoint_contact`` before
+    ``fk_conv_channel_endpoint``. InnoDB elects that index to satisfy the foreign key's mandatory
+    supporting index, so MySQL refused with error 1553 — and because MySQL DDL is not
+    transactional, the failed attempt left ``messages``/``webhook_events`` already stripped while
+    ``alembic_version`` still reported ``0043``: a schema matching neither revision.
+
+    SQLite never reproduced this (batch mode rebuilds the whole table), which is exactly why this
+    lives here and is asserted against a real server.
+    """
+    _point_settings_at(monkeypatch, throwaway_database)
+    cfg = _alembic_config()
+
+    # (1) clean database -> the pre-QR-08 revision
+    command.upgrade(cfg, _PRE_QR08_REVISION)
+    assert _current_version(throwaway_database) == _PRE_QR08_REVISION
+    assert not _column_exists(throwaway_database, "conversations", "channel_endpoint_id")
+
+    # (2) representative Meta data, seeded as it exists before QR-08
+    seeded = _seed_meta_conversation(throwaway_database)
+    before = _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, contact_id, unread_count, last_message_preview, status "
+        "FROM conversations WHERE id = %s",
+        (seeded["conversation"],),
+    )
+    message_before = _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, wamid, direction, status FROM messages WHERE id = %s",
+        (seeded["message"],),
+    )
+
+    # (3) upgrade to QR-08's revision
+    command.upgrade(cfg, _QR08_REVISION)
+    assert _current_version(throwaway_database) == _QR08_REVISION
+
+    # (4) the pre-existing Meta rows are untouched, and gain no invented endpoint ownership
+    assert _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, contact_id, unread_count, last_message_preview, status "
+        "FROM conversations WHERE id = %s",
+        (seeded["conversation"],),
+    ) == before
+    assert _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, wamid, direction, status FROM messages WHERE id = %s",
+        (seeded["message"],),
+    ) == message_before
+    assert _query_one(
+        throwaway_database,
+        "SELECT channel_endpoint_id FROM conversations WHERE id = %s",
+        (seeded["conversation"],),
+    ) == (None,)
+
+    # (5)+(6) downgrade succeeds — the defect this test exists for
+    command.downgrade(cfg, _PRE_QR08_REVISION)
+
+    # (11) the recorded version is truthful after the transition
+    assert _current_version(throwaway_database) == _PRE_QR08_REVISION
+
+    # (7)+(10) the schema is fully back at 0042 — no partially-applied remnant of 0043
+    for table in ("conversations", "messages", "webhook_events"):
+        assert not _column_exists(throwaway_database, table, "channel_endpoint_id"), (
+            f"{table}.channel_endpoint_id survived the downgrade — partial rollback"
+        )
+    assert not _index_exists(throwaway_database, "conversations", "uq_conv_endpoint_contact")
+    assert not _index_exists(throwaway_database, "messages", "ix_msg_channel_endpoint_wamid")
+    assert not _index_exists(throwaway_database, "webhook_events", "ix_whe_endpoint")
+    assert not _constraint_exists(throwaway_database, "conversations", "ck_conv_endpoint_owner")
+    assert not _constraint_exists(throwaway_database, "conversations", "fk_conv_channel_endpoint")
+
+    # (7) the seeded Meta data is still there and still valid at 0042
+    assert _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, contact_id, unread_count, last_message_preview, status "
+        "FROM conversations WHERE id = %s",
+        (seeded["conversation"],),
+    ) == before
+    assert _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, wamid, direction, status FROM messages WHERE id = %s",
+        (seeded["message"],),
+    ) == message_before
+
+    # (8)+(9) the revision re-applies cleanly over the downgraded schema
+    command.upgrade(cfg, _QR08_REVISION)
+    assert _current_version(throwaway_database) == _QR08_REVISION
+    assert _column_exists(throwaway_database, "conversations", "channel_endpoint_id")
+    assert _index_exists(throwaway_database, "conversations", "uq_conv_endpoint_contact")
+    assert _constraint_exists(throwaway_database, "conversations", "ck_conv_endpoint_owner")
+    assert _constraint_exists(throwaway_database, "conversations", "fk_conv_channel_endpoint")
+
+    # and the data survived the whole round trip
+    assert _query_one(
+        throwaway_database,
+        "SELECT phone_number_id, contact_id, unread_count, last_message_preview, status "
+        "FROM conversations WHERE id = %s",
+        (seeded["conversation"],),
+    ) == before
+
+    asyncio.run(dispose_engine())
+
+
 # --- Reachability classification: hermetic, no network access, always run -------------------
 #
 # These test the skip/fail decision logic itself with synthetic exceptions matching real pymysql

@@ -647,3 +647,118 @@ async def test_waha_send_blocked_truthfully_when_not_connected(
             conversation=conversation, contact=contact, body="should be refused",
         )
     assert (await db_session.scalars(select(Message))).all() == []
+
+
+# =================================================================================================
+# QR-09-D3 — an oversized WAHA delivery is a client error, not a server fault
+# =================================================================================================
+#
+# The 1 MiB bound itself is QR-04's and is not changed here: the body is still refused *before* it
+# is hashed. What QR-09 found is that `WahaBodyTooLarge` had no HTTP mapping, so the public route
+# answered 500. That matters operationally, not just cosmetically: WAHA delivery is at-least-once
+# and a 5xx is exactly what it retries, so one oversized delivery became an endless redelivery
+# loop, while genuine server faults were drowned in the noise.
+
+
+def _oversized_delivery() -> bytes:
+    from app.channels.waha.webhook import MAX_BODY_BYTES
+
+    payload = {
+        "id": "qr09a-oversized",
+        "event": "message",
+        "session": "waha-session-A",
+        "payload": {
+            "id": "true_919990001111@c.us_qr09a-oversized",
+            "from": "919990001111@c.us",
+            "fromMe": False,
+            "body": "A" * (MAX_BODY_BYTES + 4096),
+        },
+    }
+    raw = json.dumps(payload).encode()
+    assert len(raw) > MAX_BODY_BYTES
+    return raw
+
+
+@pytest.mark.anyio
+async def test_oversized_waha_delivery_is_refused_as_a_client_error_not_a_500(
+    client, db_session
+) -> None:
+    """413, not 500 — so the provider stops redelivering instead of looping forever."""
+    raw = _oversized_delivery()
+    signature = hmac.new(
+        b"qr08-test-hmac-secret", raw, hashlib.sha512
+    ).hexdigest()
+
+    response = await client.post(
+        "/api/v1/webhooks/waha",
+        content=raw,
+        headers={"Content-Type": "application/json", "X-Webhook-Hmac": signature},
+    )
+
+    assert response.status_code == 413
+    body = response.json()
+    assert body["code"] == "payload_too_large"
+    assert body["status"] == 413
+
+
+@pytest.mark.anyio
+async def test_oversized_waha_delivery_persists_nothing(client, db_session) -> None:
+    """Refused before hashing means refused before ingestion: no event row, no message row."""
+    from app.models.webhook import WebhookEvent
+
+    raw = _oversized_delivery()
+    signature = hmac.new(b"qr08-test-hmac-secret", raw, hashlib.sha512).hexdigest()
+
+    await client.post(
+        "/api/v1/webhooks/waha",
+        content=raw,
+        headers={"Content-Type": "application/json", "X-Webhook-Hmac": signature},
+    )
+
+    assert (await db_session.scalars(select(WebhookEvent))).all() == []
+    assert (await db_session.scalars(select(Message))).all() == []
+
+
+@pytest.mark.anyio
+async def test_oversized_waha_delivery_echoes_no_body_content(client) -> None:
+    """The refusal states the bound, never the attacker-influencable body it refused."""
+    raw = _oversized_delivery()
+    signature = hmac.new(b"qr08-test-hmac-secret", raw, hashlib.sha512).hexdigest()
+
+    response = await client.post(
+        "/api/v1/webhooks/waha",
+        content=raw,
+        headers={"Content-Type": "application/json", "X-Webhook-Hmac": signature},
+    )
+
+    rendered = response.text
+    assert "AAAA" not in rendered
+    assert "919990001111" not in rendered
+    assert "Traceback" not in rendered
+
+
+@pytest.mark.anyio
+async def test_normal_sized_and_badly_signed_deliveries_are_unaffected(client) -> None:
+    """The bound is the only thing D3 changed: valid stays 200, invalid HMAC stays 403."""
+    delivery = _waha_delivery(
+        event="message", envelope_id="qr09a-normal", session="waha-session-A",
+        body="normal sized", from_id="919990001111",
+    )
+    raw = json.dumps(delivery).encode()
+
+    ok = await client.post(
+        "/api/v1/webhooks/waha",
+        content=raw,
+        headers={
+            "Content-Type": "application/json",
+            "X-Webhook-Hmac": hmac.new(b"qr08-test-hmac-secret", raw, hashlib.sha512).hexdigest(),
+        },
+    )
+    assert ok.status_code == 200
+
+    forged = await client.post(
+        "/api/v1/webhooks/waha",
+        content=raw,
+        headers={"Content-Type": "application/json", "X-Webhook-Hmac": "deadbeef"},
+    )
+    assert forged.status_code == 403

@@ -49,6 +49,7 @@ from app.channels.waha.delivery import (
     map_ack,
 )
 from app.channels.waha.lifecycle import (
+    WahaSessionNotFound,
     WahaSessionSnapshot,
     WahaSessionStatus,
     map_session_status,
@@ -120,6 +121,7 @@ __all__ = [
     "WahaQrChallenge",
     "WahaServerHealth",
     "WahaServerInfo",
+    "WahaSessionNotFound",
     "WahaSessionSnapshot",
     "WahaSessionStatus",
     "build_session_config",

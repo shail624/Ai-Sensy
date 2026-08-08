@@ -39,7 +39,11 @@ from app.channels.errors import (
     ChannelTransportError,
 )
 from app.channels.waha.delivery import WahaSendIndeterminate
-from app.channels.waha.lifecycle import WahaSessionSnapshot, validate_session_name
+from app.channels.waha.lifecycle import (
+    WahaSessionNotFound,
+    WahaSessionSnapshot,
+    validate_session_name,
+)
 from app.channels.waha.pairing import WahaQrChallenge, build_session_config
 from app.channels.waha.webhook import canonical_message_id
 from app.core.config import settings
@@ -319,9 +323,24 @@ class WahaClient:
         A **read**. QR-02 deliberately adds no create/start/stop/restart/logout call: observing a
         session is what the platform needs to map provider status onto its own lifecycle, and
         mutating one belongs to the pairing and runtime milestones (QR-03/QR-06).
+
+        A ``404`` here is narrowed to :class:`WahaSessionNotFound` rather than left as a generic
+        :class:`ChannelApiError`. The provider answering "this session does not exist" is a real,
+        expected lifecycle fact the caller must be able to act on — it is not an outage and not an
+        unexpected fault, and QR-09 proved that leaving it generic surfaced as an operator-facing
+        HTTP 500 (QR-09-D2).
         """
         session = validate_session_name(name)
-        body = await self._get(f"/api/sessions/{session}")
+        try:
+            body = await self._get(f"/api/sessions/{session}")
+        except ChannelApiError as exc:
+            if exc.http_status == 404:
+                raise WahaSessionNotFound(
+                    f"WAHA has no session named {session!r}",
+                    code=404,
+                    http_status=404,
+                ) from exc
+            raise
         return WahaSessionSnapshot.from_payload(body)
 
     # --- Pairing (QR-03) -----------------------------------------------------

@@ -26,6 +26,16 @@ export function deriveViewState(status: WhatsAppQrStatus | undefined): WhatsAppQ
   if (status.connected) return "connected";
   if (status.requires_reauthentication) return "reauth-required";
 
+  // The provider is reachable and holds no session for this connection (QR-09-D2). Nothing is
+  // starting and nothing will arrive by waiting, so this must sit above every "in progress"
+  // branch below — otherwise a durable session record with no provider session behind it renders
+  // as "Starting…", which is exactly the false progress the operator would sit and wait on.
+  //
+  // A connection that had reached PAIRED is already handled above as `reauth-required` (the server
+  // sets `requires_reauthentication` for that case, because credentials genuinely were lost).
+  // Everything else has nothing to re-authenticate: it needs the ordinary connect-and-scan action.
+  if (status.provider_session_missing) return "ready-to-connect";
+
   if (!status.session_public_id) return "ready-to-connect";
 
   if (status.qr_available) return "qr-available";

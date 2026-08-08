@@ -6,25 +6,66 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-09 — Production Validation attempted: PARTIAL (BLOCKED) — real MySQL/Redis/WAHA evidence, two Major defects found, one required gate (OpenAPI drift) genuinely red; no product change` |
+| Latest change | `QR-09A — Production Validation Remediation: D1/D2/D3 fixed, OpenAPI required gate green, WAHA deployment + persistent session volume + runbook added, cryptography advisory resolved. QR-09 itself stays PARTIAL (BLOCKED).` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (QR-09 evidence-only closeout; resolve after push) |
-| Current milestone | `QR-09 — Production Validation — PARTIAL (BLOCKED)`. `QR-08 — Unified Inbox integration` remains `COMPLETE` and unaffected. |
-| Current phase | `QR-09 validated the QR-08 contract against real infrastructure and found it correct where reached; two Major defects and one required gate block closure` |
+| Current Git HEAD | `HEAD` (QR-09A remediation closeout; resolve after push) |
+| Current milestone | `QR-09A — Production Validation Remediation — REPOSITORY VALIDATED`. `QR-09 — Production Validation` remains `PARTIAL (BLOCKED)` and `QR-08` remains `COMPLETE`; both are unaffected. |
+| Current phase | `Every blocker QR-09 recorded is repaired and re-verified against real infrastructure. What still blocks QR-09 closure is external evidence this environment cannot produce: physical-phone provider E2E and the browser/target-host matrix.` |
 | Repository version | `1.0.0-rc1` |
-| Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged by QR-09**; validated on real MySQL, including a reproduced real-MySQL downgrade failure (QR-09-D1, not fixed) |
-| OpenAPI | `3.1.0` · `207` paths — **unchanged by QR-09**. Required drift gate is genuinely `FAIL`: generation is deterministic and the committed/generated JSON parse equal (207 paths, byte-exact once re-encoded with matching ASCII-escaping); the difference is ASCII-escaping only, not the previously-recorded "resolver key-order" cause |
+| Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged**. QR-09A repaired `0043`'s `downgrade()` ordering without adding a revision; the upgrade path, revision id and resulting schema are byte-for-byte unchanged, and up/down/up is now proven on real MySQL |
+| OpenAPI | `3.1.0` · **`207` paths, unchanged**. Required drift gate now **PASSES**: the artifact was regenerated through the canonical exporter (the committed copy had been written with `ensure_ascii=True` while the exporter emits `ensure_ascii=False`). Zero route/schema churn; the only delta is D2's additive `provider_session_missing` property. No FastAPI/Pydantic version was pinned or changed |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
-| Backend evidence (QR-09, real MySQL) | **1385 passed, 0 skipped** (11/11 live-MySQL tests genuinely ran, vs 5 always-skipped without MySQL) · Ruff PASS · strict mypy PASS · Bandit 0 High/0 Medium/28 Low · `pip-audit` 1 production advisory (`cryptography 49.0.0` → `PYSEC-2026-3552`, not upgraded) |
-| Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / 793 tests PASS · production build PASS — unchanged by QR-09; `npm audit --omit=dev` 2 moderate (react-router SSR advisory; app is client-rendered) |
+| Backend evidence (QR-09A, real MySQL) | **1397 passed, 0 skipped** (1385 before; +12) · live-MySQL suite **12 passed** (11 before) · QR-01..08 regression **371 passed** together · Ruff PASS · strict mypy PASS (300 files) · Bandit 0 High/0 Medium/28 Low · `pip-audit` **no known vulnerabilities** (`cryptography` floor raised to `>=50`) · `scripts/quality_gate.py static` passes all six steps |
+| Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / **796 tests** PASS (793 before; +3 D2 view-state tests) · production build PASS · `npm audit --omit=dev` 2 moderate (react-router SSR advisory; app is client-rendered, unchanged by this milestone) |
 | Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — unchanged by QR-09 |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
-| Module 13 implementation | `52%` evidence-based estimate — **unchanged by QR-09** (validation delivers no new feature, so completion does not move) |
+| Module 13 implementation | `52%` evidence-based estimate — **unchanged**. Remediation restores intended behaviour and adds a deployment definition; it delivers no new product capability |
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-09. QR-09 ran the real pinned image (`sha256:33ecd1b7…`) but had no physical handset, so it does not advance certification. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT |
-| Next Module 13 milestone | `QR-09A — Production Validation Remediation` (fix QR-09-D1/D2/D3, regenerate `openapi.json` deterministically, define a WAHA compose/deployment service with persistent session storage, triage the `cryptography` advisory, rerun QR-09). Not started |
+| Next Module 13 milestone | Rerun QR-09's remaining external gates: physical-phone provider E2E (real scan → `WORKING`, real inbound/outbound, ACK chain, reconnect-without-new-QR, logout/re-auth, credential survival across restart) and the supported-browser/target-host matrix. Not started; both need evidence this environment cannot produce |
 | Host evidence | Repository/local-host MySQL/Redis/WAHA evidence (not target-host): real MySQL 8.0.46 and Redis 7.4.9 via this repository's own `docker compose up -d`, and the real pinned WAHA container, all on the development workstation. QR-09 additionally reproduced a **second** real-MySQL downgrade defect (`0043`, same class as the pre-existing `0036`/`0040` one) and a provider-up/session-absent `500` on the operator status endpoint. Genuine target-host evidence, physical-phone pairing, and the full browser/device matrix remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-09 is evidence/governance-only: no product source, migration, OpenAPI artifact, dependency, or capability changed. Only `CHANGELOG.md`, `IMPLEMENTATION_TRACKER.md`, `PROJECT_STATE.md`, `VALIDATION_RESULTS.md`, `MODULE_STATUS.md`, `ROADMAP.md` are touched |
+| Worktree expectation | QR-09A touches only the recorded blockers: `0043`'s `downgrade()` body, the WAHA session-absent path (client/lifecycle/service/schema + QR frontend view state), the webhook 413 mapping, the regenerated OpenAPI artifact and client types, both compose files, `deploy/DEPLOYMENT.md`, the `cryptography` floor, their tests, and governance records. No new migration, route, RBAC entry or capability |
 | Last update | `2026-08-08T00:00:00+05:30` (Asia/Kolkata) |
+
+## QR-09A — Production Validation Remediation (REPOSITORY VALIDATED)
+
+- **Scope:** exactly the blockers QR-09 recorded — nothing else. QR-09's own failure evidence is
+  preserved verbatim below; a remediation milestone fixes causes, it does not retroactively pass the
+  validation that found them.
+- **D1 — `0043` is reversible on real MySQL.** The downgrade released `uq_conv_endpoint_contact`
+  before `fk_conv_channel_endpoint`, but InnoDB borrows that index for the foreign key (MySQL 1553).
+  All conversation-side drops now run in one batch in dependency order. **No new revision**: only the
+  broken `downgrade()` body changed. A live-MySQL up/down/up regression proves seeded Meta data
+  survives byte-for-byte, the recorded version is truthful at each step, and no `0043` column, index
+  or constraint is left behind.
+- **D2 — provider-up/session-absent is a recoverable state, not a 500.** `WahaSessionNotFound`
+  narrows the provider's 404 at the client boundary; the service treats it as an observation and
+  leaves durable pairing truth untouched, projecting the divergence instead. A previously paired
+  connection is told it needs a fresh scan; a fresh one gets the ordinary connect-and-scan path.
+  Reconnect refuses with `409`. A status read is proven to issue no write and fetch no QR. Genuine
+  outages still report `provider_unavailable`, so QR-06 semantics are intact. The UI no longer
+  renders this as "Starting the session…".
+- **D3 — oversized delivery answers `413`.** The 1 MiB refuse-before-hashing bound is unchanged;
+  only the missing HTTP mapping was added. This stops WAHA's at-least-once retry from looping on a
+  `5xx`.
+- **G1 — required OpenAPI drift gate is green.** Artifact regenerated canonically; 207 paths
+  unchanged, one additive D2 property, generated client types back in sync. The historical
+  "key-order/resolver" explanation is annotated as inaccurate rather than rewritten.
+- **I1 — WAHA has a governed deployment.** Digest-pinned service in both compose files behind a
+  `waha` profile, publishing **no port** in production, with a persistent `waha-sessions` volume at
+  `/app/.sessions` and a full operator runbook (`deploy/DEPLOYMENT.md` §15). A real
+  `docker compose restart waha` preserved the session; the same image without the volume returned
+  `404 Session not found` — confirming the volume is what closes D2's underlying cause.
+- **S1 — `cryptography` advisory resolved.** Floor raised `>=43` → `>=50` (no lock file exists, so
+  the floor is the only guard); `pip-audit` reports no known vulnerabilities.
+- **Unchanged:** migration head and revision count, OpenAPI path count, RBAC catalog, WAHA
+  capabilities and prohibited capabilities, Meta behaviour, and the provider certification record.
+- **Still outstanding (why QR-09 stays PARTIAL):** physical-phone provider E2E — including whether
+  scanned credentials survive a restart, which was **not** demonstrated (only pre-pairing session
+  persistence was) — and the supported-browser/target-host matrix. Running-app screenshots could not
+  be captured in this environment; the state was verified live through the rendered DOM at desktop
+  and mobile viewports instead.
+- **Classification:** `Repository Validated: YES` for QR-09A · `Host Validated: NO` ·
+  `Provider Validated: NO` · `Production Ready: NO`.
 
 ## QR-09 — Production Validation (PARTIAL — BLOCKED)
 
@@ -542,7 +583,15 @@ boundaries, durable session integration, lease/fencing enforcement, bounded expi
 restart/recovery metadata, Audit redaction, additive migration, lint, typing, full regressions, source
 security scans and unchanged frontend/API semantics. OpenAPI generation under the current unpinned
 FastAPI/Pydantic resolver has a pre-existing JSON key-order mismatch at the untouched M13-04 baseline;
-semantic schemas are equal and M13-05 introduces no route or schema. It does not prove a live provider,
+semantic schemas are equal and M13-05 introduces no route or schema.
+<!-- Annotation (QR-09A, 2026-08-08): the attributed cause above is now known to be wrong, and is
+     left in place as the historical record rather than rewritten. QR-09 proved OpenAPI generation
+     is deterministic (identical SHA-256 across processes) and that key order was identical; the
+     committed artifact differed only by JSON ASCII-escaping, because it had been written with
+     `ensure_ascii=True` while the exporter emits `ensure_ascii=False`. QR-09A regenerated the
+     artifact through the canonical exporter and the drift gate now passes. No resolver or
+     dependency was pinned or upgraded to achieve this. -->
+It does not prove a live provider,
 QR scan/login, target-host multi-node runtime behavior, provider certification, production monitoring,
 disaster recovery or rollout.
 

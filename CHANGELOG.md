@@ -11,6 +11,104 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-08 — QR-09A: Production Validation Remediation
+
+Repairs exactly the blockers QR-09 recorded, and nothing else. **QR-09 itself remains
+`PARTIAL (BLOCKED)`** — its failure evidence is preserved verbatim, because a remediation milestone
+fixes causes, it does not retroactively pass the validation that found them. Migration head stays
+`0043_conversation_channel_endpoints` (44 revisions) and OpenAPI stays **207 paths**: no revision,
+route, RBAC entry or capability was added.
+
+**QR-09-D1 (Major) — `0043` is now reversible on real MySQL.** `downgrade()` dropped
+`uq_conv_endpoint_contact` before `fk_conv_channel_endpoint`, but InnoDB elects that index (leading
+column `channel_endpoint_id`) to satisfy the foreign key's mandatory supporting index, so MySQL
+refused with error 1553 — and because MySQL DDL is not transactional, the failed attempt left
+`messages`/`webhook_events` already stripped while `alembic_version` still read `0043`, a schema
+matching neither revision. All conversation-side drops now happen in one batch in dependency order
+(check → foreign key → index → column). **No new revision was created**: the fix is to a broken
+`downgrade()` body, and the upgrade path, revision id and resulting schema are byte-for-byte
+unchanged, so nothing already applied is rewritten. Regression added to
+`tests/test_migrations_mysql.py` (12 live-MySQL tests, was 11): clean database → `0042` → seed a
+representative Meta thread → `0043` → assert every seeded row survives byte-for-byte and gains no
+invented endpoint ownership → downgrade → assert the version is truthful, that no `0043` column,
+index or constraint remains, and that the seeded data is still valid → upgrade again. SQLite never
+reproduced this (batch mode rebuilds the whole table), which is exactly why the regression is
+asserted against a real server.
+
+**QR-09-D2 (Major) — a reachable provider holding no session is now a recoverable state, not a
+500.** The provider's `404 Session not found` became a generic `ChannelApiError`, which
+`_reconcile()` only caught as `ChannelTransportError` and `get_status()` only suppressed as
+`ConflictError`; neither matched, so it surfaced as an unhandled 500 on the one screen an operator
+needs in order to recover. `WahaSessionNotFound` now narrows that 404 at the client boundary, and
+the service treats it as an observation rather than a fault: durable pairing truth is left
+**untouched**, and the status projection reports the divergence instead. The distinction that
+matters to an operator is preserved — a connection that had reached `PAIRED` reports
+`requires_reauthentication` (its credentials really are gone and a fresh scan is required), while
+anything else is the ordinary connect-and-scan path. Reconnect refuses explicitly (`409`) rather
+than restarting a session that does not exist. Nothing recreates a session, starts pairing or
+fetches a QR on a status read — asserted by a test that fails if a read issues any write. An
+outage is still an outage: `ChannelTransportError` remains `provider_unavailable` and never reports
+a missing session, so QR-06's semantics are untouched. The frontend gained the matching correction:
+`deriveViewState` returned `"creating-session"` for this state, rendering *"Starting the session…"*
+— false progress an operator would wait on indefinitely — and now resolves to the truthful
+`ready-to-connect`, carrying the server's own explanation. One additive response field
+(`provider_session_missing`); no route added.
+
+**QR-09-D3 (Minor) — an oversized delivery is answered `413`, not `500`.** The 1 MiB bound is
+QR-04's and is unchanged; the body is still refused *before* it is hashed. `WahaBodyTooLarge` simply
+had no HTTP mapping. New `PayloadTooLargeError` maps it to a client error, which is operationally
+load-bearing rather than cosmetic: WAHA delivery is at-least-once and retries a `5xx`, so the old
+answer turned one oversized delivery into an endless redelivery loop. The refusal states the bound
+and never echoes the body.
+
+**QR-09-G1 (required gate) — the OpenAPI drift gate is green.** `frontend/openapi.json` was
+regenerated through the canonical exporter (`scripts/export_openapi.py`) and the client types
+through `npm run gen:api`; neither file was hand-edited. `scripts/quality_gate.py static` now passes
+all six steps. The committed artifact had been written with `ensure_ascii=True` while the exporter
+emits `ensure_ascii=False` — QR-09 proved generation is deterministic and key order identical, so
+the previously recorded "key-order mismatch under an unpinned FastAPI/Pydantic resolver"
+explanation was wrong. That historical text is **annotated, not rewritten**, in `PROJECT_STATE.md`
+and `VALIDATION_RESULTS.md`. No FastAPI or Pydantic version was pinned or changed. Path count is
+unchanged at 207; the only schema delta is D2's one additive property.
+
+**QR-09-I1 (infrastructure) — WAHA now has a governed deployment definition.** A `waha` service was
+added to both compose files, pinned by **digest**
+(`devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`) rather
+than by tag, because the certification evidence is for one immutable build and a floating tag can be
+repointed upstream. It sits behind a `waha` compose profile, so an operator who has not adopted the
+QR channel runs the exact stack they ran before, and the backend's WAHA settings default to empty
+(the adapter then reports `configured=false` and registers no runtime). Production publishes **no
+port at all** — only the backend reaches it over the compose network; development binds
+`127.0.0.1` only. Session state persists on a `waha-sessions` volume at `/app/.sessions`, the path
+verified empirically against this digest (`noweb/waha.sqlite3` plus `noweb/<session>/`).
+`deploy/DEPLOYMENT.md` gains §15 covering topology, why the volume is not optional, operator
+procedures for each failure mode, backup, and disable/rollback.
+
+**QR-09-S1 (security) — `cryptography` advisory resolved.** `PYSEC-2026-3552` affected `49.0.0`
+and is fixed in `50.0.0`. The declared floor was `>=43` and this repository ships **no lock file**,
+so the floor is the only thing that can stop a constrained or offline resolve from selecting a
+vulnerable build; it is raised to `>=50`. `pip-audit` now reports **no known vulnerabilities**, and
+94 crypto/auth/credential tests pass against the upgraded library. No unrelated dependency was
+touched.
+
+**Validated against real infrastructure**, not SQLite: MySQL `8.0.46`, Redis `7.4.9`, and the real
+pinned WAHA container. The D2 condition was reproduced end to end — provider up (`/api/server/version`
+`200`), its session deleted, provider answering `404 Session not found` — and the status endpoint
+returned **`200`** with `provider_session_missing: true` and
+`reconnect_blocked_reason: "provider_session_missing"`, where QR-09 recorded `500` on 30/30 calls.
+A real `docker compose restart waha` with the new volume preserved the session. Oversized delivery
+returned `413`; valid HMAC `200` and invalid HMAC `403` are unchanged. Backend **1397 passed, 0
+skipped** (was 1385; +12), frontend **796** (was 793; +3), 371 QR-01..08 regression tests pass
+together, Ruff/strict mypy/ESLint/TypeScript/production build all pass, Bandit unchanged at 0
+High / 0 Medium / 28 Low.
+
+**Not claimed.** WAHA capabilities are unchanged (`HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`,
+`SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` still permanently prohibited).
+Credential survival across a restart *after a real QR scan* cannot be proven without a physical
+handset and is **not** claimed — only pre-pairing session persistence was demonstrated. The
+provider certification record is untouched. `Host Validated`, `Provider Validated` and
+`Production Ready` all remain **NO**.
+
 ### 2026-08-08 — QR-09: Production Validation — PARTIAL (BLOCKED, evidence-only)
 
 **No product code, migration, OpenAPI, dependency, or capability change.** This entry records a

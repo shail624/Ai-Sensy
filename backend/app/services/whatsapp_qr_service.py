@@ -75,6 +75,7 @@ from app.channels.waha import (
     ReconnectDecision,
     WahaChannelAdapter,
     WahaQrChallenge,
+    WahaSessionNotFound,
     WahaSessionSnapshot,
     map_session_status,
     plan_reconnect,
@@ -155,6 +156,10 @@ class WhatsAppQrState:
     identity_masked: str | None = None
     push_name: str | None = None
     qr_available: bool = False
+    #: The provider is reachable and reports it holds no session under the configured name
+    #: (QR-09-D2). Derived from a live observation, never persisted — the durable pairing record is
+    #: the platform's own truth and is deliberately left untouched by this observation.
+    provider_session_missing: bool = False
     updated_at: datetime | None = None
 
 
@@ -205,11 +210,14 @@ class WhatsAppQrService:
 
         # Another request may be reconciling right now; report the last-known durable state
         # rather than failing a read for lease contention.
+        session_missing = False
         with suppress(ConflictError):
-            await self._reconcile(organization_id=organization_id, actor=actor, row=row)
+            session_missing = await self._reconcile(
+                organization_id=organization_id, actor=actor, row=row
+            )
         row = await self._sessions.get_scoped(organization_id, uuidlib.UUID(row.public_id))
         assert row is not None
-        return self._state_from_row(row)
+        return self._state_from_row(row, provider_session_missing=session_missing)
 
     # --- Bootstrap ---------------------------------------------------------------------------
 
@@ -330,12 +338,21 @@ class WhatsAppQrService:
 
         # Live-plan first, with no lease held: this is a read-only check and must be cheap to
         # repeat (the frontend disables the button on `can_reconnect`, and the API re-validates).
-        decision = await self._adapter.plan_session_recovery(
-            self._provider_session_name(),
-            durable_pairing_state=PairingState(row.pairing_state),
-            attempts=row.reconnect_attempts,
-            max_attempts=row.max_reconnect_attempts,
-        )
+        try:
+            decision = await self._adapter.plan_session_recovery(
+                self._provider_session_name(),
+                durable_pairing_state=PairingState(row.pairing_state),
+                attempts=row.reconnect_attempts,
+                max_attempts=row.max_reconnect_attempts,
+            )
+        except WahaSessionNotFound as exc:
+            # There is nothing to reconnect *to*: QR-06 restarts an existing session, and the
+            # provider holds none. Refusing explicitly is the truthful answer, and it keeps this
+            # path from silently recreating a session or raising an unhandled 500 (QR-09-D2).
+            raise ConflictError(
+                "WhatsApp no longer has this connection's session, so there is nothing to "
+                "reconnect. Pair the connection again to link an account."
+            ) from exc
         if decision is ReconnectDecision.CONNECTED:
             return self._state_from_row(row)
         if decision is not ReconnectDecision.RECONNECT:
@@ -446,7 +463,20 @@ class WhatsAppQrService:
 
     async def _reconcile(
         self, *, organization_id: int, actor: User, row: ChannelSession
-    ) -> ChannelSession:
+    ) -> bool:
+        """Reconcile durable state against one live provider read.
+
+        Returns whether the provider is reachable but reports **no** session under the configured
+        name. Two live outcomes deliberately mutate nothing:
+
+        * :class:`ChannelTransportError` — the provider could not be reached, so there is no
+          observation to reconcile from (QR-06: an outage must never rewrite pairing truth).
+        * :class:`WahaSessionNotFound` — the provider *was* reached and holds no such session
+          (QR-09-D2). The durable record is still the platform's own truth about what was paired,
+          so it is preserved verbatim; the caller is told about the divergence instead, and decides
+          how to present it. Nothing here recreates the session, starts pairing, or requests a QR —
+          re-establishing a session stays an explicit operator action.
+        """
         lease = await self._session_manager.acquire_lock(
             organization_id=organization_id,
             actor=actor,
@@ -458,9 +488,11 @@ class WhatsAppQrService:
         try:
             try:
                 snapshot = await self._adapter.session_snapshot(self._provider_session_name())
+            except WahaSessionNotFound:
+                return True
             except ChannelTransportError:
-                return row
-            return await self._apply_snapshot(
+                return False
+            await self._apply_snapshot(
                 organization_id=organization_id,
                 actor=actor,
                 row=row,
@@ -469,6 +501,7 @@ class WhatsAppQrService:
                 snapshot=snapshot,
                 request_pairing=False,
             )
+            return False
         finally:
             await self._release(organization_id, actor, row, lease)
 
@@ -657,7 +690,9 @@ class WhatsAppQrService:
         assert fresh is not None
         return fresh
 
-    def _state_from_row(self, row: ChannelSession) -> WhatsAppQrState:
+    def _state_from_row(
+        self, row: ChannelSession, *, provider_session_missing: bool = False
+    ) -> WhatsAppQrState:
         session_state = SessionState(row.state)
         pairing_state = PairingState(row.pairing_state)
         metadata = row.provider_metadata_json or {}
@@ -675,6 +710,37 @@ class WhatsAppQrService:
             pairing_state is PairingState.PAIRED
         )
         blocked_reason = None if can_reconnect else decision.value
+        healthy = row.health_state == "healthy"
+        health_detail = row.state_detail or f"Session state: {session_state.value}."
+        qr_available = pairing_state is PairingState.PAIRING_AVAILABLE
+
+        if provider_session_missing:
+            # The provider answered and holds no session under the configured name (QR-09-D2).
+            # Every live-derived signal below is corrected to say so, while the durable pairing
+            # record itself is left exactly as it was — this is a projection, not a state change.
+            #
+            # The distinction that matters to an operator is whether credentials were lost:
+            #   * durable PAIRED  -> the account really was linked and the provider no longer holds
+            #                        it, so a fresh scan is genuinely required.
+            #   * anything else   -> nothing was linked yet; this is the ordinary "connect and pair"
+            #                        path, not a re-authentication.
+            # Reconnect is refused either way: QR-06 restarts an existing session, and there is no
+            # session here to restart. Nothing auto-creates one.
+            credentials_lost = pairing_state is PairingState.PAIRED
+            connected = False
+            healthy = False
+            provider_status = None
+            qr_available = False
+            can_reconnect = False
+            requires_reauth = requires_reauth or credentials_lost
+            blocked_reason = "provider_session_missing"
+            health_detail = (
+                "WhatsApp is reachable but no longer has this connection's session, so the linked "
+                "account must be paired again by scanning a new QR code."
+                if credentials_lost
+                else "WhatsApp is reachable but has no session for this connection yet; "
+                "start the connection and scan the QR code to link an account."
+            )
 
         return WhatsAppQrState(
             configured=True,
@@ -685,13 +751,14 @@ class WhatsAppQrService:
             provider_status=provider_status,
             connected=connected,
             requires_reauthentication=requires_reauth,
-            healthy=row.health_state == "healthy",
-            health_detail=row.state_detail or f"Session state: {session_state.value}.",
+            healthy=healthy,
+            health_detail=health_detail,
             can_reconnect=can_reconnect,
             reconnect_blocked_reason=blocked_reason,
             identity_masked=_mask_identity(metadata.get("identity")),
             push_name=metadata.get("push_name"),
-            qr_available=pairing_state is PairingState.PAIRING_AVAILABLE,
+            qr_available=qr_available,
+            provider_session_missing=provider_session_missing,
             updated_at=row.health_observed_at,
         )
 
