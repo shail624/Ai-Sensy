@@ -6,25 +6,49 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-09B — WAHA Runtime Healthcheck Remediation: QR-09-D4 fixed with a verified in-image curl /ping probe and real-container regression. QR-09 itself stays PARTIAL (BLOCKED).` |
+| Latest change | `QR-09C — WAHA Webhook Delivery Wiring and Credential Hygiene: QR-09-D5 technically remediated with private global signed delivery; Meta token rotation is owner-deferred, so QR-09C and QR-09 remain PARTIAL (BLOCKED).` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (QR-09B remediation closeout; resolve after push) |
-| Current milestone | `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`. `QR-09 — Production Validation` remains `PARTIAL (BLOCKED)`; QR-09A history and QR-08 completion remain preserved. |
-| Current phase | `QR-09-D4 is repaired and runtime-verified. QR-09 closure still requires real physical-phone provider E2E and browser/target-host evidence.` |
+| Current Git HEAD | `HEAD` (QR-09C partial technical-remediation milestone; resolve after push) |
+| Current milestone | `QR-09C — PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`. `QR-09 — Production Validation` remains `PARTIAL (BLOCKED)`; QR-09/09A/09B history and QR-08 completion remain preserved. |
+| Current phase | `QR-09-D5 is technically remediated and runtime-verified. The owner-deferred Meta credential gate, physical-phone provider E2E and browser/target-host evidence remain outstanding.` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged**. QR-09A repaired `0043`'s `downgrade()` ordering without adding a revision; the upgrade path, revision id and resulting schema are byte-for-byte unchanged, and up/down/up is now proven on real MySQL |
 | OpenAPI | `3.1.0` · **`207` paths, unchanged**. Required drift gate now **PASSES**: the artifact was regenerated through the canonical exporter (the committed copy had been written with `ensure_ascii=True` while the exporter emits `ensure_ascii=False`). Zero route/schema churn; the only delta is D2's additive `provider_session_missing` property. No FastAPI/Pydantic version was pinned or changed |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
 | Backend evidence (QR-09B release gate) | **1397 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **21/21 PASS**, including certified WAHA runtime health, Compose/release contracts, image contracts and scans |
+| Backend evidence (QR-09C release gate) | **1399 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **22/22 PASS**, including provider-generated signed webhook/retry/restart runtime evidence |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / **796 tests** PASS (793 before; +3 D2 view-state tests) · production build PASS · `npm audit --omit=dev` 2 moderate (react-router SSR advisory; app is client-rendered, unchanged by this milestone) |
 | Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — unchanged by QR-09 |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `52%` evidence-based estimate — **unchanged**. Remediation restores intended behaviour and adds a deployment definition; it delivers no new product capability |
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-09. QR-09 ran the real pinned image (`sha256:33ecd1b7…`) but had no physical handset, so it does not advance certification. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT |
-| Next Module 13 milestone | Rerun QR-09's remaining external gates: physical-phone provider E2E (real scan → `WORKING`, real inbound/outbound, ACK chain, reconnect-without-new-QR, logout/re-auth, credential survival across restart) and the supported-browser/target-host matrix. Not started; both need evidence this environment cannot produce |
+| Next Module 13 milestone | First complete the owner-deferred Meta webhook verification-token rotation. After separate explicit approval, rerun QR-09's physical-phone provider E2E and supported-browser/target-host matrix. Not started; no automatic QR-09 resume is authorized |
 | Host evidence | Repository/local-host MySQL/Redis/WAHA evidence (not target-host): real MySQL 8.0.46 and Redis 7.4.9 via this repository's own `docker compose up -d`, and the real pinned WAHA container, all on the development workstation. QR-09 additionally reproduced a **second** real-MySQL downgrade defect (`0043`, same class as the pre-existing `0036`/`0040` one) and a provider-up/session-absent `500` on the operator status endpoint. Genuine target-host evidence, physical-phone pairing, and the full browser/device matrix remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-09B changes both Compose healthchecks, adds the real certified-image runtime regression and release-gate wiring, synchronizes the stale backend image-contract path assertion, and updates governance. No application source, migration, route, schema, RBAC entry, provider capability, session data, or UI change |
-| Last update | `2026-08-09T04:30:00+05:30` (Asia/Kolkata) |
+| Worktree expectation | QR-09C configures private global WAHA signed delivery in both Compose files, synchronizes safe environment/runbook guidance, adds the certified-image delivery regression and release-gate wiring, focused tests, and governance. No application source, migration, route, schema, RBAC entry, provider capability, session data, QR, phone evidence, or UI change |
+| Last update | `2026-08-09T10:23:12+05:30` (Asia/Kolkata) |
+
+## QR-09C — WAHA Webhook Delivery Wiring and Credential Hygiene (PARTIAL)
+
+- **QR-09-D5 (Major):** the signed backend receiver existed, but neither Compose service configured
+  WAHA's sender. No global or per-session URL/events/HMAC were present, so provider events had no
+  path into the existing webhook/MessageService/Unified Inbox authorities.
+- **Design:** one global webhook only. Production callback is private `api:8000`; development uses
+  Docker's internal host gateway. Events are exactly `message`, `message.any`, `message.ack`.
+  Per-session webhooks remain absent because WAHA combines both modes (duplicate delivery) and would
+  persist the HMAC key with session configuration.
+- **Authentication/retry:** a dedicated `WAHA_WEBHOOK_HMAC_SECRET` feeds the provider sender and the
+  unchanged fail-closed backend verifier. Raw-body SHA-512 is preserved. Retry configuration is
+  explicit: 15 attempts, constant two-second delay. No Meta credential is reused.
+- **Runtime evidence:** the exact certified image's own `WebhookSender` reached a private `api:8000`
+  receiver, produced valid raw-body SHA-512 HMAC, retried one controlled `503` with byte-identical
+  body/stable request id, then delivered a signed ACK after restart. Exact provider identity remained
+  `2026.7.2` / `NOWEB` / `CORE`; zero sessions before/after; no QR or phone interaction.
+- **Regression/gates:** full release gate **22/22 PASS** in 525.3s; backend 1399/0 skipped, frontend
+  796, source secret/IaC, dependency, build, Compose, release, image, vulnerability and SBOM gates.
+- **META WEBHOOK_VERIFY_TOKEN ROTATION:** **PENDING — OWNER DEFERRED**
+- **Classification:** `QR-09C: PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING` ·
+  `QR-09: PARTIAL (BLOCKED)` · `Host Validated: NO` · `Provider Validated: NO` ·
+  `Production Ready: NO`. Provider certification/approval is unchanged.
 
 ## QR-09B — WAHA Runtime Healthcheck Remediation (REPOSITORY VALIDATED)
 

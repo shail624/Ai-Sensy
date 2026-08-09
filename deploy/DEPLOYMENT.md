@@ -471,6 +471,39 @@ Required in `.env.production` when the profile is enabled: `WAHA_API_KEY`,
 before anything is parsed; leaving it empty rejects **every** delivery rather than accepting
 unsigned ones.
 
+Generate `WAHA_WEBHOOK_HMAC_SECRET` as a dedicated high-entropy value. It is not Meta's webhook
+verification token, Meta's app secret, the WAHA API key, or WhatsApp session material, and none of
+those values may be reused for it. Inject the same dedicated value into the backend and WAHA
+containers through the deployment secret store; never place it in a Compose command, log, ticket,
+screenshot, or tracked file.
+
+### Signed webhook delivery
+
+Production Compose configures one **global** WAHA webhook sender:
+
+- callback: `http://api:8000/api/v1/webhooks/waha` on the private Compose network;
+- events: `message`, `message.any`, and `message.ack` only;
+- authentication: `X-Webhook-Hmac`, SHA-512 over the exact raw JSON body;
+- retries: 15 attempts, constant two-second delay, on every delivery error.
+
+Global configuration is intentional. The deployment owns one governed receiver, the signing key
+stays in container environment rather than being persisted in a session config, and a Compose
+restart reapplies the configuration before restored sessions start. Do not also add `config.webhooks`
+to session creation: WAHA combines global and per-session webhooks, which would duplicate every
+delivery. The certified 2026.7.2 sender has no configured request timeout; the bounded retry count
+limits retry quantity but cannot bound one hung HTTP request. Keep the callback private, local and
+responsive, and alert on WAHA webhook-send failures.
+
+Local development uses `http://host.docker.internal:8000/api/v1/webhooks/waha`; the Compose
+`host-gateway` mapping provides that internal route on Linux and Docker Desktop supplies it on its
+supported hosts. The provider port remains loopback-only. Start the backend with the same
+`WAHA_WEBHOOK_HMAC_SECRET` as the root Compose environment before exercising the webhook path.
+
+Changing the WAHA HMAC secret requires a coordinated restart: update the backend and WAHA secret
+values together, restart the API/worker roles and WAHA service, then validate a signed controlled
+delivery. A mismatch fails closed with HTTP 403 and is retried by WAHA. It never authorizes falling
+back to unsigned delivery.
+
 ### Why the session volume is not optional
 
 WAHA holds the WhatsApp credentials obtained when a human scanned the QR code. They live only in

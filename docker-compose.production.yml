@@ -169,6 +169,18 @@ services:
       WHATSAPP_DEFAULT_ENGINE: NOWEB
       WAHA_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
       WHATSAPP_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
+      # One deployment-wide signed route, internal to the Compose network. Per-session webhooks are
+      # intentionally absent: configuring both modes duplicates deliveries, while per-session HMAC
+      # config would persist the signing key in the session store. This key is dedicated to WAHA and
+      # must never reuse META_WEBHOOK_VERIFY_TOKEN or META_APP_SECRET.
+      WHATSAPP_HOOK_URL: http://api:8000/api/v1/webhooks/waha
+      WHATSAPP_HOOK_EVENTS: message,message.any,message.ack
+      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_SECRET:?WAHA_WEBHOOK_HMAC_SECRET is required when the waha profile is enabled}
+      # The certified sender retries every failure. Keep the observed 2026.7.2 defaults explicit so
+      # an upstream default change cannot silently alter delivery pressure or recovery timing.
+      WHATSAPP_HOOK_RETRIES_POLICY: constant
+      WHATSAPP_HOOK_RETRIES_DELAY_SECONDS: "2"
+      WHATSAPP_HOOK_RETRIES_ATTEMPTS: "15"
     volumes:
       # WhatsApp session state — `/app/.sessions/noweb/waha.sqlite3` (session registry) and
       # `/app/.sessions/noweb/<session>/` (per-session store/config), verified against this exact

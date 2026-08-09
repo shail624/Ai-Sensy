@@ -63,6 +63,19 @@ services:
       WHATSAPP_DEFAULT_ENGINE: NOWEB
       WAHA_API_KEY: ${WAHA_API_KEY:-waha-local-dev-key}
       WHATSAPP_API_KEY: ${WAHA_API_KEY:-waha-local-dev-key}
+      # Global webhook wiring is deliberate: the deployment has one governed backend receiver and
+      # per-session webhook config would persist the HMAC key alongside WhatsApp credentials. Never
+      # configure both modes — WAHA concatenates them and would deliver every event twice.
+      WHATSAPP_HOOK_URL: http://host.docker.internal:8000/api/v1/webhooks/waha
+      WHATSAPP_HOOK_EVENTS: message,message.any,message.ack
+      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_SECRET:-waha-local-dev-webhook-hmac}
+      WHATSAPP_HOOK_RETRIES_POLICY: constant
+      WHATSAPP_HOOK_RETRIES_DELAY_SECONDS: "2"
+      WHATSAPP_HOOK_RETRIES_ATTEMPTS: "15"
+    # Docker Desktop provides this name natively; host-gateway makes the same internal callback
+    # topology work on Linux without publishing the backend or provider to the LAN.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Bound to the loopback interface on purpose: the QR screen is driven by the backend running on
     # the host, so the port has to be reachable locally — but binding 0.0.0.0 would expose an
     # unauthenticated-by-default WhatsApp bridge to the whole network. Production publishes nothing

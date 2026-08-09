@@ -11,6 +11,53 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09C: WAHA Webhook Delivery Wiring and Credential Hygiene
+
+Records and remediates **QR-09-D5 (Major)** without rewriting QR-09, QR-09A or QR-09B history. The
+backend already exposed `POST /api/v1/webhooks/waha` and rejected unsigned or forged deliveries with
+raw-body SHA-512 HMAC verification, but neither Compose definition configured WAHA to call it. A
+paired provider therefore had no delivery route into `WebhookService`, `MessageService` or the
+Unified Inbox.
+
+Both Compose definitions now configure one global provider webhook. Production uses the private
+`http://api:8000/api/v1/webhooks/waha` route; local development uses the Docker-internal
+`host.docker.internal` route while preserving WAHA's loopback-only host publication. Subscriptions
+are restricted to `message`, `message.any` and `message.ack`. A dedicated
+`WAHA_WEBHOOK_HMAC_SECRET` is required by the production WAHA profile and is injected into both the
+provider sender and existing backend verifier. It is explicitly separate from every Meta credential,
+the provider API key and session material. Per-session webhooks remain absent: the pinned provider
+combines global and per-session configuration, which would duplicate delivery, and per-session HMAC
+configuration would persist the signing key with session state.
+
+The certified sender's observed retry contract is pinned explicitly at 15 attempts, constant
+two-second delay. Its requests have no configured timeout in WAHA 2026.7.2; that provider limitation
+is documented rather than hidden. Global settings remain in container environment, survive restart,
+and are reapplied as restored sessions start; `waha-sessions:/app/.sessions`, digest, engine,
+capabilities, restart policy and production network exposure are unchanged.
+
+`scripts/validate_waha_webhook.py` renders both Compose profiles with synthetic, distinct
+credentials and runs the exact certified image on an isolated private Docker network. WAHA's shipped
+`WebhookSender` — not repository HMAC code — produced a valid SHA-512 signature to the internal
+`api:8000` callback. A controlled `503` caused one byte-identical retry with the same request id;
+after provider restart, a separately signed ACK delivery succeeded with a new request id. The gate
+confirmed `2026.7.2` / `NOWEB` / `CORE` and zero provider sessions before and after restart. It
+created no session, requested/displayed no QR and performed no phone interaction. Existing focused
+receiver tests prove forged/missing signatures fail closed and provider retries plus
+`message`/`message.any` converge to one stored message through the governed dedupe authorities.
+
+All **22 release gates pass** in 525.3 seconds: backend **1399 passed, 0 skipped**, frontend
+**796 passed**, lint/types/OpenAPI/build/SAST/dependency audits/source secret-IaC scan, both certified
+WAHA runtime regressions, Compose/release/image contracts, application-image vulnerability scans and
+SBOMs. Migration head remains `0043_conversation_channel_endpoints` (44 revisions), OpenAPI remains
+207 paths, and application source, UI, RBAC, migrations and provider capabilities are unchanged.
+
+**META WEBHOOK_VERIFY_TOKEN ROTATION:**
+**PENDING — OWNER DEFERRED**
+
+**Status boundary:** QR-09C is `PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`; QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO`, `Provider Validated: NO`, and `Production Ready: NO`.
+Provider certification/approval is unchanged. No physical-phone or target-host evidence is claimed.
+
 ### 2026-08-09 — QR-09B: WAHA Runtime Healthcheck Remediation
 
 Records and repairs **QR-09-D4 (Major)** without rewriting QR-09 or QR-09A history: both Compose

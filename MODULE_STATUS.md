@@ -17,7 +17,29 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T04:30:00+05:30`.
+Last synchronized: `2026-08-09T10:23:12+05:30`.
+
+## Module 13 — QR-09C WAHA Webhook Delivery Wiring and Credential Hygiene
+
+- **Milestone status:** `PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs deployment wiring and adds
+  no product capability.
+- **Defect:** QR-09-D5 (Major) — the governed signed receiver existed, but WAHA had no configured
+  callback/events/HMAC sender, so provider traffic could not reach the Unified Inbox pipeline.
+- **Fix:** one global private callback in each Compose topology; exact `message`, `message.any`,
+  `message.ack` subscriptions; dedicated WAHA HMAC; unchanged raw-body SHA-512 verification;
+  explicit 15-attempt/two-second constant retry contract. No per-session webhook duplication/key
+  persistence, public provider exposure or new capability.
+- **Evidence:** exact certified image's sender produced valid HMAC over private Docker networking,
+  retried one controlled 503 byte-for-byte, and delivered a signed ACK after restart. Zero sessions,
+  QR or phone actions. Existing receiver/dedupe suite 81 PASS; release gate 22/22, backend 1399/0
+  skipped, frontend 796.
+- **META WEBHOOK_VERIFY_TOKEN ROTATION:** **PENDING — OWNER DEFERRED**
+- **Preserved:** QR-09/09A/09B history, migration/OpenAPI/RBAC/UI/capabilities, provider approval,
+  production internal-only topology and `waha-sessions` data.
+- **Next:** stop after QR-09C technical reporting. QR-09 physical-phone closeout requires separate
+  approval after outstanding external gates. `Host Validated`, `Provider Validated`,
+  `Production Ready`: NO.
 
 ## Module 13 — QR-09B WAHA Runtime Healthcheck Remediation
 

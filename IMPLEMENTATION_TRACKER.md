@@ -3,8 +3,8 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09B WAHA Runtime Healthcheck Remediation is REPOSITORY VALIDATED;
-QR-09 remains PARTIAL — BLOCKED, on top of QR-09A remediation, QR-08 Unified Inbox integration,
+_Last updated: 2026-08-09 · QR-09C is PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING;
+QR-09 remains PARTIAL — BLOCKED, on top of QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
 migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat
@@ -18,8 +18,19 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; QR-09A remains preserved historical evidence and QR-08 remains `COMPLETE`.
-- **Latest change:** QR-09B repairs QR-09-D4: the certified image lacks the committed `wget`
+- **Current milestone:** `QR-09C — PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`. `QR-09` remains `PARTIAL (BLOCKED)`; QR-09/09A/09B evidence is preserved and QR-08 remains `COMPLETE`.
+- **Latest change:** QR-09C repairs QR-09-D5 technically: both Compose models configure one global,
+  private WAHA callback to the existing `/api/v1/webhooks/waha` receiver, subscribe only to
+  `message`, `message.any`, and `message.ack`, and supply a dedicated HMAC key to the unchanged
+  raw-body SHA-512 verifier. Production publishes no WAHA port; per-session webhooks remain absent
+  to avoid duplicate delivery and persisted signing keys. The exact certified image's own sender
+  proves private callback reachability, provider-generated HMAC, byte-identical retry after a
+  controlled 503, and signed ACK delivery after restart with zero sessions/QR/phone interaction.
+  Full release gate **22/22 PASS** (backend 1399/0 skipped; frontend 796). Migration `0043`/44
+  revisions, OpenAPI 207, RBAC, UI and provider capabilities are unchanged.
+  **META WEBHOOK_VERIFY_TOKEN ROTATION: PENDING — OWNER DEFERRED.** Consequently QR-09C is PARTIAL;
+  `Host Validated`/`Provider Validated`/`Production Ready` remain NO.
+- **Previous change:** QR-09B repairs QR-09-D4: the certified image lacks the committed `wget`
   executable. Both Compose models now use the image's verified `curl 7.88.1` against the
   unauthenticated provider-owned `/ping` endpoint with a five-second bound. A real-container
   regression proves positive health, deterministic failure against an unavailable endpoint,

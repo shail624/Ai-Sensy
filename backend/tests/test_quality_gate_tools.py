@@ -20,6 +20,7 @@ from scripts import (  # noqa: E402
     quality_gate,
     release_contract,
     trivy_scan,
+    validate_waha_webhook,
 )
 
 
@@ -186,10 +187,71 @@ def test_deployed_profile_is_cumulative(monkeypatch: pytest.MonkeyPatch) -> None
     assert "backend tests" in names
     assert "tracked-source vulnerability, secret, and IaC scan" in names
     assert "production image vulnerability scan and SBOM" in names
+    assert "certified WAHA signed-webhook delivery" in names
     assert names[-2:] == [
         "browser runner build",
         "isolated deployed-stack browser and performance gate",
     ]
+
+
+def _waha_webhook_model(*, production: bool) -> dict[str, object]:
+    callback = (
+        validate_waha_webhook.PRODUCTION_CALLBACK
+        if production
+        else validate_waha_webhook.DEVELOPMENT_CALLBACK
+    )
+    waha: dict[str, object] = {
+        "image": validate_waha_webhook.CERTIFIED_IMAGE,
+        "environment": {
+            "WHATSAPP_HOOK_URL": callback,
+            "WHATSAPP_HOOK_EVENTS": validate_waha_webhook.EVENTS,
+            "WHATSAPP_HOOK_HMAC_KEY": validate_waha_webhook.SYNTHETIC_HMAC,
+            "WHATSAPP_HOOK_RETRIES_POLICY": validate_waha_webhook.RETRY_POLICY,
+            "WHATSAPP_HOOK_RETRIES_DELAY_SECONDS": validate_waha_webhook.RETRY_DELAY_SECONDS,
+            "WHATSAPP_HOOK_RETRIES_ATTEMPTS": validate_waha_webhook.RETRY_ATTEMPTS,
+        },
+        "volumes": [{"source": "waha-sessions", "target": "/app/.sessions"}],
+        "networks": {"default": None},
+    }
+    services: dict[str, object] = {"waha": waha}
+    if production:
+        services["api"] = {
+            "environment": {
+                "WAHA_WEBHOOK_HMAC_SECRET": validate_waha_webhook.SYNTHETIC_HMAC
+            },
+            "networks": {"default": None},
+        }
+    else:
+        waha["ports"] = [{"host_ip": "127.0.0.1", "target": 3000, "published": "3000"}]
+        waha["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+    return {"services": services}
+
+
+def test_waha_webhook_contract_accepts_exact_private_global_wiring() -> None:
+    validate_waha_webhook._assert_compose_model(
+        _waha_webhook_model(production=False), production=False
+    )
+    validate_waha_webhook._assert_compose_model(
+        _waha_webhook_model(production=True), production=True
+    )
+
+
+def test_waha_webhook_contract_rejects_extra_event_or_meta_token_reuse() -> None:
+    model = _waha_webhook_model(production=True)
+    services = model["services"]
+    assert isinstance(services, dict)
+    waha = services["waha"]
+    assert isinstance(waha, dict)
+    environment = waha["environment"]
+    assert isinstance(environment, dict)
+    environment["WHATSAPP_HOOK_EVENTS"] = "*"
+    with pytest.raises(validate_waha_webhook.ValidationError, match="governed webhook contract"):
+        validate_waha_webhook._assert_compose_model(model, production=True)
+
+    environment["WHATSAPP_HOOK_EVENTS"] = validate_waha_webhook.EVENTS
+    environment["WHATSAPP_HOOK_HMAC_KEY"] = validate_waha_webhook.SYNTHETIC_META_TOKEN
+    with pytest.raises(validate_waha_webhook.ValidationError, match="governed webhook contract"):
+        validate_waha_webhook._assert_compose_model(model, production=True)
 
 
 def test_source_snapshot_includes_only_git_reported_files(

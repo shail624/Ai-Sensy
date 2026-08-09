@@ -4,7 +4,39 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T04:30:00+05:30`.
+Last synchronized: `2026-08-09T10:23:12+05:30`.
+
+## QR-09C — WAHA Webhook Delivery Wiring and Credential Hygiene
+
+**Milestone status: `PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`.** QR-09-D5 is closed by
+repository/runtime evidence; the milestone credential gate is not closed. QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+**META WEBHOOK_VERIFY_TOKEN ROTATION:**
+**PENDING — OWNER DEFERRED**
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline and D5 reproduction | PASS | Branch/origin matched `ui/taste-modernization` at `0bbcd95a…`; only pre-existing `.claude/` was untracked. Existing receiver and raw-body SHA-512 verifier were present, while both Compose WAHA services had no webhook URL, event list or sender HMAC configuration. |
+| Exact pinned provider contract | PASS | Certified image exports global `WHATSAPP_HOOK_*` settings and per-session `config.webhooks`; both modes are concatenated. Sender JSON-stringifies once, signs those exact bytes with SHA-512, sends `X-Webhook-Hmac`/algorithm/request-id/timestamp, and retries every error. |
+| Global versus per-session decision | PASS | Global-only selected: one governed deployment receiver; key remains in runtime environment; restart reapplies it; no per-session persistence/API exposure. Per-session config remains absent, preventing duplicate delivery and a signing key in session storage. |
+| Required event boundary | PASS | Exact subscriptions are `message,message.any,message.ack`; wildcard and every unrelated event are regression-rejected. Capabilities remain unchanged. |
+| Dedicated credential boundary | PASS | `WAHA_WEBHOOK_HMAC_SECRET` is passed independently to WAHA and the existing backend verifier. Safe templates/runbook forbid reuse of Meta credentials, WAHA API key or session material. Production interpolation fails closed when the WAHA profile lacks it. No real deployment secret is read by the gates. |
+| Development callback topology | PASS | WAHA calls `host.docker.internal:8000/api/v1/webhooks/waha` through host-gateway; provider host publication remains `127.0.0.1:3000` only. |
+| Production callback topology | PASS | WAHA calls `http://api:8000/api/v1/webhooks/waha` over a shared private Compose network. Production publishes no WAHA port and adds no reverse-proxy route, Docker socket or host-path mount. |
+| Provider-generated signature | PASS | The exact certified image's shipped `WebhookSender` reached a private `api:8000` receiver. The receiver verified the raw-body SHA-512 HMAC and `WAHA/2026.7.2` sender identity. Repository code did not manufacture the signature. |
+| Retry and request identity | PASS | Controlled first response `503`; certified sender made exactly one retry after the configured delay. Body hash and request id were identical across both attempts, matching at-least-once redelivery semantics. |
+| Backend rejection and dedupe | PASS | Focused receiver/integration suite: missing/forged/wrong-secret/tampered HMAC fail closed; same-event retries retain one deterministic identity; `message` + `message.any` converge to one stored message through existing MessageService authorities. **81 tests PASS.** |
+| Restart/config persistence | PASS | Isolated provider restart preserved the exact global environment; a new signed `message.ack` delivery reached the private receiver afterward with a new request id. Existing Compose health regression preserved the repository `waha-sessions` volume. |
+| Provider identity/session boundary | PASS | Exact digest reports `2026.7.2` / `NOWEB` / `CORE`. Session list remained empty before and after restart. No session created, QR requested/displayed/scanned, phone paired, or session data mutated. |
+| Timeout semantics | PASS | Exact 2026.7.2 sender configures no Axios timeout (effectively unbounded per request); this provider limitation is recorded in the deployment runbook. Retry quantity is bounded at 15 but does not bound a hung request. |
+| Startup dependency behavior | PASS | No service depends on WAHA health and no new coupling is introduced. WAHA retry semantics cover a temporarily unavailable API callback without blocking unrelated stack startup. |
+| Runtime regression | PASS | `scripts/validate_waha_webhook.py` renders both profiles with distinct synthetic credentials and runs exact-image private callback/HMAC/retry/restart/session-zero assertions. It is release gate step 17. |
+| Full release gate | PASS | **22/22 PASS** in 525.3s: backend **1399 passed, 0 skipped**, frontend **796**, lint/types/OpenAPI/build/SAST/audits/source secret-IaC scan, both certified WAHA runtime gates, Compose/release/image contracts, app-image vulnerability scans/SBOMs. |
+| Contract invariants | PASS | Migration head `0043` (44 revisions), OpenAPI 207 paths, application source, routes, schemas, RBAC, UI, provider capabilities, restart policy and certified digest unchanged. |
+| UI preview | PASS | Not applicable: runtime infrastructure configuration only; no operator-facing UI change and no screenshot claimed. |
+| Deferred credential gate | PENDING – Host Machine Validation | Owner deferred the Meta verification-token rotation. QR-09C cannot pass and no credential-hygiene completion or production-readiness claim is made. |
+| QR-09 boundary | PASS | QR-09/09A/09B evidence remains preserved. No physical-phone, provider acceptance, target-host/browser or production-deployment evidence is invented; provider certification/approval is unchanged. |
 
 ## QR-09B — WAHA Runtime Healthcheck Remediation
 

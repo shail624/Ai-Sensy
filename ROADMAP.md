@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T04:30:00+05:30`.
+Last synchronized: `2026-08-09T10:23:12+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09B — WAHA Runtime Healthcheck Remediation — REPOSITORY VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09C — PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,25 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09C technically remediates **QR-09-D5 (Major)**: both Compose topologies now configure the exact
+certified WAHA sender to deliver only `message`, `message.any` and `message.ack` to the existing
+HMAC-gated receiver. Production callback traffic stays on the private Compose network; development
+uses Docker's internal host gateway while retaining loopback-only provider publication. One global
+configuration keeps the dedicated signing key out of session state and avoids the duplicate
+deliveries WAHA would produce if global and per-session webhooks were both present. The backend's
+raw-body SHA-512 verifier and all application behavior remain unchanged.
+
+The new release regression executes the certified image's own sender, proves provider-generated
+HMAC, private callback reachability, a byte-identical retry after controlled failure, and a new
+signed ACK delivery after provider restart. The provider remains `2026.7.2` / `NOWEB` / `CORE` with
+zero sessions; no QR or phone interaction occurs. All 22 release gates pass (backend 1399/0 skipped,
+frontend 796). Migration head, OpenAPI, RBAC, UI, capabilities and provider approval do not change.
+
+**META WEBHOOK_VERIFY_TOKEN ROTATION: PENDING — OWNER DEFERRED.** Therefore QR-09C remains
+`PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`, and QR-09 remains `PARTIAL — BLOCKED`.
+`Host Validated`, `Provider Validated` and `Production Ready` remain NO. QR-09 physical-phone
+closeout does not resume without separate explicit approval.
 
 QR-09B (WAHA runtime healthcheck remediation) is **REPOSITORY VALIDATED**. It preserves QR-09's
 failed-attempt history and records QR-09-D4 (Major): both Compose files called `wget`, which is not
