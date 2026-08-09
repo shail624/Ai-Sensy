@@ -17,16 +17,20 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
-from app.channels.capabilities import CONNECTOR_META_CLOUD
+from app.channels.capabilities import CONNECTOR_META_CLOUD, CONNECTOR_WAHA
 from app.channels.models import InboundMessage, StatusUpdate
+from app.channels.waha.identity import (
+    normalize_direct_jid,
+    optional_direct_jid,
+    phone_wa_id,
+    route_identity_namespace,
+)
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
-from app.models.channel_connection import ChannelConnection
 from app.models.message import (
     DIRECTION_INBOUND,
     MSG_ACCEPTED,
@@ -35,12 +39,15 @@ from app.models.message import (
     MessageStatusHistory,
     advances,
 )
-from app.repositories.channel_connection import ChannelEndpointRepository
+from app.repositories.channel_connection import (
+    ChannelConnectionRepository,
+    ChannelEndpointRepository,
+)
+from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.message import MessageRepository, MessageStatusHistoryRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.repositories.webhook import WebhookEventRepository
-from app.services.contact_service import wa_id_from_e164
 from app.services.conversation_service import ConversationService
 from app.services.media_ingest_service import media_reference
 
@@ -78,6 +85,8 @@ class MessageService:
         self._conversation_repo = ConversationRepository(session)
         self._numbers = PhoneNumberRepository(session)
         self._endpoints = ChannelEndpointRepository(session)
+        self._connections = ChannelConnectionRepository(session)
+        self._contacts = ContactRepository(session)
         self._events = WebhookEventRepository(session)
         self._conversations = ConversationService(session)
 
@@ -196,13 +205,49 @@ class MessageService:
         endpoint = await self._endpoints.get_by_id(channel_endpoint_id)
         if endpoint is None:
             raise LedgerError(f"channel endpoint {channel_endpoint_id} no longer exists")
-        connector_type = await self._connector_type_for(endpoint.connection_id)
+        connector_type = await self._endpoints.connector_type_for_id(endpoint.id)
+        if connector_type is None:
+            raise LedgerError(f"channel connection for endpoint {endpoint.id} no longer exists")
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None:
+            raise LedgerError(f"channel connection {endpoint.connection_id} no longer exists")
 
         message = self._to_inbound_message(payload, connector_type=connector_type)
+        occurred_at = message.occurred_at or utcnow()
+        provider_address: str | None = None
+        route_namespace: str | None = None
+        contact_phone_wa_id: str | None = None
+        if connector_type == CONNECTOR_WAHA:
+            try:
+                provider_address = normalize_direct_jid(message.from_id)
+                alternate_address = optional_direct_jid(message.alternate_from_id)
+                route_namespace = route_identity_namespace(provider_address)
+                contact_phone_wa_id = phone_wa_id(provider_address, alternate_address)
+            except Exception as exc:  # noqa: BLE001 - invalid provider identity is poison
+                raise LedgerError(f"WAHA sender identity cannot be resolved: {exc}") from exc
         existing = await self._messages.get_by_provider_message_id_for_endpoint(
             message.channel_message_id, channel_endpoint_id=endpoint.id
         )
         if existing is not None:
+            # A historical message can predate provider-identity persistence. Re-applying it stays
+            # a message no-op but durably repairs the routing alias through the normal service path.
+            if provider_address is not None and route_namespace is not None:
+                contact = await self._contacts.get_by_id(existing.contact_id)
+                if contact is None:
+                    raise LedgerError(f"message {existing.id} has no recipient Contact")
+                try:
+                    await self._conversations.remember_endpoint_contact_identity(
+                        endpoint=endpoint,
+                        connection=connection,
+                        contact=contact,
+                        provider_address=provider_address,
+                        route_namespace=route_namespace,
+                        phone_wa_id=contact_phone_wa_id,
+                        occurred_at=occurred_at,
+                    )
+                except ValueError as exc:
+                    raise LedgerError(f"WAHA sender identity cannot be linked: {exc}") from exc
+                await self._session.commit()
             return {
                 "status": DUPLICATE,
                 "event_pk": event_pk,
@@ -211,21 +256,24 @@ class MessageService:
                 "media_pending": self._media_pending(existing),
             }
 
-        occurred_at = message.occurred_at or utcnow()
-        # The provider addresses a contact as e.g. `<digits>@c.us`/`@lid`/`@s.whatsapp.net`;
-        # `wa_id_from_e164` strips everything but the digits, which is exactly the same
-        # normalization Meta's `wa_id` already uses — so the same phone number resolves to the
-        # same Contact regardless of which provider it messaged through (ADR-0020 "One Contact
-        # authority"), without inventing a second normalization rule.
-        wa_id = wa_id_from_e164(message.from_id)
-        if not wa_id:
-            raise LedgerError(f"WAHA inbound message has no usable sender id: {message.from_id!r}")
-        contact = await self._conversations.resolve_contact(
-            organization_id=endpoint.organization_id,
-            wa_id=wa_id,
-            profile_name=message.profile_name,
-            occurred_at=occurred_at,
-        )
+        # Provider routing identity and Contact telephone identity stay separate: a LID may use
+        # digits, but only a provider-supplied phone JID can establish the canonical phone alias.
+        if provider_address is None or route_namespace is None:
+            raise LedgerError(
+                f"endpoint connector {connector_type!r} has no recipient identity resolver"
+            )
+        try:
+            contact = await self._conversations.resolve_endpoint_contact_identity(
+                endpoint=endpoint,
+                connection=connection,
+                provider_address=provider_address,
+                route_namespace=route_namespace,
+                phone_wa_id=contact_phone_wa_id,
+                profile_name=message.profile_name,
+                occurred_at=occurred_at,
+            )
+        except ValueError as exc:
+            raise LedgerError(f"WAHA sender identity cannot be resolved: {exc}") from exc
         conversation = await self._conversations.open_for_inbound_endpoint(
             endpoint=endpoint, contact=contact, occurred_at=occurred_at
         )
@@ -258,13 +306,6 @@ class MessageService:
             "contact_id": contact.public_id,
             "media_pending": self._media_pending(stored),
         }
-
-    async def _connector_type_for(self, connection_id: int) -> str:
-        stmt = select(ChannelConnection.connector_type).where(ChannelConnection.id == connection_id)
-        connector_type = (await self._session.scalars(stmt)).first()
-        if connector_type is None:
-            raise LedgerError(f"channel connection {connection_id} no longer exists")
-        return connector_type
 
     @staticmethod
     def _media_pending(message: Message) -> bool:

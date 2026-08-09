@@ -17,7 +17,31 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T21:16:07+05:30`.
+Last synchronized: `2026-08-09T22:56:26+05:30`.
+
+## Module 13 — QR-09L WAHA ACK Routing and LID Recipient Identity Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`. QR-09-D13 is application-level
+  `REMEDIATED`; correlated physical ACK certification remains pending.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs already-approved ACK and
+  text-reply behavior and adds no product capability.
+- **Defects:** endpoint-owned persisted ACKs were reopened through the worker's Meta default; WAHA
+  LID digits were collapsed into canonical phone identity and later reconstructed as `@c.us`.
+- **Fix:** event ownership now selects the persisted endpoint's connector. Existing provider-scoped
+  Contact identities preserve exact `@lid`, `@c.us` and `@s.whatsapp.net` routes, while only a
+  factual phone JID establishes `whatsapp_phone`; endpoint replies reuse the observed route unchanged.
+- **Evidence:** signed ACK integration proves DEVICE→delivered, late SERVER no-regression,
+  READ→read, duplicate idempotency, unknown refusal and cross-endpoint isolation. Identity
+  integration covers all three provider forms, historical replay without duplicate messages, and
+  fail-closed LID handling. Canonical premerge 14/14 in 433.6s (backend 1444, frontend 806) and
+  applicable release/runtime 8/8 in 70.7s pass.
+- **Preserved:** genuine unmatched DEVICE ACK remains unattributed; its one normal replay reached
+  WAHA parsing and endpoint correlation. The linked exact-digest provider remains healthy,
+  WORKING/active/paired with the same volume and restart count 0. No QR, restart, logout, re-pair,
+  resend, migration, route/OpenAPI, RBAC, capability, secret/configuration or approval change.
+- **Next:** after the single QR09-L-ACK Inbox send is committed and pushed, wait for genuine phone
+  read/ACK evidence. Meta rotation remains owner-deferred; `Host Validated`, `Provider Validated`,
+  `Production Ready`: NO.
 
 ## Module 13 — QR-09J WAHA Inbound Timestamp Normalization Remediation
 

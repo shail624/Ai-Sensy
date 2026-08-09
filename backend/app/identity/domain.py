@@ -25,6 +25,7 @@ APPROVED_IDENTITY_NAMESPACES = frozenset(
     {
         "whatsapp_phone",
         "whatsapp_lid",
+        "whatsapp_jid",
         "instagram_user",
         "messenger_psid",
         "telegram_user",
@@ -234,11 +235,26 @@ def _normalize_opaque(value: str) -> str:
     return validate_text(normalized, field_name="identity value", max_length=190)
 
 
+def _normalize_whatsapp_jid(value: str) -> str:
+    """Preserve a provider-native WhatsApp phone JID without treating it as E.164.
+
+    ``@c.us`` and ``@s.whatsapp.net`` are distinct provider routing representations even when
+    their digit component is the same.  LIDs intentionally use the separately governed
+    ``whatsapp_lid`` namespace.
+    """
+
+    normalized = _normalize_opaque(value)
+    if not re.fullmatch(r"[1-9]\d{7,18}@(c\.us|s\.whatsapp\.net)", normalized):
+        raise ValueError("WhatsApp JID must be a direct @c.us or @s.whatsapp.net address")
+    return normalized
+
+
 def _build_default_registry() -> IdentityNormalizerRegistry:
     registry = IdentityNormalizerRegistry()
     registry.register("whatsapp_phone", _normalize_phone, global_scope=True)
     registry.register("sms_phone", _normalize_phone, global_scope=True)
     registry.register("whatsapp_lid", _normalize_opaque, global_scope=False)
+    registry.register("whatsapp_jid", _normalize_whatsapp_jid, global_scope=False)
     registry.register("instagram_user", _normalize_opaque, global_scope=False)
     registry.register("messenger_psid", _normalize_opaque, global_scope=False)
     registry.register("telegram_user", _normalize_opaque, global_scope=False)

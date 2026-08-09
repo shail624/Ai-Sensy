@@ -4,7 +4,33 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T21:16:07+05:30`.
+Last synchronized: `2026-08-09T22:56:26+05:30`.
+
+## QR-09L — WAHA ACK Routing and LID Recipient Identity Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D13 is application-level
+`REMEDIATED`; correlated physical ACK certification remains pending. QR-09 remains `PARTIAL
+(BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline | PASS | Local/origin matched `ui/taste-modernization` at `8628e40d0529c0a282cffb910569a0ecd2383aef`; worktree clean except accepted `.claude/`. Protected WAHA was healthy/WORKING/paired with one session and restart count 0. |
+| D13 status root cause | PASS | The async task constructs `WebhookService(session)` with the Meta default, and status processing previously passed that request-scoped default into `MessageService` even when the persisted event was endpoint-owned WAHA. |
+| Persisted connector routing | PASS | Status processing now derives phone-owned events as Meta and endpoint-owned events through `channel_endpoint_id → ChannelEndpoint → ChannelConnection → connector_type`; exactly-one ownership is enforced and no task argument becomes a second authority. |
+| D13 recipient root cause | PASS | WAHA inbound removed the provider suffix into `Contact.wa_id`; outbound then always appended `@c.us`, incorrectly turning an observed LID into a manufactured phone JID. |
+| Durable identity design | PASS | Existing `contact_identities` already implements the approved provider identity key and connection/endpoint references, so no migration is required. Exact `@lid`, `@c.us` and `@s.whatsapp.net` routes persist separately from global `whatsapp_phone`; only a factual phone JID can link canonical telephone identity. |
+| Outbound routing | PASS | Endpoint sends resolve the latest provider-observed route for the exact Contact/connector/endpoint and send it unchanged. Missing routing evidence fails closed as `recipient_route_missing`; Meta sending remains unchanged. |
+| Signed ACK integration | PASS | A raw-body SHA-512-signed `message.ack`, ingested through the real WAHA webhook service and processed through the default worker service, reaches the WAHA parser. DEVICE applies `delivered`, late SERVER is `ignored_stale`, READ applies `read`, duplicate delivery is idempotent, unknown code raises terminal data error. |
+| Endpoint/dedupe isolation | PASS | A second endpoint carrying the same canonical provider id is not advanced; the owning endpoint contains exactly one correlated outbound. Existing message/message.any dedupe and QR-09-D12 naive-UTC timestamp normalization remain green. |
+| Recipient identity regression | PASS | Hermetic integration covers primary `@c.us`, primary `@s.whatsapp.net`, and primary `@lid` with provider-supplied `remoteJidAlt`. LID digits never become E.164; LID without a phone alias or existing exact owner fails closed; historical duplicate event replay links the route without duplicating the message. |
+| Preserved genuine ACK replay | PASS | The one genuine historical DEVICE ACK has no endpoint-scoped message match. Replaying its preserved row once through the normal default processor reached WAHA parsing and endpoint correlation, then truthfully raised unmatched. No payload/status row was edited and no historical message received a fabricated status. |
+| Focused regression | PASS | WAHA webhook/Inbox focused selection **89 passed**; broader WAHA/webhook/Meta/identity selection **185 passed**. The full canonical suite subsumes all QR-09D–J regressions. |
+| Canonical premerge | PASS | **14/14 PASS in 433.6s**: Ruff; strict mypy (301 files); OpenAPI drift; frontend lint/types; browser-test types; **1444 backend tests, 0 skipped**; **806 frontend tests**; build; Bandit; dependency/browser audits; tracked-source vulnerability/secret/IaC scan. Two unchanged moderate React Router advisories remain below the high/critical gate. |
+| Applicable release/runtime | PASS | **8/8 PASS in 70.7s**: development Compose, isolated exact-digest QR negotiation, provider-generated signed webhook/retry/ACK delivery, production release contract/build, backend/frontend image contracts, vulnerability scans and SBOM. The restart-bearing health step was not run against the protected linked service; QR-09I's approved isolated exact-digest health/restart proof remains current and no health/deployment code changed. |
+| Live provider preservation | PASS | Same container `ff058c1cac9c…`, exact digest `sha256:33ecd1b7…f2d75e`, health `healthy`, persistent `waha-sessions:/app/.sessions`, loopback-only `127.0.0.1:3000`, restart count 0. Provider reports WORKING, application session active/paired, identity present; no QR/restart/logout/re-pair/resend. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route/schema/RBAC/capability/digest/provider configuration/secret/storage/approval change. Meta rotation remains `PENDING — OWNER DEFERRED`. |
+| Correlated physical ACK certification | PENDING – Host Machine Validation | After commit/push, exactly one new QR09-L-ACK text must be sent once from the actual Unified Inbox, received/read on the certification phone, and observed only through genuine emitted provider ACKs. |
+| Remaining QR-09 gates | PENDING – Host Machine Validation | Correlated physical ACK, linked-session restart/reconnect, logout/re-authentication, Meta token rotation, and supported-browser/target-host evidence remain unperformed. |
 
 ## QR-09J — WAHA Inbound Timestamp Normalization Remediation
 

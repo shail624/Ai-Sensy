@@ -72,6 +72,20 @@ class ChannelEndpointRepository(BaseRepository[ChannelEndpoint]):
         stmt = stmt.order_by(ChannelEndpoint.created_at.asc(), ChannelEndpoint.id.asc())
         return list((await self.session.scalars(stmt)).all())
 
+    async def connector_type_for_id(self, endpoint_id: int) -> str | None:
+        """Resolve connector identity from the endpoint's persisted connection ownership.
+
+        Workers deliberately receive no connector argument.  The durable endpoint/connection
+        relationship is the one routing authority after a webhook request has been acknowledged.
+        """
+
+        stmt = (
+            select(ChannelConnection.connector_type)
+            .join(ChannelEndpoint, ChannelEndpoint.connection_id == ChannelConnection.id)
+            .where(ChannelEndpoint.id == endpoint_id)
+        )
+        return (await self.session.scalars(stmt)).first()
+
 
 class ChannelSecretRepository(BaseRepository[ChannelSecret]):
     model = ChannelSecret

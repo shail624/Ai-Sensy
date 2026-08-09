@@ -100,7 +100,9 @@ class WahaBodyTooLarge(ValueError):
     """The delivery exceeded :data:`MAX_BODY_BYTES` and was refused before hashing."""
 
 
-def verify_signature(body: bytes, signature: str | None, secret: str, *, algorithm: str | None = None) -> bool:
+def verify_signature(
+    body: bytes, signature: str | None, secret: str, *, algorithm: str | None = None
+) -> bool:
     """Return whether ``body`` carries a valid provider HMAC.
 
     Fails closed on: an empty secret (an unconfigured deployment must never accept unsigned
@@ -245,8 +247,24 @@ def to_inbound_message(delivery: dict[str, Any]) -> InboundMessage:
     if canonical is None:
         raise ValueError("WAHA inbound message has no usable provider message id")
 
-    sender = payload_obj.get("from")
+    raw_data = payload_obj.get("_data")
+    data_obj: dict[str, Any] = raw_data if isinstance(raw_data, dict) else {}
+    raw_key = data_obj.get("key")
+    key_obj: dict[str, Any] = raw_key if isinstance(raw_key, dict) else {}
+    # NOWEB's native key is the exact route WhatsApp used.  Prefer it to the convenience `from`
+    # field when both exist, while preserving the latter as the fallback for smaller webhook
+    # payloads.  Neither address is reduced to digits at this provider boundary.
+    native_sender = key_obj.get("remoteJid")
+    fallback_sender = payload_obj.get("from")
+    sender = (
+        native_sender
+        if isinstance(native_sender, str) and native_sender.strip()
+        else fallback_sender
+    )
     from_id = sender if isinstance(sender, str) and sender.strip() else ""
+
+    alternate = key_obj.get("remoteJidAlt")
+    alternate_from_id = alternate if isinstance(alternate, str) and alternate.strip() else None
 
     push_name = payload_obj.get("notifyName") or payload_obj.get("pushName")
     profile_name = push_name if isinstance(push_name, str) and push_name.strip() else None
@@ -274,6 +292,7 @@ def to_inbound_message(delivery: dict[str, Any]) -> InboundMessage:
         from_id=from_id,
         message_type=message_type,
         content=content,
+        alternate_from_id=alternate_from_id,
         profile_name=profile_name,
         occurred_at=occurred_at,
     )

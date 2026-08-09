@@ -212,6 +212,10 @@ class InboundMessage:
     from_id: str
     message_type: str
     content: dict[str, Any]
+    #: A provider-supplied alternate address for the same sender.  This is routing/identity
+    #: evidence, not a replacement for ``from_id``; for example NOWEB may deliver ``@lid`` as the
+    #: primary address and the corresponding phone JID as ``remoteJidAlt``.
+    alternate_from_id: str | None = None
     #: The sender's display name as the channel knows it (Doc 03 ``contacts.profile_name``).
     profile_name: str | None = None
     occurred_at: datetime | None = None

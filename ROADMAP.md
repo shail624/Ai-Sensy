@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T21:16:07+05:30`.
+Last synchronized: `2026-08-09T22:56:26+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09D, QR-09G, QR-09H, QR-09I and QR-09J — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09D, QR-09G, QR-09H, QR-09I, QR-09J and QR-09L — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,19 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09L remediates **QR-09-D13 (application defect)** without changing the approved sequence or
+provider capabilities. Persisted endpoint-owned ACKs now select their connector through the
+durable endpoint/connection relationship rather than inheriting a task-local Meta default.
+Provider-native WAHA reply identity is preserved in the existing scoped Contact identity authority:
+`@lid` stays `@lid`, and `@c.us`/`@s.whatsapp.net` stay exact when observed; only a factual phone JID
+can link canonical telephone identity. Outbound Inbox replies reuse that exact endpoint route and
+never manufacture `@c.us` from LID digits. No migration, route or OpenAPI change is required.
+Canonical premerge 14/14 and applicable release/runtime 8/8 pass (backend 1444, frontend 806). The
+protected provider remains WORKING/paired with restart count zero. Application remediation is
+validated, but QR-09 remains blocked until the one new QR09-L-ACK Inbox message produces genuine
+correlated physical ACK evidence; persistence/logout, Meta rotation and target-host/browser gates
+also remain pending. Certification approval does not advance.
 
 QR-09J closes **QR-09-D12 (Blocker)** without changing the approved sequence. A real external
 message reached both signed certified WAHA event variants but failed before the shared Inbox because

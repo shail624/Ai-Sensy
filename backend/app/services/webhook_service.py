@@ -39,6 +39,7 @@ from app.models.webhook import (
     WebhookEvent,
 )
 from app.queue.retry import FailureClass, register_error_map
+from app.repositories.channel_connection import ChannelEndpointRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.repositories.webhook import WebhookDeadLetterRepository, WebhookEventRepository
 from app.services.audit_service import AuditAction, AuditService
@@ -97,6 +98,7 @@ class WebhookService:
         self._events = WebhookEventRepository(session)
         self._dlq = WebhookDeadLetterRepository(session)
         self._numbers = PhoneNumberRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
         self._audit = AuditService(session)
 
     @property
@@ -240,7 +242,11 @@ class WebhookService:
 
         outcome = None
         if row.object_type == InboundEventType.STATUSES.value:
-            service = MessageService(self._session, connector_type=self._connector_type)
+            # The request-scoped connector has gone by the time this worker runs. Persisted event
+            # ownership is authoritative: endpoint -> connection -> connector for provider-neutral
+            # events, while phone-number ownership remains the Meta path.
+            connector_type = await self._persisted_connector_type(row)
+            service = MessageService(self._session, connector_type=connector_type)
             # One transaction for the applied status *and* the event that carried it: settling the
             # event while the transition it describes rolled back would be a durable lie. Exactly
             # one of `phone_number_id`/`channel_endpoint_id` is set (guaranteed non-None above); it
@@ -266,6 +272,21 @@ class WebhookService:
             "object_type": row.object_type,
             "outcome": outcome,
         }
+
+    async def _persisted_connector_type(self, row: WebhookEvent) -> str:
+        if (row.phone_number_id is None) == (row.channel_endpoint_id is None):
+            raise WebhookUnprocessable(
+                "event must be owned by exactly one phone number or channel endpoint"
+            )
+        if row.phone_number_id is not None:
+            return CONNECTOR_META_CLOUD
+        assert row.channel_endpoint_id is not None
+        connector_type = await self._endpoints.connector_type_for_id(row.channel_endpoint_id)
+        if connector_type is None:
+            raise WebhookUnprocessable(
+                f"channel endpoint {row.channel_endpoint_id} has no owning connection"
+            )
+        return connector_type
 
     # --- Dead letter (Doc 03 §9.4; Doc 06 §11.5/§11.6) ----------------------
     async def dead_letter(self, event_pk: int, *, error: str) -> WebhookDeadLetter:

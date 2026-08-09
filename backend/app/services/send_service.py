@@ -25,7 +25,6 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
@@ -46,7 +45,7 @@ from app.channels.session import SessionState
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
-from app.models.channel_connection import ChannelConnection, ChannelEndpoint
+from app.models.channel_connection import ChannelEndpoint
 from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.conversation import Conversation
 from app.models.media import MediaAsset
@@ -61,7 +60,10 @@ from app.models.template import MessageTemplate
 from app.models.user import User
 from app.models.waba import PhoneNumber
 from app.queue.retry import FailureClass, register_error_map
-from app.repositories.channel_connection import ChannelEndpointRepository
+from app.repositories.channel_connection import (
+    ChannelConnectionRepository,
+    ChannelEndpointRepository,
+)
 from app.repositories.channel_session import ChannelSessionRepository
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
@@ -243,6 +245,7 @@ class SendService:
         self._numbers = PhoneNumberRepository(session)
         self._wabas = WabaRepository(session)
         self._conversation_repo = ConversationRepository(session)
+        self._connections = ChannelConnectionRepository(session)
         self._endpoints = ChannelEndpointRepository(session)
         self._sessions = ChannelSessionRepository(session)
         self._conversations = ConversationService(session)
@@ -705,13 +708,25 @@ class SendService:
         endpoint = await self._endpoints.get_by_id(message.channel_endpoint_id)
         if endpoint is None:
             raise ChannelError("the sending channel endpoint is no longer connected")
-        connector_type = await self._connector_type_for(endpoint.connection_id)
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None:
+            raise ChannelError("the sending channel connection is no longer connected")
         contact = await self._contacts.get_by_id(message.contact_id)
         if contact is None:
             raise ChannelError("the recipient contact no longer exists")
-        recipient = f"{contact.wa_id}@c.us"
+        recipient = await self._conversations.endpoint_reply_address(
+            endpoint=endpoint,
+            connection=connection,
+            contact=contact,
+        )
+        if recipient is None:
+            return await self.fail(
+                message.id,
+                error="No provider-observed reply address exists for this endpoint.",
+                code="recipient_route_missing",
+            )
 
-        adapter = get_adapter(connector_type)
+        adapter = get_adapter(connection.connector_type)
         try:
             result = await adapter.send(self._outbound(message, to=recipient))
         except ChannelError as exc:
@@ -730,15 +745,6 @@ class SendService:
         await self._messages.flush()
         await self._session.commit()
         return {"status": "sent", "message_pk": message.id, "wamid": message.wamid}
-
-    async def _connector_type_for(self, connection_id: int) -> str:
-        stmt = select(ChannelConnection.connector_type).where(
-            ChannelConnection.id == connection_id
-        )
-        connector_type = (await self._session.scalars(stmt)).first()
-        if connector_type is None:
-            raise ChannelError(f"channel connection {connection_id} no longer exists")
-        return connector_type
 
     async def _resolve_media(
         self, message: Message, adapter: ChannelAdapter

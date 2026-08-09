@@ -159,9 +159,7 @@ def test_identity_fits_the_column_regardless_of_component_length() -> None:
     """``webhook_events.event_id`` is String(128). The digest is fixed-length, so this holds for
     any component length rather than depending on where a cut lands."""
     for length in (0, 1, 64, 127, 128, 200, 1000):
-        key = event_identity(
-            session="s" * length, event_type="message", envelope_id="evt_tail"
-        )
+        key = event_identity(session="s" * length, event_type="message", envelope_id="evt_tail")
         assert len(key) <= 128
 
 
@@ -275,8 +273,7 @@ def test_canonicalize_is_injective_for_boundary_edge_cases() -> None:
 def test_parse_produces_distinct_keys_for_the_shared_envelope() -> None:
     shared = "evt_01kzeznz4jfme61wd08t539q4k"
     keys = {
-        parse_events(_inbound(shared, event))[0].event_id
-        for event in ("message", "message.any")
+        parse_events(_inbound(shared, event))[0].event_id for event in ("message", "message.any")
     }
     assert len(keys) == 2
 
@@ -388,6 +385,22 @@ def test_provider_addressing_is_not_normalised_away() -> None:
     assert message.channel_message_id == "AC5B2C11AC80006B889303F756CFA349"
 
 
+def test_noweb_native_route_and_phone_alias_are_preserved_separately() -> None:
+    delivery = _inbound()
+    delivery["payload"]["from"] = "919355585553@c.us"
+    delivery["payload"]["_data"] = {
+        "key": {
+            "remoteJid": "651430587620@lid",
+            "remoteJidAlt": "918376035760@s.whatsapp.net",
+        }
+    }
+
+    message = WahaChannelAdapter(CREDS).to_inbound_message(delivery)
+
+    assert message.from_id == "651430587620@lid"
+    assert message.alternate_from_id == "918376035760@s.whatsapp.net"
+
+
 def test_inbound_text_translation() -> None:
     adapter = WahaChannelAdapter(CREDS)
     message = adapter.to_inbound_message(_inbound())
@@ -480,9 +493,10 @@ def test_qr04_declares_no_later_capability() -> None:
 
 def test_prohibited_capabilities_unchanged() -> None:
     assert not (WahaChannelAdapter.capabilities & PROHIBITED_CAPABILITIES)
-    assert frozenset(
-        {Capability.BULK, Capability.CAMPAIGNS, Capability.TEMPLATE}
-    ) == PROHIBITED_CAPABILITIES
+    assert (
+        frozenset({Capability.BULK, Capability.CAMPAIGNS, Capability.TEMPLATE})
+        == PROHIBITED_CAPABILITIES
+    )
 
 
 def test_qr04_adds_no_send_or_teardown() -> None:

@@ -45,6 +45,34 @@ class ContactIdentityRepository(BaseRepository[ContactIdentity]):
         )
         return list((await self.session.scalars(stmt)).all())
 
+    async def latest_routing_identity(
+        self,
+        *,
+        organization_id: int,
+        contact_id: int,
+        connector_type: str,
+        endpoint_ref: str,
+    ) -> ContactIdentity | None:
+        """Latest provider-observed direct address for one Contact on one owned endpoint."""
+
+        stmt = (
+            select(ContactIdentity)
+            .where(
+                ContactIdentity.organization_id == organization_id,
+                ContactIdentity.contact_id == contact_id,
+                ContactIdentity.connector_type == connector_type,
+                ContactIdentity.endpoint_ref == endpoint_ref,
+                ContactIdentity.identity_namespace.in_(("whatsapp_lid", "whatsapp_jid")),
+            )
+            .order_by(
+                ContactIdentity.verified_at.desc(),
+                ContactIdentity.created_at.desc(),
+                ContactIdentity.id.desc(),
+            )
+            .limit(1)
+        )
+        return (await self.session.scalars(stmt)).first()
+
 
 class IdentityConflictRepository(BaseRepository[IdentityConflict]):
     model = IdentityConflict

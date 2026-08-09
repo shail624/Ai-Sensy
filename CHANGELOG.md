@@ -11,6 +11,52 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09L: WAHA ACK Routing and LID Recipient Identity Remediation
+
+Remediates **QR-09-D13 (application defect)** without changing WAHA acknowledgement mapping or
+ranking. A persisted endpoint-owned `message.ack` no longer inherits the background worker's Meta
+default: status processing resolves `channel_endpoint_id → ChannelEndpoint → ChannelConnection →
+connector_type` from the durable webhook row. Phone-number-owned events remain on the existing Meta
+path, and provider-message correlation remains scoped to the owning endpoint.
+
+WAHA routing identity is now distinct from canonical Contact telephone identity. Existing
+`contact_identities` is the durable authority: exact `@lid`, `@c.us`, and `@s.whatsapp.net`
+addresses are stored as provider-scoped aliases, while `whatsapp_phone` is linked only when the
+provider supplies a factual phone JID. LID digits are never interpreted as E.164. Outbound Inbox
+replies select the latest provider-observed address for the owned endpoint and fail closed when no
+route exists; they never manufacture `@c.us` from `Contact.wa_id`. Meta Contact and outbound
+behavior are unchanged. No migration was required because the approved identity model already
+holds namespace/scope/value plus connection and endpoint references.
+
+Regression coverage proves signed WAHA ACK parsing through the default worker service,
+DEVICE→delivered, late SERVER no-regression, READ→read, duplicate idempotency, unknown-code refusal,
+cross-endpoint isolation, all three certified address forms, LID/phone separation, exact outbound
+routing, historical duplicate replay without message duplication, Meta status behavior, HMAC,
+message/message.any dedupe and QR-09-D12 timestamp normalization. The complete backend suite is
+**1444 passed, 0 skipped**; frontend remains **806 passed**.
+
+Canonical premerge is **14/14 PASS in 433.6s**: Ruff, strict mypy (301 files), OpenAPI drift,
+frontend/browser types, backend/frontend tests, production build, Bandit, dependency audits and
+tracked-source vulnerability/secret/IaC scan. Applicable release/runtime validation is **8/8 PASS
+in 70.7s**: Compose, isolated exact-digest QR negotiation, provider-generated signed webhook/ACK
+delivery, production release/build contracts, image contracts, vulnerability scans and SBOM. The
+restart-bearing health validator was not run against the protected linked service; QR-09I's
+approved isolated exact-digest health/restart evidence remains current and no deployment health
+code changed.
+
+The preserved genuine DEVICE ACK was replayed once through the normal default status processor. It
+was parsed by WAHA and reached endpoint-scoped correlation, which truthfully returned unmatched;
+its provider id belongs to neither historical outbound row, so no status was attributed. The
+protected certified container remains healthy and WORKING/active/paired with the same persistent
+volume and restart count zero. No QR, restart, logout, re-pair, resend, provider upgrade, secret,
+frontend, route, OpenAPI, migration, RBAC, capability or approval state changed.
+
+**Status boundary:** QR-09L is `REPOSITORY/RUNTIME VALIDATED`; QR-09-D13 is application-level
+`REMEDIATED`, while correlated physical ACK certification remains pending until the newly governed
+QR09-L-ACK message is sent and genuinely acknowledged. QR-09 remains `PARTIAL (BLOCKED)`. Meta
+token rotation is **PENDING — OWNER DEFERRED**. `Host Validated`, `Provider Validated`, `Production
+Ready`: NO.
+
 ### 2026-08-09 — QR-09J: WAHA Inbound Timestamp Normalization Remediation
 
 Records and remediates **QR-09-D12 (Blocker)**. The second physical test text was a genuine

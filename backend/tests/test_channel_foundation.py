@@ -216,7 +216,14 @@ async def test_feature_flags_use_existing_global_and_organization_authority(
     assert not snapshot.is_enabled(OmnichannelFeatureFlag.CONNECTIONS_WRITE)
 
 
-def test_dependency_container_is_stable_and_provider_empty_by_default() -> None:
+def test_dependency_container_is_stable_and_provider_empty_by_default(monkeypatch) -> None:
+    from app.core.config import settings
+
+    # Keep the default-contract test hermetic even when the host running pytest has deliberately
+    # configured a live WAHA development runtime in its ignored local `.env`.
+    monkeypatch.setattr(settings, "waha_base_url", "")
+    monkeypatch.setattr(settings, "waha_api_key", "")
+    monkeypatch.setattr(settings, "waha_session_name", "")
     get_channel_foundation.cache_clear()
     first = get_channel_foundation()
     second = get_channel_foundation()

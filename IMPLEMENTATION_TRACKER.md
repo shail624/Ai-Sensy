@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H, QR-09I and QR-09J are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
+_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H, QR-09I, QR-09J and QR-09L are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,16 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09J — WAHA Inbound Timestamp Normalization Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09J closes QR-09-D12 (Blocker): a real signed external inbound reached both
+- **Current milestone:** `QR-09L — WAHA ACK Routing and LID Recipient Identity Remediation — REPOSITORY/RUNTIME VALIDATED`. QR-09-D13 is application-level `REMEDIATED`; correlated physical ACK certification remains pending. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** endpoint-owned status events now derive WAHA from persisted event ownership
+  instead of the worker's Meta default. Exact WAHA `@lid`, `@c.us` and `@s.whatsapp.net` reply
+  routes persist in the existing provider-scoped Contact identity authority; only a factual phone
+  JID can establish `whatsapp_phone`, and outbound never rebuilds a LID as `@c.us`. The preserved
+  unmatched DEVICE ACK safely replayed through WAHA parsing and endpoint correlation without being
+  attributed to either historical message. Canonical premerge 14/14 (backend 1444, frontend 806)
+  and applicable release/runtime 8/8 passed. The linked provider remains WORKING/paired with restart
+  count zero. New QR09-L-ACK physical send/read/ACK evidence remains pending.
+- **Superseded change:** QR-09J closes QR-09-D12 (Blocker): a real signed external inbound reached both
   certified WAHA event variants but dead-lettered because the adapter returned aware UTC into a
   repository whose MySQL DATETIME/`utcnow()` convention is naive UTC. Normalization now occurs at
   that provider boundary. Both preserved source events were redriven through the normal queue and
