@@ -4,7 +4,28 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T19:42:09+05:30`.
+Last synchronized: `2026-08-09T21:16:07+05:30`.
+
+## QR-09J — WAHA Inbound Timestamp Normalization Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D12 is `REMEDIATED`. QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline | PASS | Local/origin matched `ui/taste-modernization` at `8385adc9a62fd9c570198ba7f2834154869031cc`; worktree clean except accepted `.claude/`. |
+| D12 reproduction | PASS | The real external text reached `message` and `message.any` with `fromMe=false`, valid SHA-512 HMAC and the owned WAHA endpoint. Both processing attempts failed with `TypeError: can't compare offset-naive and offset-aware datetimes`; two dead letters were preserved and zero Inbox messages existed. |
+| Root cause | PASS | WAHA translated the provider epoch to aware UTC, while `app.db.mixins.utcnow()` and MySQL DATETIME use naive UTC. Conversation window evaluation therefore compared an aware provider-derived value with naive repository time. |
+| Remediation | PASS | The provider epoch is converted to UTC and stripped to naive UTC at `to_inbound_message()`, before it enters shared Contact/Conversation/Message authorities. Global datetime semantics, window rules, ordering, provider payloads and ACK ranks remain unchanged. |
+| Unit/integration regression | PASS | New explicit timestamp-normalization test plus the existing certified `message`/`message.any` dedupe integration now carry a real provider timestamp and assert one conversation, one message, unread count 1 and naive `last_inbound_at`. Focused related selection **174 passed**. |
+| Real MySQL replay | PASS | The two preserved failed source events were enqueued through the existing idempotent webhook processor, not edited in MySQL. Both source rows became `processed` on attempt 2; exactly one endpoint-scoped inbound text with provider identity was stored, and the duplicate variant did not increment unread count. The original dead-letter rows remain preserved as historical D12 evidence. |
+| Actual Inbox API | PASS | Conversation detail and message-history endpoints both returned HTTP 200; the exact safe token appeared once as `direction: inbound`, `status: accepted`, connector `waha`, unread count 1 and matching preview. No phone/provider identity was exposed. |
+| Provider preservation | PASS | Same live container id/start time, restart count 0, exact digest `sha256:33ecd1b7…f2d75e`, health `healthy`, loopback-only port and unchanged persistent volume. Provider remained WORKING and application active/paired/connected with no QR. |
+| Canonical premerge | PASS | **14/14 PASS in 684.7s**: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1437 backend tests**; **806 frontend tests**; build; Bandit; dependency/browser audits; tracked-source vulnerability/secret/IaC scan. Two unchanged moderate React Router advisories remain below the high/critical gate. |
+| Applicable release/runtime | PASS | **8/8 PASS in 87.9s**: development Compose, exact-digest QR negotiation, provider-generated signed webhook/retry/restart, production release contract/build, backend/frontend image contracts, image vulnerability scans and SBOM. The canonical health step was intentionally not rerun because it restarts the protected live service; no deploy/health code changed and QR-09I's isolated exact-digest health proof remains applicable. |
+| UI preview | PASS | No frontend source changed. Runtime evidence used the actual Inbox JSON APIs; no screenshot or supported-browser/target-host claim is made. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route/schema/RBAC/capability/digest/config/storage/approval change; no secret, QR or unmasked identity emitted. Meta rotation remains `PENDING — OWNER DEFERRED`. |
+| Remaining external gates | PENDING – Host Machine Validation | Real outbound Inbox reply, SERVER/DEVICE/READ and out-of-order ACK monotonicity, linked-session restart/reconnect, logout/re-authentication, Meta token rotation, and supported-browser/target-host evidence remain unperformed. |
 
 ## QR-09I — Pairing Window Renewal and Post-Scan Convergence Remediation
 

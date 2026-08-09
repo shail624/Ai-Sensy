@@ -11,6 +11,50 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09J: WAHA Inbound Timestamp Normalization Remediation
+
+Records and remediates **QR-09-D12 (Blocker)**. The second physical test text was a genuine
+external inbound (`fromMe=false`). WAHA delivered both configured event variants, `message` and
+`message.any`; each passed raw-body SHA-512 HMAC verification and resolved to the owned channel
+endpoint. Both then failed before creating an Inbox row with `TypeError: can't compare offset-naive
+and offset-aware datetimes`, and were dead-lettered. This left zero matching messages despite
+truthful provider delivery.
+
+The mismatch was at the provider boundary. WAHA's epoch was translated with an aware UTC timezone,
+while the repository deliberately uses naive UTC for MySQL DATETIME and `utcnow()`. Conversation
+window evaluation consequently compared incompatible values. The adapter now converts the epoch to
+UTC and removes timezone metadata before handing it to the shared Contact/Conversation/Message
+authorities. No global datetime rule, window behavior, ordering, dedupe or ACK ranking was changed.
+
+One explicit regression asserts the certified timestamp's exact naive-UTC value. The existing
+`message`/`message.any` integration now carries that real provider timestamp and proves one stored
+message, one conversation, unread count one and naive `last_inbound_at`. Focused webhook/Inbox/
+delivery/conversation coverage is **174 passed**.
+
+After loading only the backend/worker fix, the two preserved source events were enqueued through the
+normal idempotent webhook processor. Both became processed on their second attempt; actual Inbox
+detail/history APIs returned the safe test token exactly once as an accepted WAHA inbound, with
+unread count one and matching preview. The original D12 dead-letter rows remain preserved as
+historical evidence. No live database row was edited directly.
+
+Canonical premerge **14/14 passed in 684.7 seconds**: backend **1437 passed**, frontend **806
+passed**, lint/types/OpenAPI/build/SAST/audits/source scans. Applicable release/runtime gates **8/8
+passed in 87.9 seconds**: Compose, exact-digest QR, provider-generated signed webhook, production
+contracts/builds, image contracts, vulnerability scans and SBOM. The unchanged canonical health
+script was not rerun because it explicitly restarts the protected linked service; QR-09I's isolated
+exact-digest health evidence remains current.
+
+The exact live WAHA container, start time, volume and loopback-only exposure are unchanged; restart
+count remains zero and the application remains WORKING/active/paired/connected with no QR. No
+frontend source, migration, route, schema, RBAC, provider capability/configuration, secret, session
+storage, screenshot, QR, rescan, logout or unmasked identity changed or entered evidence.
+
+**Status boundary:** QR-09-D12 is `REMEDIATED`; QR-09J is `REPOSITORY/RUNTIME VALIDATED`; earlier
+QR-09 remediations remain preserved. QR-09 stays `PARTIAL (BLOCKED)` pending outbound Inbox reply,
+SERVER/DEVICE/READ and out-of-order ACK evidence, linked-session restart/reconnect,
+logout/re-authentication and supported-browser/target-host validation. Meta token rotation is
+**PENDING — OWNER DEFERRED**. `Host Validated`, `Provider Validated`, `Production Ready`: NO.
+
 ### 2026-08-09 — QR-09I: Pairing Window Renewal and Post-Scan Convergence Remediation
 
 Records and remediates **QR-09-D11 (Blocker)**. The pairing TTL governs the ephemeral QR/availability

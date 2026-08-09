@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H and QR-09I are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
+_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H, QR-09I and QR-09J are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,15 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09I — Pairing Window Renewal and Post-Scan Convergence Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09I closes QR-09-D11 (Blocker): the local QR representation could expire
+- **Current milestone:** `QR-09J — WAHA Inbound Timestamp Normalization Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09J closes QR-09-D12 (Blocker): a real signed external inbound reached both
+  certified WAHA event variants but dead-lettered because the adapter returned aware UTC into a
+  repository whose MySQL DATETIME/`utcnow()` convention is naive UTC. Normalization now occurs at
+  that provider boundary. Both preserved source events were redriven through the normal queue and
+  converged to exactly one accepted Inbox message with unread count one; no database rewrite.
+  Canonical premerge 14/14 (backend 1437, frontend 806) and applicable release/runtime 8/8 passed.
+  Outbound/ACK/persistence/logout, Meta rotation and target-host/browser evidence remain pending.
+- **Superseded change:** QR-09I closes QR-09-D11 (Blocker): the local QR representation could expire
   after the physical scan even though the same provider session had reached identity-bearing
   `WORKING`. An explicit pairing request now renews only that representation under the existing
   lease/fence/version controls; polling cannot extend it. A narrow completion path accepts only a

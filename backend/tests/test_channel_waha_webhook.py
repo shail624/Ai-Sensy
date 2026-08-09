@@ -9,6 +9,7 @@ including the real inbound text, the ``message``/``message.any`` pair that share
 from __future__ import annotations
 
 import hmac
+from datetime import datetime
 from hashlib import sha512
 
 import pytest
@@ -394,6 +395,13 @@ def test_inbound_text_translation() -> None:
     assert message.content == {"body": "QRCERT-FINAL-INBOUND"}
     assert message.profile_name == "Second Account"
     assert message.occurred_at is not None
+
+
+def test_provider_timestamp_is_normalized_to_repository_naive_utc() -> None:
+    """Real WAHA epoch timestamps must follow the MySQL DATETIME/``utcnow`` convention."""
+    message = WahaChannelAdapter(CREDS).to_inbound_message(_inbound())
+    assert message.occurred_at == datetime(2026, 8, 7, 20, 47, 27)
+    assert message.occurred_at.tzinfo is None
 
 
 def test_media_inbound_is_not_faked_as_empty_text() -> None:

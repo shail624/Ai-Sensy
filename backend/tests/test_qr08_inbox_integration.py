@@ -275,10 +275,12 @@ async def test_message_and_message_any_produce_one_stored_message(
         event="message", envelope_id=shared_envelope, session="waha-session-D",
         body="dupe test", from_id="919990004444",
     )
+    first["payload"]["timestamp"] = 1786135647
     second = _waha_delivery(
         event="message.any", envelope_id=shared_envelope, session="waha-session-D",
         body="dupe test", from_id="919990004444",
     )
+    second["payload"]["timestamp"] = 1786135647
     ids_first = await _ingest_waha(db_session, first)
     ids_second = await _ingest_waha(db_session, second)
     # Two DISTINCT webhook_events rows — event dedupe is scoped by session+type, so both events
@@ -293,6 +295,11 @@ async def test_message_and_message_any_produce_one_stored_message(
 
     messages = (await db_session.scalars(select(Message))).all()
     assert len(messages) == 1
+    conversations = (await db_session.scalars(select(Conversation))).all()
+    assert len(conversations) == 1
+    assert conversations[0].unread_count == 1
+    assert conversations[0].last_inbound_at is not None
+    assert conversations[0].last_inbound_at.tzinfo is None
 
 
 @pytest.mark.anyio

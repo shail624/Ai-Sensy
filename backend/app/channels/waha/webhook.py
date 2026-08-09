@@ -263,7 +263,11 @@ def to_inbound_message(delivery: dict[str, Any]) -> InboundMessage:
     if isinstance(timestamp, int | float) and timestamp > 0:
         from datetime import UTC, datetime
 
-        occurred_at = datetime.fromtimestamp(float(timestamp), tz=UTC)
+        # The provider timestamp is an epoch value (therefore UTC), while the repository's
+        # documented persistence convention is naive UTC because MySQL DATETIME does not retain
+        # timezone information. Normalize at the provider boundary so a real WAHA timestamp can
+        # be compared with values loaded from MySQL without mixing aware and naive datetimes.
+        occurred_at = datetime.fromtimestamp(float(timestamp), tz=UTC).replace(tzinfo=None)
 
     return InboundMessage(
         channel_message_id=canonical,

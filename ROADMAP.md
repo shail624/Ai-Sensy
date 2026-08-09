@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T19:42:09+05:30`.
+Last synchronized: `2026-08-09T21:16:07+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09D, QR-09G, QR-09H and QR-09I — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09D, QR-09G, QR-09H, QR-09I and QR-09J — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,17 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09J closes **QR-09-D12 (Blocker)** without changing the approved sequence. A real external
+message reached both signed certified WAHA event variants but failed before the shared Inbox because
+the provider timestamp was aware UTC and repository/MySQL time is naive UTC. The adapter now
+normalizes the provider epoch at its boundary. Preserved events were redriven through the existing
+idempotent queue and produced exactly one accepted Inbox message with unread count one; the original
+dead-letter records remain historical evidence. Canonical premerge 14/14 and applicable
+release/runtime 8/8 pass (backend 1437, frontend 806). The linked provider was never restarted and
+remains WORKING/active/paired/connected. QR-09 remains blocked on outbound/ACK, linked-session
+persistence, logout/re-authentication, Meta rotation and target-host/browser evidence; approval
+status does not advance.
 
 QR-09I closes **QR-09-D11 (Blocker)** without changing the approved feature sequence. The
 short-lived pairing representation expired after the physical scan while the same configured WAHA

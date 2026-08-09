@@ -17,7 +17,27 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T19:42:09+05:30`.
+Last synchronized: `2026-08-09T21:16:07+05:30`.
+
+## Module 13 — QR-09J WAHA Inbound Timestamp Normalization Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`. QR-09-D12 is `REMEDIATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs certified inbound
+  execution and adds no product capability.
+- **Defect:** a real external text produced valid signed `message` and `message.any` events, but
+  both dead-lettered because WAHA supplied aware UTC while repository/MySQL time is naive UTC.
+  Conversation-window evaluation raised before a ledger row could be committed.
+- **Fix:** normalize the provider epoch to repository-standard naive UTC at the WAHA translation
+  boundary. Shared conversation/window logic, chronological ordering, two-event dedupe and ACK
+  monotonicity remain unchanged.
+- **Evidence:** both preserved source events were redriven through the normal queue and processed;
+  actual Inbox APIs expose exactly one accepted inbound message, unread count 1, connector WAHA.
+  Focused 174 PASS; canonical premerge 14/14 in 684.7s (backend 1437, frontend 806); applicable
+  release/runtime gates 8/8 in 87.9s.
+- **Preserved:** original D12 dead-letter rows, provider session and volume. Same container/start
+  time, restart count 0, WORKING/active/paired/connected, no QR, rescan, logout or database rewrite.
+- **Next:** after explicit approval, physical QR-09 resumes at the real outbound Inbox reply. Meta
+  rotation remains owner-deferred; `Host Validated`, `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09I Pairing Window Renewal and Post-Scan Convergence Remediation
 
