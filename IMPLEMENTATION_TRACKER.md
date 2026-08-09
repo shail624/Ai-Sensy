@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09F is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
+_Last updated: 2026-08-09 · QR-09G is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,23 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09F — Provider-Outage QR Availability Projection Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09F repairs QR-09-D8: a genuine WAHA transport outage can no longer inherit
+- **Current milestone:** `QR-09G — Paused Never-Paired Session Recovery Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09G repairs QR-09-D9 (Blocker): an ordinary `STOPPED` provider observation
+  pauses the durable session, and a `PAUSED` row cannot acquire a runtime lease — so for a
+  never-paired connection, status reconciliation stopped permanently, `pair` returned 409,
+  `reconnect` returned 409 telling the operator to pair, and `connect` was an idempotent no-op,
+  leaving the channel unrecoverable without direct database intervention. `begin_pairing()` now
+  reuses the exact pattern `reconnect()` established: the legal, lease-free
+  `PAUSED → INITIALIZING` transition first, then the ordinary lease. The `SessionManager` PAUSED
+  lease prohibition is unchanged, and recovery is narrow to non-`PAIRED` pairing states so durable
+  credentials stay in the reconnect/re-authentication domain. A row that cannot be leased is now
+  still read, so missing-session and outage facts are reported truthfully without creating or
+  mutating any provider or durable state from a `GET`. Real MySQL/Redis/application/WAHA evidence
+  replayed the preserved D9 reproduction: `pair` returned 200, the audit trail shows
+  `transitioned → initializing` before `lock_acquired`, one provider session reached
+  `SCAN_QR_CODE`, and one durable connection/session remained. Release gate 23/23; backend 1418,
+  frontend 798. No frontend source changed, so no UI preview evidence is claimed.
+- **Superseded change:** QR-09F repairs QR-09-D8: a genuine WAHA transport outage can no longer inherit
   actionable QR truth from a durable `pairing_available` row or stale `SCAN_QR_CODE` metadata.
   Backend observation is now typed; only a current live provider observation can advertise QR
   availability, while a transport outage projects no provider status/action and leaves durable

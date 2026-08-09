@@ -11,6 +11,58 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09G: Paused Never-Paired Session Recovery Remediation
+
+Records and remediates **QR-09-D9 (Blocker)** without absorbing the separately preserved QR-09D
+frontend work. `STOPPED` is an ordinary WAHA status (a restart, or a provider-side session
+removal); `map_session_status` turns it into durable `PAUSED`, and `SessionManager.acquire_lock`
+refuses to lease a `PAUSED` row. For a session that had **never** been paired this closed every
+exit: `GET` status silently swallowed the lease `ConflictError` and fell back to stale durable
+metadata, reporting an outage that was not happening; `POST /session/pair` returned `409 "The
+session is paused and cannot acquire a runtime lease"`; `POST /session/reconnect` returned `409`
+telling the operator to pair; and `POST /session/connect` was an idempotent no-op. Reconnect said
+pair, pair could not run, and the WhatsApp QR channel was unrecoverable without direct database
+intervention. The documented `PAUSED → INITIALIZING` escape existed only behind `can_reconnect`,
+which requires durable `PAIRED`.
+
+The `SessionManager` invariant is deliberately unchanged — nothing now leases a paused row.
+`begin_pairing()` instead reuses the exact control-plane pattern `reconnect()` already
+established: an explicitly requested pairing on a `PAUSED` session whose pairing state is not
+`PAIRED` performs the legal, lease-free governed `PAUSED → INITIALIZING` transition first, then
+acquires the ordinary runtime lease and drives the existing adapter path. The recovery is narrow by
+proof: `PAIRED` is the only state meaning credentials were ever established, it is terminal in
+`LEGAL_PAIRING_TRANSITIONS`, and a paused paired session is the reconnect/re-authentication domain
+`can_reconnect` already covers — it keeps the pre-existing refusal rather than being restarted as a
+first-time pairing. Separately, a row that cannot be leased at all is now still *read*: reading the
+provider is not a mutation, so a missing session and an unreachable provider are reported
+truthfully, while a successful observation is downgraded to "not observed" because applying it
+needs the lease that could not be taken. Nothing creates, starts or mutates provider or durable
+state from a `GET`.
+
+Ten focused regressions prove recovery, transition-before-lease ordering, the retained `PAUSED`
+lease prohibition, single provider creation, honest provider-failure reporting, row-version/fencing
+progression and stale-version refusal, no duplicate durable session, the corrected projection, and
+that QR-09F outage truth and QR-09-D2 session-missing semantics both survive the unleasable path.
+With the fix reverted, eight of them fail; the two that pass are exactly the ones asserting
+unchanged behaviour. A real MySQL/Redis/application run against the exact certified WAHA digest
+replayed the preserved live D9 reproduction: status stopped claiming a false outage without
+mutating the row (`row_version` unchanged), the pairing request returned `200` instead of `409`,
+the audit trail shows `transitioned → initializing` *before* `lock_acquired` (fencing 867 → 868),
+exactly one provider session reached `SCAN_QR_CODE`, exactly one durable connection and session
+remained, and no database intervention was required. No QR was displayed, persisted or scanned.
+
+All **23 release gates pass** in 506.1 seconds: backend **1418 passed**, frontend **798 passed**,
+Ruff, strict mypy (300 files), OpenAPI drift, ESLint, TypeScript, browser-test types, production
+build, Bandit, dependency/browser audits, tracked-source vulnerability/secret/IaC scan, certified
+WAHA health/QR/webhook runtime gates, production release and image contracts, image vulnerability
+scan and SBOM. Migration remains `0043` (44 revisions), OpenAPI remains 207 paths, and no route,
+schema, RBAC, capability, digest, storage or provider-approval change was made.
+
+**Status boundary:** QR-09G is `REPOSITORY/RUNTIME VALIDATED`. QR-09D remains externally preserved
+and `PARTIAL`; QR-09 remains `PARTIAL (BLOCKED)`. Meta verification-token rotation is **PENDING —
+OWNER DEFERRED**. `Host Validated: NO`, `Provider Validated: NO`, `Production Ready: NO`; no phone,
+scan, target-host or certification-approval evidence is claimed.
+
 ### 2026-08-09 — QR-09F: Provider-Outage QR Availability Projection Remediation
 
 Records and remediates **QR-09-D8 (Major)** without combining or reapplying the separately

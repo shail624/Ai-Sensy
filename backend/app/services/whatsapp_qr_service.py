@@ -308,6 +308,36 @@ class WhatsAppQrService:
         """Create/start the WAHA session and mark pairing as requested, then available."""
 
         row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
+
+        # QR-09-D9: a durable session that was paused (the automatic reaction to an observed
+        # STOPPED provider status) can never be leased again, so pairing — the only action that
+        # can move a never-paired connection forward — used to fail with "the session is paused
+        # and cannot acquire a runtime lease" while `reconnect()` simultaneously told the operator
+        # to pair. That left the connection unrecoverable without direct database intervention.
+        #
+        # This reuses the exact control-plane pattern `reconnect()` already established: PAUSED ->
+        # INITIALIZING is a legal, lease-free governed transition that puts the row back into a
+        # leasable state, after which the normal lease/mutate path below runs unchanged. The
+        # `SessionManager` invariant that a PAUSED row cannot be leased is deliberately left
+        # untouched — this leaves PAUSED first, it does not lease a paused row.
+        #
+        # Narrow by design: `PairingState.PAIRED` is the only state meaning credentials were ever
+        # established, it is terminal in `LEGAL_PAIRING_TRANSITIONS`, and a paused paired session
+        # is the reconnect/re-authentication domain (`can_reconnect` covers exactly that pair).
+        # Such a session keeps the pre-existing refusal below rather than being quietly restarted
+        # as a first-time pairing.
+        if (
+            SessionState(row.state) is SessionState.PAUSED
+            and PairingState(row.pairing_state) is not PairingState.PAIRED
+        ):
+            row = await self._session_manager.transition_session(
+                organization_id=organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(row.public_id),
+                expected_row_version=row.row_version,
+                target_state=SessionState.INITIALIZING,
+            )
+
         lease = await self._session_manager.acquire_lock(
             organization_id=organization_id,
             actor=actor,
@@ -494,14 +524,22 @@ class WhatsAppQrService:
           how to present it. Nothing here recreates the session, starts pairing, or requests a QR —
           re-establishing a session stays an explicit operator action.
         """
-        lease = await self._session_manager.acquire_lock(
-            organization_id=organization_id,
-            actor=actor,
-            public_id=uuidlib.UUID(row.public_id),
-            runtime_id=self._request_runtime_id(),
-            lease_seconds=self._lease_seconds(),
-            expected_row_version=row.row_version,
-        )
+        try:
+            lease = await self._session_manager.acquire_lock(
+                organization_id=organization_id,
+                actor=actor,
+                public_id=uuidlib.UUID(row.public_id),
+                runtime_id=self._request_runtime_id(),
+                lease_seconds=self._lease_seconds(),
+                expected_row_version=row.row_version,
+            )
+        except ConflictError:
+            # The row cannot be driven right now — it is PAUSED (QR-09-D9), or another runtime
+            # genuinely holds the lease. Reading the provider is not a mutation, so refusing to
+            # look was what left a paused never-paired session projecting stale metadata forever
+            # and reporting an outage that was not happening. Observe read-only instead.
+            return await self._observe_without_lease()
+
         try:
             try:
                 snapshot = await self._adapter.session_snapshot(self._provider_session_name())
@@ -521,6 +559,27 @@ class WhatsAppQrService:
             return _ProviderObservation.OBSERVED
         finally:
             await self._release(organization_id, actor, row, lease)
+
+    async def _observe_without_lease(self) -> _ProviderObservation:
+        """Read the provider without holding a lease, reporting only non-mutating facts.
+
+        Used when the durable row cannot be leased at all (QR-09-D9). A missing session and an
+        unreachable provider are both facts that need no durable write, so reporting them keeps
+        the status honest — that is what lets the operator see the real recovery action instead of
+        a permanent, untrue "WhatsApp can't be reached".
+
+        A *successful* observation is deliberately downgraded to ``NOT_OBSERVED``: applying it
+        requires the very lease that could not be taken, and this module's rule is that nothing
+        claims a state it cannot reconcile. Nothing here creates, starts or mutates provider or
+        durable state — it is a read.
+        """
+        try:
+            await self._adapter.session_snapshot(self._provider_session_name())
+        except WahaSessionNotFound:
+            return _ProviderObservation.SESSION_MISSING
+        except ChannelTransportError:
+            return _ProviderObservation.PROVIDER_UNAVAILABLE
+        return _ProviderObservation.NOT_OBSERVED
 
     async def _apply_snapshot(
         self,

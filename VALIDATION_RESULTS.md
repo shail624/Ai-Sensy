@@ -4,7 +4,30 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T14:28:12+05:30`.
+Last synchronized: `2026-08-09T16:09:03+05:30`.
+
+## QR-09G — Paused Never-Paired Session Recovery Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D9 is closed by repository and
+real-runtime evidence. QR-09D and QR-09 remain `PARTIAL (BLOCKED)`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline and QR-09D isolation | PASS | Local/origin matched `ui/taste-modernization` at `3bbde4ef16d1c3fa79c5ce2c980a717f82435cb0`. The current post-QR-09F QR-09D frontend work was preserved outside the repository as `qr09d-post-qr09f-current.patch`, SHA-256 `2278b61072cf4959e83463d4eb579018598f2c941d64ff7f3bf2947abf896ffe`, covering exactly `WhatsAppQrConnect.tsx`, `viewState.ts` and `whatsapp-qr.test.tsx`; the three files were restored to HEAD and `git apply --check` re-verified clean. QR-09G contains no frontend change. |
+| D9 reproduction | PASS | Durable session `PAUSED` with `pairing_available` (never `PAIRED`), provider healthy and holding zero sessions. `GET` reported `provider_session_missing: false` with stale `provider_status: STOPPED`; `pair` returned `409 "The session is paused and cannot acquire a runtime lease"`; `reconnect` returned `409` instructing the operator to pair; `connect` was an idempotent no-op. No `lock_acquired` audit event occurred after the pause. |
+| Root cause | PASS | `map_session_status` maps `STOPPED → PAUSED`; `SessionManager._assert_operable` refuses a lease for `PAUSED`; `get_status` suppressed that `ConflictError`, leaving `NOT_OBSERVED` and a stale projection permanently. The documented `PAUSED → INITIALIZING` escape was reachable only through `can_reconnect`, which requires durable `PAIRED`. |
+| Invariant preserved | PASS | `SessionManager` still refuses to lease a `PAUSED` row; a direct `acquire_lock` probe on the paused session still raises `ConflictError`. QR-09G leaves `PAUSED` before leasing rather than weakening the rule, reusing the pattern `reconnect()` established. |
+| Narrow recovery scope | PASS | Recovery applies only when the pairing state is not `PAIRED` — the sole state meaning credentials existed, terminal in `LEGAL_PAIRING_TRANSITIONS`, and covered by `can_reconnect`. A paused paired session still raises `ConflictError` from `begin_pairing`, creates no provider session, and keeps `PAIRED`/`PAUSED` intact. |
+| Projection correction | PASS | A row that cannot be leased is still read. Missing-session and unreachable-provider facts are reported truthfully; a successful observation is downgraded to `NOT_OBSERVED` because it cannot be applied without the lease. Reads create/start/mutate nothing — verified all provider calls were `GET` with no QR request. |
+| Focused regression | PASS | Ten new backend tests; `test_whatsapp_qr.py` **41 passed**. With the fix reverted **8 of 10 fail**; the 2 that pass assert deliberately unchanged behaviour. Focused QR/session/recovery/lifecycle regression **189 passed**. |
+| Real runtime recovery | PASS | Real MySQL/Redis/application with certified WAHA `sha256:33ecd1b7…f2d75e`, `2026.7.2 / NOWEB / CORE`. Status stopped claiming a false outage while leaving `row_version` at `2221` (read mutated nothing); `POST /session/pair` returned **200**; session moved `paused → initializing → SCAN_QR_CODE`. |
+| Transition-before-lease ordering | PASS | Audit trail: `channel_session.transitioned → initializing` (`row_version 2222`) precedes `channel_session.lock_acquired` (`row_version 2223`, fencing `867 → 868`), then `lock_released` (`row_version 2225`). |
+| Session-count integrity | PASS | Exactly one provider session (`SCAN_QR_CODE`), exactly one durable connection and one durable session after recovery. No duplicate provider or durable session, and no database intervention was required. |
+| Full release gate | PASS | **23/23 PASS** in 506.1s: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1418 backend tests**; **798 frontend tests**; production build; Bandit; dependency/browser audits; tracked-source vulnerability/secret/IaC scan; certified WAHA health, QR and webhook gates; production release/image contracts; image scan and SBOM. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route, schema, RBAC, capability, digest, storage or provider-approval change. No credential, QR or session material is exposed. No QR was displayed, persisted or scanned. |
+| UI preview | NOT APPLICABLE | QR-09G is backend/control-plane only; no frontend source changed, so no preview evidence is claimed. |
+| Remaining external gates | PENDING – Host Machine Validation | Meta token rotation owner-deferred. QR-09D closure and physical-phone QR-09 validation remain outstanding; QR-09 stays `PARTIAL (BLOCKED)`. |
 
 ## QR-09F — Provider-Outage QR Availability Projection Remediation
 

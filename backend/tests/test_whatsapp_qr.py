@@ -918,3 +918,334 @@ async def test_session_absent_state_leaks_no_credential_url_or_traceback(
     assert "waha.internal" not in rendered
     assert "404" not in rendered
     assert "Traceback" not in rendered
+
+
+# --- QR-09-D9: a paused, never-paired session must stay recoverable ----------------------------
+
+
+async def _reach_paused_never_paired(db_session, providers, runtimes, organization, actor):
+    """connect -> begin_pairing -> the provider reports STOPPED -> durable PAUSED, never paired.
+
+    This is the exact timeline reproduced on the certified runtime: STOPPED is an ordinary WAHA
+    status (a restart, or a provider-side session removal), `map_session_status` turns it into
+    PAUSED, and the pairing state is left untouched because STOPPED cannot determine it. The
+    result is a durable session that has never been paired and can no longer be leased.
+    """
+    adapter, _ = _sequenced_adapter([SCAN_BODY])
+    service = _service(db_session, providers, runtimes, adapter)
+    await service.connect(organization_id=organization.id, actor=actor)
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    service._adapter = _adapter(lambda request: httpx.Response(200, json=STOPPED_BODY))
+    paused = await service.get_status(organization_id=organization.id, actor=actor)
+    assert paused.session_state is SessionState.PAUSED
+    assert paused.pairing_state is not PairingState.PAIRED
+    return service, paused
+
+
+def _pairing_recovery_adapter() -> tuple[WahaChannelAdapter, list[str]]:
+    """The provider holds no session (the D9 state) and accepts exactly one create."""
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}")
+        if request.method == "POST" and request.url.path == "/api/sessions":
+            return httpx.Response(201, json=CREATE_BODY)
+        if request.method == "GET" and request.url.path.startswith("/api/sessions/"):
+            return httpx.Response(404, json=_SESSION_NOT_FOUND_BODY)
+        return httpx.Response(200, json=SCAN_BODY)
+
+    return _adapter(handler), calls
+
+
+@pytest.mark.anyio
+async def test_paused_never_paired_session_recovers_through_explicit_pairing(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D9: pairing is the only action that can move this forward, so it must not be refused.
+
+    Before this fix `begin_pairing()` raised "the session is paused and cannot acquire a runtime
+    lease" while `reconnect()` simultaneously told the operator to pair — an unrecoverable
+    control-plane dead end that needed direct database intervention to escape.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-recover@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, paused = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    adapter, calls = _pairing_recovery_adapter()
+    service._adapter = adapter
+
+    recovered = await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert recovered.session_state is not SessionState.PAUSED
+    assert recovered.pairing_state is not PairingState.PAIRED
+    # Exactly one provider session was created, and nothing was started twice.
+    assert calls.count("POST /api/sessions") == 1
+    assert recovered.session_public_id == paused.session_public_id
+
+
+@pytest.mark.anyio
+async def test_paused_recovery_never_requests_a_lease_while_still_paused(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The row must leave PAUSED first; the PAUSED lease prohibition is never asked to bend."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-order@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    service._adapter = _pairing_recovery_adapter()[0]
+
+    manager = service._session_manager
+    original_acquire = manager.acquire_lock
+    states_when_leasing: list[str] = []
+
+    async def recording_acquire(**kwargs):
+        row = (await db_session.scalars(select(ChannelSession))).one()
+        await db_session.refresh(row)
+        states_when_leasing.append(row.state)
+        return await original_acquire(**kwargs)
+
+    manager.acquire_lock = recording_acquire  # type: ignore[method-assign]
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert states_when_leasing, "the pairing path must still acquire a real runtime lease"
+    assert SessionState.PAUSED.value not in states_when_leasing
+
+
+@pytest.mark.anyio
+async def test_session_manager_still_refuses_to_lease_a_paused_session(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The durable invariant is untouched: QR-09G leaves PAUSED, it does not lease a paused row."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-invariant@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, paused = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    row = (await db_session.scalars(select(ChannelSession))).one()
+
+    with pytest.raises(ConflictError):
+        await service._session_manager.acquire_lock(
+            organization_id=organization.id,
+            actor=actor,
+            public_id=uuidlib.UUID(paused.session_public_id),
+            runtime_id="qr09g-direct-probe",
+            lease_seconds=60,
+            expected_row_version=row.row_version,
+        )
+
+
+@pytest.mark.anyio
+async def test_paused_paired_session_is_not_restarted_as_first_time_pairing(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Durable credentials stay in the reconnect/re-auth domain — recovery is narrow by design."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-paired@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _, _ = await _reach_paired(db_session, providers, runtimes, organization, actor)
+    service._adapter = _adapter(lambda request: httpx.Response(200, json=STOPPED_BODY))
+    paused = await service.get_status(organization_id=organization.id, actor=actor)
+    assert paused.session_state is SessionState.PAUSED
+    assert paused.pairing_state is PairingState.PAIRED
+    # Reconnect — not first-time pairing — is the governed recovery for lost credentials.
+    assert paused.can_reconnect is True
+
+    created: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/api/sessions":
+            created.append(request.url.path)
+        return httpx.Response(200, json=STOPPED_BODY)
+
+    service._adapter = _adapter(handler)
+    with pytest.raises(ConflictError):
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+    assert created == [], "a paired paused session must never be re-created as a fresh pairing"
+
+    after = await service.get_status(organization_id=organization.id, actor=actor)
+    assert after.pairing_state is PairingState.PAIRED
+    assert after.session_state is SessionState.PAUSED
+
+
+@pytest.mark.anyio
+async def test_paused_recovery_reports_provider_failure_honestly(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A provider that fails after the row left PAUSED must not be reported as a success."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-honest@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    service._adapter = _adapter(down)
+    with pytest.raises(ServiceUnavailableError):
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    after = await service.get_status(organization_id=organization.id, actor=actor)
+    assert after.connected is False
+    assert after.qr_available is False
+    assert after.pairing_state is not PairingState.PAIRED
+
+
+@pytest.mark.anyio
+async def test_paused_recovery_preserves_row_version_and_fencing_progress(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Optimistic concurrency and fencing keep advancing — recovery is not a back door."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-fencing@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, paused = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    await db_session.refresh(before)
+    version_before, fencing_before = before.row_version, before.fencing_token
+
+    service._adapter = _pairing_recovery_adapter()[0]
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    after = (await db_session.scalars(select(ChannelSession))).one()
+    await db_session.refresh(after)
+    assert after.row_version > version_before
+    assert after.fencing_token > fencing_before
+
+    # A second recovery driven from the now-stale version must be refused, so two concurrent
+    # attempts can never both drive the provider.
+    with pytest.raises(ConflictError):
+        await service._session_manager.transition_session(
+            organization_id=organization.id,
+            actor=actor,
+            public_id=uuidlib.UUID(paused.session_public_id),
+            expected_row_version=version_before,
+            target_state=SessionState.INITIALIZING,
+        )
+
+
+@pytest.mark.anyio
+async def test_paused_recovery_creates_no_duplicate_durable_session(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recovery reuses the one durable session; it never registers a second one."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-single@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    service._adapter = _pairing_recovery_adapter()[0]
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    rows = (await db_session.scalars(select(ChannelSession))).all()
+    assert len(rows) == 1
+
+
+@pytest.mark.anyio
+async def test_paused_session_status_reports_missing_provider_session_truthfully(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D9 projection: an unleasable row must still tell the truth about the provider.
+
+    A PAUSED row cannot be leased, so reconciliation used to be skipped entirely and the response
+    fell back to stale durable metadata — reporting an outage that was not happening and hiding
+    the recovery action. Reading the provider is not a mutation, so the read still happens.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-projection@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    service._adapter = _session_absent_adapter()
+
+    state = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.provider_session_missing is True
+    assert state.reconnect_blocked_reason == "provider_session_missing"
+    assert state.requires_reauthentication is False
+    assert state.qr_available is False
+    assert state.connected is False
+    # Durable truth is untouched by a read.
+    assert state.session_state is SessionState.PAUSED
+
+
+@pytest.mark.anyio
+async def test_paused_session_status_still_reports_a_real_outage_as_unavailable(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QR-09F stays intact on the unleasable path: an outage is still an outage."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-outage@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    service._adapter = _adapter(down)
+    state = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert state.reconnect_blocked_reason == "provider_unavailable"
+    assert state.provider_session_missing is False
+    assert state.qr_available is False
+    assert state.provider_status is None
+    assert state.session_state is SessionState.PAUSED
+
+
+@pytest.mark.anyio
+async def test_unleasable_read_never_creates_or_mutates_provider_state(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The lease-free observation is a read: no create, start, delete or QR request."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09g-readonly@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+
+    service, _ = await _reach_paused_never_paired(
+        db_session, providers, runtimes, organization, actor
+    )
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}")
+        return httpx.Response(404, json=_SESSION_NOT_FOUND_BODY)
+
+    service._adapter = _adapter(handler)
+    await service.get_status(organization_id=organization.id, actor=actor)
+    await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert calls, "the provider must still be observed"
+    assert all(call.startswith("GET ") for call in calls), calls
+    assert not any("/auth/qr" in call for call in calls)

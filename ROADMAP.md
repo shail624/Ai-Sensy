@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T14:28:12+05:30`.
+Last synchronized: `2026-08-09T16:09:03+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09F — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
+**Current status: QR-09G — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,27 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09G remediates **QR-09-D9 (Blocker)** without absorbing QR-09D. `STOPPED` is an ordinary WAHA
+status, `map_session_status` turns it into durable `PAUSED`, and a `PAUSED` row cannot acquire a
+runtime lease. For a never-paired connection that closed every exit: status reconciliation stopped
+permanently and reported an outage that was not happening, `pair` returned 409, `reconnect`
+returned 409 instructing the operator to pair, and `connect` was an idempotent no-op — the channel
+was unrecoverable without direct database intervention, because the documented
+`PAUSED → INITIALIZING` escape sat behind `can_reconnect`, which requires durable `PAIRED`.
+
+`begin_pairing()` now reuses the exact control-plane pattern `reconnect()` established: the legal,
+lease-free `PAUSED → INITIALIZING` transition first, then the ordinary runtime lease. The
+`SessionManager` PAUSED lease prohibition is unchanged, and recovery is narrow to non-`PAIRED`
+pairing states so durable credentials stay in the reconnect/re-authentication domain. A row that
+cannot be leased is still read, so missing-session and outage facts are truthful while nothing is
+created, started or mutated from a `GET`. Real MySQL/Redis/application/exact-WAHA evidence replayed
+the preserved D9 reproduction: `pair` returned 200, the audit trail shows `transitioned` before
+`lock_acquired`, exactly one provider session reached `SCAN_QR_CODE`, one durable
+connection/session remained, and no database intervention was needed. All 23 release gates pass
+(backend 1418, frontend 798). Migration/OpenAPI/RBAC/capabilities/digest, persistent storage and
+provider approval remain unchanged. QR-09G is backend/control-plane only, so no UI preview evidence
+is claimed. QR-09D closure and physical-phone QR-09 validation follow separately.
 
 QR-09F remediates **QR-09-D8 (Major)** without absorbing QR-09D. A genuine provider outage could
 inherit actionable QR truth from durable `pairing_available` state and stale `SCAN_QR_CODE`

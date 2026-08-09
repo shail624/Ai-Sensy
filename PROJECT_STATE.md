@@ -6,11 +6,11 @@
 | Field | Current value |
 |---|---|
 | Current branch | `ui/taste-modernization` |
-| Latest change | `QR-09F — Provider-Outage QR Availability Projection Remediation: QR-09-D8 remediated with fail-closed backend/frontend state projection and real-outage recovery evidence.` |
+| Latest change | `QR-09G — Paused Never-Paired Session Recovery Remediation: QR-09-D9 (Blocker) remediated so an explicitly requested pairing can recover a paused, never-paired session without weakening the PAUSED lease invariant.` |
 | M13-05 starting baseline | `5d7ea154588418410611de4f568e978c2e3caba9` (`feat(channels): add session manager foundation`) |
-| Current Git HEAD | `HEAD` (QR-09F remediation milestone; resolve after push) |
-| Current milestone | `QR-09F — Provider-Outage QR Availability Projection Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; all earlier evidence remains preserved. |
-| Current phase | `QR-09-D8 is remediated and verified against a genuine provider outage and recovery. QR-09D's separately preserved frontend work is not part of this milestone; Meta rotation, physical-phone provider E2E and target-host/browser-matrix evidence remain outstanding.` |
+| Current Git HEAD | `HEAD` (QR-09G remediation milestone; resolve after push) |
+| Current milestone | `QR-09G — Paused Never-Paired Session Recovery Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; all earlier evidence remains preserved. |
+| Current phase | `QR-09-D9 is remediated and verified on the preserved live reproduction: pairing recovers a paused, never-paired session with no database intervention. QR-09D's separately preserved frontend work is not part of this milestone; Meta rotation, physical-phone provider E2E and target-host/browser-matrix evidence remain outstanding.` |
 | Repository version | `1.0.0-rc1` |
 | Migration head | `0043_conversation_channel_endpoints` (44 linear revisions) — **unchanged**. QR-09A repaired `0043`'s `downgrade()` ordering without adding a revision; the upgrade path, revision id and resulting schema are byte-for-byte unchanged, and up/down/up is now proven on real MySQL |
 | OpenAPI | `3.1.0` · **`207` paths, unchanged**. Required drift gate now **PASSES**: the artifact was regenerated through the canonical exporter (the committed copy had been written with `ensure_ascii=True` while the exporter emits `ensure_ascii=False`). Zero route/schema churn; the only delta is D2's additive `provider_session_missing` property. No FastAPI/Pydantic version was pinned or changed |
@@ -19,15 +19,16 @@
 | Backend evidence (QR-09C release gate) | **1399 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **22/22 PASS**, including provider-generated signed webhook/retry/restart runtime evidence |
 | Backend evidence (QR-09E release gate) | **1407 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **23/23 PASS**, including exact-certified-runtime JSON/PNG content-negotiation evidence |
 | Backend evidence (QR-09F release gate) | **1408 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **23/23 PASS**, including genuine provider-outage/recovery and certified WAHA runtime evidence |
+| Backend evidence (QR-09G release gate) | **1418 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **23/23 PASS** in 506.1s, including the paused never-paired recovery, transition-before-lease ordering and certified WAHA runtime evidence |
 | Frontend evidence | ESLint PASS · TypeScript PASS · 38 Vitest files / **798 tests** PASS · production build PASS · `npm audit --omit=dev` 2 moderate (pre-existing React Router advisories below the high/critical gate; dependency unchanged) |
 | Bundle evidence | `InboxPage` chunk `37.28 kB` / gzip `10.28 kB` — unchanged by QR-09 |
 | M13 contract | ADR-0020, ADR-0021 and Design Document 33 remain frozen and authoritative |
 | Module 13 implementation | `52%` evidence-based estimate — **unchanged**. Remediation restores intended behaviour and adds a deployment definition; it delivers no new product capability |
 | QR provider | WAHA 2026.7.2 (CORE, NOWEB, Apache-2.0) — **CONDITIONALLY CERTIFIED — HOST/PHONE EVIDENCE REQUIRED**, unchanged by QR-09. QR-09 ran the real pinned image (`sha256:33ecd1b7…`) but had no physical handset, so it does not advance certification. Declared capabilities remain `HEALTH`, `QR_AUTH`, `SESSION_STREAM`, `TEXT`, `SESSION_RECONNECT`, `SESSION_LOGOUT`; `BULK`/`CAMPAIGNS`/`TEMPLATE` permanently prohibited and test-enforced. No MEDIA/INTERACTIVE/REACTION/LOCATION/CONTACT |
-| Next Module 13 milestone | Await explicit owner direction. Do not reapply QR-09D's preserved frontend patch or resume QR-09 physical-phone validation automatically. Meta rotation, QR-09D revalidation, physical-phone provider E2E and the supported-browser/target-host matrix remain pending |
+| Next Module 13 milestone | Owner-approved: resume and close QR-09D on top of QR-09G using the preserved `qr09d-post-qr09f-current.patch`, then safe physical-phone QR-09 preparation up to the mandated safety/manual stop. Meta rotation, physical-phone provider E2E and the supported-browser/target-host matrix remain pending |
 | Host evidence | Repository/local-host MySQL/Redis/WAHA evidence (not target-host): real MySQL 8.0.46 and Redis 7.4.9 via this repository's own `docker compose up -d`, and the real pinned WAHA container, all on the development workstation. QR-09 additionally reproduced a **second** real-MySQL downgrade defect (`0043`, same class as the pre-existing `0036`/`0040` one) and a provider-up/session-absent `500` on the operator status endpoint. Genuine target-host evidence, physical-phone pairing, and the full browser/device matrix remain pending; no Host Validated or Production Ready claim |
-| Worktree expectation | QR-09F changes only backend/frontend QR state projection, focused tests and synchronized governance. No migration, route, schema, RBAC, provider capability, persistent session data, phone/scan evidence or proprietary reference material |
-| Last update | `2026-08-09T14:28:12+05:30` (Asia/Kolkata) |
+| Worktree expectation | QR-09G changes only the backend QR session-recovery path, focused backend tests and synchronized governance. No frontend source, migration, route, schema, RBAC, provider capability, persistent session data, phone/scan evidence or proprietary reference material |
+| Last update | `2026-08-09T16:09:03+05:30` (Asia/Kolkata) |
 
 ## QR-09F — Provider-Outage QR Availability Projection Remediation (REPOSITORY/RUNTIME VALIDATED)
 

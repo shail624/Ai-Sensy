@@ -17,7 +17,33 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T14:28:12+05:30`.
+Last synchronized: `2026-08-09T16:09:03+05:30`.
+
+## Module 13 — QR-09G Paused Never-Paired Session Recovery Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this restores a blocked recovery path
+  and adds no product capability.
+- **Defect:** QR-09-D9 (Blocker) — an ordinary `STOPPED` provider observation pauses the durable
+  session; a `PAUSED` row cannot be leased, so for a never-paired connection status reconciliation
+  stopped permanently, `pair` returned 409, `reconnect` returned 409 telling the operator to pair,
+  and `connect` was a no-op. The channel was unrecoverable without direct database intervention.
+- **Fix:** `begin_pairing()` reuses the `reconnect()` control-plane pattern — the legal, lease-free
+  `PAUSED → INITIALIZING` transition first, then the ordinary runtime lease. The `SessionManager`
+  PAUSED lease prohibition is unchanged. Recovery is narrow to non-`PAIRED` pairing states; a
+  paused paired session keeps the existing refusal and stays in the reconnect/re-auth domain. A
+  row that cannot be leased is still read, so status reports missing-session and outage facts
+  truthfully without mutating anything.
+- **Evidence:** exact certified WAHA `2026.7.2` / `NOWEB` / `CORE`, real MySQL/Redis/application.
+  Preserved live D9 reproduction recovered: `pair` returned 200 (was 409), audit shows
+  `transitioned` before `lock_acquired` (fencing 867 → 868), one provider session reached
+  `SCAN_QR_CODE`, one durable connection/session, no DB intervention. Release gate 23/23; backend
+  1418, frontend 798. Ten new tests; 8 fail with the fix reverted.
+- **Preserved:** no QR displayed/persisted/scanned; migration/OpenAPI/RBAC/capabilities/provider
+  approval unchanged. QR-09D remains externally preserved as `qr09d-post-qr09f-current.patch`.
+- **Next:** resume and close QR-09D on top of this commit, then physical-phone QR-09 preparation.
+  Meta rotation remains owner-deferred; `Host Validated`, `Provider Validated`,
+  `Production Ready`: NO.
 
 ## Module 13 — QR-09F Provider-Outage QR Availability Projection Remediation
 
