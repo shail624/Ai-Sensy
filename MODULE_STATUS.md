@@ -17,7 +17,32 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T16:36:38+05:30`.
+Last synchronized: `2026-08-09T18:15:25+05:30`.
+
+## Module 13 — QR-09H Expired QR Existing-Session Recovery Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`. QR-09-D10 is `REMEDIATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this restores a blocked operator cycle
+  and adds no product capability.
+- **Defect:** QR-09-D10 (Blocker) — an unscanned QR lapses to `FAILED` while the provider session
+  object survives, so every "Get a new QR code" retry hit the provider's `already exists` refusal,
+  which the service reported as an outage. `reconnect` refused (never paired) and `connect` was a
+  no-op, so the channel could never issue another QR without direct provider intervention.
+- **Fix:** new `WahaChannelAdapter.prepare_pairing()` keeps `begin_pairing()` create-only (QR-03's
+  no-guessing principle intact), attempts the create first, and only on a reached-provider refusal
+  reads live state and applies the certified non-destructive `stop` → `start` recovery. Reuses an
+  already-QR-eligible session, skips a redundant stop, and refuses both a provider-reported linked
+  account and a durably `PAIRED` connection. Error classification corrected: transport → service
+  unavailable, reached-provider → truthful conflict, provider wording never echoed.
+- **Evidence:** exact certified WAHA `2026.7.2` / `NOWEB` / `CORE`. Measured: `start` alone cannot
+  recover `FAILED`; `stop`+`start` reaches `SCAN_QR_CODE` with session count 1, `me: None` and
+  config byte-identical. A genuinely expired QR recovered through the actual frontend under one
+  lease; application QR returned `200 image/png` with no-store/private/no-cache. Release gate
+  23/23; backend 1431, frontend 806 (unchanged). Thirteen new tests; 9 fail with the fix reverted.
+- **Preserved:** no delete/recreate/logout, no new capability, no migration/route/schema/RBAC
+  change; QR bytes never displayed, persisted, logged, audited or scanned.
+- **Next:** physical-phone QR-09 validation. Meta rotation remains owner-deferred;
+  `Host Validated`, `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09D Pairing Action State Remediation
 

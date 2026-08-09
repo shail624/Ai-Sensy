@@ -17,6 +17,7 @@ import httpx
 import pytest
 from sqlalchemy import select
 
+from app.channels.errors import ChannelConfigError
 from app.channels.flags import OmnichannelFeatureFlag
 from app.channels.registry import CapabilityRegistry, ProviderRegistry
 from app.channels.runtime import PairingState
@@ -1249,3 +1250,347 @@ async def test_unleasable_read_never_creates_or_mutates_provider_state(
     assert calls, "the provider must still be observed"
     assert all(call.startswith("GET ") for call in calls), calls
     assert not any("/auth/qr" in call for call in calls)
+
+
+# --- QR-09-D10: an expired QR must not be terminal --------------------------------------------
+
+_ALREADY_EXISTS_BODY = {
+    "message": "Session 'phonecert' already exists. Use PUT to update it.",
+    "error": "Unprocessable Entity",
+    "statusCode": 422,
+}
+
+
+def _existing_session_adapter(*, status: str, me: dict | None = None, after_start: str = "SCAN_QR_CODE"):
+    """The provider already holds this session, so `POST /api/sessions` is refused exactly as the
+    certified build refuses it. Stop/start mutate the modelled status the way 2026.7.2 does.
+    """
+    state = {"status": status, "me": me}
+    calls: list[str] = []
+
+    def body() -> dict:
+        return {
+            "name": "phonecert",
+            "status": state["status"],
+            "me": state["me"],
+            "engine": {"engine": "NOWEB"},
+        }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        calls.append(f"{request.method} {path}")
+        if request.method == "POST" and path == "/api/sessions":
+            return httpx.Response(422, json=_ALREADY_EXISTS_BODY)
+        if request.method == "POST" and path.endswith("/stop"):
+            state["status"] = "STOPPED"
+            return httpx.Response(201, json=body())
+        if request.method == "POST" and path.endswith("/start"):
+            state["status"] = after_start
+            return httpx.Response(201, json=body())
+        return httpx.Response(200, json=body())
+
+    return _adapter(handler), calls, state
+
+
+async def _reach_expired_qr(db_session, providers, runtimes, organization, actor):
+    """connect -> begin_pairing -> QR shown -> operator never scans it.
+
+    Leaves the exact D10 precondition: durable `waiting_for_pairing`/`pairing_available`, never
+    paired, and a provider session object that survives with a non-working status.
+    """
+    adapter, _ = _sequenced_adapter([SCAN_BODY])
+    service = _service(db_session, providers, runtimes, adapter)
+    await service.connect(organization_id=organization.id, actor=actor)
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+    shown = await service.get_status(organization_id=organization.id, actor=actor)
+    assert shown.pairing_state is PairingState.PAIRING_AVAILABLE
+    return service
+
+
+@pytest.mark.anyio
+async def test_missing_provider_session_still_takes_the_plain_create_path(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 1: nothing to recover, so pairing creates once and never stops/starts anything."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-create@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    adapter, calls = _sequenced_adapter([SCAN_BODY])
+    service = _service(db_session, providers, runtimes, adapter)
+
+    await service.connect(organization_id=organization.id, actor=actor)
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert calls.count("POST /api/sessions") == 1
+    assert not any(c.endswith("/stop") for c in calls)
+    assert not any(c.endswith("/start") for c in calls)
+
+
+@pytest.mark.anyio
+async def test_expired_qr_recovers_through_the_certified_stop_start_pair(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 3 — the D10 defect. An unscanned QR lapsed and left the session object behind.
+
+    Before this fix every retry hit the provider's `already exists` refusal, which the service
+    reported as an outage, so the channel could never issue another QR without direct provider
+    intervention.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-expired@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    adapter, calls, state = _existing_session_adapter(status="FAILED")
+    service._adapter = adapter
+
+    recovered = await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    # The certified recovery is stop-then-start, in that order, and nothing else.
+    assert [c for c in calls if c.startswith("POST ")] == [
+        "POST /api/sessions",
+        "POST /api/sessions/phonecert/stop",
+        "POST /api/sessions/phonecert/start",
+    ]
+    assert state["status"] == "SCAN_QR_CODE"
+    assert state["me"] is None
+    assert recovered.pairing_state is PairingState.PAIRING_AVAILABLE
+    assert recovered.requires_reauthentication is False
+    # Exactly one durable session; nothing was recreated.
+    assert len((await db_session.scalars(select(ChannelSession))).all()) == 1
+
+
+@pytest.mark.anyio
+async def test_expired_qr_recovery_is_repeatable(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QR expiry must never become terminal — the cycle has to survive being repeated."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-repeat@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    for cycle in range(2):
+        adapter, calls, state = _existing_session_adapter(status="FAILED")
+        service._adapter = adapter
+        recovered = await service.begin_pairing(organization_id=organization.id, actor=actor)
+        assert state["status"] == "SCAN_QR_CODE", f"cycle {cycle}"
+        assert recovered.pairing_state is PairingState.PAIRING_AVAILABLE, f"cycle {cycle}"
+        assert calls.count("POST /api/sessions/phonecert/start") == 1, f"cycle {cycle}"
+
+    assert len((await db_session.scalars(select(ChannelSession))).all()) == 1
+
+
+@pytest.mark.anyio
+async def test_stopped_session_is_started_without_a_redundant_stop(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An already-stopped session only needs starting; stopping it again is pointless churn."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-stopped@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    adapter, calls, state = _existing_session_adapter(status="STOPPED")
+    service._adapter = adapter
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert not any(c.endswith("/stop") for c in calls)
+    assert calls.count("POST /api/sessions/phonecert/start") == 1
+    assert state["status"] == "SCAN_QR_CODE"
+
+
+@pytest.mark.anyio
+async def test_session_already_showing_a_qr_is_reused_untouched(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 2: a session already presenting a QR must not be churned to produce another."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-reuse@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    adapter, calls, state = _existing_session_adapter(status="SCAN_QR_CODE")
+    service._adapter = adapter
+    reused = await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert not any(c.endswith("/stop") for c in calls)
+    assert not any(c.endswith("/start") for c in calls)
+    assert state["status"] == "SCAN_QR_CODE"
+    assert reused.pairing_state is PairingState.PAIRING_AVAILABLE
+
+
+@pytest.mark.anyio
+async def test_recovery_refuses_a_provider_session_with_a_linked_account(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 4 (provider half): a linked account is never restarted into first-time pairing."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-linked@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    adapter, calls, _ = _existing_session_adapter(
+        status="FAILED", me={"id": "919355585553@c.us", "pushName": "Neha Sharma"}
+    )
+    service._adapter = adapter
+    with pytest.raises(ConflictError):
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert not any(c.endswith("/stop") for c in calls)
+    assert not any(c.endswith("/start") for c in calls)
+
+
+@pytest.mark.anyio
+async def test_durably_paired_connection_never_enters_pairing_recovery(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 4 (durable half): refused before any provider call is made at all."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-paired@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service, working, _ = await _reach_paired(db_session, providers, runtimes, organization, actor)
+    assert working.pairing_state is PairingState.PAIRED
+
+    adapter, calls, _ = _existing_session_adapter(status="FAILED")
+    service._adapter = adapter
+    with pytest.raises(ConflictError):
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    assert calls == [], "a paired connection must not reach the provider through this path"
+
+
+@pytest.mark.anyio
+async def test_transport_outage_during_pairing_is_still_service_unavailable(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 5: an unreachable provider keeps its existing truthful outage classification."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-outage@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    service._adapter = _adapter(down)
+    with pytest.raises(ServiceUnavailableError):
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+
+@pytest.mark.anyio
+async def test_reached_provider_refusal_is_a_conflict_not_a_false_outage(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CASE 6 — the second half of D10. The provider answered, so "couldn't be reached" is a lie.
+
+    Also proves the provider's own wording never reaches the operator: remote text must not be
+    interpolated into an operator-facing message.
+    """
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-conflict@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    # Create is refused *and* the session genuinely is not there: a reached-provider disagreement
+    # that no recovery can resolve, which must still be reported honestly.
+    def conflicting(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path == "/api/sessions":
+            return httpx.Response(422, json=_ALREADY_EXISTS_BODY)
+        return httpx.Response(404, json=_SESSION_NOT_FOUND_BODY)
+
+    service._adapter = _adapter(conflicting)
+    with pytest.raises(ConflictError) as caught:
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    rendered = str(caught.value)
+    assert "already exists" not in rendered
+    assert "Use PUT" not in rendered
+    assert "422" not in rendered
+    assert CREDS.api_key not in rendered
+    assert "waha.internal" not in rendered
+
+
+@pytest.mark.anyio
+async def test_provider_authentication_failure_keeps_its_existing_semantics(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Auth/configuration failures are not reclassified by this milestone."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-auth@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    service._adapter = _adapter(lambda r: httpx.Response(401, json={"message": "bad key"}))
+    with pytest.raises(ServiceUnavailableError) as caught:
+        await service.begin_pairing(organization_id=organization.id, actor=actor)
+    assert "bad key" not in str(caught.value)
+
+
+@pytest.mark.anyio
+async def test_pairing_recovery_requires_a_runtime_lease() -> None:
+    """No caller can drive the provider through this path without holding the governed lease."""
+    adapter = _adapter(lambda r: httpx.Response(422, json=_ALREADY_EXISTS_BODY))
+    with pytest.raises(ChannelConfigError):
+        await adapter.prepare_pairing("phonecert")
+
+
+@pytest.mark.anyio
+async def test_polling_never_stops_or_starts_the_provider_session(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading status is not an operator action: it may never mutate provider state."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-poll@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    adapter, calls, state = _existing_session_adapter(status="FAILED")
+    service._adapter = adapter
+    for _ in range(3):
+        await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert calls, "status must still observe the provider"
+    assert all(c.startswith("GET ") for c in calls), calls
+    assert state["status"] == "FAILED", "polling must not have recovered anything by itself"
+
+
+@pytest.mark.anyio
+async def test_concurrent_pairing_cannot_be_driven_from_a_stale_row_version(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Optimistic concurrency still gates the recovery path, so two clicks cannot both drive it."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09h-concurrent@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    await db_session.refresh(before)
+    stale_version, public_id = before.row_version, before.public_id
+
+    adapter, _, _ = _existing_session_adapter(status="FAILED")
+    service._adapter = adapter
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+
+    with pytest.raises(ConflictError):
+        await service._session_manager.acquire_lock(
+            organization_id=organization.id,
+            actor=actor,
+            public_id=uuidlib.UUID(public_id),
+            runtime_id="qr09h-stale-probe",
+            lease_seconds=60,
+            expected_row_version=stale_version,
+        )

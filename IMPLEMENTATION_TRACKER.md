@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09D and QR-09G are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
+_Last updated: 2026-08-09 · QR-09D, QR-09G and QR-09H are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,22 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09D — Pairing Action State Remediation — REPOSITORY/RUNTIME VALIDATED`, on top of the committed QR-09G backend. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09D closes QR-09-D6 (Major): with a durable application session present
+- **Current milestone:** `QR-09H — Expired QR Existing-Session Recovery Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09H closes QR-09-D10 (Blocker): an unscanned QR lapses to `FAILED` while
+  the provider session object survives, so every governed "Get a new QR code" retry hit the
+  provider's `already exists` refusal, which the service reported as an outage; with `reconnect`
+  refusing and `connect` a no-op, the channel could never issue another QR. Certified behavior was
+  measured rather than assumed: `start` alone cannot recover `FAILED`, while `stop` then `start`
+  reaches `SCAN_QR_CODE` with the session count at one, `me` still `None` and the stored config
+  byte-identical. A new `prepare_pairing()` applies exactly that, leaving `begin_pairing()`
+  create-only so QR-03's no-guessing-on-conflict principle is intact; it reuses an already
+  QR-eligible session, skips a redundant stop, and refuses both a provider-reported linked account
+  and a durably `PAIRED` connection. Error classification is corrected so a reached provider is a
+  truthful conflict rather than a false outage, and provider wording never reaches operators. A
+  genuinely expired QR recovered through the actual frontend under a single lease, with the
+  application QR returning `200 image/png` and no-store/private/no-cache. Release gate 23/23;
+  backend 1431, frontend 806 (unchanged — no frontend source touched).
+- **Superseded change:** QR-09D closes QR-09-D6 (Major): with a durable application session present
   and the provider reachable but holding none, the screen projected `ready-to-connect` and
   re-offered an idempotent `connect()` that cannot create provider state, leaving
   `POST /session/pair` operationally unreachable. The durable session is now the boundary between

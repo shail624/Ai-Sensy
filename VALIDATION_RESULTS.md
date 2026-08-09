@@ -4,7 +4,32 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T16:36:38+05:30`.
+Last synchronized: `2026-08-09T18:15:25+05:30`.
+
+## QR-09H — Expired QR Existing-Session Recovery Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D10 is `REMEDIATED`. QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline | PASS | Local/origin matched `ui/taste-modernization` at `54453a58b575e0cec9afa7769d749c7c37b92c65`; worktree clean except accepted `.claude/`. |
+| D10 reproduction | PASS | Natural unscanned QR lapse left provider session `waha` at `FAILED`, `me: None`, never paired, durable `waiting_for_pairing`/`pairing_available`. Governed "Get a new QR code" produced app `503` from provider `422 Session already exists`; `reconnect` `409`; `connect` idempotent no-op. |
+| Certified provider matrix | PASS | On the exact digest, `start` on `FAILED` answers `201` and changes nothing (12 polls / 36s). `stop` → `STOPPED`; `start` → `STARTING` → `SCAN_QR_CODE` in ~6s. Session count 1, `me: None`, `noweb` store config byte-identical before and after. |
+| Recovery primitive | PASS | Existing non-destructive `stop_session`/`start_session`. No delete, no recreate, no logout, no new client method, no `PUT`. |
+| Adapter boundary | PASS | New `prepare_pairing()`; `begin_pairing()` unchanged, so QR-03's no-guessing-on-conflict principle and its regression still hold. Create is attempted first, so the ordinary first-pairing call sequence is byte-identical. |
+| Case coverage | PASS | Missing session → create; already `SCAN_QR_CODE` → reused untouched; `FAILED` → stop+start; already `STOPPED` → start only, no redundant stop; provider-reported linked account → refused; durable `PAIRED` → refused before any provider call. |
+| Error classification | PASS | `ChannelTransportError` → `ServiceUnavailableError`; reached-provider `ChannelApiError` → `ConflictError`; configuration/authentication keep existing semantics. Provider body text never echoed — asserted absent from operator messages. |
+| Lease and concurrency | PASS | `prepare_pairing` refuses without a runtime lease; all provider mutation ran under one lease (single `request_id`); a stale row version is still refused by `acquire_lock`. |
+| Focused regression | PASS | 13 new backend tests. With the fix reverted **9 of 13 fail**; the 4 that pass assert deliberately unchanged behaviour. Focused QR/pairing/adapter/recovery/lifecycle/session suites **270 passed**. |
+| Real runtime recovery | PASS | Genuine natural expiry recovered through the **actual frontend**: one `request_id` performed refused create → live read → `stop` `201` → `start` `201`; UI advanced to the scan state. Provider 1 / durable connection 1 / durable session 1 throughout; no database intervention. |
+| Application QR endpoint | PASS | Two consecutive requests returned `200`, `image/png`, `Cache-Control: no-store, private, max-age=0`, `Pragma: no-cache`; body measured for length only (5360 bytes) and never printed, saved, logged, audited or screenshotted. |
+| Repeat recovery | PASS (qualified) | One runtime recovery from a **natural** expiry, plus a second runtime recovery from an already-stopped session proving the skip-redundant-stop branch. A controlled `stop` was **not** counted as a second natural expiry: it yields `STOPPED → PAUSED`, whereas natural expiry yields `FAILED → DEGRADED` — a materially different durable state. Deterministic repeatability is covered by `test_expired_qr_recovery_is_repeatable`. |
+| Full release gate | PASS | **23/23 PASS** in 508.9s: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1431 backend tests**; **806 frontend tests**; production build; Bandit; dependency/browser audits; tracked-source vulnerability/secret/IaC scan; certified WAHA health, QR and webhook gates; production release/image contracts; image scan and SBOM. |
+| UI preview | NOT APPLICABLE | Backend/provider orchestration only; no frontend source changed. The existing QR-expired action was exercised through the real application as runtime evidence. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route, schema, RBAC, capability, digest, storage or provider-approval change. |
+| Known adjacent gap (not QR-09H) | RECORDED | With the durable row `PAUSED` and the provider session present but non-working, the QR-09G projection downgrades a successful observation to not-observed, so the surface renders provider-unavailable and offers no pairing action even though `POST /session/pair` recovers it. Reachable mainly through out-of-band provider administration, not natural QR expiry. Not a QR-09H regression; recorded for separate governance. |
+| Remaining external gates | PENDING – Host Machine Validation | Meta token rotation owner-deferred. Physical-phone pairing, inbound/outbound/ACK, restart persistence, logout/re-authentication and the supported-browser/target-host matrix remain unperformed. |
 
 ## QR-09D — Pairing Action State Remediation
 

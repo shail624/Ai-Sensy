@@ -309,6 +309,18 @@ class WhatsAppQrService:
 
         row = await self._require_row(organization_id, actor, permission=OPERATE_PERMISSION)
 
+        # QR-09-D10: first-time pairing and its expired-QR recovery are for connections that have
+        # never been paired. A durably PAIRED connection belongs to the reconnect/re-authentication
+        # and logout paths, which own credential-bearing state deliberately — routing it here could
+        # restart a live pairing to raise an unrequested QR. `PairingState.PAIRED` is terminal in
+        # `LEGAL_PAIRING_TRANSITIONS`, so this refusal states an existing invariant rather than
+        # inventing one. The adapter refuses a provider-reported linked account as well; this is the
+        # durable half of the same guard, and it is checked before any provider call.
+        if PairingState(row.pairing_state) is PairingState.PAIRED:
+            raise ConflictError(
+                "This connection is already paired. Log out first to link a different account."
+            )
+
         # QR-09-D9: a durable session that was paused (the automatic reaction to an observed
         # STOPPED provider status) can never be leased again, so pairing — the only action that
         # can move a never-paired connection forward — used to fail with "the session is paused
@@ -347,7 +359,9 @@ class WhatsAppQrService:
             expected_row_version=row.row_version,
         )
         try:
-            snapshot = await self._adapter.begin_pairing(self._provider_session_name())
+            snapshot = await self._adapter.prepare_pairing(
+                self._provider_session_name(), lease=self._waha_lease(row, lease)
+            )
             row = await self._apply_snapshot(
                 organization_id=organization_id,
                 actor=actor,
@@ -357,7 +371,23 @@ class WhatsAppQrService:
                 snapshot=snapshot,
                 request_pairing=True,
             )
+        except ChannelTransportError as exc:
+            # The provider genuinely could not be reached.
+            raise ServiceUnavailableError(
+                "WhatsApp couldn't be reached to start pairing. Try again in a moment."
+            ) from exc
+        except ChannelApiError as exc:
+            # The provider *was* reached and refused (QR-09-D10). Reporting that as an outage sent
+            # the operator to wait out a problem that was not happening, and hid the real state.
+            # The provider's own message is deliberately not echoed: it is remote text, and the
+            # operator needs their next action rather than the provider's wording.
+            raise ConflictError(
+                "WhatsApp refused to start pairing for this connection. Refresh the connection "
+                "status and try again."
+            ) from exc
         except ChannelError as exc:
+            # Configuration/authentication/capability failures keep their existing truthful
+            # semantics rather than being reclassified by this milestone.
             raise ServiceUnavailableError(
                 "WhatsApp couldn't be reached to start pairing. Try again in a moment."
             ) from exc

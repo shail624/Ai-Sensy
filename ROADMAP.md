@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T16:36:38+05:30`.
+Last synchronized: `2026-08-09T18:15:25+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09D and QR-09G — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09D, QR-09G and QR-09H — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,26 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09H closes **QR-09-D10 (Blocker)**. An unscanned QR lapses to `FAILED` while the provider
+session object survives, so every governed "Get a new QR code" retry hit the provider's
+`already exists` refusal, which the service reported as an outage; `reconnect` refused because
+nothing was paired and `connect` was an idempotent no-op, so after the first expiry the channel
+could never issue another QR without direct provider intervention.
+
+Certified behavior was measured on the exact digest rather than assumed: `start` alone answers
+`201` and changes nothing on a `FAILED` session, while `stop` then `start` reaches `SCAN_QR_CODE`
+with the session count at one, `me` still `None` and the stored configuration byte-identical. A new
+`prepare_pairing()` applies exactly that non-destructive pair — never a delete, recreate or logout —
+and leaves `begin_pairing()` create-only so QR-03's no-guessing-on-conflict principle and its
+regression still stand. It reuses an already QR-eligible session, skips a redundant stop, and
+refuses both a provider-reported linked account and a durably `PAIRED` connection; every provider
+mutation runs under the governed runtime lease. Error classification is corrected so a reached
+provider yields a truthful conflict instead of a false outage, with provider wording never echoed.
+A genuinely expired QR recovered through the actual frontend under a single lease, and the
+application QR returned `200 image/png` with no-store/private/no-cache. All 23 release gates pass
+(backend 1431, frontend 806, unchanged). Migration/OpenAPI/RBAC/capabilities/digest, persistent
+storage and provider approval remain unchanged; no frontend source was touched.
 
 QR-09D closes **QR-09-D6 (Major)** on top of the committed QR-09G backend. With a durable
 application session present and the provider reachable but holding none, the screen projected

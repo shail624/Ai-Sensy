@@ -11,6 +11,71 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09H: Expired QR Existing-Session Recovery Remediation
+
+Records and remediates **QR-09-D10 (Blocker)**. An unscanned QR lapses — the ordinary outcome of
+walking away from the screen — and the certified provider marks the session `FAILED` while the
+session object itself survives. `begin_pairing()` only ever creates, so every retry of the governed
+"Get a new QR code" action hit the provider's `422 "Session '<name>' already exists"`, and the
+service mapped every `ChannelError` to `ServiceUnavailableError`. The operator was told WhatsApp
+could not be reached when it had answered, `reconnect` refused because nothing was paired, and
+`connect` was an idempotent no-op. After the first QR expired the channel could never issue another
+without direct provider intervention.
+
+Provider behavior was measured on the exact certified digest rather than assumed. `start` on a
+`FAILED` session answers `201` and changes nothing — starting alone can never recover the expired-QR
+state. `stop` moves `FAILED → STOPPED`, and `start` then reaches `STARTING → SCAN_QR_CODE` within
+seconds, holding the session count at one, `me` at `None` and the stored `noweb` configuration
+byte-identical. Recovery is therefore that existing non-destructive pair, never a delete, recreate
+or logout.
+
+A new `WahaChannelAdapter.prepare_pairing()` carries it. `begin_pairing()` is deliberately left
+untouched, so QR-03's "no guessing on conflict" principle and its regression still stand: the new
+method tries the create first — leaving the ordinary first-pairing path byte-identical — and only on
+a reached-provider refusal reads live state and decides. A session already showing a QR is returned
+untouched, an already-stopped session skips a redundant stop, and a session the provider reports as
+having a linked account is refused outright. The durable half of that guard refuses a `PAIRED`
+connection before any provider call, so credential-bearing state stays in the reconnect/logout
+domain. Every provider mutation runs under the governed runtime lease.
+
+Error classification is corrected alongside it: `ChannelTransportError` remains
+`ServiceUnavailableError`, a reached-provider `ChannelApiError` becomes a truthful `ConflictError`,
+and configuration/authentication failures keep their existing semantics. The provider's own wording
+is never echoed to operators.
+
+Thirteen focused regressions cover the create path, the certified stop/start recovery and its exact
+call order, repeatability, the skip-redundant-stop and reuse-existing-QR branches, both halves of
+the paired guard, outage versus conflict classification, message sanitization, lease enforcement,
+stale-fencing refusal and that polling never mutates provider state. With the fix reverted nine
+fail; the four that pass assert deliberately unchanged behaviour.
+
+Runtime evidence used a genuinely expired QR: the previous code's own QR lapsed naturally to
+`FAILED`, and activating "Get a new QR code" in the actual application performed, under a single
+request and lease, a refused create, a live read, a stop and a start, after which the UI advanced to
+the scan state. Two consecutive application QR requests returned `200 image/png` with
+`Cache-Control: no-store, private, max-age=0` and `Pragma: no-cache`; the bytes were measured for
+length only and never printed, saved, logged, audited or screenshotted. A second recovery from an
+already-stopped session issued a start with no redundant stop. Provider sessions, durable
+connections and durable sessions each remained exactly one throughout, with no database
+intervention. **Repeatability at runtime was proven once from a natural expiry; a controlled `stop`
+was deliberately *not* counted as a second expiry** because it produces `STOPPED → PAUSED` rather
+than natural expiry's `FAILED → DEGRADED`, a materially different durable state. Deterministic
+repeatability is covered by test instead.
+
+All **23 release gates pass** in 508.9 seconds: backend **1431 passed**, frontend **806 passed**
+(unchanged — this milestone touches no frontend source), Ruff, strict mypy (300 files), OpenAPI
+drift, ESLint, TypeScript, browser-test types, production build, Bandit, dependency/browser audits,
+tracked-source vulnerability/secret/IaC scan, certified WAHA health/QR/webhook runtime gates,
+production release and image contracts, image vulnerability scan and SBOM. Migration remains `0043`
+(44 revisions), OpenAPI remains 207 paths, and no route, schema, RBAC, capability, digest, storage
+or provider-approval change was made.
+
+**Status boundary:** QR-09-D10 is `REMEDIATED` and QR-09H is `REPOSITORY/RUNTIME VALIDATED`.
+QR-09D, QR-09E, QR-09F and QR-09G remain `REPOSITORY/RUNTIME VALIDATED`. QR-09 remains `PARTIAL
+(BLOCKED)` until physical-phone validation completes. Meta verification-token rotation is **PENDING
+— OWNER DEFERRED**. `Host Validated: NO`, `Provider Validated: NO`, `Production Ready: NO`; no
+phone, scan, target-host or certification-approval evidence is claimed.
+
 ### 2026-08-09 — QR-09D: Pairing Action State Remediation
 
 Closes **QR-09-D6 (Major)** on top of the committed QR-09G backend. The operator selected Connect

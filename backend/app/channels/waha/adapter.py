@@ -83,7 +83,12 @@ from typing import Any, Final
 
 from app.channels.base import ChannelAdapter
 from app.channels.capabilities import CONNECTOR_WAHA, Capability, ChannelType
-from app.channels.errors import ChannelConfigError, ChannelNotSupported, ChannelTransportError
+from app.channels.errors import (
+    ChannelApiError,
+    ChannelConfigError,
+    ChannelNotSupported,
+    ChannelTransportError,
+)
 from app.channels.models import (
     ChannelStatus,
     HealthSignal,
@@ -98,7 +103,7 @@ from app.channels.models import (
 from app.channels.runtime import PairingState
 from app.channels.waha.client import WahaClient, WahaCredentials, WahaServerInfo
 from app.channels.waha.delivery import extract_sent_id, to_status_update
-from app.channels.waha.lifecycle import WahaSessionSnapshot
+from app.channels.waha.lifecycle import WahaSessionSnapshot, WahaSessionStatus
 from app.channels.waha.pairing import WahaQrChallenge
 from app.channels.waha.recovery import (
     DEFAULT_MAX_RECONNECT_ATTEMPTS,
@@ -293,6 +298,63 @@ class WahaChannelAdapter(ChannelAdapter):
         """
         self.require(Capability.QR_AUTH)
         snapshot = await self._client.create_session(name)
+        self._assert_session_engine(snapshot)
+        return snapshot
+
+    async def prepare_pairing(
+        self, name: str, *, lease: RuntimeLease | None = None
+    ) -> WahaSessionSnapshot:
+        """Bring this connection's session to QR-eligible state, creating at most one (QR-09-D10).
+
+        :meth:`begin_pairing` only ever creates, and the certified provider refuses a create for a
+        name it already holds (``422 "Session '<name>' already exists"``). That is the correct
+        refusal — see its docstring — but it left the ordinary "the QR expired, give me another one"
+        operator action permanently unusable: an unscanned QR lapses to ``FAILED`` and the session
+        object survives, so every retry hit that conflict and no product-level recovery existed.
+
+        This is the explicit recovery counterpart, and it is deliberately *not* a silently
+        idempotent ``begin_pairing``. What the certified build (2026.7.2 / NOWEB / CORE) actually
+        does, measured rather than assumed:
+
+        * ``start`` on a ``FAILED`` session answers ``201`` and changes nothing — it is a no-op, so
+          starting alone can never recover the expired-QR state.
+        * ``stop`` moves ``FAILED -> STOPPED``, and ``start`` then reaches ``STARTING ->
+          SCAN_QR_CODE`` within seconds, keeping the session count at one, ``me`` at ``None`` and
+          the stored ``noweb`` configuration byte-identical.
+
+        So recovery is the existing non-destructive stop/start pair, never a delete, recreate or
+        logout: nothing here can retire a pairing. Two guards keep it that way — an already
+        ``SCAN_QR_CODE`` session is returned untouched, and a session the provider reports as having
+        a linked account is refused outright rather than restarted, so a durably paired connection
+        can never be walked through first-time pairing recovery by accident.
+        """
+        self.require(Capability.QR_AUTH)
+        self._require_lease(lease)
+        try:
+            return await self.begin_pairing(name)
+        except ChannelApiError:
+            # The provider was reached and refused the create. The only certified reason is that a
+            # session of this name already exists, but rather than parse the provider's wording, ask
+            # it what the session actually is and decide from that. A refused create mutates
+            # nothing, so this costs no provider state.
+            pass
+
+        # Raises WahaSessionNotFound (itself a ChannelApiError) if the session really is absent, so
+        # a create that failed for any other reason still surfaces truthfully instead of being
+        # retried into a different operation.
+        snapshot = await self._client.session_status(name)
+        self._assert_session_engine(snapshot)
+        if snapshot.identity is not None:
+            raise ChannelApiError(
+                "This connection's provider session already has a linked account.",
+                detail="pairing_recovery_refused_linked_session",
+            )
+        if snapshot.status is WahaSessionStatus.SCAN_QR_CODE:
+            # Already presenting a QR — reusing it beats churning provider state for nothing.
+            return snapshot
+        if snapshot.status is not WahaSessionStatus.STOPPED:
+            await self._client.stop_session(name)
+        snapshot = await self._client.start_session(name)
         self._assert_session_engine(snapshot)
         return snapshot
 
