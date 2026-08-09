@@ -23,6 +23,18 @@ export type WhatsAppQrViewState =
  */
 export function deriveViewState(status: WhatsAppQrStatus | undefined): WhatsAppQrViewState {
   if (!status || !status.configured) return "not-configured";
+
+  // QR-09-D8: a current provider outage is a live action boundary, so it outranks every durable
+  // lifecycle value below. The backend now emits this reason only for an observed transport
+  // outage; checking it here as well prevents a stale/internally inconsistent `qr_available`
+  // response from mounting the QR flow. A reachable-but-missing provider session stays distinct.
+  if (
+    status.reconnect_blocked_reason === "provider_unavailable" &&
+    !status.provider_session_missing
+  ) {
+    return "provider-unavailable";
+  }
+
   if (status.connected) return "connected";
   if (status.requires_reauthentication) return "reauth-required";
 

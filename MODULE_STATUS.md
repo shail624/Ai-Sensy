@@ -17,7 +17,28 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T11:54:44+05:30`.
+Last synchronized: `2026-08-09T14:28:12+05:30`.
+
+## Module 13 — QR-09F Provider-Outage QR Availability Projection Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this corrects state projection and
+  adds no product capability.
+- **Defect:** QR-09-D8 (Major) — during a real WAHA transport outage, durable pairing availability
+  and stale `SCAN_QR_CODE` metadata incorrectly kept `qr_available` true; the frontend then mounted
+  QR retrieval while the provider was unreachable.
+- **Fix:** typed provider-observation outcomes; QR availability requires a current live
+  `SCAN_QR_CODE` observation. Outage truth overrides every stale frontend action state without
+  mutating durable pairing or reauthentication state. Missing-session behavior remains distinct.
+- **Evidence:** exact certified WAHA `2026.7.2` / `NOWEB` / `CORE`, real MySQL/Redis/application;
+  genuine outage held for more than three poll intervals with no QR-handler request, then the same
+  container, volume and sessions recovered. Actual local 1920×1080 and 390×844 screenshots show the
+  unavailable state with no QR/action or horizontal overflow. Release gate 23/23; backend 1408,
+  frontend 798.
+- **Preserved:** QR content was never displayed/persisted/scanned; migration/OpenAPI/RBAC/
+  capabilities/provider approval unchanged. QR-09D remains externally preserved and unapplied.
+- **Next:** stop after QR-09F. QR-09D and physical-phone QR-09 work require separate approval. Meta
+  rotation remains owner-deferred; `Host Validated`, `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09E WAHA QR Content Negotiation Remediation
 

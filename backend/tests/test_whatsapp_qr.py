@@ -31,6 +31,7 @@ from app.channels.waha import (
 from app.channels.waha.client import WahaClient
 from app.core.config import settings
 from app.core.exceptions import ConflictError, ServiceUnavailableError
+from app.models.channel_session import ChannelSession
 from app.models.role import Permission, Role, UserRole
 from app.models.settings import FeatureFlag
 from app.services.whatsapp_qr_service import WhatsAppQrService
@@ -336,6 +337,106 @@ async def test_provider_unavailable_reports_unhealthy_not_unpaired(
     assert during_outage.configured is True
     # Durable pairing truth survives the outage untouched.
     assert during_outage.pairing_state is PairingState.PAIRED
+    assert during_outage.session_state is SessionState.ACTIVE
+    assert during_outage.connected is False
+    assert during_outage.requires_reauthentication is False
+    assert during_outage.healthy is False
+    assert during_outage.can_reconnect is False
+    assert during_outage.qr_available is False
+    assert during_outage.provider_session_missing is False
+    assert during_outage.provider_status is None
+    assert during_outage.reconnect_blocked_reason == "provider_unavailable"
+
+
+@pytest.mark.anyio
+async def test_pairing_available_outage_fails_closed_without_mutation_and_recovers(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D8: live QR availability must fail closed while durable pairing truth survives."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09f-outage@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    adapter, _ = _sequenced_adapter([SCAN_BODY])
+    service = _service(db_session, providers, runtimes, adapter)
+
+    await service.connect(organization_id=organization.id, actor=actor)
+    await service.begin_pairing(organization_id=organization.id, actor=actor)
+    available = await service.get_status(organization_id=organization.id, actor=actor)
+    assert available.pairing_state is PairingState.PAIRING_AVAILABLE
+    assert available.qr_available is True
+    assert available.reconnect_blocked_reason != "provider_unavailable"
+
+    row_before = (
+        await db_session.scalars(
+            select(ChannelSession).where(
+                ChannelSession.uuid == uuidlib.UUID(available.session_public_id).bytes
+            )
+        )
+    ).one()
+    durable_before = (
+        row_before.state,
+        row_before.pairing_state,
+        dict(row_before.provider_metadata_json or {}),
+        row_before.health_state,
+        row_before.state_detail,
+        row_before.reconnect_attempts,
+    )
+
+    outage_calls: list[str] = []
+
+    def down(request: httpx.Request) -> httpx.Response:
+        outage_calls.append(f"{request.method} {request.url.path}")
+        raise httpx.ConnectError("refused")
+
+    service._adapter = _adapter(down)
+    during_outage = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert during_outage.session_state is SessionState.WAITING_FOR_PAIRING
+    assert during_outage.pairing_state is PairingState.PAIRING_AVAILABLE
+    assert during_outage.connected is False
+    assert during_outage.requires_reauthentication is False
+    assert during_outage.healthy is False
+    assert during_outage.can_reconnect is False
+    assert during_outage.qr_available is False
+    assert during_outage.provider_session_missing is False
+    assert during_outage.provider_status is None
+    assert during_outage.reconnect_blocked_reason == "provider_unavailable"
+    assert during_outage.health_detail == "WhatsApp is temporarily unavailable. Try again shortly."
+    rendered = f"{during_outage.health_detail} {during_outage.reconnect_blocked_reason}"
+    assert CREDS.api_key not in rendered
+    assert CREDS.base_url not in rendered
+    assert outage_calls == ["GET /api/sessions/phonecert"]
+
+    row_after = (
+        await db_session.scalars(
+            select(ChannelSession).where(
+                ChannelSession.uuid == uuidlib.UUID(available.session_public_id).bytes
+            )
+        )
+    ).one()
+    assert (
+        row_after.state,
+        row_after.pairing_state,
+        dict(row_after.provider_metadata_json or {}),
+        row_after.health_state,
+        row_after.state_detail,
+        row_after.reconnect_attempts,
+    ) == durable_before
+
+    recovery_calls: list[str] = []
+
+    def recovered(request: httpx.Request) -> httpx.Response:
+        recovery_calls.append(f"{request.method} {request.url.path}")
+        return httpx.Response(200, json=SCAN_BODY)
+
+    service._adapter = _adapter(recovered)
+    after_recovery = await service.get_status(organization_id=organization.id, actor=actor)
+    assert after_recovery.pairing_state is PairingState.PAIRING_AVAILABLE
+    assert after_recovery.qr_available is True
+    assert after_recovery.provider_session_missing is False
+    assert after_recovery.reconnect_blocked_reason != "provider_unavailable"
+    assert recovery_calls == ["GET /api/sessions/phonecert"]
 
 
 @pytest.mark.anyio

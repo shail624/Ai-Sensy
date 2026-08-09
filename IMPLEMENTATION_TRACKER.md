@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09E is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
+_Last updated: 2026-08-09 · QR-09F is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,20 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09E — WAHA QR Content Negotiation Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09E repairs QR-09-D7: binary QR retrieval no longer inherits the WAHA
+- **Current milestone:** `QR-09F — Provider-Outage QR Availability Projection Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09F repairs QR-09-D8: a genuine WAHA transport outage can no longer inherit
+  actionable QR truth from a durable `pairing_available` row or stale `SCAN_QR_CODE` metadata.
+  Backend observation is now typed; only a current live provider observation can advertise QR
+  availability, while a transport outage projects no provider status/action and leaves durable
+  pairing/reauthentication facts untouched. The frontend prioritizes the stable outage reason before
+  QR, creating, connecting or reconnect states and therefore does not mount QR retrieval. Real
+  MySQL/Redis/application/WAHA evidence held an outage across more than three poll intervals with
+  zero QR-handler requests, then recovered the same container, volume, provider session and durable
+  application session. Actual local desktop/mobile screenshots show the unavailable state without
+  a QR or responsive overflow. Release gate **23/23 PASS** (backend 1408, frontend 798).
+  Migration/OpenAPI/RBAC/capabilities/provider approval remain unchanged. QR-09D's external patch
+  remains unapplied.
+- **Previous change:** QR-09E repairs QR-09-D7: binary QR retrieval no longer inherits the WAHA
   client's JSON default and now requests `image/png` explicitly, while every JSON request retains
   `application/json`. Exact certified WAHA `2026.7.2` / `NOWEB` / `CORE` reproduces the JSON
   response under JSON negotiation and returns a valid PNG through the repository client. Repeated

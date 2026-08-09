@@ -11,6 +11,44 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09F: Provider-Outage QR Availability Projection Remediation
+
+Records and remediates **QR-09-D8 (Major)** without combining or reapplying the separately
+preserved QR-09D frontend work. During a genuine provider outage, a durable
+`pairing_available` row was projected as `qr_available: true` with stale
+`provider_status: SCAN_QR_CODE`. The frontend evaluated that stale action state before the outage
+signal and mounted the QR workflow, causing repeated provider QR requests while WAHA was down.
+
+The backend now distinguishes a current provider observation, a missing provider session and a
+transport outage. Only a current `SCAN_QR_CODE` observation may advertise QR availability. An
+outage projects `provider_status: null`, `qr_available: false`, `connected: false`,
+`healthy: false`, `can_reconnect: false` and `reconnect_blocked_reason: provider_unavailable`
+without mutating durable pairing/reauthentication truth. The session-missing projection remains
+separate. The frontend gives this stable outage reason priority over stale creating, connecting,
+reconnect and QR action states, so it renders the existing unavailable/retry surface without
+mounting QR retrieval.
+
+Focused regressions prove the fail-closed projection, absence of create/start/delete/QR side
+effects, durable-state preservation and recovery. A real MySQL/Redis/application run with the exact
+certified WAHA digest reproduced D8, then held a genuine outage across more than three polling
+intervals with zero QR-handler requests; the same container, volume, provider session and durable
+application session recovered without recreation. A legitimate post-recovery application QR
+request returned `200 image/png` with private/no-store controls; its bytes were held only in memory
+and never printed, displayed, persisted or scanned.
+
+Actual local-browser evidence at 1920×1080 and 390×844 shows the truthful unavailable state, no QR
+image/action, no horizontal overflow and keyboard-accessible retry. These are local runtime
+screenshots, not target-host or supported-browser-matrix acceptance. All **23 release gates pass**
+in 474.4 seconds: backend **1408 passed**, frontend **798 passed**, lint/types/OpenAPI/build/SAST,
+dependency and source secret/IaC scans, certified WAHA health/QR/webhook gates, production
+contracts, image scans and SBOMs. Migration remains `0043` (44 revisions), OpenAPI remains 207
+paths, and routes/schemas/RBAC/capabilities/digest/storage/provider approval are unchanged.
+
+**Status boundary:** QR-09F is `REPOSITORY/RUNTIME VALIDATED`. QR-09D remains externally preserved,
+unapplied and `PARTIAL`; QR-09 remains `PARTIAL (BLOCKED)`. Meta verification-token rotation is
+**PENDING — OWNER DEFERRED**. `Host Validated: NO`, `Provider Validated: NO`, and
+`Production Ready: NO`; no phone, scan, target-host or certification-approval evidence is claimed.
+
 ### 2026-08-09 — QR-09E: WAHA QR Content Negotiation Remediation
 
 Records and remediates **QR-09-D7 (Major)** without combining the separately preserved QR-09D

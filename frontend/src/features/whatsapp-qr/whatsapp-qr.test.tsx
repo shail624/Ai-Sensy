@@ -25,6 +25,7 @@ vi.mock("@/lib/auth", () => ({
 const statusResponse = { current: null as unknown };
 const postHandlers: Record<string, () => { data?: unknown; error?: unknown }> = {};
 let qrBlobAvailable = true;
+let qrRequestCount = 0;
 
 vi.mock("@/lib/api/client", () => {
   const get = async (path: string, opts?: { parseAs?: string }) => {
@@ -34,6 +35,7 @@ vi.mock("@/lib/api/client", () => {
         : { error: new Error("no status stub") };
     }
     if (path === "/api/v1/channels/whatsapp-qr/session/qr") {
+      qrRequestCount += 1;
       if (!qrBlobAvailable) return { error: new Error("qr not available") };
       if (opts?.parseAs === "blob") {
         return { data: new Blob(["fake-qr-bytes"], { type: "image/png" }) };
@@ -95,6 +97,7 @@ beforeEach(() => {
   permissions.value = ["channels:read", "channels:authenticate"];
   statusResponse.current = null;
   qrBlobAvailable = true;
+  qrRequestCount = 0;
   for (const key of Object.keys(postHandlers)) delete postHandlers[key];
   objectUrlCounter = 0;
   URL.createObjectURL = vi.fn(() => `blob:mock-${(objectUrlCounter += 1)}`);
@@ -211,6 +214,27 @@ describe("deriveViewState", () => {
         }),
       ),
     ).toBe("provider-unavailable");
+  });
+
+  it("9b. current outage outranks stale QR and transition signals", () => {
+    for (const stale of [
+      { pairing_state: "pairing_available", qr_available: true, provider_status: "SCAN_QR_CODE" },
+      { pairing_state: "unpaired", session_state: "registered", provider_status: null },
+      { pairing_state: "paired", session_state: "initializing", provider_status: "STARTING" },
+      { pairing_state: "paired", session_state: "paused", can_reconnect: true },
+    ] as const) {
+      expect(
+        deriveViewState(
+          statusFixture({
+            ...stale,
+            connected: false,
+            healthy: false,
+            reconnect_blocked_reason: "provider_unavailable",
+            provider_session_missing: false,
+          }),
+        ),
+      ).toBe("provider-unavailable");
+    }
   });
 
   it("10. re-auth required", () => {
@@ -336,6 +360,45 @@ describe("WhatsAppQrConnect", () => {
     withProviders(<WhatsAppQrConnect />);
     const img = await screen.findByAltText(/scan this qr code/i);
     await waitFor(() => expect(img.getAttribute("src")).toMatch(/^blob:/));
+  });
+
+  it("4b. provider outage mounts no QR or pairing action and recovers truthfully", async () => {
+    statusResponse.current = statusFixture({
+      connected: false,
+      pairing_state: "pairing_available",
+      session_state: "waiting_for_pairing",
+      qr_available: true,
+      provider_status: "SCAN_QR_CODE",
+      healthy: false,
+      reconnect_blocked_reason: "provider_unavailable",
+      provider_session_missing: false,
+      health_detail: "WhatsApp is temporarily unavailable. Try again shortly.",
+    });
+
+    withProviders(<WhatsAppQrConnect />);
+
+    expect(await screen.findByText(/can't be reached right now/i)).toBeInTheDocument();
+    expect(screen.queryByAltText(/scan this qr code/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /begin pairing/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^connecting/i)).not.toBeInTheDocument();
+    expect(qrRequestCount).toBe(0);
+
+    statusResponse.current = statusFixture({
+      connected: false,
+      pairing_state: "pairing_available",
+      session_state: "waiting_for_pairing",
+      qr_available: true,
+      provider_status: "SCAN_QR_CODE",
+      healthy: false,
+      reconnect_blocked_reason: "requires_reauth",
+      provider_session_missing: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /check again/i }));
+
+    const image = await screen.findByAltText(/scan this qr code/i);
+    await waitFor(() => expect(image.getAttribute("src")).toMatch(/^blob:/));
+    expect(qrRequestCount).toBe(1);
   });
 
   it("5. qr-expired offers a retry that requests a fresh pairing attempt", async () => {

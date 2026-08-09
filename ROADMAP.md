@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T11:54:44+05:30`.
+Last synchronized: `2026-08-09T14:28:12+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09E — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
+**Current status: QR-09F — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,23 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09F remediates **QR-09-D8 (Major)** without absorbing QR-09D. A genuine provider outage could
+inherit actionable QR truth from durable `pairing_available` state and stale `SCAN_QR_CODE`
+metadata; the frontend then mounted QR retrieval while WAHA was unreachable. Reconciliation now
+distinguishes current observation, missing session and transport outage. Only a current live
+`SCAN_QR_CODE` observation advertises QR availability; the outage projection fails closed without
+mutating durable pairing/reauthentication facts. Frontend outage priority suppresses every stale QR,
+creating, connecting or reconnect action.
+
+Real MySQL/Redis/application/exact-WAHA evidence held a genuine outage for more than three polling
+intervals with no QR-handler request, then recovered the same container, volume, provider session
+and durable application session. Actual local desktop/mobile browser captures show the unavailable
+state with no QR/action or horizontal overflow; these do not constitute target-host acceptance.
+All 23 release gates pass (backend 1408, frontend 798). Migration/OpenAPI/RBAC/capabilities/digest,
+persistent storage and provider approval remain unchanged. QR-09D stays externally preserved and
+unapplied; Meta rotation is `PENDING — OWNER DEFERRED`; QR-09 remains `PARTIAL — BLOCKED`. No
+automatic QR-09D or physical-phone QR-09 resume is authorized.
 
 QR-09E remediates **QR-09-D7 (Major)** without absorbing QR-09D: the QR byte request inherited
 `Accept: application/json`, and the certified WAHA runtime truthfully returned JSON even with

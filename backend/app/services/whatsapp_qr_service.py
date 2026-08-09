@@ -59,6 +59,7 @@ import uuid as uuidlib
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,6 +78,7 @@ from app.channels.waha import (
     WahaQrChallenge,
     WahaSessionNotFound,
     WahaSessionSnapshot,
+    WahaSessionStatus,
     map_session_status,
     plan_reconnect,
 )
@@ -172,6 +174,20 @@ class WhatsAppQrState:
 _REAUTH_PAIRING = frozenset({PairingState.PAIRING_EXPIRED, PairingState.PAIRING_CANCELLED})
 
 
+class _ProviderObservation(StrEnum):
+    """What the current status read actually learned from the provider.
+
+    This is deliberately internal.  Durable session state and current provider reachability are
+    separate facts, and collapsing both into the old ``provider_session_missing`` boolean made a
+    transport outage indistinguishable from a successful observation (QR-09-D8).
+    """
+
+    NOT_OBSERVED = "not_observed"
+    OBSERVED = "observed"
+    SESSION_MISSING = "session_missing"
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+
+
 class WhatsAppQrService:
     """Organization-scoped façade over the WAHA adapter and the existing session control plane."""
 
@@ -210,14 +226,14 @@ class WhatsAppQrService:
 
         # Another request may be reconciling right now; report the last-known durable state
         # rather than failing a read for lease contention.
-        session_missing = False
+        observation = _ProviderObservation.NOT_OBSERVED
         with suppress(ConflictError):
-            session_missing = await self._reconcile(
+            observation = await self._reconcile(
                 organization_id=organization_id, actor=actor, row=row
             )
         row = await self._sessions.get_scoped(organization_id, uuidlib.UUID(row.public_id))
         assert row is not None
-        return self._state_from_row(row, provider_session_missing=session_missing)
+        return self._state_from_row(row, provider_observation=observation)
 
     # --- Bootstrap ---------------------------------------------------------------------------
 
@@ -463,11 +479,12 @@ class WhatsAppQrService:
 
     async def _reconcile(
         self, *, organization_id: int, actor: User, row: ChannelSession
-    ) -> bool:
+    ) -> _ProviderObservation:
         """Reconcile durable state against one live provider read.
 
-        Returns whether the provider is reachable but reports **no** session under the configured
-        name. Two live outcomes deliberately mutate nothing:
+        Returns a typed current observation so the response can distinguish a reachable provider,
+        a missing provider session and an unreachable provider. Two live outcomes deliberately
+        mutate nothing:
 
         * :class:`ChannelTransportError` — the provider could not be reached, so there is no
           observation to reconcile from (QR-06: an outage must never rewrite pairing truth).
@@ -489,9 +506,9 @@ class WhatsAppQrService:
             try:
                 snapshot = await self._adapter.session_snapshot(self._provider_session_name())
             except WahaSessionNotFound:
-                return True
+                return _ProviderObservation.SESSION_MISSING
             except ChannelTransportError:
-                return False
+                return _ProviderObservation.PROVIDER_UNAVAILABLE
             await self._apply_snapshot(
                 organization_id=organization_id,
                 actor=actor,
@@ -501,7 +518,7 @@ class WhatsAppQrService:
                 snapshot=snapshot,
                 request_pairing=False,
             )
-            return False
+            return _ProviderObservation.OBSERVED
         finally:
             await self._release(organization_id, actor, row, lease)
 
@@ -691,7 +708,10 @@ class WhatsAppQrService:
         return fresh
 
     def _state_from_row(
-        self, row: ChannelSession, *, provider_session_missing: bool = False
+        self,
+        row: ChannelSession,
+        *,
+        provider_observation: _ProviderObservation = _ProviderObservation.NOT_OBSERVED,
     ) -> WhatsAppQrState:
         session_state = SessionState(row.state)
         pairing_state = PairingState(row.pairing_state)
@@ -700,8 +720,13 @@ class WhatsAppQrService:
         connected = session_state is SessionState.ACTIVE and pairing_state is PairingState.PAIRED
         requires_reauth = pairing_state in _REAUTH_PAIRING
 
+        live_provider_status: WahaSessionStatus | None = None
+        if provider_observation is _ProviderObservation.OBSERVED and provider_status is not None:
+            with suppress(ValueError):
+                live_provider_status = WahaSessionStatus(provider_status)
+
         decision = plan_reconnect(
-            provider_status=None,  # status-agnostic pre-check; see reconnect() for the live plan
+            provider_status=live_provider_status,
             durable_pairing_state=pairing_state,
             attempts=row.reconnect_attempts,
             max_attempts=row.max_reconnect_attempts,
@@ -709,10 +734,22 @@ class WhatsAppQrService:
         can_reconnect = session_state in (SessionState.PAUSED, SessionState.DEGRADED) and (
             pairing_state is PairingState.PAIRED
         )
-        blocked_reason = None if can_reconnect else decision.value
+        blocked_reason = (
+            None
+            if can_reconnect
+            else (
+                decision.value
+                if provider_observation is _ProviderObservation.OBSERVED
+                else ReconnectDecision.WAIT.value
+            )
+        )
         healthy = row.health_state == "healthy"
         health_detail = row.state_detail or f"Session state: {session_state.value}."
-        qr_available = pairing_state is PairingState.PAIRING_AVAILABLE
+        qr_available = (
+            pairing_state is PairingState.PAIRING_AVAILABLE
+            and provider_status == WahaSessionStatus.SCAN_QR_CODE.value
+        )
+        provider_session_missing = provider_observation is _ProviderObservation.SESSION_MISSING
 
         if provider_session_missing:
             # The provider answered and holds no session under the configured name (QR-09-D2).
@@ -741,6 +778,17 @@ class WhatsAppQrService:
                 else "WhatsApp is reachable but has no session for this connection yet; "
                 "start the connection and scan the QR code to link an account."
             )
+        elif provider_observation is _ProviderObservation.PROVIDER_UNAVAILABLE:
+            # Current action availability fails closed while durable lifecycle truth remains
+            # untouched. In particular, stale PAIRING_AVAILABLE/provider metadata must not claim
+            # that the binary QR endpoint can answer while the provider cannot be reached.
+            connected = False
+            healthy = False
+            provider_status = None
+            qr_available = False
+            can_reconnect = False
+            blocked_reason = ReconnectDecision.PROVIDER_UNAVAILABLE.value
+            health_detail = "WhatsApp is temporarily unavailable. Try again shortly."
 
         return WhatsAppQrState(
             configured=True,

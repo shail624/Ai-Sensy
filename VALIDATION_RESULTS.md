@@ -4,7 +4,30 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T11:54:44+05:30`.
+Last synchronized: `2026-08-09T14:28:12+05:30`.
+
+## QR-09F — Provider-Outage QR Availability Projection Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D8 is closed by repository, real-runtime
+and local-browser evidence. QR-09D and QR-09 remain `PARTIAL (BLOCKED)`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline and QR-09D isolation | PASS | Branch/local/origin matched `ui/taste-modernization` at `900eaf47a319734cc5df3d07cbb8348d2a47e96a`. The QR-09D three-file patch was preserved outside the repository with SHA-256 `bb78f0bf69acfd818cd7a7ae14ec1adfcb2ce3e4ac4c46a4a2c1dd6227562844`, reverse-restored, and direct apply-check passed before QR-09F work. |
+| D8 clean-baseline reproduction | PASS | With genuine WAHA transport loss and one existing provider session, status returned durable `pairing_available`, stale `provider_status: SCAN_QR_CODE` and incorrect `qr_available: true`; the frontend mounted QR retrieval and backend logs recorded repeated `/api/waha/auth/qr` attempts. |
+| Root cause | PASS | Backend reconciliation collapsed transport failure and successful observation into the same boolean path, then derived QR action from durable/stale facts. Frontend evaluated QR/action states before the current outage signal. |
+| Backend fail-closed projection | PASS | Typed observation distinguishes observed, provider-session-missing and unavailable. During outage: provider status null, QR/connected/healthy/reconnect false, reason `provider_unavailable`, safe detail; durable pairing/reauthentication data remains unchanged. |
+| Frontend fail-closed projection | PASS | Current `provider_unavailable` outranks stale QR, creating, connecting and reconnect states. Rendered regression proves unavailable UI, no QR image/action and zero QR request; manual retry after restored status mounts exactly one legitimate request. |
+| Focused regression | PASS | Backend QR suite **31 passed**; frontend QR suite **28 passed**; TypeScript and ESLint pass. Tests also prove no create/start/delete/QR side effect and recovery without durable-state mutation. |
+| Genuine outage and polling | PASS | Real MySQL, Redis, actual backend/frontend and exact certified WAHA. Outage projection held for more than three polling intervals; clean backend log windows contained zero QR endpoint/handler request and no unhandled error. |
+| Recovery/session preservation | PASS | Same WAHA container returned healthy; exact digest/version/engine/tier and `waha-sessions:/app/.sessions` remained. Exactly one provider session survived in `SCAN_QR_CODE`; the same durable application session recovered without recreation. |
+| Legitimate QR regression | PASS | After recovery, one application QR request returned `200 image/png`, `Cache-Control: no-store, private, max-age=0` and `Pragma: no-cache`. Bytes stayed in memory and were not printed, persisted, displayed or scanned. |
+| Local responsive/accessibility evidence | PASS | Actual local route at 1920×1080 and 390×844 showed Unavailable, no QR/action/connecting state and no horizontal overflow. Keyboard focus reached “Check again”; mobile control measured 110×40. No PII, phone identifier or QR appears. |
+| Full release gate | PASS | **23/23 PASS** in 474.4s: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1408 backend tests**; **798 frontend tests**; build; Bandit; dependency/browser audits; source vulnerability/secret/IaC scan; certified WAHA health, QR and webhook gates; production release/image contracts; image scans and SBOMs. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route/schema/RBAC/capability/digest/storage/approval change. Development WAHA remains loopback-only and production internal-only. No credential, QR/session material or proprietary reference asset is exposed. |
+| QR-09D boundary | PASS | Preserved patch was not combined, reapplied or committed. Its post-commit compatibility is reported separately and never used to alter QR-09F. |
+| Remaining external gates | PENDING – Host Machine Validation | Meta token rotation is owner-deferred. QR-09D revalidation, physical-phone scan/inbound/outbound/ACK/restart/reconnect/logout and supported-browser/target-host validation remain unperformed; QR-09 stays `PARTIAL (BLOCKED)`. |
 
 ## QR-09E — WAHA QR Content Negotiation Remediation
 
