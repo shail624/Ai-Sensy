@@ -187,6 +187,7 @@ def test_deployed_profile_is_cumulative(monkeypatch: pytest.MonkeyPatch) -> None
     assert "backend tests" in names
     assert "tracked-source vulnerability, secret, and IaC scan" in names
     assert "production image vulnerability scan and SBOM" in names
+    assert "certified WAHA QR content negotiation" in names
     assert "certified WAHA signed-webhook delivery" in names
     assert names[-2:] == [
         "browser runner build",

@@ -132,21 +132,39 @@ def test_qr_challenge_is_not_persistable_by_accident() -> None:
 
 @pytest.mark.anyio
 async def test_begin_pairing_posts_certified_config() -> None:
-    seen: list[tuple[str, str, bytes]] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append((request.method, request.url.path, request.content))
+        seen.append(request)
         return httpx.Response(201, json=CREATED_BODY)
 
     adapter = _adapter(handler)
     snapshot = await adapter.begin_pairing("phonecert")
 
-    method, path, content = seen[0]
-    assert (method, path) == ("POST", "/api/sessions")
+    request = seen[0]
+    content = request.content
+    assert (request.method, request.url.path) == ("POST", "/api/sessions")
+    assert request.headers["Accept"] == "application/json"
+    assert request.headers["Content-Type"] == "application/json"
+    assert request.headers["X-Api-Key"] == "test-key-never-logged"
     assert b'"fullSync": true' in content or b'"fullSync":true' in content
     assert b"full_sync" not in content
     assert b'"start": true' in content or b'"start":true' in content
     assert snapshot.status is WahaSessionStatus.STARTING
+
+
+@pytest.mark.anyio
+async def test_pairing_state_json_get_keeps_json_content_negotiation() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=SCAN_BODY)
+
+    adapter = _adapter(handler)
+    assert await adapter.pairing_state("phonecert") is PairingState.PAIRING_AVAILABLE
+    assert seen[0].headers["Accept"] == "application/json"
+    assert seen[0].headers["X-Api-Key"] == "test-key-never-logged"
 
 
 @pytest.mark.anyio
@@ -197,17 +215,19 @@ async def test_begin_pairing_validates_session_name() -> None:
 
 @pytest.mark.anyio
 async def test_pairing_challenge_fetches_image() -> None:
-    seen: list[str] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(str(request.url))
+        seen.append(request)
         return _png(request)
 
     adapter = _adapter(handler)
     challenge = await adapter.pairing_challenge("phonecert")
-    assert "/api/phonecert/auth/qr" in seen[0]
+    assert seen[0].url.path == "/api/phonecert/auth/qr"
+    assert seen[0].headers["Accept"] == "image/png"
+    assert seen[0].headers["X-Api-Key"] == "test-key-never-logged"
     assert challenge.mimetype == "image/png"
-    assert challenge.data.startswith(bytes.fromhex("89504e47"))
+    assert challenge.data == PNG_BYTES
     assert challenge.session == "phonecert"
 
 
@@ -230,6 +250,24 @@ async def test_pairing_challenge_rejects_non_image() -> None:
 
 
 @pytest.mark.anyio
+async def test_pairing_challenge_rejects_json_without_exposing_its_body(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    marker = "SENSITIVE-QR-PAYLOAD-MUST-NOT-LEAK"
+    adapter = _adapter(
+        lambda r: httpx.Response(
+            200,
+            json={"data": marker},
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    with caplog.at_level("WARNING"), pytest.raises(ChannelApiError) as excinfo:
+        await adapter.pairing_challenge("phonecert")
+    assert marker not in str(excinfo.value)
+    assert marker not in caplog.text
+
+
+@pytest.mark.anyio
 async def test_pairing_challenge_validates_session_name() -> None:
     seen: list[str] = []
 
@@ -244,11 +282,20 @@ async def test_pairing_challenge_validates_session_name() -> None:
 
 
 @pytest.mark.anyio
-async def test_qr_error_does_not_leak_api_key() -> None:
-    adapter = _adapter(lambda r: httpx.Response(401, json={"message": "Unauthorized"}))
+@pytest.mark.parametrize("status", [401, 403])
+async def test_qr_auth_error_does_not_leak_api_key(status: int) -> None:
+    adapter = _adapter(lambda r: httpx.Response(status, json={"message": "Unauthorized"}))
     with pytest.raises(Exception) as excinfo:
         await adapter.pairing_challenge("phonecert")
     assert "test-key-never-logged" not in str(excinfo.value)
+
+
+@pytest.mark.parametrize("status", [400, 404, 500, 503])
+async def test_qr_provider_errors_preserve_status(status: int) -> None:
+    adapter = _adapter(lambda r: httpx.Response(status, json={"message": "provider error"}))
+    with pytest.raises(ChannelApiError) as excinfo:
+        await adapter.pairing_challenge("phonecert")
+    assert excinfo.value.http_status == status
 
 
 @pytest.mark.anyio
@@ -258,6 +305,16 @@ async def test_qr_transport_failure_is_channel_neutral() -> None:
 
     adapter = _adapter(handler)
     with pytest.raises(ChannelTransportError):
+        await adapter.pairing_challenge("phonecert")
+
+
+@pytest.mark.anyio
+async def test_qr_timeout_is_channel_neutral() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    adapter = _adapter(handler)
+    with pytest.raises(ChannelTransportError, match="timed out"):
         await adapter.pairing_challenge("phonecert")
 
 

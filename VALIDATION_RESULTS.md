@@ -4,7 +4,32 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T10:23:12+05:30`.
+Last synchronized: `2026-08-09T11:54:44+05:30`.
+
+## QR-09E — WAHA QR Content Negotiation Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D7 is closed by repository and exact-
+certified-runtime evidence. QR-09D and QR-09 remain `PARTIAL (BLOCKED)`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline and isolation | PASS | Branch/local/origin matched `ui/taste-modernization` at `e15919d5644ba2ca752af52b038458a006c601c4`. The three QR-09D frontend changes were exported outside the repository, verified as an exact three-file patch, and restored before QR-09E work; `.claude/` remained the only unrelated untracked path. |
+| D7 reproduction | PASS | Exact authenticated provider matrix: `Accept: application/json` → `200 application/json`; no explicit Accept, `image/png`, and `image/*` → `200 image/png`. Clean-baseline application QR endpoint returned truthful `409 application/problem+json`; no QR body was printed or persisted. |
+| Root cause | PASS | `WahaClient._get_bytes()` inherited the client's JSON default Accept header. WAHA 2026.7.2 honors response content negotiation even with `?format=image`, so it returned JSON and the adapter correctly failed closed on the non-image representation. |
+| Selected negotiation | PASS | JSON requests retain `Accept: application/json`; only the QR byte request sends explicit `Accept: image/png`. Existing API-key authentication, timeout/error translation and content-type validation remain unchanged. |
+| Focused regression | PASS | QR tests assert JSON/image header separation, API key presence without leakage, exact PNG bytes, JSON/HTML rejection, body secrecy, 401/403 handling, 400/404/500/503 status preservation, timeout and transport mapping. Focused WAHA/QR suite: **241 passed**. |
+| Exact certified runtime | PASS | New isolated gate starts `devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e`, verifies `2026.7.2` / `NOWEB` / `CORE`, reproduces JSON negotiation, then obtains an in-memory PNG through the repository client. |
+| Live application endpoint | PASS | Two consecutive authenticated application QR fetches returned `200 image/png` with `Cache-Control: no-store, private, max-age=0` and `Pragma: no-cache`. Response bodies were consumed only in memory and discarded. |
+| Duplicate/session invariant | PASS | Repeated application fetches left exactly one provider session, one durable connection and one durable session. The disposable regression creates exactly one ephemeral session, mounts no session volume and removes only its uniquely labelled container. |
+| QR confidentiality | PASS | No QR body, screenshot or encoded value was displayed, logged, printed, saved, audited or committed; no physical scan occurred. Non-image error markers are absent from exceptions and logs. |
+| Persistent storage/network | PASS | Governed `waha-sessions:/app/.sessions` remains intact. Runtime gates retain development loopback-only exposure and no production WAHA publication. No provider capability, pairing state or session storage was changed by the remediation. |
+| Full release gate | PASS | **23/23 PASS** in 800.3s: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1407 backend tests**; **796 frontend tests**; production build; Bandit; Python/frontend/browser audits; source vulnerability/secret/IaC scan; certified WAHA health, QR and signed-webhook runtime gates; production release/image contracts; image vulnerability scans and SBOMs. |
+| Dependency findings | PASS | Python audit found no known vulnerabilities; browser audit found none. Frontend production audit retains two moderate React Router advisories below the repository's high/critical failure threshold; no dependency changed in QR-09E. |
+| Contract invariants | PASS | Migration head remains `0043` (44 revisions); OpenAPI remains 207 paths; frontend source, routes, schemas, RBAC, provider capabilities, certified digest and approval state are unchanged. |
+| UI preview | PASS | Not applicable: QR-09E changes provider response negotiation only and introduces no operator-facing UI change or screenshot evidence. |
+| QR-09D boundary | PASS | Preserved patch remains external and was not reapplied or committed. QR-09D remains `PARTIAL` pending its own reapplication/revalidation under explicit owner direction. |
+| Remaining external gates | PENDING – Host Machine Validation | Meta token rotation is owner-deferred. Real physical-phone scan/inbound/outbound/ACK/restart/reconnect/logout evidence and browser/target-host validation remain unperformed; QR-09 stays `PARTIAL (BLOCKED)`. |
 
 ## QR-09C — WAHA Webhook Delivery Wiring and Credential Hygiene
 

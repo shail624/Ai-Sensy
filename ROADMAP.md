@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T10:23:12+05:30`.
+Last synchronized: `2026-08-09T11:54:44+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09C — PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09E — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,22 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09E remediates **QR-09-D7 (Major)** without absorbing QR-09D: the QR byte request inherited
+`Accept: application/json`, and the certified WAHA runtime truthfully returned JSON even with
+`?format=image`. JSON API calls retain their JSON default; only QR retrieval now requests
+`image/png`. A new release regression starts the exact certified digest in an isolated loopback-only
+container, reproduces JSON negotiation, validates PNG negotiation through the repository client and
+asserts one ephemeral session with no persistent-volume mount. Repeated live application fetches
+also return PNG with no-store/private cache controls and no duplicate provider or durable session.
+QR bytes are never displayed, logged, persisted or scanned.
+
+All 23 release gates pass (backend 1407, frontend 796), including health, QR and signed-webhook
+certified-runtime checks plus production contracts, image scans and SBOMs. Migration head, OpenAPI,
+RBAC, frontend source, capabilities, persistent session storage and provider approval do not change.
+QR-09D's separate three-file frontend work remains preserved externally and was not reapplied.
+QR-09D and QR-09 remain `PARTIAL — BLOCKED`; Meta rotation is `PENDING — OWNER DEFERRED`, and no
+physical-phone or target-host claim is made. No automatic QR-09D or QR-09 resume is authorized.
 
 QR-09C technically remediates **QR-09-D5 (Major)**: both Compose topologies now configure the exact
 certified WAHA sender to deliver only `message`, `message.any` and `message.ack` to the existing

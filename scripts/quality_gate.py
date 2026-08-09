@@ -218,6 +218,11 @@ def _release_steps(python: str, docker: str) -> list[Step]:
             env={"WA_QUALITY_DOCKER": docker},
         ),
         Step(
+            "certified WAHA QR content negotiation",
+            (python, os.fspath(ROOT / "scripts" / "validate_waha_qr.py")),
+            env={"WA_QUALITY_DOCKER": docker},
+        ),
+        Step(
             "certified WAHA signed-webhook delivery",
             (python, os.fspath(ROOT / "scripts" / "validate_waha_webhook.py")),
             env={"WA_QUALITY_DOCKER": docker},

@@ -198,8 +198,15 @@ class WahaClient:
             self._http = httpx.AsyncClient(timeout=self._timeout)
         return self._http
 
-    def _headers(self) -> dict[str, str]:
-        return {API_KEY_HEADER: self._credentials.api_key, "Accept": "application/json"}
+    def _headers(self, *, accept: str = "application/json") -> dict[str, str]:
+        """Authenticated headers with request-specific response negotiation.
+
+        WAHA's JSON API is the default, but its QR endpoint is content-negotiated: the certified
+        2026.7.2 runtime returns JSON when asked for JSON even with ``?format=image``. Binary
+        callers must therefore opt into the exact representation they validate rather than
+        inheriting the JSON default (QR-09-D7).
+        """
+        return {API_KEY_HEADER: self._credentials.api_key, "Accept": accept}
 
     def url(self, path: str) -> str:
         return f"{self._credentials.root}/{path.lstrip('/')}"
@@ -395,7 +402,9 @@ class WahaClient:
     async def _get_bytes(self, path: str) -> tuple[bytes, str]:
         """Authenticated GET returning raw bytes and content type, for non-JSON provider media."""
         self._credentials.require()
-        request = httpx.Request("GET", self.url(path), headers=self._headers())
+        request = httpx.Request(
+            "GET", self.url(path), headers=self._headers(accept="image/png")
+        )
         try:
             response = await self._client().send(request)
         except httpx.TimeoutException as exc:

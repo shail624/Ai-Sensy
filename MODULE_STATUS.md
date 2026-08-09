@@ -17,7 +17,27 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T10:23:12+05:30`.
+Last synchronized: `2026-08-09T11:54:44+05:30`.
+
+## Module 13 — QR-09E WAHA QR Content Negotiation Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs provider response
+  negotiation and adds no product capability.
+- **Defect:** QR-09-D7 (Major) — QR byte retrieval inherited `Accept: application/json`, so the
+  certified provider returned JSON despite `?format=image`; the adapter then failed closed and the
+  application could not deliver the QR image.
+- **Fix:** request-specific `Accept: image/png` for QR bytes only. Every JSON call retains JSON
+  negotiation; API-key, error, timeout, content validation and no-store boundaries remain intact.
+- **Evidence:** exact digest, WAHA `2026.7.2` / `NOWEB` / `CORE`; JSON baseline reproduced and PNG
+  response proven through the real client; repeated live application fetches returned PNG without a
+  duplicate session. Release gate 23/23; backend 1407, frontend 796.
+- **Preserved:** no QR displayed/persisted/scanned; persistent volume, networking, capabilities,
+  migration/OpenAPI/RBAC/UI and provider approval unchanged. QR-09D's frontend patch remains
+  externally preserved and absent from this milestone.
+- **Next:** stop after QR-09E. QR-09D reapplication/revalidation and QR-09 physical-phone closeout
+  require separate explicit approval. Meta rotation remains owner-deferred; `Host Validated`,
+  `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09C WAHA Webhook Delivery Wiring and Credential Hygiene
 

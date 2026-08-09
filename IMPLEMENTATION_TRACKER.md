@@ -3,8 +3,8 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09C is PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING;
-QR-09 remains PARTIAL — BLOCKED, on top of QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
+_Last updated: 2026-08-09 · QR-09E is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
+PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
 migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat
@@ -18,8 +18,17 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09C — PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`. `QR-09` remains `PARTIAL (BLOCKED)`; QR-09/09A/09B evidence is preserved and QR-08 remains `COMPLETE`.
-- **Latest change:** QR-09C repairs QR-09-D5 technically: both Compose models configure one global,
+- **Current milestone:** `QR-09E — WAHA QR Content Negotiation Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09E repairs QR-09-D7: binary QR retrieval no longer inherits the WAHA
+  client's JSON default and now requests `image/png` explicitly, while every JSON request retains
+  `application/json`. Exact certified WAHA `2026.7.2` / `NOWEB` / `CORE` reproduces the JSON
+  response under JSON negotiation and returns a valid PNG through the repository client. Repeated
+  live application requests return `200 image/png` with no-store/private cache controls and create
+  no duplicate provider or durable session. QR bytes remain in memory only and are neither shown,
+  stored, logged nor scanned. The release gate is now **23/23 PASS** (backend 1407, frontend 796).
+  Migration/OpenAPI/RBAC/UI/capabilities/provider approval remain unchanged. QR-09D's three-file
+  frontend patch remains preserved externally and absent from QR-09E.
+- **Previous change:** QR-09C repairs QR-09-D5 technically: both Compose models configure one global,
   private WAHA callback to the existing `/api/v1/webhooks/waha` receiver, subscribe only to
   `message`, `message.any`, and `message.ack`, and supply a dedicated HMAC key to the unchanged
   raw-body SHA-512 verifier. Production publishes no WAHA port; per-session webhooks remain absent
@@ -105,8 +114,15 @@ blocks every live history, media, event and adapter behavior._
   and after restart; negative unavailable-endpoint probe non-zero; development `127.0.0.1:3000`
   only; production no published WAHA port; `waha-sessions:/app/.sessions` preserved; no startup
   coupling. Full `scripts/quality_gate.py release`: **21/21 PASS**, backend 1397, frontend 796.
-- **Next milestone:** rerun QR-09's remaining external gates — physical-phone provider E2E (real scan → `WORKING`, real inbound/outbound, ACK chain, reconnect-without-new-QR, logout/re-auth, and credential survival across a restart) and the supported-browser/target-host matrix. Not started; both need evidence this environment cannot produce.
-- **Last synchronized:** `2026-08-09T04:30:00+05:30`
+- **QR-09E runtime evidence:** exact certified digest; WAHA `2026.7.2` / `NOWEB` / `CORE`; JSON
+  negotiation baseline `200 application/json`; repository client `200 image/png`; repeated live
+  application fetches with no-store/private controls; exactly one provider/durable session; no QR
+  output or persistence. Full `scripts/quality_gate.py release`: **23/23 PASS**, backend 1407,
+  frontend 796.
+- **Next milestone:** none authorized. Do not automatically reapply QR-09D or resume QR-09. Meta
+  rotation, QR-09D revalidation, physical-phone E2E and supported-browser/target-host validation
+  await explicit owner direction.
+- **Last synchronized:** `2026-08-09T11:54:44+05:30`
 
 ## Delivered
 
