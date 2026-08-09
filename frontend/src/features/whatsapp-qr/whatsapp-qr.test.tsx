@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WhatsAppQrConnect } from "@/features/whatsapp-qr/WhatsAppQrConnect";
+import { whatsAppQrKeys } from "@/features/whatsapp-qr/api";
 import type { WhatsAppQrStatus } from "@/features/whatsapp-qr/types";
 import { deriveViewState } from "@/features/whatsapp-qr/viewState";
 
@@ -23,7 +24,8 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 const statusResponse = { current: null as unknown };
-const postHandlers: Record<string, () => { data?: unknown; error?: unknown }> = {};
+type MockResponse = { data?: unknown; error?: unknown };
+const postHandlers: Record<string, () => MockResponse | Promise<MockResponse>> = {};
 let qrBlobAvailable = true;
 let qrRequestCount = 0;
 
@@ -84,11 +86,12 @@ function withProviders(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={client}>
       <MemoryRouter>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...rendered, client };
 }
 
 // JSDOM does not implement the Blob object-URL APIs the QR image hook uses.
@@ -249,7 +252,9 @@ describe("deriveViewState", () => {
 
   it("a missing provider session is never rendered as progress", () => {
     // The durable session record still exists, so every "in progress" branch below would have
-    // matched and shown "Starting…" — false progress the operator would wait on forever.
+    // matched and shown "Starting…" — false progress the operator would wait on forever. It is
+    // also not "ready-to-connect": that offers an idempotent connect that cannot create the
+    // provider session, which is exactly how `/session/pair` became unreachable (QR-09-D6).
     expect(
       deriveViewState(
         statusFixture({
@@ -263,7 +268,50 @@ describe("deriveViewState", () => {
           healthy: false,
         }),
       ),
+    ).toBe("ready-to-pair");
+  });
+
+  it("QR-09-D6: the durable session is the boundary between connecting and pairing", () => {
+    // Same live observation, no durable session behind it: connect() is genuinely the action that
+    // creates one, so this must stay "ready-to-connect".
+    expect(
+      deriveViewState(
+        statusFixture({
+          connected: false,
+          requires_reauthentication: false,
+          provider_session_missing: true,
+          session_public_id: null,
+          session_state: null,
+          pairing_state: null,
+          provider_status: null,
+          can_reconnect: false,
+          healthy: false,
+        }),
+      ),
     ).toBe("ready-to-connect");
+  });
+
+  it("QR-09-D8 outranks QR-09-D6: an outage never offers the pairing action", () => {
+    // A pairing-capable durable session, but the provider is currently unreachable. The observed
+    // outage is exclusive of a SESSION_MISSING observation, so nothing here may claim the provider
+    // is reachable-and-empty; the operator must be told the truth instead of being handed an
+    // action that cannot succeed.
+    expect(
+      deriveViewState(
+        statusFixture({
+          connected: false,
+          requires_reauthentication: false,
+          session_state: "registered",
+          pairing_state: "unpaired",
+          provider_status: null,
+          qr_available: false,
+          can_reconnect: false,
+          healthy: false,
+          reconnect_blocked_reason: "provider_unavailable",
+          provider_session_missing: false,
+        }),
+      ),
+    ).toBe("provider-unavailable");
   });
 
   it("a missing provider session on a previously paired connection asks for a new scan", () => {
@@ -348,6 +396,161 @@ describe("WhatsAppQrConnect", () => {
     const button = await screen.findByRole("button", { name: /connect whatsapp/i });
     fireEvent.click(button);
     await waitFor(() => expect(called).toBe(true));
+  });
+
+  // --- QR-09-D6: the pairing action must be reachable and must stay reachable -----------------
+
+  /** Provider reachable, durable session present, never paired, no provider session behind it. */
+  function readyToPairFixture(): WhatsAppQrStatus {
+    return statusFixture({
+      connected: false,
+      session_state: "registered",
+      pairing_state: "unpaired",
+      provider_status: null,
+      provider_session_missing: true,
+      qr_available: false,
+      can_reconnect: false,
+      healthy: false,
+      health_detail:
+        "WhatsApp is reachable but has no session for this connection yet; start the connection and scan the QR code to link an account.",
+    });
+  }
+
+  it("3. a durable unpaired session with no provider session offers Pair, never Connect", async () => {
+    statusResponse.current = readyToPairFixture();
+    let connectCalls = 0;
+    let pairCalls = 0;
+    postHandlers["/session/connect"] = () => {
+      connectCalls += 1;
+      return { data: statusResponse.current };
+    };
+    postHandlers["/session/pair"] = () => {
+      pairCalls += 1;
+      return {
+        data: statusFixture({
+          connected: false,
+          session_state: "waiting_for_pairing",
+          pairing_state: "pairing_available",
+          provider_status: "SCAN_QR_CODE",
+          provider_session_missing: false,
+          qr_available: true,
+        }),
+      };
+    };
+
+    withProviders(<WhatsAppQrConnect />);
+    const button = await screen.findByRole("button", { name: /begin pairing/i });
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+    // Nothing may fetch a QR before pairing has actually been requested.
+    expect(qrRequestCount).toBe(0);
+
+    fireEvent.click(button);
+
+    await waitFor(() => expect(pairCalls).toBe(1));
+    expect(connectCalls).toBe(0);
+    // Pairing genuinely advanced the lifecycle rather than looping back to the same action.
+    expect(await screen.findByAltText(/scan this qr code/i)).toBeInTheDocument();
+  });
+
+  it("3b. repeated provider-session-missing polls keep the pairing action reachable", async () => {
+    statusResponse.current = readyToPairFixture();
+    let connectCalls = 0;
+    let pairCalls = 0;
+    postHandlers["/session/connect"] = () => {
+      connectCalls += 1;
+      return { data: statusResponse.current };
+    };
+    postHandlers["/session/pair"] = () => {
+      pairCalls += 1;
+      return { data: statusResponse.current };
+    };
+    const { client } = withProviders(<WhatsAppQrConnect />);
+
+    expect(await screen.findByRole("button", { name: /begin pairing/i })).toBeInTheDocument();
+
+    // The live status poll is what regressed the action to "Connect WhatsApp" in QR-09-D6.
+    await client.refetchQueries({ queryKey: whatsAppQrKeys.status });
+    await client.refetchQueries({ queryKey: whatsAppQrKeys.status });
+    await client.refetchQueries({ queryKey: whatsAppQrKeys.status });
+
+    expect(screen.getByRole("button", { name: /begin pairing/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+    // Polling and re-rendering must never fire an operator action on their own.
+    expect(pairCalls).toBe(0);
+    expect(connectCalls).toBe(0);
+    expect(qrRequestCount).toBe(0);
+  });
+
+  it("3c. a failed pairing attempt reports the error without falling back to Connect", async () => {
+    statusResponse.current = readyToPairFixture();
+    postHandlers["/session/pair"] = () => ({ error: new Error("pairing unavailable") });
+
+    withProviders(<WhatsAppQrConnect />);
+    fireEvent.click(await screen.findByRole("button", { name: /begin pairing/i }));
+
+    expect(await screen.findByText(/pairing unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /begin pairing/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+  });
+
+  it("3d. the pairing action stays named and busy while the request is in flight", async () => {
+    statusResponse.current = readyToPairFixture();
+    let resolvePair!: (value: MockResponse) => void;
+    postHandlers["/session/pair"] = () =>
+      new Promise<MockResponse>((resolve) => {
+        resolvePair = resolve;
+      });
+
+    withProviders(<WhatsAppQrConnect />);
+    const button = await screen.findByRole("button", { name: /begin pairing/i });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(button).toBeDisabled());
+    resolvePair({ data: statusResponse.current });
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+  });
+
+  it("3e. a provider outage on a pairing-capable session hides Begin pairing and recovers", async () => {
+    statusResponse.current = statusFixture({
+      connected: false,
+      session_state: "registered",
+      pairing_state: "unpaired",
+      provider_status: null,
+      qr_available: false,
+      can_reconnect: false,
+      healthy: false,
+      reconnect_blocked_reason: "provider_unavailable",
+      provider_session_missing: false,
+      health_detail: "WhatsApp is temporarily unavailable. Try again shortly.",
+    });
+    withProviders(<WhatsAppQrConnect />);
+
+    expect(await screen.findByText(/can't be reached right now/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /begin pairing/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /connect whatsapp/i })).not.toBeInTheDocument();
+    expect(screen.queryByAltText(/scan this qr code/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^connecting/i)).not.toBeInTheDocument();
+    expect(qrRequestCount).toBe(0);
+
+    // Recovery restores the truthful pairing action, and still fetches no QR.
+    statusResponse.current = readyToPairFixture();
+    fireEvent.click(screen.getByRole("button", { name: /check again/i }));
+
+    expect(await screen.findByRole("button", { name: /begin pairing/i })).toBeInTheDocument();
+    expect(qrRequestCount).toBe(0);
+  });
+
+  it("3f. ready-to-pair stays visible but non-operable for a read-only actor", async () => {
+    permissions.value = ["channels:read"];
+    statusResponse.current = readyToPairFixture();
+    withProviders(<WhatsAppQrConnect />);
+
+    expect(await screen.findByText(/ready to pair whatsapp/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /begin pairing/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/pairing requires the channels:authenticate permission/i),
+    ).toBeInTheDocument();
   });
 
   it("4. qr-available renders a live QR image, not a placeholder", async () => {

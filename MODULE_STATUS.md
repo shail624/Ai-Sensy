@@ -17,7 +17,33 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T16:09:03+05:30`.
+Last synchronized: `2026-08-09T16:36:38+05:30`.
+
+## Module 13 — QR-09D Pairing Action State Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`. QR-09-D6 is `REMEDIATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this restores a reachable operator
+  action and adds no product capability.
+- **Defect:** QR-09-D6 (Major) — with a durable application session present and the provider
+  reachable but holding none, the screen projected `ready-to-connect` and re-offered an idempotent
+  `connect()` that cannot create provider state, so `POST /session/pair` was operationally
+  unreachable and every status poll re-asserted the dead end.
+- **Fix:** the durable application session is the boundary between the two honest actions. A
+  provider-neutral `ready-to-pair` view state offers "Begin pairing" wired to `POST /session/pair`;
+  no durable session still yields `ready-to-connect`. QR-09F outage truth still outranks it, and a
+  previously paired connection is still resolved earlier as `reauth-required`.
+- **Evidence:** exact certified WAHA `2026.7.2` / `NOWEB` / `CORE`, real MySQL/Redis/application.
+  `ready-to-pair` held across eight live three-second polls; the actual UI action issued exactly one
+  `/session/pair` and zero `/session/connect`; two application QR requests returned `200 image/png`
+  with no-store/private/no-cache; a genuine outage produced zero new QR requests and recovered
+  cleanly; QR-09G paused recovery re-proven through the same UI. Actual 1920×1080 and 390×844
+  screenshots show ready-to-pair with no QR, no overflow, visible keyboard focus and a 118×40 mobile
+  control. Release gate 23/23; backend 1418, frontend 806.
+- **Preserved:** all QR-09F outage regressions retained; QR content never displayed, persisted,
+  logged, audited or scanned; migration/OpenAPI/RBAC/capabilities/provider approval unchanged.
+- **Next:** safe physical-phone QR-09 preparation, stopping at the mandated safety/manual action.
+  Meta rotation remains owner-deferred; `Host Validated`, `Provider Validated`,
+  `Production Ready`: NO.
 
 ## Module 13 — QR-09G Paused Never-Paired Session Recovery Remediation
 

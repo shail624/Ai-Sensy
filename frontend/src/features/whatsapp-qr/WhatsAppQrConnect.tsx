@@ -33,6 +33,7 @@ const READ_PERMISSION = "channels:read";
 const STATUS_BADGE: Record<WhatsAppQrViewState, { label: string; tone: BadgeTone }> = {
   "not-configured": { label: "Not available", tone: "neutral" },
   "ready-to-connect": { label: "Not connected", tone: "neutral" },
+  "ready-to-pair": { label: "Ready to pair", tone: "info" },
   "creating-session": { label: "Starting…", tone: "info" },
   "qr-available": { label: "Scan to connect", tone: "info" },
   "qr-expired": { label: "QR expired", tone: "warning" },
@@ -215,6 +216,36 @@ export function WhatsAppQrConnect(): JSX.Element {
           ) : null}
           {view === "ready-to-connect" && connect.isError ? (
             <p className="mt-3 text-center text-sm text-danger">{apiErrorMessage(connect.error)}</p>
+          ) : null}
+
+          {/*
+            QR-09-D6: the connection exists but the provider holds no session for it. Connecting
+            again is a no-op, so the only action offered here is the one that actually starts
+            pairing — and it stays put across status polls rather than flipping back to Connect.
+          */}
+          {view === "ready-to-pair" ? (
+            <EmptyState
+              icon={<QrCode aria-hidden className="h-6 w-6" />}
+              title="Ready to pair WhatsApp"
+              description={
+                status.health_detail ||
+                "The connection is ready. Begin pairing to display a QR code to scan."
+              }
+              action={
+                canOperate ? (
+                  <Button onClick={() => pair.mutate()} loading={pair.isPending}>
+                    Begin pairing
+                  </Button>
+                ) : (
+                  <p className="text-xs text-text-secondary">
+                    Pairing requires the channels:authenticate permission.
+                  </p>
+                )
+              }
+            />
+          ) : null}
+          {view === "ready-to-pair" && pair.isError ? (
+            <p className="mt-3 text-center text-sm text-danger">{apiErrorMessage(pair.error)}</p>
           ) : null}
 
           {view === "creating-session" ? (

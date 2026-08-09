@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T16:09:03+05:30`.
+Last synchronized: `2026-08-09T16:36:38+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09G — REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain PARTIAL — BLOCKED**
+**Current status: QR-09D and QR-09G — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,29 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09D closes **QR-09-D6 (Major)** on top of the committed QR-09G backend. With a durable
+application session present and the provider reachable but holding none, the screen projected
+`ready-to-connect` and re-offered an idempotent `connect()` that provably cannot create provider
+state, so `POST /session/pair` was operationally unreachable and every poll re-asserted the dead
+end. The durable application session is now the boundary between the two honest operator actions:
+a provider-neutral `ready-to-pair` state offers "Begin pairing" wired to `POST /session/pair`,
+while no durable session still yields `ready-to-connect`. QR-09F outage truth still outranks it,
+and a previously paired connection still resolves earlier as `reauth-required`.
+
+Frontend regressions were reconciled by hand against the QR-09F suite rather than by applying the
+conflicting historical patch, so every outage regression is preserved alongside the new D6
+coverage. Real MySQL/Redis/application/exact-WAHA evidence: `ready-to-pair` held across eight live
+three-second polls with Connect WhatsApp absent; the actual UI action issued exactly one
+`/session/pair` and zero `/session/connect`; two application QR requests returned `200 image/png`
+with no-store/private/no-cache and the bytes were never displayed, persisted or scanned; a genuine
+outage produced zero new QR requests and recovered without duplication; and the QR-09G paused
+never-paired recovery was re-proven through the same UI. Actual local desktop/mobile captures show
+ready-to-pair with no QR, no horizontal overflow, visible keyboard focus and a compliant mobile
+touch target; these do not constitute target-host acceptance. All 23 release gates pass (backend
+1418, frontend 806). Migration/OpenAPI/RBAC/capabilities/digest, persistent storage and provider
+approval remain unchanged. Physical-phone QR-09 validation follows, gated on explicit
+dedicated-account safety confirmation.
 
 QR-09G remediates **QR-09-D9 (Blocker)** without absorbing QR-09D. `STOPPED` is an ordinary WAHA
 status, `map_session_status` turns it into durable `PAUSED`, and a `PAUSED` row cannot acquire a

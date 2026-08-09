@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09G is REPOSITORY/RUNTIME VALIDATED; QR-09D and QR-09 remain
+_Last updated: 2026-08-09 · QR-09D and QR-09G are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,23 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09G — Paused Never-Paired Session Recovery Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09D` and `QR-09` remain `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09G repairs QR-09-D9 (Blocker): an ordinary `STOPPED` provider observation
+- **Current milestone:** `QR-09D — Pairing Action State Remediation — REPOSITORY/RUNTIME VALIDATED`, on top of the committed QR-09G backend. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09D closes QR-09-D6 (Major): with a durable application session present
+  and the provider reachable but holding none, the screen projected `ready-to-connect` and
+  re-offered an idempotent `connect()` that cannot create provider state, leaving
+  `POST /session/pair` operationally unreachable. The durable session is now the boundary between
+  the two honest actions: a provider-neutral `ready-to-pair` state offers "Begin pairing" wired to
+  `POST /session/pair`, while no durable session still yields `ready-to-connect`. QR-09F outage
+  truth still outranks it and a previously paired connection still resolves earlier as
+  `reauth-required`. Frontend regressions were reconciled by hand against the QR-09F suite rather
+  than by applying the conflicting historical patch. Real MySQL/Redis/application/WAHA evidence:
+  `ready-to-pair` held across eight live three-second polls, the actual UI action issued exactly
+  one `/session/pair` and zero `/session/connect`, two application QR requests returned
+  `200 image/png` with no-store/private/no-cache, a genuine outage produced zero new QR requests
+  and recovered cleanly, and the QR-09G paused recovery was re-proven through the same UI. Actual
+  1920x1080 and 390x844 screenshots show ready-to-pair with no QR and no horizontal overflow.
+  Release gate 23/23; backend 1418, frontend 806.
+- **Superseded change:** QR-09G repairs QR-09-D9 (Blocker): an ordinary `STOPPED` provider observation
   pauses the durable session, and a `PAUSED` row cannot acquire a runtime lease — so for a
   never-paired connection, status reconciliation stopped permanently, `pair` returned 409,
   `reconnect` returned 409 telling the operator to pair, and `connect` was an idempotent no-op,

@@ -4,7 +4,30 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T16:09:03+05:30`.
+Last synchronized: `2026-08-09T16:36:38+05:30`.
+
+## QR-09D — Pairing Action State Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D6 is `REMEDIATED` by repository,
+real-runtime and local-browser evidence, on top of the committed QR-09G backend. QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline | PASS | Local/origin matched `ui/taste-modernization` at `a7b920e0ca9fcd7258f38b9fcb4afcbacf7f9178` (QR-09G). Tracked modifications were exactly the three QR-09D frontend files; the preserved patch `qr09d-post-qr09f-current.patch` re-verified at SHA-256 `2278b61072cf4959e83463d4eb579018598f2c941d64ff7f3bf2947abf896ffe` and reapplied with `git apply --check` clean and no conflict. QR-09G was not reverted or re-committed. |
+| D6 root cause | PASS | With a durable session present and the provider reachable but holding none, the projection returned `ready-to-connect`, re-offering an idempotent `connect()` that cannot create provider state; `POST /session/pair` was therefore operationally unreachable and every poll re-asserted the dead end. |
+| Fix | PASS | The durable application session is the boundary: no durable session keeps `ready-to-connect`; a durable never-paired session with a live session-missing observation projects a provider-neutral `ready-to-pair` whose primary action calls `POST /session/pair`. |
+| State precedence | PASS | not-configured → connected → reauth-required → provider-unavailable → ready-to-pair → ready-to-connect → qr-available → STARTING ambiguity (QR-02/QR-06) → reconnect, all preserved. The session-missing branch is reached only on a live observation the backend emits exclusively of a transport outage, so QR-09F outage truth still outranks ready-to-pair, qr-available, creating-session, connecting and reconnect. |
+| Test reconciliation | PASS | The historical patch's test file genuinely conflicted and was not applied; regressions were reconciled by hand. All QR-09F outage regressions preserved. Focused QR frontend suite **36 passed**; full Vitest **806 passed** across 38 files (798 → 806, +8). |
+| D6 real runtime | PASS | Real MySQL/Redis/backend/frontend with certified WAHA `sha256:33ecd1b7…f2d75e`, `2026.7.2 / NOWEB / CORE`. `ready-to-pair` rendered from a genuine provider-reachable, session-absent, never-paired state and survived **eight consecutive live three-second polls** with Begin pairing present and Connect WhatsApp absent throughout. |
+| D6 action integrity | PASS | Activating Begin pairing in the actual browser issued exactly **one** `/session/pair` and **zero** `/session/connect`, leaving exactly one provider session (`SCAN_QR_CODE`) and one durable connection and session. Server-side WAHA logs show one create per pairing action, no duplicates. |
+| Application QR endpoint | PASS | Two consecutive requests returned `200`, `image/png`, `Cache-Control: no-store, private, max-age=0` and `Pragma: no-cache`; provider and durable counts unchanged. Bytes were consumed in memory and never printed, saved, persisted, logged, audited, displayed or scanned. |
+| D8 outage regression | PASS | A genuine outage rendered the unavailable state with no pairing, connect, scan or connecting affordance; the QR request tally stayed frozen and no QR element mounted. The same container, volume, provider session and durable session recovered without duplication. |
+| D9 recovery through the UI | PASS | A paused, never-paired session with the provider session absent renders `ready-to-pair`; activating it recovered to `waiting_for_pairing` with exactly one provider session and one durable connection/session, with no database intervention. |
+| Local responsive/accessibility evidence | PASS | Actual running application at 1920×1080 and 390×844 in `ready-to-pair`, plus the provider-unavailable state. No QR visible (zero image elements) and no PII. No horizontal overflow at either size; keyboard `Tab` reaches Begin pairing with a visible 2px focus ring; mobile control measures 118×40 (118×36 desktop). Local runtime captures only — not target-host or browser-matrix acceptance. |
+| Full release gate | PASS | **23/23 PASS** in 635.1s on the combined tree: Ruff; strict mypy (300 files); OpenAPI drift; frontend lint/types; browser-test types; **1418 backend tests**; **806 frontend tests**; production build; Bandit; dependency/browser audits; tracked-source vulnerability/secret/IaC scan; certified WAHA health, QR and webhook gates; production release/image contracts; image scan and SBOM. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route, schema, RBAC, capability, digest, storage or provider-approval change. No credential, QR or session material is exposed. |
+| Remaining external gates | PENDING – Host Machine Validation | Meta token rotation owner-deferred. Physical-phone pairing, inbound/outbound/ACK, restart persistence, logout/re-authentication and the supported-browser/target-host matrix remain unperformed; QR-09 stays `PARTIAL (BLOCKED)`. |
 
 ## QR-09G — Paused Never-Paired Session Recovery Remediation
 

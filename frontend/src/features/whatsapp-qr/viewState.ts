@@ -3,6 +3,7 @@ import { PAIRING_STATE, SESSION_STATE, type WhatsAppQrStatus } from "@/features/
 export type WhatsAppQrViewState =
   | "not-configured"
   | "ready-to-connect"
+  | "ready-to-pair"
   | "creating-session"
   | "qr-available"
   | "qr-expired"
@@ -45,8 +46,20 @@ export function deriveViewState(status: WhatsAppQrStatus | undefined): WhatsAppQ
   //
   // A connection that had reached PAIRED is already handled above as `reauth-required` (the server
   // sets `requires_reauthentication` for that case, because credentials genuinely were lost).
-  // Everything else has nothing to re-authenticate: it needs the ordinary connect-and-scan action.
-  if (status.provider_session_missing) return "ready-to-connect";
+  // Everything else has nothing to re-authenticate, and the durable application session is what
+  // separates the two honest operator actions:
+  //   * no durable session -> `connect()` is the action that creates one.
+  //   * durable session     -> `connect()` is idempotent and provably cannot create provider state,
+  //                            so offering it again is a dead end (QR-09-D6): status polling kept
+  //                            replacing "Begin pairing" with a "Connect WhatsApp" that did
+  //                            nothing, leaving `/session/pair` operationally unreachable. Pairing
+  //                            is the only action that can move this forward.
+  // This branch is only reached on a live SESSION_MISSING observation, which the backend emits
+  // exclusively of PROVIDER_UNAVAILABLE — so reaching here already means the provider answered,
+  // and a real outage is caught by the check above (QR-09-D8) before any of this runs.
+  if (status.provider_session_missing) {
+    return status.session_public_id ? "ready-to-pair" : "ready-to-connect";
+  }
 
   if (!status.session_public_id) return "ready-to-connect";
 

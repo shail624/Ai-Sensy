@@ -11,6 +11,69 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09D: Pairing Action State Remediation
+
+Closes **QR-09-D6 (Major)** on top of the committed QR-09G backend. The operator selected Connect
+WhatsApp, one durable application session was created, WAHA still held no provider session, and
+status polling returned `provider_session_missing`. The frontend projected that back to
+`ready-to-connect`, so the screen re-offered Connect WhatsApp — an idempotent call that provably
+cannot create provider state — and `POST /session/pair` became operationally unreachable. Every
+poll re-asserted the dead end.
+
+The durable application session is now the boundary between the two honest operator actions: with
+no durable session `connect()` is genuinely what creates one, and with one present the only action
+that can move a never-paired connection forward is pairing. A provider-neutral `ready-to-pair` view
+state carries that, rendering "Begin pairing" wired to `POST /session/pair`. Because this branch is
+only reached on a live session-missing observation — which the backend emits exclusively of a
+transport outage — the QR-09F outage check above it still wins, and the QR-09-D2 previously-paired
+case is still resolved earlier as `reauth-required` via `requires_reauthentication`. State
+precedence is unchanged otherwise: not-configured, connected, reauth-required, provider-unavailable,
+ready-to-pair, ready-to-connect, qr-available, the QR-02/QR-06 STARTING ambiguity, and reconnect.
+
+Frontend regressions were reconciled by hand against the QR-09F suite rather than by applying the
+historical patch, whose test file genuinely conflicted; every QR-09F outage regression is preserved
+and the D6 coverage added alongside it. New tests prove the durable-session boundary in both
+directions, that Begin pairing is the only offered action, that it calls pair exactly once and
+connect zero times, that three real status refetches never regress the action, that polling and
+re-render fire no mutation of their own, that a failed pairing reports truthfully without falling
+back to Connect, that the action stays named and busy in flight, that an outage outranks
+ready-to-pair and mounts no QR, that recovery restores the pairing action with no QR fetch, and
+that a read-only actor sees the state without an operable control.
+
+Validated against the real stack — MySQL, Redis, the actual backend and frontend, and the exact
+certified WAHA digest at `2026.7.2 / NOWEB / CORE`. `ready-to-pair` rendered from a genuine
+provider-reachable, session-absent, never-paired state and survived eight consecutive live
+three-second polls with Connect WhatsApp absent throughout. Activating Begin pairing in the actual
+browser issued exactly one `/session/pair` and zero `/session/connect`, leaving exactly one provider
+session and one durable connection and session. Two consecutive application QR requests returned
+`200 image/png` with `Cache-Control: no-store, private, max-age=0` and `Pragma: no-cache`; the bytes
+were consumed in memory and never printed, saved, logged, audited, displayed or scanned. A genuine
+outage produced zero new QR requests and no pairing, connect, scan or connecting affordance, and the
+same container, volume, provider session and durable session recovered without duplication. The
+QR-09G paused never-paired recovery was re-proven through the same UI: a paused, never-paired
+session with the provider session absent now renders ready-to-pair and recovers to
+`waiting_for_pairing` with one provider session and no database intervention.
+
+Actual running-application screenshots were captured at 1920×1080 and 390×844 in the ready-to-pair
+state, plus the provider-unavailable state, with no QR visible and no PII. Neither viewport shows
+horizontal overflow, keyboard focus reaches Begin pairing with a visible ring, and the mobile
+control measures 118×40. These are local runtime captures, not target-host or browser-matrix
+acceptance.
+
+All **23 release gates pass** in 635.1 seconds on the combined tree: backend **1418 passed**,
+frontend **806 passed**, Ruff, strict mypy (300 files), OpenAPI drift, ESLint, TypeScript,
+browser-test types, production build, Bandit, dependency/browser audits, tracked-source
+vulnerability/secret/IaC scan, certified WAHA health/QR/webhook runtime gates, production release
+and image contracts, image vulnerability scan and SBOM. Migration remains `0043` (44 revisions),
+OpenAPI remains 207 paths, and no route, schema, RBAC, capability, digest, storage or
+provider-approval change was made.
+
+**Status boundary:** QR-09-D6 is `REMEDIATED`; QR-09D, QR-09E, QR-09F and QR-09G are all
+`REPOSITORY/RUNTIME VALIDATED`. QR-09 remains `PARTIAL (BLOCKED)` pending physical-phone validation.
+Meta verification-token rotation is **PENDING — OWNER DEFERRED**. `Host Validated: NO`,
+`Provider Validated: NO`, `Production Ready: NO`; no phone, scan, target-host or
+certification-approval evidence is claimed.
+
 ### 2026-08-09 — QR-09G: Paused Never-Paired Session Recovery Remediation
 
 Records and remediates **QR-09-D9 (Blocker)** without absorbing the separately preserved QR-09D
