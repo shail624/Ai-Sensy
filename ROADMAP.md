@@ -4,7 +4,7 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T18:15:25+05:30`.
+Last synchronized: `2026-08-09T19:42:09+05:30`.
 
 ## Authority and baseline
 
@@ -46,7 +46,7 @@ built; existing KYC-specific approval logic and completed authorization safeguar
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
-**Current status: QR-09D, QR-09G and QR-09H — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+**Current status: QR-09D, QR-09G, QR-09H and QR-09I — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
 
 ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
 and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
@@ -95,6 +95,19 @@ existing Inbox, Conversation/Message ledger and Contact authorities rather than 
 Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
 `phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
 webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09I closes **QR-09-D11 (Blocker)** without changing the approved feature sequence. The
+short-lived pairing representation expired after the physical scan while the same configured WAHA
+session had already reached identity-bearing `WORKING`; equal-state pairing requests could not
+renew that window and the ordinary expired-transition guard correctly refused convergence.
+Explicit pairing requests now renew only the availability expiry under existing lease/fence/version
+controls, while polling never renews. A narrow provider-confirmed completion accepts only a fresh
+same-session `WORKING` observation with identity, preserves the pairing revision and emits redacted
+Audit evidence. The linked real session converged to active/paired/connected without a provider
+restart, logout, delete, create, new QR, rescan, message or database backdoor. Canonical premerge
+14/14 plus nine release/runtime gates pass (backend 1436, frontend 806). QR-09 remains blocked on
+the external phone, ACK, restart/reconnect, logout/re-authentication, Meta-rotation and target-host
+gates; provider certification and Host/Provider/Production status do not advance.
 
 QR-09H closes **QR-09-D10 (Blocker)**. An unscanned QR lapses to `FAILED` while the provider
 session object survives, so every governed "Get a new QR code" retry hit the provider's

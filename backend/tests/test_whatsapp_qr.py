@@ -12,6 +12,7 @@ QR delivery, and that no secret of any kind crosses the API boundary.
 from __future__ import annotations
 
 import uuid as uuidlib
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -32,9 +33,12 @@ from app.channels.waha import (
 from app.channels.waha.client import WahaClient
 from app.core.config import settings
 from app.core.exceptions import ConflictError, ServiceUnavailableError
+from app.db.mixins import utcnow
+from app.models.audit import AuditLog
 from app.models.channel_session import ChannelSession
 from app.models.role import Permission, Role, UserRole
 from app.models.settings import FeatureFlag
+from app.services.audit_service import AuditAction
 from app.services.whatsapp_qr_service import WhatsAppQrService
 
 PASSWORD = "Sup3r-Secret-Pass!"
@@ -1342,6 +1346,10 @@ async def test_expired_qr_recovers_through_the_certified_stop_start_pair(
     await _enable_flags(db_session, organization.id)
     providers, runtimes = _registries()
     service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_expiry = before.pairing_expires_at
+    original_revision = before.pairing_revision
+    assert original_expiry is not None
 
     adapter, calls, state = _existing_session_adapter(status="FAILED")
     service._adapter = adapter
@@ -1358,6 +1366,21 @@ async def test_expired_qr_recovers_through_the_certified_stop_start_pair(
     assert state["me"] is None
     assert recovered.pairing_state is PairingState.PAIRING_AVAILABLE
     assert recovered.requires_reauthentication is False
+    assert recovered.row_version is not None
+    renewed = (await db_session.scalars(select(ChannelSession))).one()
+    assert renewed.pairing_expires_at is not None
+    assert renewed.pairing_expires_at > original_expiry
+    assert renewed.pairing_revision == original_revision
+    renewal_audits = list(
+        (
+            await db_session.scalars(
+                select(AuditLog).where(
+                    AuditLog.action == AuditAction.CHANNEL_PAIRING_AVAILABILITY_RENEWED
+                )
+            )
+        ).all()
+    )
+    assert len(renewal_audits) == 1
     # Exactly one durable session; nothing was recreated.
     assert len((await db_session.scalars(select(ChannelSession))).all()) == 1
 
@@ -1414,6 +1437,10 @@ async def test_session_already_showing_a_qr_is_reused_untouched(
     await _enable_flags(db_session, organization.id)
     providers, runtimes = _registries()
     service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_expiry = before.pairing_expires_at
+    original_revision = before.pairing_revision
+    assert original_expiry is not None
 
     adapter, calls, state = _existing_session_adapter(status="SCAN_QR_CODE")
     service._adapter = adapter
@@ -1423,6 +1450,94 @@ async def test_session_already_showing_a_qr_is_reused_untouched(
     assert not any(c.endswith("/start") for c in calls)
     assert state["status"] == "SCAN_QR_CODE"
     assert reused.pairing_state is PairingState.PAIRING_AVAILABLE
+    renewed = (await db_session.scalars(select(ChannelSession))).one()
+    assert renewed.pairing_expires_at is not None
+    assert renewed.pairing_expires_at > original_expiry
+    assert renewed.pairing_revision == original_revision
+
+
+@pytest.mark.anyio
+async def test_provider_confirmed_working_completes_an_expired_pairing_window(
+    db_session, organization, make_user, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D11: a linked, identity-bearing live session outranks the expired QR representation."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (await make_user(email="qr09i-working@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_public_id = before.public_id
+    original_revision = before.pairing_revision
+    before.pairing_expires_at = utcnow() - timedelta(seconds=1)
+    await db_session.commit()
+
+    adapter, calls, _ = _existing_session_adapter(
+        status="WORKING",
+        me={"id": "919355585553@c.us", "pushName": "Neha Sharma"},
+    )
+    service._adapter = adapter
+    converged = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert calls == ["GET /api/sessions/phonecert"]
+    assert converged.session_public_id == original_public_id
+    assert converged.session_state is SessionState.ACTIVE
+    assert converged.pairing_state is PairingState.PAIRED
+    assert converged.connected is True
+    assert converged.qr_available is False
+    assert converged.provider_status == "WORKING"
+    assert converged.identity_masked is not None
+    assert "919355585553" not in converged.identity_masked
+    durable = (await db_session.scalars(select(ChannelSession))).one()
+    assert durable.pairing_expires_at is None
+    assert durable.pairing_revision == original_revision
+    assert len((await db_session.scalars(select(ChannelSession))).all()) == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("provider_name", "provider_identity"),
+    [("phonecert", None), ("different-session", "919355585553@c.us")],
+)
+async def test_expired_pairing_rejects_unproven_or_wrong_session_working_claim(
+    db_session,
+    organization,
+    make_user,
+    monkeypatch: pytest.MonkeyPatch,
+    provider_name: str,
+    provider_identity: str | None,
+) -> None:
+    """An arbitrary stale row cannot use D11 completion without same-session identity evidence."""
+    _scope_to(monkeypatch, organization.id)
+    actor = (
+        await make_user(
+            email=f"qr09i-unproven-{provider_name}@vi.co",
+            is_superuser=True,
+        )
+    ).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    row = (await db_session.scalars(select(ChannelSession))).one()
+    row.pairing_expires_at = utcnow() - timedelta(seconds=1)
+    await db_session.commit()
+
+    body = {
+        "name": provider_name,
+        "status": "WORKING",
+        "me": ({"id": provider_identity} if provider_identity is not None else None),
+        "engine": {"engine": "NOWEB"},
+    }
+    service._adapter = _adapter(lambda request: httpx.Response(200, json=body))
+    projected = await service.get_status(organization_id=organization.id, actor=actor)
+
+    assert projected.pairing_state is PairingState.PAIRING_AVAILABLE
+    assert projected.session_state is SessionState.WAITING_FOR_PAIRING
+    assert projected.connected is False
+    durable = (await db_session.scalars(select(ChannelSession))).one()
+    assert durable.pairing_state == PairingState.PAIRING_AVAILABLE.value
+    assert durable.pairing_expires_at is not None
 
 
 @pytest.mark.anyio
@@ -1477,6 +1592,8 @@ async def test_transport_outage_during_pairing_is_still_service_unavailable(
     await _enable_flags(db_session, organization.id)
     providers, runtimes = _registries()
     service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_expiry = before.pairing_expires_at
 
     def down(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("refused")
@@ -1484,6 +1601,8 @@ async def test_transport_outage_during_pairing_is_still_service_unavailable(
     service._adapter = _adapter(down)
     with pytest.raises(ServiceUnavailableError):
         await service.begin_pairing(organization_id=organization.id, actor=actor)
+    after = (await db_session.scalars(select(ChannelSession))).one()
+    assert after.pairing_expires_at == original_expiry
 
 
 @pytest.mark.anyio
@@ -1500,6 +1619,8 @@ async def test_reached_provider_refusal_is_a_conflict_not_a_false_outage(
     await _enable_flags(db_session, organization.id)
     providers, runtimes = _registries()
     service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_expiry = before.pairing_expires_at
 
     # Create is refused *and* the session genuinely is not there: a reached-provider disagreement
     # that no recovery can resolve, which must still be reported honestly.
@@ -1518,6 +1639,8 @@ async def test_reached_provider_refusal_is_a_conflict_not_a_false_outage(
     assert "422" not in rendered
     assert CREDS.api_key not in rendered
     assert "waha.internal" not in rendered
+    after = (await db_session.scalars(select(ChannelSession))).one()
+    assert after.pairing_expires_at == original_expiry
 
 
 @pytest.mark.anyio
@@ -1555,6 +1678,8 @@ async def test_polling_never_stops_or_starts_the_provider_session(
     await _enable_flags(db_session, organization.id)
     providers, runtimes = _registries()
     service = await _reach_expired_qr(db_session, providers, runtimes, organization, actor)
+    before = (await db_session.scalars(select(ChannelSession))).one()
+    original_expiry = before.pairing_expires_at
 
     adapter, calls, state = _existing_session_adapter(status="FAILED")
     service._adapter = adapter
@@ -1564,6 +1689,8 @@ async def test_polling_never_stops_or_starts_the_provider_session(
     assert calls, "status must still observe the provider"
     assert all(c.startswith("GET ") for c in calls), calls
     assert state["status"] == "FAILED", "polling must not have recovered anything by itself"
+    after = (await db_session.scalars(select(ChannelSession))).one()
+    assert after.pairing_expires_at == original_expiry
 
 
 @pytest.mark.anyio

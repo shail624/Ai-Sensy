@@ -11,6 +11,49 @@ will adopt semantic-ish versioning per document (e.g., `SRS v1.1`) once changes 
 
 ## [Unreleased]
 
+### 2026-08-09 — QR-09I: Pairing Window Renewal and Post-Scan Convergence Remediation
+
+Records and remediates **QR-09-D11 (Blocker)**. The pairing TTL governs the ephemeral QR/availability
+representation, not the lifetime of provider-established credentials. In the real linked runtime,
+that representation expired after the physical scan while the exact configured WAHA session had
+already reached identity-bearing `WORKING`. An explicit request for a new pairing window was an
+equal-state no-op, while the general transition API correctly rejected all transitions after
+expiry; the application therefore remained trapped in `pairing_available` despite the successful
+provider link.
+
+Two narrow, provider-neutral manager operations repair the boundary. An explicit pairing request
+renews only the availability expiry under the current runtime lease, fencing token and expected row
+version; pairing state, revision and original change timestamp stay stable. Read-only polling never
+renews the window. Provider-confirmed completion is available only for an expired
+`PAIRING_AVAILABLE` row and requires a fresh `WORKING` observation with an identity for the exact
+configured session. It transitions to `PAIRED`, clears expiry, preserves the pairing revision and
+audits only a boolean identity-presence fact. The ordinary expired-transition rejection is
+unchanged, and missing identity, wrong session, provider outage and reached-provider conflict all
+fail closed.
+
+The real application, MySQL, Redis and untouched certified WAHA 2026.7.2 / NOWEB / CORE container
+then converged to active/paired/connected with no QR available. Provider session, durable connection
+and durable session counts stayed exactly one; container restart count stayed zero and linked
+message count stayed zero. No provider restart, logout, delete, create, new QR, rescan, message,
+manual database mutation or identity disclosure occurred.
+
+Canonical premerge **14/14 passed** in 369.6 seconds: backend **1436 passed**, frontend **806
+passed**, lint/types/OpenAPI/build/SAST/audits/scans. Nine release/runtime gates also passed. The
+canonical health validator was not run against the owner-linked container because it explicitly
+restarts WAHA; a unique internal-only container and volume at the exact certified digest instead
+proved health success/failure and healthy restart survival, then was removed. This is a documented
+preservation substitution, not a claim that the monolithic release runner executed unchanged.
+
+No frontend source, migration, route, schema, RBAC, provider capability, digest, storage or approval
+state changed. Local screenshot automation could not initialize, so no screenshot or browser-matrix
+evidence is claimed.
+
+**Status boundary:** QR-09-D11 is `REMEDIATED`; QR-09I is `REPOSITORY/RUNTIME VALIDATED`. QR-09D,
+QR-09E, QR-09F, QR-09G and QR-09H remain preserved and validated. QR-09 remains `PARTIAL (BLOCKED)`
+pending inbound/outbound/ACK, linked-session restart/reconnect, logout/re-authentication and
+supported-browser/target-host evidence. Meta verification-token rotation is **PENDING — OWNER
+DEFERRED**. `Host Validated`, `Provider Validated`, `Production Ready`: NO.
+
 ### 2026-08-09 — QR-09H: Expired QR Existing-Session Recovery Remediation
 
 Records and remediates **QR-09-D10 (Blocker)**. An unscanned QR lapses — the ordinary outcome of

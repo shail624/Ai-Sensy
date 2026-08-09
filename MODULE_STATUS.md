@@ -17,7 +17,29 @@ campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the 
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
 
-Last synchronized: `2026-08-09T18:15:25+05:30`.
+Last synchronized: `2026-08-09T19:42:09+05:30`.
+
+## Module 13 — QR-09I Pairing Window Renewal and Post-Scan Convergence Remediation
+
+- **Milestone status:** `REPOSITORY/RUNTIME VALIDATED`. QR-09-D11 is `REMEDIATED`.
+- **Completion:** `52%` evidence-based estimate — unchanged; this repairs pairing continuity and
+  adds no product capability.
+- **Defect:** the local QR representation expired while the same certified provider session had
+  already reached identity-bearing `WORKING`. An explicit request for a new window was an
+  equal-state no-op, and the general transition path correctly refused all expired transitions,
+  trapping the application in `pairing_available` after a successful scan.
+- **Fix:** explicit requests renew only the representation expiry under the existing
+  lease/fence/version controls. A separate narrow completion path accepts only a fresh `WORKING`
+  observation with identity for the configured session. Polling does not renew; ordinary expiry
+  rejection remains intact; state/revision chronology and redacted Audit semantics are preserved.
+- **Evidence:** real MySQL/Redis/application and the untouched exact WAHA 2026.7.2 / NOWEB / CORE
+  container converged to active/paired/connected with no QR available. Provider/durable counts
+  stayed one, restart count stayed zero, and linked message count stayed zero. Canonical premerge
+  14/14 in 369.6s plus nine release/runtime gates passed; backend 1436, frontend 806.
+- **Preserved:** no provider restart, logout, delete, create, QR generation/rescan, message, manual
+  database mutation, frontend source, migration, route/schema, RBAC, capability or approval change.
+- **Next:** physical QR-09 resumes at real inbound text. Meta rotation remains owner-deferred;
+  `Host Validated`, `Provider Validated`, `Production Ready`: NO.
 
 ## Module 13 — QR-09H Expired QR Existing-Session Recovery Remediation
 

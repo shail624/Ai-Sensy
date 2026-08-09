@@ -637,15 +637,28 @@ class WhatsAppQrService:
         """
         target_session_state, target_pairing_state = map_session_status(snapshot.status)
         session_args = (organization_id, actor, lease_runtime_id, fencing_token)
+        provider_confirmed_pairing = (
+            snapshot.status is WahaSessionStatus.WORKING
+            and snapshot.identity is not None
+            and snapshot.name == self._provider_session_name()
+        )
 
         if target_session_state is not SessionState.ACTIVE:
             row = await self._advance_session(row, target_session_state, *session_args)
             row = await self._advance_pairing(
-                row, target_pairing_state, request_pairing, *session_args
+                row,
+                target_pairing_state,
+                request_pairing,
+                provider_confirmed_pairing,
+                *session_args,
             )
         else:
             row = await self._advance_pairing(
-                row, target_pairing_state, request_pairing, *session_args
+                row,
+                target_pairing_state,
+                request_pairing,
+                provider_confirmed_pairing,
+                *session_args,
             )
             row = await self._advance_session(row, target_session_state, *session_args)
 
@@ -690,6 +703,7 @@ class WhatsAppQrService:
         row: ChannelSession,
         target: PairingState | None,
         request_pairing: bool,
+        provider_confirmed_pairing: bool,
         organization_id: int,
         actor: User,
         lease_runtime_id: str,
@@ -711,8 +725,48 @@ class WhatsAppQrService:
 
         # Ambiguous live status (target is None) never overwrites durable truth — the QR-02/QR-06
         # safety rule enforced at the one place that could regress it.
-        if target is None or target is current or not self._can_advance_pairing(current, target):
+        if target is None:
             return row
+
+        # QR-09-D11: an explicit operator refresh that has successfully obtained current provider
+        # evidence of SCAN_QR_CODE renews the short-lived human pairing window. This is deliberately
+        # not a PAIRING_AVAILABLE self-transition, and ordinary GET reconciliation passes
+        # request_pairing=False so it can never make a QR immortal.
+        if (
+            request_pairing
+            and current is PairingState.PAIRING_AVAILABLE
+            and target is PairingState.PAIRING_AVAILABLE
+        ):
+            return await self._pairing_manager().renew_pairing_availability(
+                organization_id=organization_id,
+                actor=actor,
+                session_public_id=uuidlib.UUID(row.public_id),
+                runtime_id=lease_runtime_id,
+                fencing_token=fencing_token,
+                expected_row_version=row.row_version,
+            )
+
+        if target is current or not self._can_advance_pairing(current, target):
+            return row
+
+        # A provider-authenticated WORKING snapshot with identity is authoritative proof that the
+        # scan succeeded. The local TTL governs the QR representation, not the provider session;
+        # accept this one narrow expired-window completion under the same current lease/fence.
+        if (
+            current is PairingState.PAIRING_AVAILABLE
+            and target is PairingState.PAIRED
+            and (row.pairing_expires_at is None or row.pairing_expires_at <= utcnow())
+            and provider_confirmed_pairing
+        ):
+            return await self._pairing_manager().complete_provider_confirmed_pairing(
+                organization_id=organization_id,
+                actor=actor,
+                session_public_id=uuidlib.UUID(row.public_id),
+                runtime_id=lease_runtime_id,
+                fencing_token=fencing_token,
+                expected_row_version=row.row_version,
+                provider_identity_present=True,
+            )
 
         expires_at = None
         if target is PairingState.PAIRING_AVAILABLE:

@@ -4,7 +4,28 @@
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T18:15:25+05:30`.
+Last synchronized: `2026-08-09T19:42:09+05:30`.
+
+## QR-09I — Pairing Window Renewal and Post-Scan Convergence Remediation
+
+**Milestone status: `REPOSITORY/RUNTIME VALIDATED`.** QR-09-D11 is `REMEDIATED`. QR-09 remains
+`PARTIAL (BLOCKED)`. `Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Baseline | PASS | Local/origin matched `ui/taste-modernization` at `e2f045fb517102e56ca9651726dfb9ef322cd861`; worktree clean except accepted `.claude/`. |
+| D11 reproduction | PASS | Real MySQL held one durable `initializing`/`pairing_available` session whose short-lived availability expiry had passed, while the exact certified WAHA container held the same configured session at `WORKING` with an identity present. The old equal-state path neither renewed expiry nor allowed convergence, so polling remained trapped after a successful physical scan. |
+| TTL contract | PASS | Repository contracts define `pairing_ttl_seconds` as the lifetime of the ephemeral pairing representation, not a deadline that invalidates provider-established credentials. The ordinary expired transition rejection remains unchanged. |
+| Renewal | PASS | An explicit pairing request in `PAIRING_AVAILABLE` renews expiry through a lease/fence/version-checked manager operation. State, `pairing_revision` and `pairing_changed_at` remain stable; `row_version` and a redacted Audit event advance. Read-only polling does not renew. |
+| Post-scan convergence | PASS | Expired local availability can converge only when a fresh provider observation is `WORKING`, contains an identity, and names the configured session. It transitions to `PAIRED`, clears expiry, preserves the pairing revision, and records only a boolean identity-presence fact. Missing identity, wrong session, outage and reached-provider conflict all fail closed. |
+| Live application proof | PASS | The actual backend, real MySQL/Redis and unchanged linked WAHA container returned HTTP 200 with application state `active`/`paired`, provider `WORKING`, `connected: true`, `qr_available: false`, and only masked identity. Durable connection/session and provider session counts remained one; linked message count remained zero. |
+| Provider preservation | PASS | Exact digest `sha256:33ecd1b7…f2d75e`, WAHA 2026.7.2 / NOWEB / CORE, same live container start time, restart count 0, health `healthy`, loopback-only development exposure, and unchanged `waha-sessions:/app/.sessions`. No stop/restart/logout/delete/create/new QR/rescan/message or manual database mutation. |
+| Focused regression | PASS | Pairing/runtime/QR regressions **65 passed**; broader lifecycle/lease/Inbox/webhook selection **453 passed**; frontend QR suite **36 passed**. Renewal, stale lease/fence/version, narrow identity convergence and fail-closed cases are covered. |
+| Full quality/release gates | PASS | Canonical premerge **14/14 PASS** in 369.6s: **1436 backend tests**, **806 frontend tests**, lint/types/OpenAPI/build/SAST/audits/scans. Nine release/runtime gates also passed: both Compose contracts, exact-digest isolated health positive/negative and restart proof, certified QR/webhook validators, release/image contracts, image scans and SBOM. |
+| Live-health substitution | PASS (qualified) | The canonical health validator explicitly restarts service `waha`, so it was not run against the protected owner-linked container. A uniquely named, internal-only container and volume at the exact certified digest proved the same health command succeeds against responsive `/health`, fails against an unavailable target, reaches healthy before/after restart, retains zero sessions, and was then removed. This is recorded as a substitution, not a claim that the monolithic release runner executed unchanged. |
+| UI preview | NOT APPLICABLE | No frontend source changed; existing QR tests prove the connected/no-QR view. Local screenshot automation was unavailable because its browser runtime could not initialize, so no screenshot or browser-matrix evidence is claimed. |
+| Contract/security invariants | PASS | Migration `0043`/44 revisions and OpenAPI 207 paths unchanged; no route/schema/RBAC/capability/digest/storage/approval change; no QR, identity, token or secret emitted. Meta token rotation remains `PENDING — OWNER DEFERRED`. |
+| Remaining external gates | PENDING – Host Machine Validation | Real inbound external text, outbound Inbox reply, SERVER/DEVICE/READ and out-of-order ACK monotonicity, linked-session restart/reconnect, logout/re-authentication, Meta token rotation, and supported-browser/target-host evidence remain unperformed. |
 
 ## QR-09H — Expired QR Existing-Session Recovery Remediation
 

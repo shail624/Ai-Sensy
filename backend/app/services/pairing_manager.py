@@ -9,7 +9,7 @@ interactive transitions; scheduled expiry is a separate audited maintenance oper
 from __future__ import annotations
 
 import uuid as uuidlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -158,6 +158,175 @@ class PairingManager:
                 **event.audit_payload(),
                 "pairing_revision": row.pairing_revision,
                 "pairing_expires_at": expiry.isoformat() if expiry is not None else None,
+                "row_version": row.row_version,
+            },
+        )
+        await self._session.commit()
+        return row
+
+    async def renew_pairing_availability(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        session_public_id: uuidlib.UUID,
+        runtime_id: str,
+        fencing_token: int,
+        expected_row_version: int,
+        at: datetime | None = None,
+    ) -> ChannelSession:
+        """Renew one explicitly refreshed QR window without inventing a state transition.
+
+        The registered runtime TTL remains authoritative. This operation is intentionally distinct
+        from ``transition_pairing``: ``PAIRING_AVAILABLE -> PAIRING_AVAILABLE`` is not a lifecycle
+        transition, so the pairing revision and state-change timestamp remain untouched.
+        """
+
+        await self._require_authenticate(organization_id, actor)
+        now = at or utcnow()
+        row = await self._session_manager.lock_runtime_owned_session(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=session_public_id,
+            runtime_id=runtime_id,
+            fencing_token=fencing_token,
+            expected_row_version=expected_row_version,
+            at=now,
+        )
+        runtime = await self._require_pairing_runtime(organization_id, row)
+        self._validate_session_state(row)
+        if PairingState(row.pairing_state) is not PairingState.PAIRING_AVAILABLE:
+            raise ValidationError(
+                "Pairing availability can be renewed only while a QR is available."
+            )
+
+        expiry = self._validate_expiry(
+            current=PairingState.PAIRING_AVAILABLE,
+            target=PairingState.PAIRING_AVAILABLE,
+            expires_at=now + timedelta(seconds=runtime.pairing_ttl_seconds),
+            current_expires_at=row.pairing_expires_at,
+            now=now,
+            max_ttl_seconds=runtime.pairing_ttl_seconds,
+        )
+        assert expiry is not None  # target is PAIRING_AVAILABLE; validated immediately above
+        before = {
+            "pairing_state": row.pairing_state,
+            "pairing_revision": row.pairing_revision,
+            "pairing_expires_at": (
+                row.pairing_expires_at.isoformat()
+                if row.pairing_expires_at is not None
+                else None
+            ),
+        }
+        row.pairing_expires_at = expiry
+        row.updated_by = actor.id
+        row.row_version += 1
+        await self._sessions.flush()
+        await self._audit.record(
+            AuditAction.CHANNEL_PAIRING_AVAILABILITY_RENEWED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="channel_session",
+            entity_id=row.id,
+            before=before,
+            after={
+                "event_type": "runtime.pairing_availability_renewed",
+                "session_public_id": row.public_id,
+                "runtime_id": runtime_id,
+                "occurred_at": now.isoformat(),
+                "state": row.pairing_state,
+                "pairing_revision": row.pairing_revision,
+                "pairing_expires_at": expiry.isoformat(),
+                "row_version": row.row_version,
+            },
+        )
+        await self._session.commit()
+        return row
+
+    async def complete_provider_confirmed_pairing(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        session_public_id: uuidlib.UUID,
+        runtime_id: str,
+        fencing_token: int,
+        expected_row_version: int,
+        provider_identity_present: bool,
+        at: datetime | None = None,
+    ) -> ChannelSession:
+        """Accept an expired QR attempt only after the live provider confirms authentication.
+
+        This is not a general expiry bypass. It applies only to an expired durable
+        ``PAIRING_AVAILABLE`` row, requires the current runtime lease/fence and an identity-bearing
+        live provider observation, and records only redaction-safe evidence. Ordinary lifecycle
+        transitions continue through ``transition_pairing`` and retain its expiry rejection.
+        """
+
+        await self._require_authenticate(organization_id, actor)
+        now = at or utcnow()
+        row = await self._session_manager.lock_runtime_owned_session(
+            organization_id=organization_id,
+            actor=actor,
+            public_id=session_public_id,
+            runtime_id=runtime_id,
+            fencing_token=fencing_token,
+            expected_row_version=expected_row_version,
+            at=now,
+        )
+        await self._require_pairing_runtime(organization_id, row)
+        self._validate_session_state(row)
+        if PairingState(row.pairing_state) is not PairingState.PAIRING_AVAILABLE:
+            raise ValidationError(
+                "Provider-confirmed completion requires pairing_available durable state."
+            )
+        if not provider_identity_present:
+            raise ConflictError(
+                "The provider did not confirm an identity for this pairing attempt."
+            )
+        if row.pairing_expires_at is not None and row.pairing_expires_at > now:
+            raise ValidationError(
+                "Unexpired pairing completion must use the ordinary lifecycle transition."
+            )
+
+        before = {
+            "pairing_state": row.pairing_state,
+            "pairing_revision": row.pairing_revision,
+            "pairing_expires_at": (
+                row.pairing_expires_at.isoformat()
+                if row.pairing_expires_at is not None
+                else None
+            ),
+            "pairing_reason_code": row.pairing_reason_code,
+        }
+        row.pairing_state = PairingState.PAIRED.value
+        row.pairing_changed_at = now
+        row.pairing_expires_at = None
+        row.pairing_reason_code = "provider_confirmed_after_qr_expiry"
+        row.updated_by = actor.id
+        row.row_version += 1
+        await self._sessions.flush()
+        event = RuntimeEvent(
+            event_type=RuntimeEventType.PAIRING_STATE_CHANGED,
+            organization_id=organization_id,
+            session_public_id=row.public_id,
+            runtime_id=runtime_id,
+            occurred_at=now,
+            state=PairingState.PAIRED.value,
+            reason_code=row.pairing_reason_code,
+        )
+        await self._audit.record(
+            AuditAction.CHANNEL_PAIRING_TRANSITIONED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="channel_session",
+            entity_id=row.id,
+            before=before,
+            after={
+                **event.audit_payload(),
+                "provider_identity_present": True,
+                "pairing_revision": row.pairing_revision,
+                "pairing_expires_at": None,
                 "row_version": row.row_version,
             },
         )

@@ -646,6 +646,228 @@ async def test_pairing_expiration_retry_cancel_and_stale_runtime_protection(
     assert row.pairing_state == PairingState.PAIRING_CANCELLED.value
 
 
+async def test_pairing_availability_renewal_is_ttl_bound_fenced_and_audited(
+    db_session, make_user, organization
+) -> None:
+    """A fresh QR window is renewed without pretending a lifecycle transition occurred."""
+    actor = (await make_user(email="pairing-renewal@example.test", roles=("admin",))).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    _, row = await _create_session(db_session, organization.id, actor, providers)
+    runtime = ProviderRuntimeManager(db_session, runtimes=runtimes)
+    pairing = PairingManager(db_session, runtimes=runtimes)
+    now = utcnow()
+
+    lease = await runtime.claim_session(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-renewal",
+        expected_row_version=row.row_version,
+        at=now,
+    )
+    row = await runtime.transition_runtime(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-renewal",
+        fencing_token=lease.fencing_token,
+        expected_row_version=row.row_version,
+        target_state=SessionState.INITIALIZING,
+        at=now + timedelta(seconds=1),
+    )
+    row = await pairing.transition_pairing(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-renewal",
+        fencing_token=lease.fencing_token,
+        expected_row_version=row.row_version,
+        target_state=PairingState.PAIRING_REQUESTED,
+        at=now + timedelta(seconds=2),
+    )
+    row = await pairing.transition_pairing(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-renewal",
+        fencing_token=lease.fencing_token,
+        expected_row_version=row.row_version,
+        target_state=PairingState.PAIRING_AVAILABLE,
+        expires_at=now + timedelta(seconds=20),
+        at=now + timedelta(seconds=3),
+    )
+    original_revision = row.pairing_revision
+    original_changed_at = row.pairing_changed_at
+    original_version = row.row_version
+
+    renewed = await pairing.renew_pairing_availability(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-renewal",
+        fencing_token=lease.fencing_token,
+        expected_row_version=original_version,
+        at=now + timedelta(seconds=10),
+    )
+
+    assert renewed.pairing_state == PairingState.PAIRING_AVAILABLE.value
+    assert renewed.pairing_revision == original_revision
+    assert renewed.pairing_changed_at == original_changed_at
+    assert renewed.pairing_expires_at == now + timedelta(seconds=70)
+    assert renewed.row_version == original_version + 1
+
+    renewal_audits = list(
+        (
+            await db_session.scalars(
+                select(AuditLog).where(
+                    AuditLog.action == AuditAction.CHANNEL_PAIRING_AVAILABILITY_RENEWED
+                )
+            )
+        ).all()
+    )
+    assert len(renewal_audits) == 1
+    audit_text = json.dumps(
+        {
+            "before": renewal_audits[0].before_json,
+            "after": renewal_audits[0].after_json,
+        },
+        default=str,
+    )
+    assert "runtime.pairing_availability_renewed" in audit_text
+    assert "qr_payload" not in audit_text
+    assert "provider_identity" not in audit_text
+
+    with pytest.raises(ConflictError, match="stale"):
+        await pairing.renew_pairing_availability(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-renewal",
+            fencing_token=lease.fencing_token + 1,
+            expected_row_version=renewed.row_version,
+            at=now + timedelta(seconds=11),
+        )
+
+    with pytest.raises(ConflictError, match="changed"):
+        await pairing.renew_pairing_availability(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-renewal",
+            fencing_token=lease.fencing_token,
+            expected_row_version=original_version,
+            at=now + timedelta(seconds=11),
+        )
+
+    with pytest.raises(ConflictError, match="lease has expired"):
+        await pairing.renew_pairing_availability(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-renewal",
+            fencing_token=lease.fencing_token,
+            expected_row_version=renewed.row_version,
+            at=now + timedelta(seconds=46),
+        )
+
+
+async def test_expired_pairing_requires_identity_bearing_provider_confirmation(
+    db_session, make_user, organization
+) -> None:
+    """The ordinary transition stays strict; only the fenced provider-confirmed path can land."""
+    actor = (await make_user(email="pairing-confirmed@example.test", roles=("admin",))).user
+    await _enable_flags(db_session, organization.id)
+    providers, runtimes = _registries()
+    _, row = await _create_session(db_session, organization.id, actor, providers)
+    runtime = ProviderRuntimeManager(db_session, runtimes=runtimes)
+    pairing = PairingManager(db_session, runtimes=runtimes)
+    now = utcnow()
+
+    lease = await runtime.claim_session(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-confirmed",
+        expected_row_version=row.row_version,
+        at=now,
+    )
+    row = await runtime.transition_runtime(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-confirmed",
+        fencing_token=lease.fencing_token,
+        expected_row_version=row.row_version,
+        target_state=SessionState.INITIALIZING,
+        at=now + timedelta(seconds=1),
+    )
+    for target, at, expiry in (
+        (PairingState.PAIRING_REQUESTED, now + timedelta(seconds=2), None),
+        (PairingState.PAIRING_AVAILABLE, now + timedelta(seconds=3), now + timedelta(seconds=10)),
+    ):
+        row = await pairing.transition_pairing(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-confirmed",
+            fencing_token=lease.fencing_token,
+            expected_row_version=row.row_version,
+            target_state=target,
+            expires_at=expiry,
+            at=at,
+        )
+
+    with pytest.raises(ConflictError, match="representation has expired"):
+        await pairing.transition_pairing(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-confirmed",
+            fencing_token=lease.fencing_token,
+            expected_row_version=row.row_version,
+            target_state=PairingState.PAIRED,
+            at=now + timedelta(seconds=11),
+        )
+
+    with pytest.raises(ConflictError, match="did not confirm"):
+        await pairing.complete_provider_confirmed_pairing(
+            organization_id=organization.id,
+            actor=actor,
+            session_public_id=uuidlib.UUID(row.public_id),
+            runtime_id="runtime-confirmed",
+            fencing_token=lease.fencing_token,
+            expected_row_version=row.row_version,
+            provider_identity_present=False,
+            at=now + timedelta(seconds=11),
+        )
+
+    completed = await pairing.complete_provider_confirmed_pairing(
+        organization_id=organization.id,
+        actor=actor,
+        session_public_id=uuidlib.UUID(row.public_id),
+        runtime_id="runtime-confirmed",
+        fencing_token=lease.fencing_token,
+        expected_row_version=row.row_version,
+        provider_identity_present=True,
+        at=now + timedelta(seconds=11),
+    )
+    assert completed.pairing_state == PairingState.PAIRED.value
+    assert completed.pairing_expires_at is None
+    assert completed.pairing_revision == 1
+    transition_audit = (
+        await db_session.scalars(
+            select(AuditLog)
+            .where(AuditLog.action == AuditAction.CHANNEL_PAIRING_TRANSITIONED)
+            .order_by(AuditLog.id.desc())
+        )
+    ).first()
+    assert transition_audit is not None
+    rendered = json.dumps(transition_audit.after_json, default=str)
+    assert '"provider_identity_present": true' in rendered
+    assert "919355" not in rendered
+
+
 async def test_runtime_tenant_isolation_and_audit_redaction(
     db_session, make_user, organization
 ) -> None:

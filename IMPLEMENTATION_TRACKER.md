@@ -3,7 +3,7 @@
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09D, QR-09G and QR-09H are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
+_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H and QR-09I are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
 PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
 QR-01 WAHA provider adapter
 foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
@@ -18,8 +18,17 @@ blocks every live history, media, event and adapter behavior._
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
 - **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09H — Expired QR Existing-Session Recovery Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** QR-09H closes QR-09-D10 (Blocker): an unscanned QR lapses to `FAILED` while
+- **Current milestone:** `QR-09I — Pairing Window Renewal and Post-Scan Convergence Remediation — REPOSITORY/RUNTIME VALIDATED`. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
+- **Latest change:** QR-09I closes QR-09-D11 (Blocker): the local QR representation could expire
+  after the physical scan even though the same provider session had reached identity-bearing
+  `WORKING`. An explicit pairing request now renews only that representation under the existing
+  lease/fence/version controls; polling cannot extend it. A narrow completion path accepts only a
+  fresh same-session `WORKING` observation with identity, preserves the pairing revision and emits
+  redacted Audit evidence. The actual linked session converged to active/paired/connected with no
+  new QR, rescan, restart, logout, message or database backdoor. Canonical premerge 14/14 plus nine
+  release/runtime gates passed; backend 1436, frontend 806. Physical phone/ACK/persistence/logout,
+  Meta rotation and target-host/browser evidence remain pending.
+- **Superseded change:** QR-09H closes QR-09-D10 (Blocker): an unscanned QR lapses to `FAILED` while
   the provider session object survives, so every governed "Get a new QR code" retry hit the
   provider's `already exists` refusal, which the service reported as an outage; with `reconnect`
   refusing and `connect` a no-op, the channel could never issue another QR. Certified behavior was

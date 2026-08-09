@@ -101,6 +101,7 @@ class AuditAction:
     CHANNEL_SESSION_EXPIRED = "channel_session.expired"
     CHANNEL_RUNTIME_CAPABILITIES_PUBLISHED = "channel_runtime.capabilities_published"
     CHANNEL_PAIRING_TRANSITIONED = "channel_pairing.transitioned"
+    CHANNEL_PAIRING_AVAILABILITY_RENEWED = "channel_pairing.availability_renewed"
     CHANNEL_HISTORY_CHECKPOINT_CREATED = "channel_history.checkpoint_created"
     CHANNEL_HISTORY_CHECKPOINT_TRANSITIONED = "channel_history.checkpoint_transitioned"
     CHANNEL_HISTORY_PROGRESS_RECORDED = "channel_history.progress_recorded"
