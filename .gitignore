@@ -75,3 +75,8 @@ Thumbs.db
 
 # ---- Docker volumes (local) ----
 docker/data/
+
+# ---- Competitor reference captures ----
+# REPOSITORY_RULES.md requires the AiSensy capture archive to stay local and never be staged,
+# committed or bundled. Without this rule a `git add -A` commits the whole archive.
+.reference/
