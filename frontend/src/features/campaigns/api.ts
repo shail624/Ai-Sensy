@@ -1,10 +1,11 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
   AttributeDefinition,
   Campaign,
+  CampaignServerQuery,
   CampaignCreateRequest,
   CampaignDispatch,
   CampaignEstimate,
@@ -38,22 +39,13 @@ export const campaignKeys = {
 };
 
 /**
- * Every campaign in the organization, newest first.
- *
- * `GET /campaigns` declares **no** query parameters in the contract — the endpoint reads `q` and
- * `status` straight off `request.query_params`, so they are invisible to OpenAPI and unreachable
- * from the generated client, and it returns the org's complete list with no server-side paging.
- * Search, filtering, sorting and pagination therefore run in the client over that complete set
- * (`selectors.ts`), which is exact rather than approximate. `useContactSearch` solved the same
- * problem by switching to an endpoint that *does* declare its query; campaigns has no such
- * endpoint, and inventing untyped parameters here would mean hand-writing contract shape.
+ * Server-filtered campaigns; existing local sorting and paging operate on the returned set.
  */
-export function useCampaigns(enabled = true) {
+export function useCampaigns(enabled = true, filters: CampaignServerQuery = {}) {
   return useQuery({
-    queryKey: campaignKeys.list(),
+    queryKey: [...campaignKeys.list(), filters],
     queryFn: async (): Promise<Campaign[]> =>
-      unwrap(await api.GET("/api/v1/campaigns")).data,
-    placeholderData: keepPreviousData,
+      unwrap(await api.GET("/api/v1/campaigns", { params: { query: filters } })).data,
     enabled,
   });
 }

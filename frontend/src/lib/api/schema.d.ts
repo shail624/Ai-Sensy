@@ -12156,7 +12156,12 @@ export interface operations {
     };
     list_campaigns_api_v1_campaigns_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by campaign name. */
+                q?: string | null;
+                /** @description Filter by campaign status. */
+                status?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12170,6 +12175,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -26,7 +26,6 @@ import {
 import {
   completionRatio,
   deliveryStats,
-  filterCampaigns,
   PAGE_SIZE,
   rate,
   selectCampaignPage,
@@ -107,16 +106,13 @@ describe("selectors — filtering, sorting, pagination", () => {
     campaignFixture({ id: "c", name: "Charlie", status: "draft", created_at: "2026-07-03T00:00:00Z", total_recipients: 30 }),
   ];
 
-  it("matches search case-insensitively on the name", () => {
-    expect(filterCampaigns(rows, query({ q: "brav" })).map((row) => row.id)).toEqual(["b"]);
-    expect(filterCampaigns(rows, query({ q: "  " })).length).toBe(3);
+  it("does not reinterpret the server's search results", () => {
+    expect(selectCampaignPage(rows, query({ q: "brav" })).total).toBe(3);
+    expect(selectCampaignPage(rows, query({ q: "  " })).total).toBe(3);
   });
 
-  it("filters by exact status", () => {
-    expect(filterCampaigns(rows, query({ status: "draft" })).map((row) => row.id)).toEqual([
-      "a",
-      "c",
-    ]);
+  it("does not apply a second status filter to server results", () => {
+    expect(selectCampaignPage(rows, query({ status: "draft" })).rows.map((row) => row.id)).toEqual(["c", "b", "a"]);
   });
 
   it("sorts by each supported key without mutating the input", () => {
@@ -129,7 +125,7 @@ describe("selectors — filtering, sorting, pagination", () => {
   });
 
   it("reports page counts over the filtered set, not the whole list", () => {
-    const page = selectCampaignPage(rows, query({ status: "draft" }));
+    const page = selectCampaignPage([rows[0]!, rows[2]!], query({ status: "draft" }));
     expect(page.total).toBe(2);
     expect(page.totalPages).toBe(1);
     expect(page.rows.map((row) => row.id)).toEqual(["c", "a"]);

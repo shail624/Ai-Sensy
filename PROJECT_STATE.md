@@ -1,5 +1,44 @@
 # Project State
 
+## MAINT-02 — typed campaign list filters (2026-09-13)
+
+Latest milestone: MAINT-02. Branch: `claude/sweet-darwin-5i66uq`; approved starting
+HEAD: `6d755f250eb3cd1b2e3126ba2ba26ff32f8516b2`. Delivery HEAD is this milestone's
+single commit (resolve from Git). Repository version remains `1.0.0-rc1`.
+
+PASS: the approved branch reproduced an empty query-parameter declaration in live OpenAPI,
+despite frozen API design section 17 requiring campaign name/status filtering. No frozen
+requirement calls for the undeclared shape. The route now declares optional typed q/status;
+status validation derives from the existing campaign status tuple. The existing legacy
+status-filter spelling remains accepted with its existing precedence, without adding it
+to the public generated query shape.
+
+PASS: regenerated OpenAPI and frontend types; the generated client sends filters and query
+cache keys include them. Removed duplicate client-side search/status filtering. Existing
+local sorting and paging remain; no server pagination, new tabs, campaign kinds, migrations,
+execution, scheduling, audience or dispatch changes. Empty filtered results are distinguished
+from an empty registry; filter controls remain mounted while results load.
+
+PASS: full backend suite **962 passed**, no failures/skips (176.71s); focused new backend
+contract/filter/status/tenant checks **14 passed**. Frontend campaign tests **48 passed**;
+full frontend suite **657 passed / 33 files** (5.64s). TypeScript, production build,
+ESLint, changed-backend Ruff, endpoint mypy and OpenAPI drift check passed.
+Build bundle-size and runtime/tool deprecation warnings remain non-blocking.
+Initial sandbox restrictions on dependency installation/bundler startup were resolved;
+the completed runs above are the acceptance results.
+
+OpenAPI remains **193 paths**, migration head remains **0035_notification_center**.
+No source-of-truth document changed. Existing module completion estimates are not increased.
+PENDING – Host Machine Validation: deployed MySQL/browser/E2E commissioning was not run;
+this bounded contract milestone is not a new production-readiness certification.
+
+Design note: `docs/design/MAINT-02-CAMPAIGN-LIST-FILTER-CONTRACT.md`.
+Decision: `docs/adr/0020-maint-02-campaign-list-filter-contract.md`.
+Scope limited to MAINT-02; other local work was excluded through an isolated worktree.
+Next action after the single commit/push: STOP; no next milestone is authorized.
+
+## Historical records below — retained, not current MAINT-02 evidence
+
 > Current repository snapshot. Update this file at every milestone closeout and whenever the
 > milestone baseline changes. `HEAD` is kept symbolic because a Git commit cannot embed its own
 > final hash; resolve it from the authoritative checkout with `git rev-parse HEAD`.

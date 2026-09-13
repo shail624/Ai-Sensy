@@ -1,8 +1,9 @@
-import type { components } from "@/lib/api/schema";
+import type { components, paths } from "@/lib/api/schema";
 
 // Aliased from the generated OpenAPI schema — never hand-written (Doc 14 §2 decoupling contract).
 export type Campaign = components["schemas"]["CampaignResponse"];
 export type CampaignList = components["schemas"]["CampaignListResponse"];
+export type CampaignServerQuery = NonNullable<paths["/api/v1/campaigns"]["get"]["parameters"]["query"]>;
 export type CampaignCreateRequest = components["schemas"]["CampaignCreateRequest"];
 export type CampaignUpdateRequest = components["schemas"]["CampaignUpdateRequest"];
 export type CampaignPreview = components["schemas"]["CampaignPreviewResponse"];

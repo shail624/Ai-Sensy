@@ -5381,6 +5381,50 @@
         ],
         "summary": "List campaigns",
         "operationId": "list_campaigns_api_v1_campaigns_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by campaign name.",
+              "title": "Q"
+            },
+            "description": "Filter by campaign name."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(?:draft|scheduled|queued|running|paused|completed|cancelled|failed)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by campaign status.",
+              "title": "Status"
+            },
+            "description": "Filter by campaign status."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -5391,13 +5435,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -5406,15 +5455,20 @@
         "summary": "Create a draft campaign",
         "description": "Creates the draft **and** materializes its roster, so the response counts are real.",
         "operationId": "create_campaign_api_v1_campaigns_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CampaignCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -5437,12 +5491,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/campaigns/{campaign_id}": {

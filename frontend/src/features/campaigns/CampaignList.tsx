@@ -42,16 +42,14 @@ function writeQuery(query: CampaignListQuery): URLSearchParams {
  * The Campaigns module (Doc 05 B4.1) — search, status filter, sort, pagination and the per-row
  * action set, with state held in the address bar.
  *
- * Filtering and paging run client-side over the complete list the endpoint returns; `api.ts`
- * documents why. The consequence is honest rather than hidden: the page counts below describe the
- * whole filtered set, not just what was fetched.
+ * Search and status are server filters; existing sorting and paging remain local.
  */
 export function CampaignList(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("campaigns:write");
 
-  const campaigns = useCampaigns();
+  const campaigns = useCampaigns(true, { q: query.q || undefined, status: query.status || undefined });
   const page = useMemo(
     () => selectCampaignPage(campaigns.data ?? [], query),
     [campaigns.data, query],
@@ -67,8 +65,6 @@ export function CampaignList(): JSX.Element {
   function goToPage(next: number): void {
     setSearchParams(writeQuery({ ...query, page: next }));
   }
-
-  if (campaigns.isLoading) return <Spinner label="Loading campaigns…" />;
 
   if (campaigns.isError) {
     return (
@@ -93,7 +89,9 @@ export function CampaignList(): JSX.Element {
         ) : null}
       </div>
 
-      {!hasCampaigns ? (
+      {campaigns.isLoading ? (
+        <Spinner label="Loading campaigns…" />
+      ) : !hasCampaigns && !isFiltered ? (
         <EmptyState
           title="No campaigns yet"
           description={

@@ -15,12 +15,12 @@ import uuid as uuidlib
 from dataclasses import asdict
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import decode_cursor
 from app.core.config import settings
-from app.models.campaign import Campaign
+from app.models.campaign import CAMPAIGN_STATUSES, Campaign
 from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreateRequest,
@@ -55,6 +55,7 @@ CampaignManager = Annotated[User, Depends(require_permissions("campaigns:manage"
 #: How many sample renders a preview returns (Doc 04 §17 "sample renders").
 PREVIEW_SAMPLES = 5
 RECIPIENT_PAGE = 50
+CAMPAIGN_STATUS_PATTERN = "^(?:" + "|".join(CAMPAIGN_STATUSES) + ")$"
 
 
 async def _render(service: CampaignService, campaign: Campaign) -> CampaignResponse:
@@ -66,14 +67,22 @@ async def _render(service: CampaignService, campaign: Campaign) -> CampaignRespo
 
 @router.get("/campaigns", response_model=CampaignListResponse, summary="List campaigns")
 async def list_campaigns(
-    request: Request, session: SessionDep, actor: CampaignReader
+    session: SessionDep,
+    actor: CampaignReader,
+    q: Annotated[str | None, Query(description="Filter by campaign name.")] = None,
+    status: Annotated[
+        str | None, Query(pattern=CAMPAIGN_STATUS_PATTERN, description="Filter by campaign status.")
+    ] = None,
+    legacy_status: Annotated[
+        str | None,
+        Query(alias="filter[status][eq]", pattern=CAMPAIGN_STATUS_PATTERN, include_in_schema=False),
+    ] = None,
 ) -> CampaignListResponse:
-    params = request.query_params
     service = CampaignService(session)
     campaigns = await service.list_campaigns(
         actor.organization_id,
-        status=params.get("filter[status][eq]") or params.get("status"),
-        q=params.get("q"),
+        status=legacy_status or status,
+        q=q,
     )
     return CampaignListResponse(data=[await _render(service, c) for c in campaigns])
 
