@@ -1,5 +1,12 @@
 # Repository Rules
 
+Owner clarification (2026-09-13): the explicit screenshot-parity direction supersedes earlier
+restrictions against matching approved screen organization/layout. Closely follow the supplied
+navigation and interaction structure, with original code, branding/assets, real authorized state
+and Vi extensions. Never import capture files. UI-REF-01 covers navigation, not reinstatement of
+excluded product modules. Design Document 72 records the remaining comparisons; historical
+evidence remains unchanged. Earlier rules below apply subject to this clarification.
+
 These rules govern every future milestone in this repository. They are subordinate only to an
 explicit owner instruction. Product intent is controlled by
 `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md`; implementation truth and remaining work are controlled by

@@ -59,6 +59,26 @@ def _beat_schedule() -> dict[str, dict[str, object]]:
             "schedule": crontab(minute="*"),
             "options": {"queue": SCHEDULER_TICK, "expires": 55},
         },
+        "inbox-auto-resolve": {
+            "task": "app.crm.tasks.auto_resolve_inactive_conversations",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "automation-trigger-receipts": {
+            "task": "app.automation.tasks.dispatch_automation_trigger_receipts",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "automation-schedules": {
+            "task": "app.automation.tasks.dispatch_scheduled_automations",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "analytics-report-schedules": {
+            "task": "app.analytics.tasks.dispatch_report_schedules",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
         # Recompute the trailing 6 closed hours, absorbing late delivery receipts (Doc 15 §8.2).
         "analytics-rollup-incremental": {
             "task": "app.analytics.tasks.rollup_incremental",

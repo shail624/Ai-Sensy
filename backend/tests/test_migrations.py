@@ -75,6 +75,7 @@ _EXPECTED_TABLES = {
     "analytics_conversation_rollups",
     "analytics_task_rollups",
     "analytics_contact_rollups",
+    "analytics_domain_outcome_rollups",
     "analytics_rollup_runs",
     "contact_documents",
     "contact_document_versions",
@@ -86,6 +87,7 @@ _EXPECTED_TABLES = {
     "business_event_types",
     "business_events",
     "automation_trigger_receipts",
+    "automation_wait_subscriptions",
     "reactivation_cases",
     "reactivation_case_labels",
     "reactivation_stage_events",
@@ -99,6 +101,15 @@ _EXPECTED_TABLES = {
     "sla_policies",
     "sla_events",
     "notifications",
+    "report_schedules",
+    "channel_connections",
+    "channel_endpoints",
+    "channel_secrets",
+    "channel_sessions",
+    "channel_sync_checkpoints",
+    "media_channel_references",
+    "conversation_history_views",
+    "reactivation_views",
 }
 
 
@@ -138,7 +149,87 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0035_notification_center"
+        assert version == "0062_segment_domain_predicates"
+        export_schema = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='exports'"
+        ).fetchone()[0]
+        assert "'pdf'" in export_schema
+        schedule_schema = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='report_schedules'"
+        ).fetchone()[0]
+        assert "uq_report_schedules_owner_name" in schedule_schema
+        assert "ck_rs_cadence_shape" in schedule_schema
+        assert "'daily'" in schedule_schema and "'weekly'" in schedule_schema
+        assert "'reactivation'" in schedule_schema and "'service_levels'" in schedule_schema
+        assert "'team_productivity'" in schedule_schema
+        recipient_indexes = {
+            row[1] for row in con.execute("PRAGMA index_list(campaign_recipients)").fetchall()
+        }
+        assert {
+            "ix_crecip_campaign_created",
+            "ix_crecip_campaign_status_created",
+        } <= recipient_indexes
+        reactivation_view_indexes = {
+            row[1] for row in con.execute("PRAGMA index_list(reactivation_views)").fetchall()
+        }
+        assert {
+            "ix_reactivation_views_org_visibility_created",
+            "ix_reactivation_views_org_creator",
+        } <= reactivation_view_indexes
+        reactivation_view_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(reactivation_views)").fetchall()
+        }
+        assert "workspace" in reactivation_view_columns
+        reactivation_view_schema = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='reactivation_views'"
+        ).fetchone()[0]
+        assert "ck_reactivation_views_workspace" in reactivation_view_schema
+        assert "'contacts'" in reactivation_view_schema
+        assert "'campaigns'" in reactivation_view_schema
+        assert "'kyc'" in reactivation_view_schema
+        assert "'reports'" in reactivation_view_schema
+        segment_rule_schema = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='segment_rules'"
+        ).fetchone()[0]
+        assert "ck_segrules_source" in segment_rule_schema
+        for source in ("'reactivation'", "'kyc'", "'document'", "'activation'"):
+            assert source in segment_rule_schema
+        domain_columns = {
+            row[1]
+            for row in con.execute("PRAGMA table_info(analytics_domain_outcome_rollups)").fetchall()
+        }
+        assert {
+            "domain",
+            "outcome",
+            "reactivation_completed_count",
+            "kyc_approved_count",
+            "sla_breached_count",
+        } <= domain_columns
+        notification_schema = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications'"
+        ).fetchone()[0]
+        assert "'report_ready'" in notification_schema
+        automation_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(automation_flows)").fetchall()
+        }
+        assert "next_run_at" in automation_columns
+        wait_columns = {
+            row[1]
+            for row in con.execute("PRAGMA table_info(automation_wait_subscriptions)").fetchall()
+        }
+        assert {
+            "organization_id",
+            "run_id",
+            "receipt_id",
+            "node_id",
+            "event_type",
+            "contact_id",
+            "status",
+            "started_at",
+            "timeout_at",
+            "matched_event_uuid",
+            "resolved_at",
+        } <= wait_columns
         task_columns = {row[1] for row in con.execute("PRAGMA table_info(tasks)").fetchall()}
         decision_columns = {
             row[1] for row in con.execute("PRAGMA table_info(kyc_decisions)").fetchall()
@@ -151,6 +242,123 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
             "due_notified_at",
         } <= task_columns
         assert "reason_code" in decision_columns
+        connection_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_connections)").fetchall()
+        }
+        endpoint_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_endpoints)").fetchall()
+        }
+        secret_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_secrets)").fetchall()
+        }
+        assert {
+            "connector_type",
+            "provider_connection_id",
+            "provider_configuration_json",
+            "provider_metadata_json",
+            "desired_state",
+            "observed_state",
+            "health_state",
+            "row_version",
+            "deleted_at",
+        } <= connection_columns
+        assert {
+            "connection_id",
+            "provider_endpoint_id",
+            "endpoint_metadata_json",
+            "provider_metadata_json",
+            "row_version",
+            "deleted_at",
+        } <= endpoint_columns
+        assert {
+            "encrypted_payload",
+            "key_version",
+            "secret_version",
+            "rotated_from_id",
+            "revoked_at",
+            "revoked_by",
+            "row_version",
+            "deleted_at",
+        } <= secret_columns
+        assert not {"plaintext", "secret_value", "token"} & secret_columns
+        session_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_sessions)").fetchall()
+        }
+        assert {
+            "connection_id",
+            "owner_user_id",
+            "secret_id",
+            "session_revision",
+            "state",
+            "pairing_state",
+            "pairing_revision",
+            "pairing_changed_at",
+            "pairing_expires_at",
+            "pairing_reason_code",
+            "health_state",
+            "restart_policy",
+            "holder_runtime_id",
+            "lease_expires_at",
+            "fencing_token",
+            "last_heartbeat_at",
+            "expires_at",
+            "capability_references_json",
+            "runtime_capabilities_json",
+            "provider_metadata_json",
+            "recovery_metadata_json",
+            "row_version",
+            "deleted_at",
+        } <= session_columns
+        assert not {"plaintext", "secret_value", "token", "encrypted_payload"} & session_columns
+        checkpoint_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(channel_sync_checkpoints)").fetchall()
+        }
+        media_reference_columns = {
+            row[1] for row in con.execute("PRAGMA table_info(media_channel_references)").fetchall()
+        }
+        assert {
+            "organization_id",
+            "connection_id",
+            "endpoint_id",
+            "job_id",
+            "sync_type",
+            "status",
+            "cursor_json",
+            "watermark_at",
+            "cutover_at",
+            "processed_count",
+            "failed_count",
+            "total_count",
+            "row_version",
+        } <= checkpoint_columns
+        assert {
+            "organization_id",
+            "media_asset_id",
+            "endpoint_id",
+            "provider_media_id",
+            "upload_state",
+            "download_state",
+            "expires_at",
+            "last_verified_at",
+            "provider_metadata_json",
+            "row_version",
+        } <= media_reference_columns
+        assert not {"plaintext", "secret_value", "token", "encrypted_payload"} & (
+            checkpoint_columns | media_reference_columns
+        )
+        channel_permissions = {
+            row[0]
+            for row in con.execute(
+                "SELECT code FROM permissions WHERE resource = 'channels'"
+            ).fetchall()
+        }
+        assert channel_permissions == {
+            "channels:read",
+            "channels:manage",
+            "channels:authenticate",
+            "channels:diagnose",
+            "channels:history_sync",
+        }
         con.execute("PRAGMA foreign_keys=OFF")
         case_key = bytes.fromhex("10" * 16)
         event_key = bytes.fromhex("20" * 16)
@@ -189,3 +397,45 @@ def test_first_migration_is_base_revision() -> None:
 
     script = ScriptDirectory.from_config(_alembic_config())
     assert list(script.get_bases()) == ["0001_identity_and_audit"]
+
+
+def test_single_migration_head() -> None:
+    """Exactly one head exists — no branch or merge was introduced in the migration graph."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    assert script.get_heads() == ["0062_segment_domain_predicates"]
+
+
+def test_revision_chain_is_linear() -> None:
+    """No revision has more than one parent — the history never branches or merges (Doc 10 §9)."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    for rev in script.walk_revisions():
+        assert not isinstance(rev.down_revision, tuple), (
+            f"{rev.revision} has multiple parents {rev.down_revision!r} — "
+            "the chain must stay linear"
+        )
+
+
+def test_revision_ids_fit_the_widened_version_table_column() -> None:
+    """Guards the exact MySQL failure ``0035a_widen_version_table`` repairs.
+
+    ``alembic_version.version_num`` is Alembic's own ``VARCHAR(32)`` default until that revision
+    widens it to 255 characters on MySQL (SQLite has no such enforcement — this check is dialect-
+    independent by design, so it catches the regression before anyone touches a real database).
+    A second, tighter margin flags drift toward the limit long before any identifier could hit it.
+    """
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(_alembic_config())
+    max_len = max(len(rev.revision) for rev in script.walk_revisions())
+    assert max_len <= 255, (
+        f"longest revision id is {max_len} chars — exceeds the widened "
+        "alembic_version.version_num column (see 0035a_widen_version_table.py)"
+    )
+    assert max_len <= 100, (
+        f"longest revision id is {max_len} chars — well past historical norms; "
+        "a new naming convention may be worth reconsidering before it approaches the column limit"
+    )

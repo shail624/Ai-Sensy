@@ -210,6 +210,122 @@ async def test_status_requires_inbox_write(
     assert resp.status_code == 403
 
 
+# --- AiSensy-style intervention lifecycle -----------------------------------
+@pytest.mark.anyio
+async def test_intervene_atomically_claims_requested_chat_and_is_idempotent(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, conv_id = await _seeded(client, make_user, session_factory, monkeypatch)
+    agent_id = await _user_id(session_factory, "agent@vi.co")
+    requested = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/status",
+        headers=agent,
+        json={"status": CONV_PENDING},
+    )
+    before = requested.json()["row_version"]
+
+    claimed = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=agent
+    )
+
+    assert claimed.status_code == 200, claimed.text
+    assert claimed.json()["status"] == CONV_OPEN
+    assert claimed.json()["assigned_to"] == agent_id
+    assert claimed.json()["row_version"] == before + 1
+    assert (await _audit_actions(session_factory)).count("conversation.assigned") == 1
+
+    retried = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=agent
+    )
+    assert retried.status_code == 200
+    assert retried.json()["row_version"] == claimed.json()["row_version"]
+
+
+@pytest.mark.anyio
+async def test_intervene_rejects_a_second_agent_without_stealing_ownership(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    first, conv_id = await _seeded(client, make_user, session_factory, monkeypatch)
+    second = await _headers(client, make_user, email="second@vi.co", roles=("agent",))
+    first_id = await _user_id(session_factory, "agent@vi.co")
+    await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/status",
+        headers=first,
+        json={"status": CONV_PENDING},
+    )
+    assert (
+        await client.post(f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=first)
+    ).status_code == 200
+
+    conflict = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=second
+    )
+
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "intervention_conflict"
+    async with session_factory() as session:
+        conversation = (await session.scalars(select(Conversation))).first()
+        owner = await session.get(User, conversation.assigned_user_id)
+        assert owner is not None and owner.public_id == first_id
+
+
+@pytest.mark.anyio
+async def test_only_intervening_agent_can_resolve_and_retry_is_idempotent(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    first, conv_id = await _seeded(client, make_user, session_factory, monkeypatch)
+    second = await _headers(client, make_user, email="second@vi.co", roles=("agent",))
+    await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/status",
+        headers=first,
+        json={"status": CONV_PENDING},
+    )
+    await client.post(f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=first)
+
+    bypass = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/status",
+        headers=second,
+        json={"status": CONV_RESOLVED},
+    )
+    assert bypass.status_code == 409
+    assert bypass.json()["code"] == "intervention_conflict"
+
+    refused = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/resolve-intervention", headers=second
+    )
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "intervention_conflict"
+
+    resolved = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/resolve-intervention", headers=first
+    )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == CONV_RESOLVED
+
+    retried = await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/resolve-intervention", headers=first
+    )
+    assert retried.status_code == 200
+    assert retried.json()["row_version"] == resolved.json()["row_version"]
+
+
+@pytest.mark.anyio
+async def test_intervention_actions_require_inbox_write(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, conv_id = await _seeded(client, make_user, session_factory, monkeypatch)
+    analyst = await _headers(client, make_user, email="analyst@vi.co", roles=("analyst",))
+    await client.post(
+        f"{CONVERSATIONS_URL}/{conv_id}/status",
+        headers=agent,
+        json={"status": CONV_PENDING},
+    )
+
+    assert (
+        await client.post(f"{CONVERSATIONS_URL}/{conv_id}/intervene", headers=analyst)
+    ).status_code == 403
+
+
 # --- Notes -------------------------------------------------------------------
 @pytest.mark.anyio
 async def test_add_note(client, make_user, session_factory, monkeypatch, dispatched):

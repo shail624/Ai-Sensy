@@ -16,6 +16,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.api.pagination import Page
+from app.channels.capabilities import CONNECTOR_META_CLOUD
 from app.models.contact import Contact
 from app.models.conversation import Conversation
 from app.models.tag import Tag
@@ -50,12 +51,16 @@ class ConversationResponse(BaseModel):
     type: str = "conversation"
     status: str
     channel_type: str
+    #: Which provider owns this thread — ``"meta_cloud"`` or ``"waha"`` (QR-08). Display-only: the
+    #: server derives it from the conversation's own durable ownership, never from a client hint.
+    connector_type: str
     #: Assignee's public id, or ``null`` when unassigned.
     assigned_to: str | None
     contact: ContactRef | None
     #: Classification tags on the thread (Doc 04 §18.1 v1.3); ``[]`` when untagged.
     tags: list[TagSummary]
-    #: The sending number's public id (the list's `number` filter groups by this).
+    #: The sending number's public id (the list's `number` filter groups by this). ``null`` for a
+    #: channel-endpoint-owned (WAHA) thread (QR-08).
     phone_number_id: str | None
     last_message_at: datetime | None
     last_message_preview: str | None
@@ -75,11 +80,13 @@ class ConversationResponse(BaseModel):
         phone_number_public_id: str | None,
         assigned_to: str | None,
         tags: list[Tag] | None = None,
+        connector_type: str = CONNECTOR_META_CLOUD,
     ) -> ConversationResponse:
         return cls(
             id=conversation.public_id,
             status=conversation.status,
             channel_type=conversation.channel_type,
+            connector_type=connector_type,
             assigned_to=assigned_to,
             tags=[TagSummary.from_tag(t) for t in (tags or [])],
             contact=(

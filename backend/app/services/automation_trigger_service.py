@@ -24,6 +24,7 @@ class AutomationTriggerReceiptView:
     source: str | None
     occurred_at: datetime
     received_at: datetime
+    processed_at: datetime | None
 
 
 class AutomationTriggerService:
@@ -53,6 +54,7 @@ class AutomationTriggerService:
                 source=receipt.source,
                 occurred_at=receipt.event_occurred_at,
                 received_at=receipt.received_at,
+                processed_at=receipt.processed_at,
             )
             for receipt, version_no in rows
         ]

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.db.mixins import utcnow
+from app.models.audit import ACTOR_SYSTEM, ACTOR_USER
 from app.models.contact import Contact
 from app.models.contact_event import EVENT_TAG_ADDED, EVENT_TAG_REMOVED
 from app.models.tag import Tag
@@ -36,8 +37,12 @@ class TagService:
     async def list_tags(self, organization_id: int) -> list[Tag]:
         return await self._tags.list_for_org(organization_id)
 
-    async def get_tag(self, organization_id: int, public_id: uuidlib.UUID) -> Tag:
-        tag = await self._tags.get_active_by_uuid(organization_id, public_id.bytes)
+    async def get_tag(
+        self, organization_id: int, public_id: uuidlib.UUID, *, for_update: bool = False
+    ) -> Tag:
+        tag = await self._tags.get_active_by_uuid(
+            organization_id, public_id.bytes, for_update=for_update
+        )
         if tag is None:
             raise NotFoundError("Tag not found.")
         return tag
@@ -126,8 +131,12 @@ class TagService:
         await self._session.commit()
 
     # --- Contact ↔ tag -------------------------------------------------------
-    async def _get_contact(self, organization_id: int, public_id: uuidlib.UUID) -> Contact:
-        contact = await self._contacts.get_active_by_uuid(organization_id, public_id.bytes)
+    async def _get_contact(
+        self, organization_id: int, public_id: uuidlib.UUID, *, for_update: bool = False
+    ) -> Contact:
+        contact = await self._contacts.get_active_by_uuid(
+            organization_id, public_id.bytes, for_update=for_update
+        )
         if contact is None:
             raise NotFoundError("Contact not found.")
         return contact
@@ -140,9 +149,9 @@ class TagService:
         contact_uuid: uuidlib.UUID,
         tag_uuids: list[uuidlib.UUID],
     ) -> Contact:
-        contact = await self._get_contact(organization_id, contact_uuid)
+        contact = await self._get_contact(organization_id, contact_uuid, for_update=True)
         raw_ids = [t.bytes for t in dict.fromkeys(tag_uuids)]
-        tags = await self._tags.get_by_uuids(organization_id, raw_ids)
+        tags = await self._tags.get_by_uuids(organization_id, raw_ids, for_update=True)
         if len(tags) != len(raw_ids):
             found = {t.uuid for t in tags}
             raise ValidationError(
@@ -154,29 +163,69 @@ class TagService:
                 ],
             )
         for tag in tags:
-            if await self._links.attach(contact.id, tag.id, tagged_by=actor.id):
-                tag.usage_count += 1
-                await self._events.record(
-                    organization_id=organization_id,
-                    contact_id=contact.id,
-                    event_type=EVENT_TAG_ADDED,
-                    ref_type="tag",
-                    ref_id=tag.id,
-                    payload={"name": tag.name},
-                )
-                await self._audit.record(
-                    AuditAction.CONTACT_TAGGED,
-                    actor_user_id=actor.id,
-                    organization_id=organization_id,
-                    entity_type="contact",
-                    entity_id=contact.id,
-                    after={"tag": tag.name},
-                )
+            await self._attach_tag(
+                organization_id=organization_id,
+                contact=contact,
+                tag=tag,
+                actor=actor,
+            )
         await self._session.commit()
         # Reload the association eagerly: the instance was loaded before the attach, so its
         # cached tag collection is stale until refreshed (and must not lazy-load later).
         await self._session.refresh(contact, ["tags", "attribute_values"])
         return contact
+
+    async def apply_tag_to_contact(
+        self,
+        *,
+        organization_id: int,
+        actor: User | None,
+        contact_uuid: uuidlib.UUID,
+        tag_uuid: uuidlib.UUID,
+    ) -> tuple[Contact, Tag, bool]:
+        """Attach one tag through the canonical CRM authority and report whether it changed."""
+        contact = await self._get_contact(organization_id, contact_uuid, for_update=True)
+        tag = await self.get_tag(organization_id, tag_uuid, for_update=True)
+        applied = await self._attach_tag(
+            organization_id=organization_id,
+            contact=contact,
+            tag=tag,
+            actor=actor,
+        )
+        await self._session.commit()
+        await self._session.refresh(contact, ["tags", "attribute_values"])
+        return contact, tag, applied
+
+    async def _attach_tag(
+        self,
+        *,
+        organization_id: int,
+        contact: Contact,
+        tag: Tag,
+        actor: User | None,
+    ) -> bool:
+        actor_id = actor.id if actor is not None else None
+        if not await self._links.attach(contact.id, tag.id, tagged_by=actor_id):
+            return False
+        tag.usage_count += 1
+        await self._events.record(
+            organization_id=organization_id,
+            contact_id=contact.id,
+            event_type=EVENT_TAG_ADDED,
+            ref_type="tag",
+            ref_id=tag.id,
+            payload={"name": tag.name},
+        )
+        await self._audit.record(
+            AuditAction.CONTACT_TAGGED,
+            actor_user_id=actor_id,
+            actor_type=ACTOR_USER if actor is not None else ACTOR_SYSTEM,
+            organization_id=organization_id,
+            entity_type="contact",
+            entity_id=contact.id,
+            after={"tag": tag.name},
+        )
+        return True
 
     async def remove_tag_from_contact(
         self,
@@ -186,10 +235,32 @@ class TagService:
         contact_uuid: uuidlib.UUID,
         tag_uuid: uuidlib.UUID,
     ) -> None:
-        contact = await self._get_contact(organization_id, contact_uuid)
-        tag = await self.get_tag(organization_id, tag_uuid)
-        if not await self._links.detach(contact.id, tag.id):
+        _, _, removed = await self.remove_tag_from_contact_if_present(
+            organization_id=organization_id,
+            actor=actor,
+            contact_uuid=contact_uuid,
+            tag_uuid=tag_uuid,
+        )
+        if not removed:
             raise NotFoundError("Tag is not attached to this contact.")
+
+    async def remove_tag_from_contact_if_present(
+        self,
+        *,
+        organization_id: int,
+        actor: User | None,
+        contact_uuid: uuidlib.UUID,
+        tag_uuid: uuidlib.UUID,
+    ) -> tuple[Contact, Tag, bool]:
+        """Detach one tag canonically and make an absent association a safe no-op."""
+        contact = await self._get_contact(organization_id, contact_uuid, for_update=True)
+        tag = await self.get_tag(organization_id, tag_uuid, for_update=True)
+        removed = await self._links.detach(contact.id, tag.id)
+        if not removed:
+            await self._session.commit()
+            await self._session.refresh(contact, ["tags", "attribute_values"])
+            return contact, tag, False
+
         tag.usage_count = max(0, tag.usage_count - 1)
         await self._events.record(
             organization_id=organization_id,
@@ -201,10 +272,13 @@ class TagService:
         )
         await self._audit.record(
             AuditAction.CONTACT_UNTAGGED,
-            actor_user_id=actor.id,
+            actor_user_id=actor.id if actor is not None else None,
+            actor_type=ACTOR_USER if actor is not None else ACTOR_SYSTEM,
             organization_id=organization_id,
             entity_type="contact",
             entity_id=contact.id,
             before={"tag": tag.name},
         )
         await self._session.commit()
+        await self._session.refresh(contact, ["tags", "attribute_values"])
+        return contact, tag, True

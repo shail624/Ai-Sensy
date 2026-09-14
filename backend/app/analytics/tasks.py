@@ -37,7 +37,7 @@ from typing import Any
 
 from app.db.session import get_sessionmaker
 from app.queue.base_task import TrackedTask, register_task, run_async
-from app.queue.registry import ANALYTICS_ROLLUP, EXPORTS
+from app.queue.registry import ANALYTICS_ROLLUP, EXPORTS, SCHEDULER_TICK
 from app.services.analytics_rollup_service import AnalyticsRollupService
 
 
@@ -162,6 +162,29 @@ def run_report_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
     """
     try:
         return run_async(_run_report_export(export_id))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+
+async def _dispatch_report_schedules() -> dict[str, Any]:
+    async with get_sessionmaker()() as session:
+        from app.services.report_schedule_service import ReportScheduleService
+
+        return await ReportScheduleService(session).tick(
+            dispatch=lambda export_id, task_id: run_report_export.apply_async(
+                args=[export_id], task_id=task_id
+            )
+        )
+
+
+@register_task(
+    queue=SCHEDULER_TICK, name="app.analytics.tasks.dispatch_report_schedules"
+)
+def dispatch_report_schedules(self: TrackedTask) -> dict[str, Any]:
+    """Claim due report schedules and hand each occurrence to the shared export queue."""
+    try:
+        return run_async(_dispatch_report_schedules())
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
         self.smart_retry(exc)
         raise

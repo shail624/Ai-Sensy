@@ -245,7 +245,7 @@ async def test_executive_only_metrics_are_gated(client, make_user, seeded):
 
 
 def test_beat_schedule_is_registered_and_utc() -> None:
-    """The five periodic entries exist, in UTC, with no duplicates (Doc 15 §8.1)."""
+    """Periodic entries exist, in UTC, with no duplicates (Doc 15 §8.1)."""
     from app.queue.celery_app import celery_app
 
     schedule = celery_app.conf.beat_schedule
@@ -253,6 +253,10 @@ def test_beat_schedule_is_registered_and_utc() -> None:
     assert tasks == {
         "app.crm.campaign_tasks.scheduler_tick",
         "app.crm.reactivation_tasks.dispatch_due_reminders",
+        "app.crm.tasks.auto_resolve_inactive_conversations",
+        "app.automation.tasks.dispatch_automation_trigger_receipts",
+        "app.automation.tasks.dispatch_scheduled_automations",
+        "app.analytics.tasks.dispatch_report_schedules",
         "app.analytics.tasks.rollup_incremental",
         "app.analytics.tasks.rollup_nightly",
         "app.analytics.tasks.rollup_prune",
@@ -264,6 +268,22 @@ def test_beat_schedule_is_registered_and_utc() -> None:
 
     reminder = schedule["reactivation-reminder-notifications"]
     assert reminder["options"] == {"queue": "scheduler.tick", "expires": 55}
+    assert schedule["inbox-auto-resolve"]["options"] == {
+        "queue": "scheduler.tick",
+        "expires": 55,
+    }
+    assert schedule["automation-trigger-receipts"]["options"] == {
+        "queue": "scheduler.tick",
+        "expires": 55,
+    }
+    assert schedule["automation-schedules"]["options"] == {
+        "queue": "scheduler.tick",
+        "expires": 55,
+    }
+    assert schedule["analytics-report-schedules"]["options"] == {
+        "queue": "scheduler.tick",
+        "expires": 55,
+    }
 
     incremental = schedule["analytics-rollup-incremental"]["schedule"]
     assert incremental.minute == {0, 15, 30, 45}

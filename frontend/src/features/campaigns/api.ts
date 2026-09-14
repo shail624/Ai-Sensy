@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -12,12 +12,18 @@ import type {
   CampaignPreview,
   CampaignProgress,
   CampaignRetry,
+  CampaignResultsExportAccepted,
+  CampaignResultsExportProgress,
+  CampaignResultsExportRequest,
   CampaignScheduleRequest,
   CampaignScheduleResult,
   CampaignState,
   CampaignUpdateRequest,
+  CampaignView,
+  CampaignViewCreate,
   PhoneNumber,
   RecipientsPage,
+  RecipientLedgerQuery,
   Segment,
   Tag,
   Template,
@@ -30,13 +36,47 @@ export { useHasPermission } from "@/lib/auth";
 export const campaignKeys = {
   all: ["campaigns"] as const,
   list: () => ["campaigns", "list"] as const,
+  views: () => ["campaigns", "views"] as const,
   detail: (id: string) => ["campaigns", "detail", id] as const,
   progress: (id: string) => ["campaigns", "progress", id] as const,
-  recipients: (id: string) => ["campaigns", "recipients", id] as const,
+  recipients: (id: string, query?: RecipientLedgerQuery) =>
+    ["campaigns", "recipients", id, query] as const,
   preview: (id: string) => ["campaigns", "preview", id] as const,
   estimate: (id: string) => ["campaigns", "estimate", id] as const,
+  export: (campaignId: string, exportId: string | null) =>
+    ["campaigns", "export", campaignId, exportId] as const,
   pickers: () => ["campaigns", "pickers"] as const,
 };
+
+export function useCampaignViews() {
+  return useQuery({
+    queryKey: campaignKeys.views(),
+    queryFn: async (): Promise<CampaignView[]> =>
+      unwrap(await api.GET("/api/v1/campaigns/views")).data,
+  });
+}
+
+export function useCreateCampaignView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CampaignViewCreate): Promise<CampaignView> =>
+      unwrap(await api.POST("/api/v1/campaigns/views", { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: campaignKeys.views() }),
+  });
+}
+
+export function useDeleteCampaignView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/campaigns/views/{view_id}", {
+        params: { path: { view_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: campaignKeys.views() }),
+  });
+}
 
 /**
  * Server-filtered campaigns; existing local sorting and paging operate on the returned set.
@@ -82,24 +122,29 @@ export function useCampaignProgress(campaignId: string, live: boolean) {
   });
 }
 
-/**
- * The first page of the per-recipient ledger (FR-CAM-10).
- *
- * The endpoint pages at a fixed 50 and accepts `cursor`/`status`, but — as with the list — reads
- * them off `request.query_params`, so neither reaches the generated client. This returns the one
- * page the contract exposes and the UI says so plainly when `has_more` is true, rather than
- * rendering pagination controls that cannot advance.
- */
-export function useCampaignRecipients(campaignId: string, enabled = true) {
+/** Server-filtered, keyset-paginated per-recipient outcome ledger (FR-CAM-10). */
+export function useCampaignRecipients(
+  campaignId: string,
+  query: RecipientLedgerQuery,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: campaignKeys.recipients(campaignId),
+    queryKey: campaignKeys.recipients(campaignId, query),
     queryFn: async (): Promise<RecipientsPage> =>
       unwrap(
         await api.GET("/api/v1/campaigns/{campaign_id}/recipients", {
-          params: { path: { campaign_id: campaignId } },
+          params: {
+            path: { campaign_id: campaignId },
+            query: {
+              status: query.status || undefined,
+              limit: 50,
+              cursor: query.cursor,
+            },
+          },
         }),
       ),
     enabled: enabled && Boolean(campaignId),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -136,6 +181,41 @@ export function useCampaignEstimate(campaignId: string, enabled: boolean) {
       ),
     enabled: enabled && Boolean(campaignId),
     retry: false,
+  });
+}
+
+export function useStartCampaignResultsExport() {
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      body,
+    }: {
+      campaignId: string;
+      body: CampaignResultsExportRequest;
+    }): Promise<CampaignResultsExportAccepted> =>
+      unwrap(
+        await api.POST("/api/v1/campaigns/{campaign_id}/exports", {
+          params: { path: { campaign_id: campaignId } },
+          body,
+        }),
+      ),
+  });
+}
+
+export function useCampaignResultsExport(campaignId: string, exportId: string | null) {
+  return useQuery({
+    queryKey: campaignKeys.export(campaignId, exportId),
+    queryFn: async (): Promise<CampaignResultsExportProgress> =>
+      unwrap(
+        await api.GET("/api/v1/campaigns/{campaign_id}/exports/{export_id}", {
+          params: { path: { campaign_id: campaignId, export_id: exportId ?? "" } },
+        }),
+      ),
+    enabled: Boolean(campaignId && exportId),
+    refetchInterval: (result) =>
+      result.state.data?.status === "pending" || result.state.data?.status === "processing"
+        ? 3_000
+        : false,
   });
 }
 

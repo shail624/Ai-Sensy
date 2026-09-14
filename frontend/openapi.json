@@ -445,6 +445,62 @@
         ]
       }
     },
+    "/api/v1/users/workload": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Current team workload snapshot",
+        "description": "Pending work by teammate; conversation/task tables remain the live authorities.",
+        "operationId": "team_workload_api_v1_users_workload_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamWorkloadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{user_id}": {
       "get": {
         "tags": [
@@ -1137,6 +1193,76 @@
         ]
       }
     },
+    "/api/v1/settings/inbox-operations": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Read the effective inbox operations policy",
+        "operationId": "get_inbox_operations_api_v1_settings_inbox_operations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxOperationsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Update the validated inbox operations policy",
+        "operationId": "update_inbox_operations_api_v1_settings_inbox_operations_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxOperationsSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxOperationsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/feature-flags": {
       "get": {
         "tags": [
@@ -1433,6 +1559,117 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/contacts/views": {
+      "get": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "List personal and team-shared Contacts views",
+        "operationId": "list_contact_views_api_v1_contacts_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "Save a personal or team-shared Contacts view",
+        "operationId": "create_contact_view_api_v1_contacts_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/contacts/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "Delete an owned personal or managed team Contacts view",
+        "operationId": "delete_contact_view_api_v1_contacts_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/contacts/{contact_id}": {
@@ -2247,6 +2484,403 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BulkProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-resolution/resolve": {
+      "post": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "Resolve exact provider/endpoint identities to one canonical Contact",
+        "operationId": "resolve_identity_api_v1_identity_resolution_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityResolutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResolutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/contacts/{contact_id}/identities": {
+      "get": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "List immutable exact identities linked to a canonical Contact",
+        "operationId": "list_contact_identities_api_v1_contacts__contact_id__identities_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Contact Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContactIdentityResponse"
+                  },
+                  "title": "Response List Contact Identities Api V1 Contacts  Contact Id  Identities Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-conflicts": {
+      "get": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "List the tenant-scoped manual identity review queue",
+        "operationId": "list_identity_conflicts_api_v1_identity_conflicts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/IdentityConflictStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityConflictPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-conflicts/{conflict_id}": {
+      "get": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "Get one identity conflict and its recommendation history",
+        "operationId": "get_identity_conflict_api_v1_identity_conflicts__conflict_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conflict_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conflict Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityConflictResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-conflicts/{conflict_id}/recommendations": {
+      "post": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "Record a non-destructive operator merge recommendation",
+        "operationId": "create_identity_recommendation_api_v1_identity_conflicts__conflict_id__recommendations_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conflict_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conflict Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityMergeRecommendationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityMergeRecommendationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-merge-recommendations/{recommendation_id}/approve": {
+      "post": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "Approve a recommendation without merging or moving identities",
+        "operationId": "approve_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__approve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Recommendation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityRecommendationDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityMergeRecommendationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity-merge-recommendations/{recommendation_id}/reject": {
+      "post": {
+        "tags": [
+          "Customer Identity"
+        ],
+        "summary": "Reject a recommendation without merging or moving identities",
+        "operationId": "reject_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Recommendation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityRecommendationDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityMergeRecommendationResponse"
                 }
               }
             }
@@ -4301,6 +4935,113 @@
         }
       }
     },
+    "/api/v1/downloads": {
+      "get": {
+        "tags": [
+          "Downloads"
+        ],
+        "summary": "List the current user's generated exports",
+        "description": "Return a tenant-, owner-, and current-permission-scoped artifact history.",
+        "operationId": "list_downloads_api_v1_downloads_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "contacts",
+                "analytics",
+                "chat_history",
+                "campaigns"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Category"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "processing",
+                    "ready",
+                    "failed",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadsPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/waba": {
       "get": {
         "tags": [
@@ -4835,6 +5576,28 @@
         }
       }
     },
+    "/api/v1/webhooks/waha": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Receive WAHA inbound events (public, HMAC-gated) — QR-08",
+        "description": "The WAHA analogue of :func:`receive_webhook` (QR-04 built the verify/parse/dedupe logic in\n``app.channels.waha.webhook``; this is the first HTTP route that reaches it).\n\nNo GET handshake: unlike Meta, WAHA has no subscription challenge to answer — it is configured\nwith this URL directly and simply starts posting. The gate is the same shape as Meta's: an\nHMAC over the raw body, checked before anything is parsed, failing closed on an unconfigured\nsecret. Persist-first, process-async is unchanged — this endpoint does no more than\n:func:`receive_webhook` does for Meta.",
+        "operationId": "receive_waha_webhook_api_v1_webhooks_waha_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/messages/send": {
       "post": {
         "tags": [
@@ -5035,6 +5798,187 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session": {
+      "get": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Get WhatsApp QR connection status",
+        "operationId": "get_session_status_api_v1_channels_whatsapp_qr_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/connect": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Start a WhatsApp QR connection",
+        "operationId": "connect_api_v1_channels_whatsapp_qr_session_connect_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/pair": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Begin pairing and request a QR",
+        "operationId": "begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/qr": {
+      "get": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Fetch the current transient QR image",
+        "operationId": "get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "image/png": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/reconnect": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Reconnect a paired session",
+        "operationId": "reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/session/logout": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Log out — invalidates WhatsApp credentials and requires a new scan",
+        "operationId": "logout_api_v1_channels_whatsapp_qr_session_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppQrLogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/templates": {
@@ -5494,6 +6438,117 @@
         }
       }
     },
+    "/api/v1/campaigns/views": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "List personal and team-shared Campaign views",
+        "operationId": "list_campaign_views_api_v1_campaigns_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Save a personal or team-shared Campaign view",
+        "operationId": "create_campaign_view_api_v1_campaigns_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/campaigns/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Delete an owned personal or managed team Campaign view",
+        "operationId": "delete_campaign_view_api_v1_campaigns_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}": {
       "get": {
         "tags": [
@@ -5757,6 +6812,60 @@
               "format": "uuid",
               "title": "Campaign Id"
             }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "queued",
+                    "sent",
+                    "delivered",
+                    "read",
+                    "failed",
+                    "skipped",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
           }
         ],
         "responses": {
@@ -5766,6 +6875,123 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecipientsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/exports": {
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Start a governed campaign recipient-results export",
+        "description": "Queue the persisted roster; no campaign recipient rows are read on the request path.",
+        "operationId": "start_campaign_results_export_api_v1_campaigns__campaign_id__exports_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignResultsExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/exports/{export_id}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Campaign-results export progress and signed download link",
+        "operationId": "campaign_results_export_progress_api_v1_campaigns__campaign_id__exports__export_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportProgressResponse"
                 }
               }
             }
@@ -6134,6 +7360,212 @@
         }
       }
     },
+    "/api/v1/conversation-transcripts/export": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Start a governed conversation transcript export",
+        "description": "Queue a selected thread; message rows are read only by the bounded exports worker.",
+        "operationId": "start_conversation_transcript_export_api_v1_conversation_transcripts_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationTranscriptExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/conversation-transcripts/export/{export_id}": {
+      "get": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Conversation transcript progress and signed download link",
+        "operationId": "conversation_transcript_export_progress_api_v1_conversation_transcripts_export__export_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversation-history/views": {
+      "get": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "List organization-shared Chat History views",
+        "operationId": "list_conversation_history_views_api_v1_conversation_history_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationHistoryViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Create an organization-shared Chat History view",
+        "operationId": "create_conversation_history_view_api_v1_conversation_history_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationHistoryViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationHistoryViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/conversation-history/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Delete an organization-shared Chat History view",
+        "operationId": "delete_conversation_history_view_api_v1_conversation_history_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "tags": [
@@ -6279,6 +7711,76 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "campaign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Campaign"
+            }
+          },
+          {
+            "name": "has_media",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Has Media"
+            }
+          },
+          {
+            "name": "has_audit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Has Audit"
             }
           },
           {
@@ -6539,6 +8041,104 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationStateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/intervene": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Intervene in a requested chat",
+        "description": "Atomically claim a requested chat for the current agent and make it active.",
+        "operationId": "intervene_conversation_api_v1_conversations__conversation_id__intervene_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationStateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/resolve-intervention": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Resolve an intervened chat",
+        "description": "Resolve only when the current agent owns the active intervention.",
+        "operationId": "resolve_conversation_intervention_api_v1_conversations__conversation_id__resolve_intervention_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -8222,7 +9822,9 @@
                     "follow_up_due",
                     "release_date_due",
                     "case_assigned",
-                    "case_status_changed"
+                    "case_status_changed",
+                    "automation_attention",
+                    "report_ready"
                   ],
                   "type": "string"
                 },
@@ -10116,6 +11718,117 @@
         ]
       }
     },
+    "/api/v1/analytics/views": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "List personal and team-shared Report views",
+        "operationId": "list_report_views_api_v1_analytics_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Save a personal or team-shared Report view",
+        "operationId": "create_report_view_api_v1_analytics_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analytics/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Delete an owned personal or managed team Report view",
+        "operationId": "delete_report_view_api_v1_analytics_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/analytics/reports/export": {
       "post": {
         "tags": [
@@ -10195,6 +11908,759 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ExportProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/report-schedules": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "List my scheduled reports",
+        "operationId": "list_report_schedules_api_v1_analytics_report_schedules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSchedulesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Create a scheduled report",
+        "operationId": "create_report_schedule_api_v1_analytics_report_schedules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportScheduleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportScheduleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analytics/report-schedules/{schedule_id}": {
+      "put": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Replace a scheduled report",
+        "operationId": "update_report_schedule_api_v1_analytics_report_schedules__schedule_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportScheduleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportScheduleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Delete a scheduled report",
+        "operationId": "delete_report_schedule_api_v1_analytics_report_schedules__schedule_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          },
+          {
+            "name": "expected_row_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Expected Row Version"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/task-productivity": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Task productivity by teammate",
+        "description": "Completed/on-time/overdue task flow by assignee over the selected range.",
+        "operationId": "analytics_task_productivity_api_v1_analytics_task_productivity_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "today",
+                    "yesterday",
+                    "last_7d",
+                    "last_30d",
+                    "this_month",
+                    "last_month",
+                    "this_quarter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsBreakdownResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/reactivation-outcomes": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Reactivation and eligibility outcomes",
+        "description": "Factual case creation, terminal outcomes and eligibility decisions by outcome.",
+        "operationId": "analytics_reactivation_outcomes_api_v1_analytics_reactivation_outcomes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "today",
+                    "yesterday",
+                    "last_7d",
+                    "last_30d",
+                    "this_month",
+                    "last_month",
+                    "this_quarter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsBreakdownResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/kyc-outcomes": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "KYC decision outcomes",
+        "description": "Review and manager decisions with terminal approval/rejection truth.",
+        "operationId": "analytics_kyc_outcomes_api_v1_analytics_kyc_outcomes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "today",
+                    "yesterday",
+                    "last_7d",
+                    "last_30d",
+                    "this_month",
+                    "last_month",
+                    "this_quarter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsBreakdownResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/service-levels": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "SLA and fulfilment outcomes",
+        "description": "SLA starts/breaches/resolutions plus SIM and activation terminal outcomes.",
+        "operationId": "analytics_service_levels_api_v1_analytics_service_levels_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "today",
+                    "yesterday",
+                    "last_7d",
+                    "last_30d",
+                    "this_month",
+                    "last_month",
+                    "this_quarter"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Preset"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsBreakdownResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{automation_id}/handoffs": {
+      "post": {
+        "tags": [
+          "Automations"
+        ],
+        "summary": "Request a human handoff from a published automation",
+        "operationId": "request_automation_handoff_api_v1_automations__automation_id__handoffs_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Automation Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationHandoffRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationHandoffResponse"
                 }
               }
             }
@@ -11025,6 +13491,117 @@
         }
       }
     },
+    "/api/v1/reactivation/views": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "List personal and team-shared Reactivation views",
+        "operationId": "list_reactivation_views_api_v1_reactivation_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactivationViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Save a personal or team-shared Reactivation view",
+        "operationId": "create_reactivation_view_api_v1_reactivation_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactivationViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactivationViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reactivation/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Delete an owned personal or managed team Reactivation view",
+        "operationId": "delete_reactivation_view_api_v1_reactivation_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reactivation-pipeline": {
       "get": {
         "tags": [
@@ -11182,6 +13759,17 @@
                 }
               ],
               "title": "Reminder Date"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           },
           {
@@ -12004,6 +14592,117 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kyc/views": {
+      "get": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "List personal and team-shared KYC views",
+        "operationId": "list_kyc_views_api_v1_kyc_views_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycViewsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Save a personal or team-shared KYC view",
+        "operationId": "create_kyc_view_api_v1_kyc_views_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycViewCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/kyc/views/{view_id}": {
+      "delete": {
+        "tags": [
+          "Vi Reactivation"
+        ],
+        "summary": "Delete an owned personal or managed team KYC view",
+        "operationId": "delete_kyc_view_api_v1_kyc_views__view_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "View Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -13885,6 +16584,38 @@
             "maxLength": 160,
             "minLength": 1,
             "title": "Title"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "call",
+              "whatsapp",
+              "collect_documents",
+              "verification",
+              "reminder",
+              "meeting",
+              "custom"
+            ],
+            "title": "Task Type",
+            "default": "custom"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Priority",
+            "default": "medium"
+          },
+          "due_in_minutes": {
+            "type": "integer",
+            "maximum": 525600.0,
+            "minimum": 5.0,
+            "title": "Due In Minutes",
+            "default": 1440
           }
         },
         "additionalProperties": false,
@@ -14555,6 +17286,94 @@
               }
             ],
             "title": "Cost Per Delivered Micros"
+          },
+          "reactivation_conversion_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reactivation Conversion Rate"
+          },
+          "reactivation_drop_off_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reactivation Drop Off Rate"
+          },
+          "avg_reactivation_turnaround_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Reactivation Turnaround Seconds"
+          },
+          "eligibility_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Rate"
+          },
+          "kyc_approval_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kyc Approval Rate"
+          },
+          "avg_kyc_turnaround_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Kyc Turnaround Seconds"
+          },
+          "sla_breach_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Breach Rate"
+          },
+          "sla_resolution_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Resolution Rate"
           }
         },
         "type": "object",
@@ -15496,6 +18315,54 @@
         ],
         "title": "AuditLogResponse"
       },
+      "AutoResolveSettings": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "inactive_after_hours": {
+            "type": "integer",
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Inactive After Hours",
+            "default": 72
+          }
+        },
+        "type": "object",
+        "title": "AutoResolveSettings",
+        "description": "Optional inactivity policy; disabled until an organization deliberately enables it."
+      },
+      "AutomaticReplySettings": {
+        "properties": {
+          "welcome_enabled": {
+            "type": "boolean",
+            "title": "Welcome Enabled",
+            "default": false
+          },
+          "welcome_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Welcome Body",
+            "default": ""
+          },
+          "off_hours_enabled": {
+            "type": "boolean",
+            "title": "Off Hours Enabled",
+            "default": false
+          },
+          "off_hours_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Off Hours Body",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "AutomaticReplySettings",
+        "description": "Optional text replies; every capability is deliberately disabled by default."
+      },
       "AutomationAttemptResponse": {
         "properties": {
           "id": {
@@ -15519,6 +18386,7 @@
             "enum": [
               "running",
               "succeeded",
+              "skipped",
               "failed",
               "interrupted"
             ],
@@ -15712,6 +18580,18 @@
             ],
             "title": "Active Version No"
           },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At"
+          },
           "has_unpublished_changes": {
             "type": "boolean",
             "title": "Has Unpublished Changes"
@@ -15761,6 +18641,7 @@
           "status",
           "graph",
           "active_version_no",
+          "next_run_at",
           "has_unpublished_changes",
           "row_version",
           "created_at",
@@ -15785,10 +18666,16 @@
                   "$ref": "#/components/schemas/ActionNode"
                 },
                 {
+                  "$ref": "#/components/schemas/HandoffNode"
+                },
+                {
                   "$ref": "#/components/schemas/DelayNode"
                 },
                 {
                   "$ref": "#/components/schemas/TagNode"
+                },
+                {
+                  "$ref": "#/components/schemas/RemoveTagNode"
                 },
                 {
                   "$ref": "#/components/schemas/AssignmentNode"
@@ -15818,7 +18705,9 @@
                   "campaign": "#/components/schemas/CampaignNode",
                   "condition": "#/components/schemas/ConditionNode",
                   "delay": "#/components/schemas/DelayNode",
+                  "handoff": "#/components/schemas/HandoffNode",
                   "notification": "#/components/schemas/NotificationNode",
+                  "remove_tag": "#/components/schemas/RemoveTagNode",
                   "tag": "#/components/schemas/TagNode",
                   "trigger": "#/components/schemas/TriggerNode",
                   "wait": "#/components/schemas/WaitNode",
@@ -15842,6 +18731,81 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AutomationGraph"
+      },
+      "AutomationHandoffRequest": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "node_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Node Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "node_id"
+        ],
+        "title": "AutomationHandoffRequest"
+      },
+      "AutomationHandoffResponse": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "automation_id": {
+            "type": "string",
+            "title": "Automation Id"
+          },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "already_requested",
+              "already_intervened"
+            ],
+            "title": "Outcome"
+          },
+          "replayed": {
+            "type": "boolean",
+            "title": "Replayed"
+          },
+          "conversation": {
+            "$ref": "#/components/schemas/ConversationStateResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "automation_id",
+          "version_no",
+          "node_id",
+          "reason",
+          "outcome",
+          "replayed",
+          "conversation"
+        ],
+        "title": "AutomationHandoffResponse"
       },
       "AutomationListResponse": {
         "properties": {
@@ -15880,7 +18844,10 @@
           },
           "mode": {
             "type": "string",
-            "const": "test",
+            "enum": [
+              "test",
+              "live"
+            ],
             "title": "Mode"
           },
           "status": {
@@ -16049,7 +19016,12 @@
           },
           "status": {
             "type": "string",
-            "const": "received",
+            "enum": [
+              "received",
+              "processing",
+              "processed",
+              "failed"
+            ],
             "title": "Status"
           },
           "source": {
@@ -16072,6 +19044,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Received At"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
           }
         },
         "type": "object",
@@ -16084,7 +19068,8 @@
           "status",
           "source",
           "occurred_at",
-          "received_at"
+          "received_at",
+          "processed_at"
         ],
         "title": "AutomationTriggerReceiptResponse"
       },
@@ -17032,6 +20017,45 @@
         ],
         "title": "CampaignResponse"
       },
+      "CampaignResultsExportRequest": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "csv",
+              "xlsx",
+              "json"
+            ],
+            "title": "Format",
+            "default": "xlsx"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "queued",
+                  "sent",
+                  "delivered",
+                  "read",
+                  "failed",
+                  "skipped",
+                  "cancelled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "CampaignResultsExportRequest",
+        "description": "Queue one campaign's factual per-recipient result ledger."
+      },
       "CampaignRetryResponse": {
         "properties": {
           "id": {
@@ -17307,6 +20331,163 @@
         "type": "object",
         "title": "CampaignUpdateRequest"
       },
+      "CampaignViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display",
+            "default": "list"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/CampaignViewFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "CampaignViewCreate"
+      },
+      "CampaignViewFilters": {
+        "properties": {
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "scheduled",
+                  "queued",
+                  "running",
+                  "paused",
+                  "completed",
+                  "cancelled",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "-created_at",
+              "created_at",
+              "name",
+              "-name",
+              "-total_recipients"
+            ],
+            "title": "Sort",
+            "default": "-created_at"
+          }
+        },
+        "type": "object",
+        "title": "CampaignViewFilters",
+        "description": "Portable Campaign list state; local page position is intentionally never persisted."
+      },
+      "CampaignViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/CampaignViewFilters"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "display",
+          "filters",
+          "is_owner",
+          "can_delete",
+          "created_at"
+        ],
+        "title": "CampaignViewResponse"
+      },
+      "CampaignViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CampaignViewsResponse"
+      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {
@@ -17422,6 +20603,38 @@
           "config"
         ],
         "title": "ConditionNode"
+      },
+      "ConsentKeywordSettings": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "opt_in_keywords": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Opt In Keywords"
+          },
+          "opt_out_keywords": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Opt Out Keywords"
+          }
+        },
+        "type": "object",
+        "title": "ConsentKeywordSettings",
+        "description": "Explicit inbound keywords that change a contact's consent state.\n\nDisabled by default: an organization must deliberately opt into interpreting message text as\nconsent. Exact normalized matches only, so a sentence that merely contains ``STOP`` cannot\naccidentally opt somebody out."
       },
       "ContactAttributesRequest": {
         "properties": {
@@ -17601,6 +20814,109 @@
           "created_at"
         ],
         "title": "ContactEventResponse"
+      },
+      "ContactIdentityResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "contact_id": {
+            "type": "string",
+            "title": "Contact Id"
+          },
+          "identity_namespace": {
+            "type": "string",
+            "title": "Identity Namespace"
+          },
+          "identity_scope": {
+            "type": "string",
+            "title": "Identity Scope"
+          },
+          "normalized_value": {
+            "type": "string",
+            "title": "Normalized Value"
+          },
+          "identity_kind": {
+            "type": "string",
+            "title": "Identity Kind"
+          },
+          "connector_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Type"
+          },
+          "connection_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Ref"
+          },
+          "endpoint_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint Ref"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "contact_id",
+          "identity_namespace",
+          "identity_scope",
+          "normalized_value",
+          "identity_kind",
+          "connector_type",
+          "connection_ref",
+          "endpoint_ref",
+          "source",
+          "confidence",
+          "verified_at",
+          "created_at"
+        ],
+        "title": "ContactIdentityResponse"
       },
       "ContactRef": {
         "properties": {
@@ -18064,6 +21380,158 @@
         "type": "object",
         "title": "ContactUpdateRequest"
       },
+      "ContactViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display",
+            "default": "list"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ContactViewFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "ContactViewCreate"
+      },
+      "ContactViewFilters": {
+        "properties": {
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "tag_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Id"
+          },
+          "attributes": {
+            "patternProperties": {
+              "^[A-Za-z][A-Za-z0-9_]*$": {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              }
+            },
+            "propertyNames": {
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "object",
+            "maxProperties": 25,
+            "title": "Attributes"
+          }
+        },
+        "type": "object",
+        "title": "ContactViewFilters",
+        "description": "Portable Contacts filters; cursor position is intentionally never persisted."
+      },
+      "ContactViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ContactViewFilters"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "display",
+          "filters",
+          "is_owner",
+          "can_delete",
+          "created_at"
+        ],
+        "title": "ContactViewResponse"
+      },
+      "ContactViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ContactViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ContactViewsResponse"
+      },
       "ContactsPage": {
         "properties": {
           "data": {
@@ -18098,6 +21566,189 @@
         ],
         "title": "ConversationAssignRequest",
         "description": "Assign or reassign a conversation to a user (Doc 04 §18.1)."
+      },
+      "ConversationHistoryFilters": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "pending",
+                  "resolved",
+                  "snoozed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "tag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "campaign": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign"
+          },
+          "has_media": {
+            "type": "boolean",
+            "title": "Has Media",
+            "default": false
+          },
+          "has_audit": {
+            "type": "boolean",
+            "title": "Has Audit",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ConversationHistoryFilters",
+        "description": "Portable, non-pagination filters stored in a shared Chat History view."
+      },
+      "ConversationHistoryViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ConversationHistoryFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "ConversationHistoryViewCreate"
+      },
+      "ConversationHistoryViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ConversationHistoryFilters"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "filters",
+          "created_at"
+        ],
+        "title": "ConversationHistoryViewResponse"
+      },
+      "ConversationHistoryViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationHistoryViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ConversationHistoryViewsResponse"
       },
       "ConversationMessagesPage": {
         "properties": {
@@ -18168,6 +21819,10 @@
           "channel_type": {
             "type": "string",
             "title": "Channel Type"
+          },
+          "connector_type": {
+            "type": "string",
+            "title": "Connector Type"
           },
           "assigned_to": {
             "anyOf": [
@@ -18258,6 +21913,7 @@
           "id",
           "status",
           "channel_type",
+          "connector_type",
           "assigned_to",
           "contact",
           "tags",
@@ -18371,6 +22027,56 @@
         ],
         "title": "ConversationTagsResponse",
         "description": "A conversation's full tag set after an add (Doc 04 §18.1 v1.3)."
+      },
+      "ConversationTranscriptExportRequest": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "csv",
+              "xlsx",
+              "json"
+            ],
+            "title": "Format",
+            "default": "pdf"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id"
+        ],
+        "title": "ConversationTranscriptExportRequest",
+        "description": "Queue a transcript for one tenant-scoped conversation.\n\n``from`` is inclusive and ``to`` is exclusive. Both are optional so an operator can export the\ncomplete factual thread; when supplied they are normalized to the platform's UTC convention."
       },
       "ConversationsPage": {
         "properties": {
@@ -19047,6 +22753,121 @@
         ],
         "title": "DocumentVersionResponse"
       },
+      "DownloadItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "download"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "row_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Count"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "name",
+          "format",
+          "status",
+          "row_count",
+          "download_url",
+          "expires_at",
+          "created_at",
+          "completed_at"
+        ],
+        "title": "DownloadItemResponse",
+        "description": "One permission-filtered artifact in the user's Download Center."
+      },
+      "DownloadsPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DownloadItemResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "title": "DownloadsPage"
+      },
       "EligibilityCheckResponse": {
         "properties": {
           "id": {
@@ -19497,6 +23318,62 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HandoffConfig": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "HandoffConfig"
+      },
+      "HandoffNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "const": "handoff",
+            "title": "Kind"
+          },
+          "config": {
+            "$ref": "#/components/schemas/HandoffConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "config"
+        ],
+        "title": "HandoffNode"
+      },
       "HealthResponse": {
         "properties": {
           "status": {
@@ -19525,6 +23402,605 @@
           "environment"
         ],
         "title": "HealthResponse"
+      },
+      "IdentityAssertionRequest": {
+        "properties": {
+          "identity_namespace": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "Identity Namespace"
+          },
+          "identity_scope": {
+            "type": "string",
+            "maxLength": 190,
+            "minLength": 1,
+            "title": "Identity Scope"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 190,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "identity_kind": {
+            "$ref": "#/components/schemas/IdentityKind",
+            "default": "provider"
+          },
+          "connector_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connector Type"
+          },
+          "connection_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Ref"
+          },
+          "endpoint_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint Ref"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentitySource",
+            "default": "provider"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/IdentityConfidence",
+            "default": "authoritative"
+          }
+        },
+        "type": "object",
+        "required": [
+          "identity_namespace",
+          "identity_scope",
+          "value"
+        ],
+        "title": "IdentityAssertionRequest"
+      },
+      "IdentityConfidence": {
+        "type": "string",
+        "enum": [
+          "authoritative",
+          "verified",
+          "candidate",
+          "conflicted"
+        ],
+        "title": "IdentityConfidence",
+        "description": "Factual confidence categories; no fuzzy or synthetic score is inferred."
+      },
+      "IdentityConflictPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityConflictResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "IdentityConflictPage"
+      },
+      "IdentityConflictResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason_code": {
+            "type": "string",
+            "title": "Reason Code"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "assertion_keys": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Assertion Keys"
+          },
+          "candidate_contact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Candidate Contact Ids"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Detected At"
+          },
+          "decision_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision At"
+          },
+          "decision_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityMergeRecommendationResponse"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "automatic_merge": {
+            "type": "boolean",
+            "title": "Automatic Merge",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "reason_code",
+          "confidence",
+          "assertion_keys",
+          "candidate_contact_ids",
+          "review_note",
+          "detected_at",
+          "decision_at",
+          "decision_by",
+          "created_at",
+          "updated_at",
+          "row_version",
+          "recommendations"
+        ],
+        "title": "IdentityConflictResponse"
+      },
+      "IdentityConflictStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "recommended",
+          "recommendation_approved",
+          "recommendation_rejected"
+        ],
+        "title": "IdentityConflictStatus"
+      },
+      "IdentityKind": {
+        "type": "string",
+        "enum": [
+          "provider",
+          "endpoint"
+        ],
+        "title": "IdentityKind"
+      },
+      "IdentityMergeRecommendationCreateRequest": {
+        "properties": {
+          "primary_contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Primary Contact Id"
+          },
+          "duplicate_contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Duplicate Contact Id"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/IdentityConfidence"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "primary_contact_id",
+          "duplicate_contact_id",
+          "confidence",
+          "reason"
+        ],
+        "title": "IdentityMergeRecommendationCreateRequest"
+      },
+      "IdentityMergeRecommendationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "conflict_id": {
+            "type": "string",
+            "title": "Conflict Id"
+          },
+          "primary_contact_id": {
+            "type": "string",
+            "title": "Primary Contact Id"
+          },
+          "duplicate_contact_id": {
+            "type": "string",
+            "title": "Duplicate Contact Id"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "merge_executed": {
+            "type": "boolean",
+            "title": "Merge Executed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "conflict_id",
+          "primary_contact_id",
+          "duplicate_contact_id",
+          "confidence",
+          "reason",
+          "status",
+          "decided_at",
+          "decided_by",
+          "decision_note",
+          "created_at",
+          "row_version"
+        ],
+        "title": "IdentityMergeRecommendationResponse"
+      },
+      "IdentityNewContactProfile": {
+        "properties": {
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          }
+        },
+        "type": "object",
+        "title": "IdentityNewContactProfile"
+      },
+      "IdentityRecommendationDecisionRequest": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Row Version"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version"
+        ],
+        "title": "IdentityRecommendationDecisionRequest"
+      },
+      "IdentityResolutionRequest": {
+        "properties": {
+          "assertions": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityAssertionRequest"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Assertions"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "new_contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IdentityNewContactProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "assertions"
+        ],
+        "title": "IdentityResolutionRequest"
+      },
+      "IdentityResolutionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "canonical_contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Contact Id"
+          },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/ContactIdentityResponse"
+            },
+            "type": "array",
+            "title": "Identities"
+          },
+          "conflict_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Id"
+          },
+          "created_contact": {
+            "type": "boolean",
+            "title": "Created Contact"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "automatic_merge": {
+            "type": "boolean",
+            "title": "Automatic Merge",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "canonical_contact_id",
+          "identities",
+          "conflict_id",
+          "created_contact",
+          "reasons"
+        ],
+        "title": "IdentityResolutionResponse"
+      },
+      "IdentitySource": {
+        "type": "string",
+        "enum": [
+          "provider",
+          "operator",
+          "canonical_phone"
+        ],
+        "title": "IdentitySource"
       },
       "ImportCreateRequest": {
         "properties": {
@@ -19743,6 +24219,97 @@
         ],
         "title": "ImportProgressResponse",
         "description": "``GET /contacts/import/{uuid}`` — progress + error report link (FR-CON-05)."
+      },
+      "InboxOperationsResponse": {
+        "properties": {
+          "assignment_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "least_open"
+            ],
+            "title": "Assignment Mode",
+            "default": "manual"
+          },
+          "auto_mark_read": {
+            "type": "boolean",
+            "title": "Auto Mark Read",
+            "default": true
+          },
+          "consent": {
+            "$ref": "#/components/schemas/ConsentKeywordSettings"
+          },
+          "working_hours": {
+            "$ref": "#/components/schemas/WorkingHoursSettings"
+          },
+          "automatic_replies": {
+            "$ref": "#/components/schemas/AutomaticReplySettings"
+          },
+          "auto_resolve": {
+            "$ref": "#/components/schemas/AutoResolveSettings"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "organization_timezone": {
+            "type": "string",
+            "title": "Organization Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "updated_at",
+          "organization_timezone"
+        ],
+        "title": "InboxOperationsResponse",
+        "description": "The effective policy plus persistence metadata for the settings UI."
+      },
+      "InboxOperationsSettings": {
+        "properties": {
+          "assignment_mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "least_open"
+            ],
+            "title": "Assignment Mode",
+            "default": "manual"
+          },
+          "auto_mark_read": {
+            "type": "boolean",
+            "title": "Auto Mark Read",
+            "default": true
+          },
+          "consent": {
+            "$ref": "#/components/schemas/ConsentKeywordSettings"
+          },
+          "working_hours": {
+            "$ref": "#/components/schemas/WorkingHoursSettings"
+          },
+          "automatic_replies": {
+            "$ref": "#/components/schemas/AutomaticReplySettings"
+          },
+          "auto_resolve": {
+            "$ref": "#/components/schemas/AutoResolveSettings"
+          }
+        },
+        "type": "object",
+        "title": "InboxOperationsSettings",
+        "description": "Validated organization policy consumed by the shared inbox and inbound ledger."
       },
       "JobAcceptedResponse": {
         "properties": {
@@ -20844,6 +25411,148 @@
         ],
         "title": "KycUpdateRequest"
       },
+      "KycViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display",
+            "default": "list"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/KycViewFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "KycViewCreate"
+      },
+      "KycViewFilters": {
+        "properties": {
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "documents_pending",
+                  "under_review",
+                  "approved",
+                  "rejected"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "KycViewFilters",
+        "description": "Portable KYC queue filters; fetch bounds and selected-case state are never persisted."
+      },
+      "KycViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/KycViewFilters"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "display",
+          "filters",
+          "is_owner",
+          "can_delete",
+          "created_at"
+        ],
+        "title": "KycViewResponse"
+      },
+      "KycViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/KycViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "KycViewsResponse"
+      },
       "LeadPipelineCreateRequest": {
         "properties": {
           "name": {
@@ -21564,14 +26273,40 @@
       "MessageSendRequest": {
         "properties": {
           "phone_number_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Phone Number Id"
           },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "to": {
-            "type": "string",
-            "maxLength": 24,
-            "minLength": 5,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24,
+                "minLength": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "To",
             "examples": [
               "+14155552671"
@@ -21632,12 +26367,10 @@
         },
         "type": "object",
         "required": [
-          "phone_number_id",
-          "to",
           "type"
         ],
         "title": "MessageSendRequest",
-        "description": "A send (Doc 04 §18.2).\n\n``type`` selects which payload is read; the others must be absent. Sending is deliberately not\na discriminated union of free-form JSON: the ledger stores canonical content, so what a client\nmay say is the same shape the adapter is handed."
+        "description": "A send (Doc 04 §18.2).\n\n``type`` selects which payload is read; the others must be absent. Sending is deliberately not\na discriminated union of free-form JSON: the ledger stores canonical content, so what a client\nmay say is the same shape the adapter is handed.\n\nExactly one of ``phone_number_id``/``conversation_id`` routes the send (QR-08). The first is\nthe original \"send to any number\" contract, unchanged. The second is a reply to an existing\nthread: the server resolves *which* provider owns it from the conversation's own durable\nownership and ignores this request's opinion — a client cannot supply, forge, or override that\nchoice through this field, which is exactly why replying by conversation exists as its own path\nrather than accepting a client-declared provider/endpoint. ``to`` is required only for the\nnumber-addressed form; a conversation reply derives its recipient from the thread's own contact."
       },
       "MetricDescriptor": {
         "properties": {
@@ -21892,6 +26625,17 @@
                 "type": "null"
               }
             ]
+          },
+          "action_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Url"
           }
         },
         "type": "object",
@@ -23693,6 +28437,217 @@
         ],
         "title": "ReactivationUpdateRequest"
       },
+      "ReactivationViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "board",
+              "list"
+            ],
+            "title": "Display",
+            "default": "board"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReactivationViewFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "ReactivationViewCreate"
+      },
+      "ReactivationViewFilters": {
+        "properties": {
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new_lead",
+                  "lead_confirmed",
+                  "documents_pending",
+                  "documents_received",
+                  "kyc_verification",
+                  "sim_required",
+                  "activation_pending",
+                  "completed",
+                  "not_required"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "follow_up",
+                  "prepaid_required",
+                  "name_change",
+                  "priority",
+                  "customer_not_reachable",
+                  "documents_incomplete"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "reminder_view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "upcoming",
+                  "due_today",
+                  "overdue"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder View"
+          },
+          "reminder_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder Date"
+          }
+        },
+        "type": "object",
+        "title": "ReactivationViewFilters",
+        "description": "Portable Reactivation filters; pagination is intentionally not persisted."
+      },
+      "ReactivationViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "board",
+              "list"
+            ],
+            "title": "Display"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReactivationViewFilters"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "display",
+          "filters",
+          "is_owner",
+          "can_delete",
+          "created_at"
+        ],
+        "title": "ReactivationViewResponse"
+      },
+      "ReactivationViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReactivationViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ReactivationViewsResponse"
+      },
       "ReadyResponse": {
         "properties": {
           "status": {
@@ -23730,6 +28685,17 @@
               }
             ],
             "title": "Contact Id"
+          },
+          "contact_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Name"
           },
           "wa_id": {
             "anyOf": [
@@ -23769,6 +28735,70 @@
             ],
             "title": "Error Code"
           },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "failed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed At"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -23778,10 +28808,17 @@
         "type": "object",
         "required": [
           "contact_id",
+          "contact_name",
           "wa_id",
           "status",
           "variables",
           "error_code",
+          "retry_count",
+          "queued_at",
+          "sent_at",
+          "delivered_at",
+          "read_at",
+          "failed_at",
           "created_at"
         ],
         "title": "RecipientEntry"
@@ -23795,14 +28832,19 @@
             "type": "array",
             "title": "Data"
           },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          },
           "has_more": {
             "type": "boolean",
-            "title": "Has More"
+            "title": "Has More",
+            "deprecated": true
           }
         },
         "type": "object",
         "required": [
           "data",
+          "page",
           "has_more"
         ],
         "title": "RecipientsResponse"
@@ -23821,6 +28863,61 @@
         ],
         "title": "RefreshRequest"
       },
+      "RemoveTagConfig": {
+        "properties": {
+          "tag_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tag Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tag_id"
+        ],
+        "title": "RemoveTagConfig"
+      },
+      "RemoveTagNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "const": "remove_tag",
+            "title": "Kind"
+          },
+          "config": {
+            "$ref": "#/components/schemas/RemoveTagConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "config"
+        ],
+        "title": "RemoveTagNode"
+      },
       "ReportExportRequest": {
         "properties": {
           "report": {
@@ -23832,7 +28929,11 @@
               "conversations",
               "tasks",
               "customers",
-              "costs"
+              "costs",
+              "reactivation",
+              "kyc",
+              "service_levels",
+              "team_productivity"
             ],
             "title": "Report"
           },
@@ -23841,7 +28942,8 @@
             "enum": [
               "csv",
               "xlsx",
-              "json"
+              "json",
+              "pdf"
             ],
             "title": "Format",
             "default": "csv"
@@ -23857,6 +28959,638 @@
         ],
         "title": "ReportExportRequest",
         "description": "``POST /analytics/reports/export`` — always async, always 202 (Doc 15 §19).\n\nThe resolved range travels into ``exports.filters_json`` so an artifact is reproducible and\nself-describing. The response envelope is the frozen ``ExportProgressResponse``; a report is an\nexport, not a second export system."
+      },
+      "ReportScheduleCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "report": {
+            "type": "string",
+            "enum": [
+              "messages",
+              "failures",
+              "campaigns",
+              "conversations",
+              "tasks",
+              "customers",
+              "costs",
+              "reactivation",
+              "kyc",
+              "service_levels",
+              "team_productivity"
+            ],
+            "title": "Report"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "xlsx",
+              "csv"
+            ],
+            "title": "Format",
+            "default": "pdf"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "yesterday",
+              "last_7d",
+              "last_30d",
+              "this_month",
+              "last_month",
+              "this_quarter"
+            ],
+            "title": "Preset",
+            "default": "last_30d"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Granularity",
+            "default": "day"
+          },
+          "cadence": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Cadence",
+            "default": "weekly"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone"
+          },
+          "local_time": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Local Time"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "monday",
+                  "tuesday",
+                  "wednesday",
+                  "thursday",
+                  "friday",
+                  "saturday",
+                  "sunday"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday"
+          },
+          "month_day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 28.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month Day"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "report",
+          "timezone",
+          "local_time"
+        ],
+        "title": "ReportScheduleCreate"
+      },
+      "ReportScheduleResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "report": {
+            "type": "string",
+            "enum": [
+              "messages",
+              "failures",
+              "campaigns",
+              "conversations",
+              "tasks",
+              "customers",
+              "costs",
+              "reactivation",
+              "kyc",
+              "service_levels",
+              "team_productivity"
+            ],
+            "title": "Report"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "xlsx",
+              "csv"
+            ],
+            "title": "Format",
+            "default": "pdf"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "yesterday",
+              "last_7d",
+              "last_30d",
+              "this_month",
+              "last_month",
+              "this_quarter"
+            ],
+            "title": "Preset",
+            "default": "last_30d"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Granularity",
+            "default": "day"
+          },
+          "cadence": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Cadence",
+            "default": "weekly"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone"
+          },
+          "local_time": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Local Time"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "monday",
+                  "tuesday",
+                  "wednesday",
+                  "thursday",
+                  "friday",
+                  "saturday",
+                  "sunday"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday"
+          },
+          "month_day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 28.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month Day"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "report",
+          "timezone",
+          "local_time",
+          "id",
+          "next_run_at",
+          "last_run_at",
+          "row_version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ReportScheduleResponse"
+      },
+      "ReportScheduleUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "report": {
+            "type": "string",
+            "enum": [
+              "messages",
+              "failures",
+              "campaigns",
+              "conversations",
+              "tasks",
+              "customers",
+              "costs",
+              "reactivation",
+              "kyc",
+              "service_levels",
+              "team_productivity"
+            ],
+            "title": "Report"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "xlsx",
+              "csv"
+            ],
+            "title": "Format",
+            "default": "pdf"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "yesterday",
+              "last_7d",
+              "last_30d",
+              "this_month",
+              "last_month",
+              "this_quarter"
+            ],
+            "title": "Preset",
+            "default": "last_30d"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Granularity",
+            "default": "day"
+          },
+          "cadence": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Cadence",
+            "default": "weekly"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone"
+          },
+          "local_time": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Local Time"
+          },
+          "weekday": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "monday",
+                  "tuesday",
+                  "wednesday",
+                  "thursday",
+                  "friday",
+                  "saturday",
+                  "sunday"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday"
+          },
+          "month_day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 28.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month Day"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "report",
+          "timezone",
+          "local_time",
+          "expected_row_version"
+        ],
+        "title": "ReportScheduleUpdate"
+      },
+      "ReportSchedulesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReportScheduleResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ReportSchedulesResponse"
+      },
+      "ReportViewCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility",
+            "default": "private"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display",
+            "default": "list"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReportViewFilters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "filters"
+        ],
+        "title": "ReportViewCreate"
+      },
+      "ReportViewFilters": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "last_7d",
+                  "last_30d",
+                  "this_month",
+                  "last_month",
+                  "this_quarter"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Granularity",
+            "default": "day"
+          },
+          "compare": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "previous_period",
+                  "previous_year"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare"
+          }
+        },
+        "type": "object",
+        "title": "ReportViewFilters",
+        "description": "Portable report analysis filters; export, schedule and live-work state are excluded."
+      },
+      "ReportViewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ],
+            "title": "Visibility"
+          },
+          "display": {
+            "type": "string",
+            "const": "list",
+            "title": "Display"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReportViewFilters"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "display",
+          "filters",
+          "is_owner",
+          "can_delete",
+          "created_at"
+        ],
+        "title": "ReportViewResponse"
+      },
+      "ReportViewsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReportViewResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ReportViewsResponse"
       },
       "RoleCreateRequest": {
         "properties": {
@@ -26473,6 +32207,147 @@
         "title": "TasksPage",
         "description": "A keyset page of tasks (Doc 04 §3 envelope)."
       },
+      "TeamWorkloadResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TeamWorkloadRow"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TeamWorkloadTotals"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "title": "As Of"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "totals",
+          "as_of",
+          "timezone"
+        ],
+        "title": "TeamWorkloadResponse"
+      },
+      "TeamWorkloadRow": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "user_name": {
+            "type": "string",
+            "title": "User Name"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "unresolved_conversations": {
+            "type": "integer",
+            "title": "Unresolved Conversations"
+          },
+          "unread_conversations": {
+            "type": "integer",
+            "title": "Unread Conversations"
+          },
+          "unread_messages": {
+            "type": "integer",
+            "title": "Unread Messages"
+          },
+          "open_tasks": {
+            "type": "integer",
+            "title": "Open Tasks"
+          },
+          "overdue_tasks": {
+            "type": "integer",
+            "title": "Overdue Tasks"
+          },
+          "due_today_tasks": {
+            "type": "integer",
+            "title": "Due Today Tasks"
+          },
+          "attention_required": {
+            "type": "boolean",
+            "title": "Attention Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "user_name",
+          "is_active",
+          "unresolved_conversations",
+          "unread_conversations",
+          "unread_messages",
+          "open_tasks",
+          "overdue_tasks",
+          "due_today_tasks",
+          "attention_required"
+        ],
+        "title": "TeamWorkloadRow"
+      },
+      "TeamWorkloadTotals": {
+        "properties": {
+          "unresolved_conversations": {
+            "type": "integer",
+            "title": "Unresolved Conversations"
+          },
+          "unread_conversations": {
+            "type": "integer",
+            "title": "Unread Conversations"
+          },
+          "unread_messages": {
+            "type": "integer",
+            "title": "Unread Messages"
+          },
+          "open_tasks": {
+            "type": "integer",
+            "title": "Open Tasks"
+          },
+          "overdue_tasks": {
+            "type": "integer",
+            "title": "Overdue Tasks"
+          },
+          "due_today_tasks": {
+            "type": "integer",
+            "title": "Due Today Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unresolved_conversations",
+          "unread_conversations",
+          "unread_messages",
+          "open_tasks",
+          "overdue_tasks",
+          "due_today_tasks"
+        ],
+        "title": "TeamWorkloadTotals"
+      },
       "TemplateButtonPayload": {
         "properties": {
           "index": {
@@ -26992,6 +32867,7 @@
             "enum": [
               "message.received",
               "contact.created",
+              "conversation.auto_resolved",
               "lead.stage_changed",
               "schedule"
             ],
@@ -27960,6 +33836,187 @@
         ],
         "title": "WebhookNode"
       },
+      "WhatsAppQrLogoutRequest": {
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "description": "Must be true. Logout invalidates WhatsApp credentials and requires a new scan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "WhatsAppQrLogoutRequest",
+        "description": "Explicit confirmation required before an irreversible logout."
+      },
+      "WhatsAppQrStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "Whether a WhatsApp QR connection is available to configure/operate."
+          },
+          "session_public_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Public Id",
+            "description": "Durable session identifier once a connection has been started."
+          },
+          "row_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Version",
+            "description": "Optimistic-concurrency version."
+          },
+          "session_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session State",
+            "description": "Provider-neutral session lifecycle (SessionState)."
+          },
+          "pairing_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pairing State",
+            "description": "Provider-neutral pairing lifecycle (PairingState), or null when the provider's current status cannot determine it (e.g. mid-transition)."
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status",
+            "description": "Informational only: the raw provider status last observed. Not authoritative."
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "Whether this WhatsApp session can carry traffic now."
+          },
+          "requires_reauthentication": {
+            "type": "boolean",
+            "title": "Requires Reauthentication",
+            "description": "Whether only a fresh scan can resolve the current state."
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "Healthy",
+            "description": "Session-level health — never server-only reachability."
+          },
+          "health_detail": {
+            "type": "string",
+            "title": "Health Detail",
+            "description": "Human-readable, secret-free health explanation."
+          },
+          "can_reconnect": {
+            "type": "boolean",
+            "title": "Can Reconnect",
+            "description": "Whether a reconnect action is currently safe."
+          },
+          "reconnect_blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconnect Blocked Reason",
+            "description": "Why reconnect is unavailable right now, when can_reconnect is false."
+          },
+          "identity_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Masked",
+            "description": "Paired account identity with digits partly masked."
+          },
+          "push_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push Name",
+            "description": "Paired account display name."
+          },
+          "qr_available": {
+            "type": "boolean",
+            "title": "Qr Available",
+            "description": "Whether GET /whatsapp/qr will currently return an image."
+          },
+          "provider_session_missing": {
+            "type": "boolean",
+            "title": "Provider Session Missing",
+            "description": "Whether WhatsApp is reachable but holds no session for this connection. Distinct from an outage: the provider answered. The connection must be paired again; nothing is recreated automatically.",
+            "default": false
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "When this status was last reconciled against the provider."
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "connected",
+          "requires_reauthentication",
+          "healthy",
+          "health_detail",
+          "can_reconnect",
+          "qr_available"
+        ],
+        "title": "WhatsAppQrStatus",
+        "description": "Current WhatsApp QR connection status for the caller's organization.\n\n``configured=False`` covers every reason the screen has nothing to operate on — WAHA\nunconfigured, the organization not assigned, feature flags disabled — collapsed into one\nhonest \"not available\" signal rather than distinguishing operator-irrelevant deployment detail."
+      },
       "WindowState": {
         "properties": {
           "is_open": {
@@ -28056,6 +34113,67 @@
           "last_seen_at"
         ],
         "title": "WorkerResponse"
+      },
+      "WorkingDaySettings": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "enum": [
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+              "sunday"
+            ],
+            "title": "Day"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Start",
+            "default": "09:00"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "End",
+            "default": "18:00"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day"
+        ],
+        "title": "WorkingDaySettings",
+        "description": "One local-time interval; an end before its start crosses midnight."
+      },
+      "WorkingHoursSettings": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/WorkingDaySettings"
+            },
+            "type": "array",
+            "maxItems": 7,
+            "minItems": 7,
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "title": "WorkingHoursSettings",
+        "description": "Weekly hours interpreted in the existing organization timezone."
       }
     },
     "securitySchemes": {

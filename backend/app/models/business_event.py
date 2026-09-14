@@ -24,6 +24,13 @@ BUSINESS_EVENT_ACTORS = (
 )
 
 BUSINESS_EVENT_CONTACT_CREATED = "contact.created"
+BUSINESS_EVENT_MESSAGE_RECEIVED = "message.received"
+BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED = "message.automatic_reply.accepted"
+BUSINESS_EVENT_CONVERSATION_AUTO_RESOLVED = "conversation.auto_resolved"
+BUSINESS_EVENT_AUTOMATION_SCHEDULED = "schedule"
+BUSINESS_EVENT_TASK_COMPLETED = "task.completed"
+BUSINESS_EVENT_LEAD_STAGE_CHANGED = "lead.stage_changed"
+BUSINESS_EVENT_CONVERSATION_HANDOFF_REQUESTED = "conversation.handoff_requested"
 BUSINESS_EVENT_REACTIVATION_CREATED = "reactivation.case.created"
 BUSINESS_EVENT_REACTIVATION_TRANSITIONED = "reactivation.stage.transitioned"
 BUSINESS_EVENT_ELIGIBILITY_DECIDED = "reactivation.eligibility.decided"

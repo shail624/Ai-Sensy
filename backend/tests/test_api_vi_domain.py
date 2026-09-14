@@ -188,6 +188,8 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/reactivation-cases/{case_id}/transition",
         "/api/v1/reactivation-cases/{case_id}/notes",
         "/api/v1/reactivation-pipeline",
+        "/api/v1/reactivation/views",
+        "/api/v1/reactivation/views/{view_id}",
         "/api/v1/kyc-cases/{kyc_id}/approvals",
         "/api/v1/kyc-operations",
         "/api/v1/kyc-cases/{kyc_id}/document-references",
@@ -201,7 +203,20 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
         "/api/v1/notifications/read-all",
     }
     assert expected <= set(schema["paths"])
-    assert len(schema["paths"]) == 193
+    # QR-07 added the first public WhatsApp QR connection surface (6 routes, 200 -> 206); QR-08
+    # adds one more (`POST /webhooks/waha`, the WAHA analogue of `/webhooks/whatsapp`) to actually
+    # receive the events QR-04 could already verify and parse but had no route delivering to it.
+    # CORE-11A adds one validated inbox-operations settings route (207 -> 208). The explicit agent
+    # claim and owner-only resolution actions add two routes (208 -> 210); the first governed live
+    # automation handoff action adds one (210 -> 211). PAR-DL-01 adds the personal, permission-
+    # scoped Download Center history route (211 -> 212), PAR-REP-02 adds report schedules (212 ->
+    # 214), PAR-REP-03 adds three domain resources (214 -> 217), and PAR-REP-04 adds Team workload
+    # plus task productivity (217 -> 219). PAR-DL-02 adds transcript start/progress (219 -> 221),
+    # PAR-HIST-01 adds shared Chat History view collection/detail paths (221 -> 223), and PAR-DL-03
+    # adds governed campaign-results export start/progress paths (223 -> 225). PAR-VIEW-01/02/03
+    # add Reactivation, Contacts and Campaign saved-view paths (225 -> 231), and PAR-VIEW-04 adds
+    # the KYC saved-view paths (231 -> 233), and PAR-VIEW-05 adds Reports views (233 -> 235).
+    assert len(schema["paths"]) == 235
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

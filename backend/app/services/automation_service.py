@@ -26,6 +26,7 @@ from app.models.automation import (
     AutomationFlow,
     AutomationFlowVersion,
 )
+from app.models.organization import Organization
 from app.models.user import User
 from app.repositories.automation import AutomationRepository
 from app.services.audit_service import AuditAction, AuditService
@@ -63,6 +64,7 @@ class AutomationFlowView:
     status: str
     graph: dict[str, Any]
     active_version_no: int | None
+    next_run_at: datetime | None
     has_unpublished_changes: bool
     row_version: int
     created_at: datetime
@@ -175,6 +177,15 @@ class AutomationService:
             flow.draft_content_hash = self._content_hash(
                 flow.name, flow.description, flow.draft_graph_json
             )
+            if (
+                flow.status == AUTOMATION_STATUS_PUBLISHED
+                and flow.active_content_hash == flow.draft_content_hash
+            ):
+                flow.next_run_at = await self._next_schedule_run(
+                    organization_id=organization_id,
+                    graph=flow.draft_graph_json,
+                    after=utcnow(),
+                )
             self._bump(flow, actor.id)
             await self._repo.flush()
             await self._audit.record(
@@ -222,6 +233,7 @@ class AutomationService:
             raise AutomationStateConflict("The active version already contains this draft.")
         before = self._snapshot(flow)
         version_no = await self._repo.next_version_no(flow.id)
+        published_at = utcnow()
         version = AutomationFlowVersion(
             organization_id=organization_id,
             flow_id=flow.id,
@@ -231,11 +243,17 @@ class AutomationService:
             graph_json=copy.deepcopy(flow.draft_graph_json),
             content_hash=flow.draft_content_hash,
             published_by=actor.id,
+            published_at=published_at,
         )
         self._session.add(version)
         flow.active_version_no = version_no
         flow.active_content_hash = flow.draft_content_hash
         flow.status = AUTOMATION_STATUS_PUBLISHED
+        flow.next_run_at = await self._next_schedule_run(
+            organization_id=organization_id,
+            graph=version.graph_json,
+            after=published_at,
+        )
         self._bump(flow, actor.id)
         await self._repo.flush()
         await self._audit.record(
@@ -291,6 +309,15 @@ class AutomationService:
         flow.description = version.description
         flow.draft_graph_json = copy.deepcopy(version.graph_json)
         flow.draft_content_hash = version.content_hash
+        if (
+            flow.status == AUTOMATION_STATUS_PUBLISHED
+            and flow.active_content_hash == flow.draft_content_hash
+        ):
+            flow.next_run_at = await self._next_schedule_run(
+                organization_id=organization_id,
+                graph=version.graph_json,
+                after=utcnow(),
+            )
         self._bump(flow, actor.id)
         await self._repo.flush()
         await self._audit.record(
@@ -358,6 +385,19 @@ class AutomationService:
             )
         before = self._snapshot(flow)
         flow.status = target
+        if enabled:
+            version = await self._repo.get_version(
+                organization_id, flow.id, flow.active_version_no
+            )
+            if version is None:
+                raise AutomationStateConflict("The active automation version is unavailable.")
+            flow.next_run_at = await self._next_schedule_run(
+                organization_id=organization_id,
+                graph=version.graph_json,
+                after=utcnow(),
+            )
+        else:
+            flow.next_run_at = None
         self._bump(flow, actor.id)
         await self._repo.flush()
         await self._audit.record(
@@ -392,6 +432,7 @@ class AutomationService:
             config = node.get("config", {})
             reference_key = {
                 "tag": "tag_id",
+                "remove_tag": "tag_id",
                 "webhook": "webhook_id",
                 "campaign": "campaign_id",
             }.get(kind)
@@ -529,6 +570,7 @@ class AutomationService:
                 status=row.status,
                 graph=copy.deepcopy(row.draft_graph_json),
                 active_version_no=row.active_version_no,
+                next_run_at=row.next_run_at,
                 has_unpublished_changes=row.active_content_hash != row.draft_content_hash,
                 row_version=row.row_version,
                 created_at=row.created_at,
@@ -559,6 +601,7 @@ class AutomationService:
             "description": flow.description,
             "status": flow.status,
             "active_version_no": flow.active_version_no,
+            "next_run_at": flow.next_run_at.isoformat() if flow.next_run_at else None,
             "draft_content_hash": flow.draft_content_hash,
             "row_version": flow.row_version,
         }
@@ -573,3 +616,57 @@ class AutomationService:
         flow.row_version += 1
         flow.updated_by = actor_user_id
         flow.updated_at = utcnow()
+
+    async def _next_schedule_run(
+        self,
+        *,
+        organization_id: int,
+        graph: dict[str, Any],
+        after: datetime,
+    ) -> datetime | None:
+        from app.services.campaign_schedule_service import ScheduleInvalid, next_fire
+
+        schedule_cron = self._schedule_cron(graph)
+        if schedule_cron is None:
+            return None
+        organization = await self._session.get(Organization, organization_id)
+        if organization is None or organization.deleted_at is not None or not organization.is_active:
+            raise AutomationStateConflict("The automation organization is unavailable.")
+        try:
+            upcoming = next_fire(
+                schedule_cron,
+                after=after,
+                timezone=organization.timezone,
+            )
+        except ScheduleInvalid as exc:
+            raise AutomationDefinitionInvalid(
+                "The schedule cannot be published in the organization timezone.",
+                errors=[
+                    {
+                        "field": "graph.nodes.trigger.config.schedule_cron",
+                        "code": "schedule_invalid",
+                        "message": exc.detail,
+                    }
+                ],
+            ) from exc
+        if upcoming is None:
+            raise AutomationDefinitionInvalid(
+                "The schedule has no future occurrence.",
+                errors=[
+                    {
+                        "field": "graph.nodes.trigger.config.schedule_cron",
+                        "code": "schedule_exhausted",
+                        "message": "Choose a cron expression with a future occurrence.",
+                    }
+                ],
+            )
+        return upcoming
+
+    @staticmethod
+    def _schedule_cron(graph: dict[str, Any]) -> str | None:
+        for node in graph.get("nodes", []):
+            config = node.get("config", {})
+            if node.get("kind") == "trigger" and config.get("event") == "schedule":
+                value = config.get("schedule_cron")
+                return str(value) if value else None
+        return None

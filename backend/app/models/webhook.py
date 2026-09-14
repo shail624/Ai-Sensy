@@ -52,14 +52,21 @@ class WebhookEvent(IntPKMixin, Base):
         # (Doc 03 §9.4), not rejected by the database — the evidence of a retry has value.
         Index("ix_whe_event", "event_id"),
         Index("ix_whe_number", "phone_number_id", "created_at"),
+        # The channel-endpoint-scoped analogue, for a WAHA delivery (QR-08).
+        Index("ix_whe_endpoint", "channel_endpoint_id", "created_at"),
         MYSQL_TABLE_ARGS,
     )
 
     #: Dedup key (FR-WA-07): Meta's message id, or message id + state for a status callback.
     event_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     #: FK to ``phone_numbers.id`` — resolved at ingest from the channel's own number id. NULL means
-    #: the event is for a number we do not own; app-enforced (the table is partitioned, no FKs).
+    #: the event is for a number we do not own, or is routed by ``channel_endpoint_id`` instead;
+    #: app-enforced (the table is partitioned, no FKs).
     phone_number_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
+    #: FK to ``channel_endpoints.id`` — resolved at ingest from the WAHA session name (QR-08).
+    #: ``NULL`` for a Meta event, which routes by ``phone_number_id`` instead. App-enforced, same
+    #: as ``phone_number_id``.
+    channel_endpoint_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     #: Canonical event type (``InboundEventType``) — what the processor routes on.
     object_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     #: Always true for stored rows: an unverified body is rejected and never reaches this table.

@@ -18,7 +18,13 @@ class StrictModel(BaseModel):
 
 
 class TriggerConfig(StrictModel):
-    event: Literal["message.received", "contact.created", "lead.stage_changed", "schedule"]
+    event: Literal[
+        "message.received",
+        "contact.created",
+        "conversation.auto_resolved",
+        "lead.stage_changed",
+        "schedule",
+    ]
     schedule_cron: str | None = Field(default=None, min_length=5, max_length=120)
 
     @model_validator(mode="after")
@@ -27,6 +33,13 @@ class TriggerConfig(StrictModel):
             raise ValueError("schedule_cron is required for a schedule trigger")
         if self.event != "schedule" and self.schedule_cron is not None:
             raise ValueError("schedule_cron is only valid for a schedule trigger")
+        if self.event == "schedule" and self.schedule_cron is not None:
+            from app.services.campaign_schedule_service import ScheduleInvalid, parse_cron
+
+            try:
+                parse_cron(self.schedule_cron)
+            except ScheduleInvalid as exc:
+                raise ValueError(exc.detail) from exc
         return self
 
 
@@ -39,6 +52,37 @@ class ConditionConfig(StrictModel):
 class ActionConfig(StrictModel):
     action: Literal["create_task"]
     title: str = Field(min_length=1, max_length=160)
+    task_type: Literal[
+        "call",
+        "whatsapp",
+        "collect_documents",
+        "verification",
+        "reminder",
+        "meeting",
+        "custom",
+    ] = "custom"
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    due_in_minutes: int = Field(default=1440, ge=5, le=525_600)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
+
+
+class HandoffConfig(StrictModel):
+    reason: str = Field(min_length=1, max_length=160)
+
+    @field_validator("reason")
+    @classmethod
+    def clean_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("reason cannot be blank")
+        return value
 
 
 class DelayConfig(StrictModel):
@@ -46,6 +90,10 @@ class DelayConfig(StrictModel):
 
 
 class TagConfig(StrictModel):
+    tag_id: uuidlib.UUID
+
+
+class RemoveTagConfig(StrictModel):
     tag_id: uuidlib.UUID
 
 
@@ -78,6 +126,14 @@ class CampaignConfig(StrictModel):
 class NotificationConfig(StrictModel):
     message: str = Field(min_length=1, max_length=500)
 
+    @field_validator("message")
+    @classmethod
+    def clean_message(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("message cannot be blank")
+        return value
+
 
 class ApprovalConfig(StrictModel):
     permission: Literal["messages:send", "campaigns:send"]
@@ -103,6 +159,11 @@ class ActionNode(AutomationNodeBase):
     config: ActionConfig
 
 
+class HandoffNode(AutomationNodeBase):
+    kind: Literal["handoff"]
+    config: HandoffConfig
+
+
 class DelayNode(AutomationNodeBase):
     kind: Literal["delay"]
     config: DelayConfig
@@ -111,6 +172,11 @@ class DelayNode(AutomationNodeBase):
 class TagNode(AutomationNodeBase):
     kind: Literal["tag"]
     config: TagConfig
+
+
+class RemoveTagNode(AutomationNodeBase):
+    kind: Literal["remove_tag"]
+    config: RemoveTagConfig
 
 
 class AssignmentNode(AutomationNodeBase):
@@ -147,8 +213,10 @@ AutomationNode = Annotated[
     TriggerNode
     | ConditionNode
     | ActionNode
+    | HandoffNode
     | DelayNode
     | TagNode
+    | RemoveTagNode
     | AssignmentNode
     | WaitNode
     | WebhookNode
@@ -235,6 +303,7 @@ class AutomationFlowResponse(BaseModel):
     status: Literal["draft", "published", "disabled"]
     graph: AutomationGraph
     active_version_no: int | None
+    next_run_at: datetime | None
     has_unpublished_changes: bool
     row_version: int
     created_at: datetime
@@ -251,6 +320,7 @@ class AutomationFlowResponse(BaseModel):
             status=view.status,
             graph=AutomationGraph.model_validate(view.graph),
             active_version_no=view.active_version_no,
+            next_run_at=view.next_run_at,
             has_unpublished_changes=view.has_unpublished_changes,
             row_version=view.row_version,
             created_at=view.created_at,

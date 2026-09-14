@@ -24,6 +24,13 @@ class ChannelType(StrEnum):
 #: Connector type of the official Meta Cloud API adapter (Channel 1, Doc 07 §5.2 "Identity").
 CONNECTOR_META_CLOUD = "meta_cloud"
 
+#: Connector type of the WAHA QR/multi-device adapter (ADR-0021 Class B, owner-approved internal
+#: self-hosted). A *second implementation of the same ``whatsapp`` channel family*, never a second
+#: channel — ADR-0020 "provider type: concrete adapter implementation such as ``meta_cloud`` or the
+#: approved QR provider". Core business logic must branch on declared capability, never on this
+#: value.
+CONNECTOR_WAHA = "waha"
+
 
 class Capability(StrEnum):
     """What an adapter can do (Doc 07 §5.2).
@@ -53,5 +60,12 @@ class Capability(StrEnum):
     MEDIA_DOWNLOAD = "media_download"
     # Calls (Business Calling API where enabled / connector call metadata)
     CALLS = "calls"
+    # Provider runtime / pairing (Module 13; capability-gated, provider-neutral)
+    QR_AUTH = "qr_auth"
+    SESSION_STREAM = "session_stream"
+    SESSION_RECONNECT = "session_reconnect"
+    SESSION_LOGOUT = "session_logout"
+    # Provider-neutral bounded synchronization
+    HISTORY_SYNC = "history_sync"
     # Health
     HEALTH = "health"

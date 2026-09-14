@@ -218,6 +218,11 @@ class NotificationService:
                     "contact": self._entity_ref(contact),
                     "reactivation_case": self._entity_ref(case),
                     "task": self._entity_ref(task),
+                    "action_url": (
+                        "/downloads?category=analytics&status=ready"
+                        if row.notification_type == "report_ready"
+                        else None
+                    ),
                 }
             )
         return result

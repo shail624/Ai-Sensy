@@ -307,6 +307,7 @@ Take a backup first (§11) and prefer rolling the application back and fixing fo
 | `mysql-data` | All durable state | `mysqldump --single-transaction --routines` nightly, off-host |
 | `media-data` | Inbound media + export artifacts; **not reconstructable** | Volume snapshot or object-store sync |
 | `redis-data` | In-flight queue only; rebuildable | Optional — a loss costs queued work, not records |
+| `waha-sessions` | WhatsApp session credentials (QR profile only); **not reconstructable without a human re-scanning a QR code** | Volume snapshot alongside `mysql-data`. See §15. |
 | `.env.production` | Secrets | Secret store, not a backup tarball. Losing `SECRET_KEY` signs every user out; losing `REDIS_PASSWORD` means the stack cannot reach its own broker until you reset it on both sides. |
 
 ```bash
@@ -438,3 +439,103 @@ Two numbers to keep consistent when you scale:
 | 413 on upload | Larger than `client_max_body_size` (25 MB) in `deploy/nginx/nginx.conf` |
 | Login brute-force protection appears ineffective | A proxy in front of nginx — every client shares one bucket. Configure `set_real_ip_from` (§6) |
 | Browser console: blocked script/style by CSP | A third-party origin was introduced. Widen the specific directive in `deploy/nginx/nginx.conf`; never fall back to `unsafe-inline` for `script-src` |
+| WhatsApp QR screen says the session must be paired again after a restart | The `waha-sessions` volume is missing or was pruned. See §15 |
+
+---
+
+## 15. WhatsApp QR provider (WAHA) — optional
+
+The QR/WhatsApp channel (ADR-0021 Class B) is **opt-in and off by default**. With
+`WAHA_BASE_URL` unset the backend registers no provider runtime and the QR screen reports
+`configured=false` to every caller, so a deployment that has not adopted it runs exactly the stack
+it ran before.
+
+### Topology
+
+| Property | Value | Why |
+|---|---|---|
+| Image | `devlikeapro/waha@sha256:33ecd1b7…` | **Digest-pinned, never a tag.** The provider certification evidence is for one immutable build; a floating tag can be repointed upstream and would silently invalidate it. |
+| Engine | `NOWEB` | The only engine the adapter is certified against. It fails closed (`WahaEngineNotApproved`) on anything else. |
+| Network | Compose network only — **no published port** | WAHA's API is a WhatsApp bridge. Only the backend reaches it, at `http://waha:3000`. Nginx does not proxy it and nothing routes to it from outside. Local development binds `127.0.0.1` only. |
+| Session state | `waha-sessions` → `/app/.sessions` | `noweb/waha.sqlite3` (session registry) plus `noweb/<session>/` (per-session store). |
+
+Enable it explicitly:
+
+```bash
+docker compose -f docker-compose.production.yml --env-file .env.production --profile waha up -d
+```
+
+Required in `.env.production` when the profile is enabled: `WAHA_API_KEY`,
+`WAHA_BASE_URL=http://waha:3000`, `WAHA_SESSION_NAME`, `WAHA_WEBHOOK_HMAC_SECRET` and
+`WAHA_ORGANIZATION_ID`. The HMAC secret signs inbound deliveries and is verified over the raw body
+before anything is parsed; leaving it empty rejects **every** delivery rather than accepting
+unsigned ones.
+
+Generate `WAHA_WEBHOOK_HMAC_SECRET` as a dedicated high-entropy value. It is not Meta's webhook
+verification token, Meta's app secret, the WAHA API key, or WhatsApp session material, and none of
+those values may be reused for it. Inject the same dedicated value into the backend and WAHA
+containers through the deployment secret store; never place it in a Compose command, log, ticket,
+screenshot, or tracked file.
+
+### Signed webhook delivery
+
+Production Compose configures one **global** WAHA webhook sender:
+
+- callback: `http://api:8000/api/v1/webhooks/waha` on the private Compose network;
+- events: `message`, `message.any`, and `message.ack` only;
+- authentication: `X-Webhook-Hmac`, SHA-512 over the exact raw JSON body;
+- retries: 15 attempts, constant two-second delay, on every delivery error.
+
+Global configuration is intentional. The deployment owns one governed receiver, the signing key
+stays in container environment rather than being persisted in a session config, and a Compose
+restart reapplies the configuration before restored sessions start. Do not also add `config.webhooks`
+to session creation: WAHA combines global and per-session webhooks, which would duplicate every
+delivery. The certified 2026.7.2 sender has no configured request timeout; the bounded retry count
+limits retry quantity but cannot bound one hung HTTP request. Keep the callback private, local and
+responsive, and alert on WAHA webhook-send failures.
+
+Local development uses `http://host.docker.internal:8000/api/v1/webhooks/waha`; the Compose
+`host-gateway` mapping provides that internal route on Linux and Docker Desktop supplies it on its
+supported hosts. The provider port remains loopback-only. Start the backend with the same
+`WAHA_WEBHOOK_HMAC_SECRET` as the root Compose environment before exercising the webhook path.
+
+Changing the WAHA HMAC secret requires a coordinated restart: update the backend and WAHA secret
+values together, restart the API/worker roles and WAHA service, then validate a signed controlled
+delivery. A mismatch fails closed with HTTP 403 and is retried by WAHA. It never authorizes falling
+back to unsigned delivery.
+
+### Why the session volume is not optional
+
+WAHA holds the WhatsApp credentials obtained when a human scanned the QR code. They live only in
+`/app/.sessions`. Without the volume, any container restart brings the provider back holding no
+session at all: it answers normally, but reports `404 Session not found` for a connection the
+platform still records as paired. The QR screen then shows **"WhatsApp is reachable but no longer
+has this connection's session"** and requires a fresh scan — recoverable, but it means an outage of
+the WhatsApp channel until someone is physically present with the phone.
+
+Treat `waha-sessions` as stateful data: snapshot it with `mysql-data`, and never prune it to
+reclaim disk.
+
+### Operator procedures
+
+| Situation | What the screen says | Action |
+|---|---|---|
+| Provider container down | Provider unavailable; reconnect blocked | Restore the container. Durable pairing truth is preserved — do **not** re-scan. |
+| Provider up, session gone | "reachable but no longer has this connection's session" | Re-pair: open **Channels → WhatsApp (QR)**, start the connection, scan the QR with the linked handset. |
+| Session paused/degraded, still paired | Reconnect available | Use **Reconnect**. No new QR is required. |
+| Deliberate disconnect | — | Use **Log out** (requires explicit confirmation). This invalidates the WhatsApp credentials and a new scan is required afterwards. |
+
+Nothing re-creates a session automatically, and no code path deletes one: re-establishing a
+session is always an explicit operator action, so an outage can never silently unlink an account.
+
+### Disable / roll back
+
+Stop the provider and clear `WAHA_BASE_URL`; the backend returns to `configured=false` and the rest
+of the platform is unaffected. Meta-based messaging is entirely independent and keeps running.
+
+```bash
+docker compose -f docker-compose.production.yml --env-file .env.production stop waha
+```
+
+Leave the `waha-sessions` volume in place unless you intend to force a re-scan — removing it
+discards the WhatsApp credentials.

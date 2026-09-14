@@ -1,8 +1,33 @@
 # Self-Hosted WhatsApp Business Platform
 
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 Internal enterprise platform for the **Vi Reactivation Team** — built on the Official
 Meta WhatsApp Cloud API (Channel 1) and a vendor-neutral Support Connector (Channel 2).
 Single-tenant, self-hosted, not SaaS.
+
+Latest UI checkpoint: **UI-REF-02 — Live Chat shell alignment**. Reference-order views/search,
+empty desktop columns and mobile filters verified; frontend **883/883**, types/build/lint pass.
+Full feature/visual parity remains pending. [Evidence and limitations](docs/design/73-UI-REF-02-LIVE-CHAT-SHELL.md).
+
+Previous local UI update: **UI-REF-01 — screenshot-aligned navigation**. Compact labelled rail,
+persistent Manage and real settings deep links implemented; frontend **882/882**, types/lint/build
+and bounded desktop/mobile preview pass. Full AiSensy screen/feature parity and production
+readiness are **not** certified. See [the comparison and gaps](docs/design/72-UI-REF-01-SCREENSHOT-ALIGNED-NAVIGATION.md).
 
 The permanent product target is an original, premium enterprise experience for the Vi Reactivation
 Team, with approved workflow depth, usability, reliability, and visual quality comparable to or
@@ -110,12 +135,20 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 
 ## Implementation status
 
-`v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
-deployment topology, and the frontend application across the principal product areas. FR-CON-04
-Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
-is Module 11 hardening: strict backend typing, security/release automation, and the isolated
-deployed-stack E2E/performance canary plus defensive observability contracts are complete;
-environment monitoring and commissioning evidence are next.
+`v1.0.0-rc1` contains the production deployment topology and the implemented frontend/backend
+workflows across the principal product areas. PAR-AUTO-22 remains the last complete `release`
+quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
+dependency/image/SBOM/runtime gates. The exact current PAR-VIEW-05 source tree passes focused
+Report saved-view/API/migration contracts 12/12, 1579 backend tests with 6 MySQL-only skips and zero
+failures in 413.35s, 875 frontend tests, static 6/6 and strict mypy across 322 files plus the synchronized
+235-path contract and production build; its Docker/security release rerun is
+pending. The prior cumulative `deployed` proof remains
+preserved at **25/25**, including its disposable ten-service browser/performance/failure exercise.
+This certifies the repository and local production topology; it does not mean the entire approved
+feature roadmap is complete or that a target host has been commissioned. The canonical
+31-module table currently averages **77.0%** unweighted (recalculated median **88%**), with exact remaining work
+tracked in `MODULE_STATUS.md` and `ROADMAP.md`. FR-CON-04 Excel import inspection is preserved at
+`baseline/fr-con-04-release-ready`.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.

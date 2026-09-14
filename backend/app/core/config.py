@@ -154,6 +154,47 @@ class Settings(BaseSettings):
     bootstrap_org_name: str = "Vi Reactivation Team"
     bootstrap_org_slug: str = "vi-reactivation"
 
+    # ---- WAHA QR provider (ADR-0021 Class B; QR-01 adapter foundation) -------------------
+    # Unconfigured and disabled by default. The application boots normally with none of these
+    # set — the adapter is registered statically but performs no network call until something
+    # explicitly asks it to, and every organization-facing QR feature flag is off by default
+    # (`app.channels.flags.OmnichannelFeatureFlag`).
+    #
+    # There is deliberately **no default API key**. An empty key is a configuration error raised
+    # at call time (`ChannelConfigError`), never a silent fallback that might reach a real server.
+    #: Administrative base URL of the self-hosted WAHA server. Must stay on an internal network —
+    #: WAHA's own documentation warns against exposing it publicly.
+    waha_base_url: str = ""
+    #: Server API key. Secret: never logged, never echoed, redacted from adapter diagnostics.
+    waha_api_key: str = ""
+    waha_timeout_seconds: float = 10.0
+    #: Certification baseline (`docs/evidence/provider-evaluations/waha-class-b-selection-record.md`).
+    #: A server reporting a different version is reported as drift; a different engine fails closed.
+    waha_certified_version: str = "2026.7.2"
+    #: Only NOWEB is owner-approved. Changing this requires a new owner decision and re-certification.
+    waha_approved_engine: str = "NOWEB"
+    #: Shared secret the WAHA server signs each webhook body with (raw-body sha512 HMAC). Secret:
+    #: never logged. Empty by default and an empty secret **rejects** every delivery, so an
+    #: unconfigured deployment cannot silently accept unsigned provider traffic.
+    waha_webhook_hmac_secret: str = ""
+    #: Session this deployment sends through — the endpoint scope for sends, acknowledgement
+    #: correlation and reconcile lookups. Empty by default; a send without one fails closed.
+    waha_session_name: str = ""
+    #: The single organization permitted to view or operate the WAHA QR connection surface
+    #: (QR-07). ADR-0021 §"Deployment scope": WAHA is internal, self-hosted, **single
+    #: organization** — not multi-tenant SaaS — so this is a scope, not a per-tenant secret
+    #: store. ``None`` (the default) means every organization sees the QR surface as
+    #: unconfigured, which is the safe default for a deployment that has not assigned it.
+    waha_organization_id: int | None = None
+
+    # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
+    # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not
+    # enough, since a shared dev/staging box could still have ENVIRONMENT=development set by
+    # mistake. Defaults to False everywhere, including local development, so fixture data is
+    # never created as a side effect of anything else. Never true in production — enforced in
+    # code (`app.dev_fixtures.ensure_dev_fixtures_allowed`), not just by convention.
+    allow_dev_fixtures: bool = False
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors_origins(cls, value: object) -> object:
@@ -172,6 +213,14 @@ class Settings(BaseSettings):
         if text.startswith("["):
             return json.loads(text)
         return [origin.strip() for origin in text.split(",") if origin.strip()]
+
+    @field_validator("waha_organization_id", mode="before")
+    @classmethod
+    def _empty_waha_organization_id_is_unconfigured(cls, value: object) -> object:
+        """Normalize Compose's empty optional scope to the safe unconfigured value."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -1,5 +1,21 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 ## MAINT-02 — typed campaign list filters (2026-09-13)
 
 Latest milestone: MAINT-02. Branch: `claude/sweet-darwin-5i66uq`; approved starting
@@ -43,14 +59,52 @@ This is the canonical forward roadmap from the current repository baseline. It i
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-02T17:39:04+05:30`.
+Last synchronized: `2026-09-13`.
+
+UI-REF-02 closes the bounded Live Chat search/view-strip/empty-column shell change, not complete
+Live Chat equivalence. Frontend **883/883**, types/build/lint and desktop/mobile preview pass.
+Populated chat/action/profile acceptance remains, followed by Contacts and Campaigns comparisons.
+See Design Document 73. Backend/API/migration/delivery state and module estimates are unchanged.
+
+## Latest UI priority — UI-REF-01
+
+Screenshot-aligned compact rail and persistent Manage panel implemented. Next acceptance work:
+Live Chat states 1–3, Contacts 4–9, Campaigns 10–17, then Manage 44–55, including real controls
+and previews. See Design Document 72. Frontend **882/882**, types/lint/build and bounded
+desktop/mobile checks pass; full parity and cumulative release/production validation remain
+pending. Unfinished GROW-03 segment changes at migration **0062** are preserved, not completed.
+
+## Current release-candidate checkpoint
+
+PAR-AUTO-22 remains the last worktree to pass the complete release quality profile **23/23 in
+685.9s**: **1521 backend tests with zero skips**, **832 frontend tests**, complete static, security,
+dependency, image-contract/SBOM and certified WAHA runtime gates. `REL-CERT-01`'s pre-PAR-AUTO-19
+cumulative deployed evidence remains **25/25 in 597.4s**, including the disposable ten-service
+browser, performance, dependency-failure and log-correlation gates. Its 30-read canary was
+**5.764ms p95** against a **300ms** budget. The exact current PAR-VIEW-05 tree separately passes
+focused Reports saved-view contracts **12/12**, **875 frontend tests**, static **6/6**, strict mypy
+across **322 files**, synchronized **235-path** OpenAPI and production build. Full backend is
+**1579 passed / 6 MySQL-only skipped / 0 failed in 413.35s**. Its
+Docker/security release rerun remains pending.
+This closes repository/local-deployment release blockers only for the last fully gated tree.
+
+It does not reorder or silently complete the roadmap below. The 31 canonical module estimates have
+a simple unweighted mean of **77.0%** (recalculated median **88%**). Product gaps remain in the named GROW/ENT
+milestones, and REL-01 accessibility/UAT, the remaining REL-02 capacity/restore evidence, and
+REL-03 target-host TLS/secrets/monitoring/rollback/acceptance are still pending. No commit, push,
+release tag, or live deployment was performed.
 
 ## Authority and baseline
 
 - Final product intent: `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md`.
 - Remaining-work baseline: `CURRENT_PROJECT_GAP_ANALYSIS.md`.
+- UI Taste Modernization branch: `ui/taste-modernization`.
+- UI Taste Modernization lineage baseline: `62d4daa50617e2e0c8fff9f5ec9a514848a77f98`.
+- Priority 1 starting baseline: `9043fe03a80b682a010304c88c5d29d8ec77d1fa`.
 - GOV-02 starting baseline: Git `0ea14d6`, repository `1.0.0-rc1`, migration `0031`, OpenAPI 3.1.0
   with 153 paths, 932 backend tests, and 628 frontend tests.
+- Current live baseline after CORE-09: repository `1.0.0-rc1`, migration
+  `0035_notification_center`, OpenAPI 3.1.0 with 193 paths, and 948 backend tests.
 - Existing functionality is reused. A milestone may close a verified gap but may not rebuild a
   completed module.
 - GitHub remains the only implementation source of truth. The owner-approved AiSensy capture archive
@@ -65,16 +119,365 @@ Last synchronized: `2026-08-02T17:39:04+05:30`.
   requirements; this gate does not change the approved feature sequence below.
 - Estimated path and migration changes are planning figures. The milestone design review must
   verify exact additive contracts before implementation.
-- Exactly one milestone is implemented per commit. Stop after each milestone for owner approval.
+- Exactly one implementation milestone is closed per reviewed commit. Stop after each milestone for
+  owner approval.
 
-Milestone status: `CORE-07` Customer 360 domain convergence is complete at this synchronization.
-The existing Contact profile composes persisted conversations, Reactivation CRM, reminders, notes,
-documents, tasks, KYC/SIM/Activation facts, campaigns, Audit, and Customer Timeline without a new
-authority. The owner-corrected lightweight CRM direction remains canonical, and future migration
-estimates advance beyond the unchanged `0034_reactivation_crm` head. **CORE-08 — Skipped: Not
-required by product owner.** No generic approval authority or Approval Center will be built. Existing
-KYC-specific approval logic and completed authorization safeguards remain preserved. The next
-milestone is `CORE-09 — Notification Center`.
+Current milestone status: `CORE-11C — Inactivity Auto-Resolve` is repository-implemented inside the
+still-`PARTIAL` CORE-11. On top of CORE-11A/11B operations, it adds an opt-in bounded inactivity
+scanner, open-Task/unread protection, row-locked idempotent resolution evidence and safe fresh-
+inbound reopen without a migration, new route or duplicate workflow authority. The remaining
+CORE-11 settings/team/SLA work stays in the row below. `CORE-09 — Unified Notification Center`
+remains complete, and
+**CORE-08 — Skipped: Not required by product owner** remains unchanged. No generic approval
+authority or Approval Center will be built; existing KYC-specific approval logic and completed
+authorization safeguards remain preserved.
+
+`UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy, `UI-TASTE-04` responsive/accessibility/performance regression and `UI-TASTE-05` owner review/merge readiness are Repository Validated. UI-TASTE-05 remains Repository Validated; the owner has separately authorized only M13-06B provider-neutral control-plane work.
+
+The 2026-08-21 owner clarification makes AiSensy-style named tabs and workflows the visible product
+baseline while retaining original branding/assets and the permanent exclusions. The repository-
+validated follow-up expands named daily navigation by default, organizes existing additional routes
+under `Manage`, and labels the existing Live Chat filters `Requested`, `Active` and `Intervened` over
+real pending/open/current-assignee facts. The next repository-validated slice makes that operator
+lifecycle executable: a row-locked, audited and idempotent `Intervene` action claims a request;
+another agent cannot steal it; and only the owner can `Resolve`, including through the older generic
+status route. PAR-AUTO-04 supplies the governed `Human handoff` effect, and PAR-AUTO-05 now connects
+the first automatic path: a privacy-safe real inbound event creates one locked receipt and pinned
+Trigger → Human handoff live run, placing the conversation in `Requested` once. Unsupported graph
+shapes fail closed and test mode stays simulated. PAR-AUTO-06 adds one optional privacy-safe
+Condition before that handoff. A match continues; a non-match records a skipped effect. PAR-AUTO-07
+adds Create task as the first internal work effect: direct or conditional inbound paths create one
+existing tenant-scoped Task with publisher assignment, immutable due time and receipt-keyed replay
+recovery. PAR-AUTO-08 adds Apply tag as the second internal effect: the immutable existing CRM tag
+is attached once through row-locked Tag/Contact, Timeline and Audit authorities; replay and an
+already-present tag cannot duplicate evidence. PAR-AUTO-09 adds Assignment as the third internal
+work effect: a published specific user is revalidated at execution, or durable per-flow receipt
+order rotates across eligible Inbox members. The Conversation row lock preserves any existing
+owner, and crash replay cannot duplicate the system Audit. PAR-AUTO-10 adds Remove tag as the
+fourth internal work effect: the immutable CRM tag is detached through the same locked Contact/Tag,
+usage, Timeline and Audit authorities; already-absent and replayed removal are safe no-ops.
+PAR-AUTO-11 completes internal Notification as the fifth internal work effect: one Contact-linked
+delivery goes to the active eligible publisher through the existing Notification Center and
+receipt/node replay converges without duplication. Backend, migration, static, frontend and
+production-build gates pass; Automation advances to **96%**. Migration is `0046`; no route,
+permission code, provider action, customer send or parallel authority is added. PAR-AUTO-12 then
+adds bounded sequential execution: one to four distinct proven effects run in connected order, and
+completed node attempts checkpoint worker retry without duplicating domain work. Branches,
+repeated effect kinds and larger sequences still fail closed; Automation advances to **98%**.
+PAR-AUTO-13 activates one bounded durable Delay in that linear sequence: the worker records a
+running checkpoint, schedules the same receipt task and cannot execute downstream effects before
+the due time. Early/duplicate delivery converges, and due resume does not repeat upstream work;
+Automation advances to **99%**. PAR-AUTO-14 then promotes Contact Created to a second bounded live
+event for Apply tag, Remove tag and internal Notification, with event-safe Condition fields and the
+existing Delay. A minute receipt scanner on the existing scheduler queue recovers new and genuinely
+stale work while leaving paused delays to their scheduled continuation; Automation remains **99%**.
+General branching, Wait-for-event, further live event consumers, campaign/webhook/customer-message
+effects, capacity/skill routing, SLA presentation and authenticated host/browser acceptance remain
+future work. PAR-AUTO-15 adds Conversation Auto-Resolved as a third bounded live event: it creates
+safe internal follow-up Tasks, changes tags or notifies the publisher from tenant-checked event
+lineage, while Handoff and Assignment fail closed on the resolved chat. The existing receipt
+dispatcher provides recovery, and Automation remains **99%**.
+PAR-AUTO-16 promotes Schedule to a fourth bounded live trigger. A clean published cron persists an
+indexed next UTC run in the organization timezone; the minute heartbeat claims one deterministic
+slot/event/receipt, advances past missed occurrences and reuses existing receipt recovery. Its live
+path is limited to one workspace-only publisher Notification with one optional Delay. Migration is
+`0047`; general branching, Wait-for-event, external/customer actions and reconciliation remain
+future work, so Automation remains **99%**. PAR-AUTO-17 then promotes one Wait node to a durable
+live checkpoint on event-backed paths: it persists the original receipt/run/node and Contact,
+resumes only on that customer's future Message Received event, and requires a 60-second-to-30-day
+timeout plus a later approved internal effect. The existing minute receipt heartbeat owns timeout
+and enqueue-failure recovery. Migration is `0048`; additional wait/event projections, general
+branching and external/customer actions remain future work, so Automation remains **99%**.
+PAR-AUTO-18 activates the existing Task completed Wait choice. Single and bulk Task completion now
+append one deterministic, privacy-safe `task.completed` Business Event in the authoritative Task
+transaction; a reopened/re-completed Task receives a distinct revision fact. Only a future
+same-organization/Contact completion can resume the original run, while timeout and failed-enqueue
+recovery continue through the existing receipt heartbeat. At that checkpoint, Lead-stage
+projection, general branching, external/customer actions and reconciliation remained future work,
+so Automation remained **99%**.
+PAR-AUTO-19 now consumes the authoritative immutable Reactivation stage transition as the live
+`lead.stage_changed` alias rather than duplicating CRM state. Previous/New stage conditions may
+drive a Contact-linked Task, tag changes or an internal Notification through the existing Delay or
+same-customer Wait. Private transition reasons and internal case/stage identifiers are excluded,
+and no Conversation is fabricated. Handoff, Assignment, general branching, external/customer
+actions, recipient/team routing and reconciliation remain future work, so Automation remains
+**99%**.
+PAR-AUTO-20 adds one bounded terminal Yes/No split to event-backed Conditions. Explicit `yes` and
+`no` edges each end at one already-approved internal effect; only the selected action executes and
+the other is durably skipped. Safe test mode follows the same decision, and the builder labels and
+locks the split while offering a return to linear mode. Multiple Conditions, nested or multi-step
+branches, Delay/Wait within branch bodies, external/customer actions, recipient/team routing and
+reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-21 extends each side of that exact split to one or two ordered distinct internal effects
+under the unchanged four-effect ceiling. Selected steps resume from durable checkpoints, every
+unselected node is skipped explicitly, and safe test mode mirrors the body without mutation. The
+builder exposes a dedicated Yes/No effect palette and safe terminal removal. Multiple/nested
+Conditions, longer bodies, branch Delay/Wait or merging, external/customer actions, recipient/team
+routing and reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-22 adds one optional shared follow-up after that exact split. Both branch terminals may
+converge on one trigger-safe terminal effect under the same four-effect ceiling. Only the selected
+branch and shared node execute; alternate-only nodes stay durably skipped and replay cannot
+duplicate the shared domain effect. The builder exposes `+ Both`/`After both` and preserves the
+merge while inserting or removing a branch terminal. Arbitrary/multiple merges, multiple/nested
+Conditions, longer bodies, branch Delay/Wait, external/customer actions, recipient/team routing
+and reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-23 allows that exact shared follow-up to pause once through a durable Delay immediately
+before its action. The selected branch checkpoints first; early/duplicate delivery reuses one
+running Delay attempt, and due resume executes the shared effect exactly once before completing
+alternate-only skip evidence. The builder inserts/removes the `Shared delay` without leaving a
+terminal timer. Branch-specific Delay/Wait, multiple timers, arbitrary/multiple merges, multiple/
+nested Conditions, longer bodies, external/customer actions, recipient/team routing and
+reconciliation remain future work, so Automation remains **99%**.
+PAR-DL-01 partially delivers GROW-06's artifact home by projecting existing contact and analytics
+CSV/XLSX/JSON exports into one personal, tenant- and current-permission-scoped Download Center.
+It adds normalized status/expiry, fresh signed links, URL filters, polling and keyset history without
+duplicating the export pipeline. PAR-REP-01 adds real paginated PDF artifacts for all seven existing
+analytics report families through that same pipeline. PAR-REP-02 adds personal daily/weekly/monthly
+schedule management, row-locked automatic export generation and ready notifications. New
+executive/domain metrics remain governed by PAR-REP-03/04. PAR-DL-02 adds permission-scoped
+complete/date-bounded conversation transcripts in four formats through the same personal artifact
+home. Campaign/scan and generated-document sources remain in GROW-06 and their source milestones.
+
+## Module 13 — Enterprise Omnichannel Channel Manager
+
+**Current status: QR-09D, QR-09G, QR-09H, QR-09I, QR-09J and QR-09L — REPOSITORY/RUNTIME VALIDATED; QR-09 remains PARTIAL — BLOCKED**
+
+ADR-0020, ADR-0021 and Design Document 33 remain frozen. M13-01 supplies provider-neutral contracts
+and registries; M13-02 exact Contact identity; M13-03 persistent connection/endpoint/encrypted-secret
+records; M13-04 durable session lifecycle/lease/fencing; M13-05 runtime/pairing control-plane facts;
+M13-06A adds inert sync checkpoints/media references; and M13-06B adds repository-owned lifecycle,
+permission, flag, concurrency and Audit controls over those records. WAHA remains uncertified and no
+live login, event ingestion, provider history retrieval or media-byte transfer exists.
+
+Provider adapters, QR image generation/scanning, WhatsApp protocol, live synchronization, media-byte
+transfer, messaging, webhook, routing and operator UI remain outside this milestone.
+
+| Milestone | Objective | Status / start gate |
+|---|---|---|
+| M13-00 — Architecture & Provider Lock | Freeze architecture, provider, security, session, identity, API/database, rollback, rollout and validation contracts | **REPOSITORY VALIDATED** |
+| M13-01 — Generic Channel Foundation | Add provider-independent domain contracts, registries, validation, generic flags and DI while reusing `ChannelAdapter` | **REPOSITORY VALIDATED**; no provider/runtime/persistence workflow |
+| M13-02 — Customer identity convergence | Add exact scoped provider identities and conflict handling without duplicate Contacts | **REPOSITORY VALIDATED**; immutable aliases, review queue and non-destructive recommendations delivered |
+| M13-03 — Persistent Channel Connections & Endpoint Records | Add organization-owned provider-neutral connection/endpoint records and encrypted versioned/revocable credentials with tenant isolation, lifecycle/health metadata, soft delete, locking, flags and Audit references | **REPOSITORY VALIDATED**; migration `0037`; no API/provider/runtime/UI behavior |
+| M13-04 — QR Session Manager Foundation | Durable provider-neutral session state, lifecycle, heartbeat/expiration, recovery/restart metadata, capability references, tenant/RBAC/flags/Audit and lease/fencing concurrency controls | **REPOSITORY VALIDATED**; migration `0038`; no provider, live runtime, QR/login, API or UI behavior |
+| M13-05 — QR Pairing & Provider Runtime Foundation | Provider-neutral runtime registry/manager, no-store pairing lifecycle, health/events/capabilities, heartbeat/restart/recovery and session persistence integration | **REPOSITORY VALIDATED**; migration `0039`; no provider adapter, QR image/login, messaging, API or UI behavior |
+| M13-06 — QR inbound, history and media | Canonical live events, checkpointed history and existing-media reuse | **M13-06A persistence and M13-06B provider-neutral lifecycle control plane REPOSITORY VALIDATED**; certification PASSED 2026-08-08, and the provider adapter (QR-01) and live event ingestion (QR-04) are delivered. Provider history retrieval and media-byte transfer remain unimplemented |
+| M13-07 — Provider-neutral outbound | Conversation-scoped send and approved manual QR messaging | Blocked by idempotency and ambiguous-send evidence |
+| M13-08 — Unified operator experience | Provider-aware Inbox, Customer 360, Timeline, assignment, notes, tags and search | Blocked by stable source milestones |
+| M13-09 — Notifications, analytics and diagnostics | Reuse existing authorities with factual provider dimensions | Blocked by stable unified sources |
+| M13-10 — Production validation | Security, performance, browser, accessibility, operator, DR and staged rollout evidence | Blocked by all implementation milestones |
+
+The M13-06B stop gate has since been released: physical-phone certification **PASSED** on
+2026-08-08 and the owner instructed the QR sequence to proceed. QR-01 (adapter foundation),
+QR-02 (session lifecycle mapping) and QR-03 (QR pairing) are delivered under that release.
+
+QR-04 (webhook ingestion) is also delivered: verification and normalization onto the existing
+`webhook_events` authority, with no new route, table or migration.
+
+QR-05 (text send and delivery-state reconciliation) is also delivered, reusing the existing
+monotonic `messages` status authority rather than adding a second ordering.
+
+QR-06 (session recovery, health and teardown) is also delivered, reusing the existing session
+lease/fencing authority rather than adding a second runtime ownership system.
+
+QR-07 (WhatsApp Scan/Connect interface) is delivered: the first real operator UI over the WAHA
+adapter, bridging it to the existing M13-03/04/05 connection/session/pairing control plane. This is
+also the first milestone in the QR sequence to add public API routes (OpenAPI 200 → 206 paths),
+which is expected and authorized at this stage rather than a drift regression.
+
+QR-08 (Unified Inbox integration) is also delivered: Meta and WAHA conversations share the same
+existing Inbox, Conversation/Message ledger and Contact authorities rather than a second Inbox.
+Adds one additive migration (`0043`, nullable `channel_endpoint_id` alongside the existing
+`phone_number_id`) and one route (`POST /webhooks/waha`, OpenAPI 206 → 207 paths) — the WAHA
+webhook HTTP endpoint QR-04 built the verification/parsing logic for but never wired.
+
+QR-09L remediates **QR-09-D13 (application defect)** without changing the approved sequence or
+provider capabilities. Persisted endpoint-owned ACKs now select their connector through the
+durable endpoint/connection relationship rather than inheriting a task-local Meta default.
+Provider-native WAHA reply identity is preserved in the existing scoped Contact identity authority:
+`@lid` stays `@lid`, and `@c.us`/`@s.whatsapp.net` stay exact when observed; only a factual phone JID
+can link canonical telephone identity. Outbound Inbox replies reuse that exact endpoint route and
+never manufacture `@c.us` from LID digits. No migration, route or OpenAPI change is required.
+Canonical premerge 14/14 and applicable release/runtime 8/8 pass (backend 1444, frontend 806). The
+protected provider remains WORKING/paired with restart count zero. Application remediation is
+validated, but QR-09 remains blocked until the one new QR09-L-ACK Inbox message produces genuine
+correlated physical ACK evidence; persistence/logout, Meta rotation and target-host/browser gates
+also remain pending. Certification approval does not advance.
+
+QR-09J closes **QR-09-D12 (Blocker)** without changing the approved sequence. A real external
+message reached both signed certified WAHA event variants but failed before the shared Inbox because
+the provider timestamp was aware UTC and repository/MySQL time is naive UTC. The adapter now
+normalizes the provider epoch at its boundary. Preserved events were redriven through the existing
+idempotent queue and produced exactly one accepted Inbox message with unread count one; the original
+dead-letter records remain historical evidence. Canonical premerge 14/14 and applicable
+release/runtime 8/8 pass (backend 1437, frontend 806). The linked provider was never restarted and
+remains WORKING/active/paired/connected. QR-09 remains blocked on outbound/ACK, linked-session
+persistence, logout/re-authentication, Meta rotation and target-host/browser evidence; approval
+status does not advance.
+
+QR-09I closes **QR-09-D11 (Blocker)** without changing the approved feature sequence. The
+short-lived pairing representation expired after the physical scan while the same configured WAHA
+session had already reached identity-bearing `WORKING`; equal-state pairing requests could not
+renew that window and the ordinary expired-transition guard correctly refused convergence.
+Explicit pairing requests now renew only the availability expiry under existing lease/fence/version
+controls, while polling never renews. A narrow provider-confirmed completion accepts only a fresh
+same-session `WORKING` observation with identity, preserves the pairing revision and emits redacted
+Audit evidence. The linked real session converged to active/paired/connected without a provider
+restart, logout, delete, create, new QR, rescan, message or database backdoor. Canonical premerge
+14/14 plus nine release/runtime gates pass (backend 1436, frontend 806). QR-09 remains blocked on
+the external phone, ACK, restart/reconnect, logout/re-authentication, Meta-rotation and target-host
+gates; provider certification and Host/Provider/Production status do not advance.
+
+QR-09H closes **QR-09-D10 (Blocker)**. An unscanned QR lapses to `FAILED` while the provider
+session object survives, so every governed "Get a new QR code" retry hit the provider's
+`already exists` refusal, which the service reported as an outage; `reconnect` refused because
+nothing was paired and `connect` was an idempotent no-op, so after the first expiry the channel
+could never issue another QR without direct provider intervention.
+
+Certified behavior was measured on the exact digest rather than assumed: `start` alone answers
+`201` and changes nothing on a `FAILED` session, while `stop` then `start` reaches `SCAN_QR_CODE`
+with the session count at one, `me` still `None` and the stored configuration byte-identical. A new
+`prepare_pairing()` applies exactly that non-destructive pair — never a delete, recreate or logout —
+and leaves `begin_pairing()` create-only so QR-03's no-guessing-on-conflict principle and its
+regression still stand. It reuses an already QR-eligible session, skips a redundant stop, and
+refuses both a provider-reported linked account and a durably `PAIRED` connection; every provider
+mutation runs under the governed runtime lease. Error classification is corrected so a reached
+provider yields a truthful conflict instead of a false outage, with provider wording never echoed.
+A genuinely expired QR recovered through the actual frontend under a single lease, and the
+application QR returned `200 image/png` with no-store/private/no-cache. All 23 release gates pass
+(backend 1431, frontend 806, unchanged). Migration/OpenAPI/RBAC/capabilities/digest, persistent
+storage and provider approval remain unchanged; no frontend source was touched.
+
+QR-09D closes **QR-09-D6 (Major)** on top of the committed QR-09G backend. With a durable
+application session present and the provider reachable but holding none, the screen projected
+`ready-to-connect` and re-offered an idempotent `connect()` that provably cannot create provider
+state, so `POST /session/pair` was operationally unreachable and every poll re-asserted the dead
+end. The durable application session is now the boundary between the two honest operator actions:
+a provider-neutral `ready-to-pair` state offers "Begin pairing" wired to `POST /session/pair`,
+while no durable session still yields `ready-to-connect`. QR-09F outage truth still outranks it,
+and a previously paired connection still resolves earlier as `reauth-required`.
+
+Frontend regressions were reconciled by hand against the QR-09F suite rather than by applying the
+conflicting historical patch, so every outage regression is preserved alongside the new D6
+coverage. Real MySQL/Redis/application/exact-WAHA evidence: `ready-to-pair` held across eight live
+three-second polls with Connect WhatsApp absent; the actual UI action issued exactly one
+`/session/pair` and zero `/session/connect`; two application QR requests returned `200 image/png`
+with no-store/private/no-cache and the bytes were never displayed, persisted or scanned; a genuine
+outage produced zero new QR requests and recovered without duplication; and the QR-09G paused
+never-paired recovery was re-proven through the same UI. Actual local desktop/mobile captures show
+ready-to-pair with no QR, no horizontal overflow, visible keyboard focus and a compliant mobile
+touch target; these do not constitute target-host acceptance. All 23 release gates pass (backend
+1418, frontend 806). Migration/OpenAPI/RBAC/capabilities/digest, persistent storage and provider
+approval remain unchanged. Physical-phone QR-09 validation follows, gated on explicit
+dedicated-account safety confirmation.
+
+QR-09G remediates **QR-09-D9 (Blocker)** without absorbing QR-09D. `STOPPED` is an ordinary WAHA
+status, `map_session_status` turns it into durable `PAUSED`, and a `PAUSED` row cannot acquire a
+runtime lease. For a never-paired connection that closed every exit: status reconciliation stopped
+permanently and reported an outage that was not happening, `pair` returned 409, `reconnect`
+returned 409 instructing the operator to pair, and `connect` was an idempotent no-op — the channel
+was unrecoverable without direct database intervention, because the documented
+`PAUSED → INITIALIZING` escape sat behind `can_reconnect`, which requires durable `PAIRED`.
+
+`begin_pairing()` now reuses the exact control-plane pattern `reconnect()` established: the legal,
+lease-free `PAUSED → INITIALIZING` transition first, then the ordinary runtime lease. The
+`SessionManager` PAUSED lease prohibition is unchanged, and recovery is narrow to non-`PAIRED`
+pairing states so durable credentials stay in the reconnect/re-authentication domain. A row that
+cannot be leased is still read, so missing-session and outage facts are truthful while nothing is
+created, started or mutated from a `GET`. Real MySQL/Redis/application/exact-WAHA evidence replayed
+the preserved D9 reproduction: `pair` returned 200, the audit trail shows `transitioned` before
+`lock_acquired`, exactly one provider session reached `SCAN_QR_CODE`, one durable
+connection/session remained, and no database intervention was needed. All 23 release gates pass
+(backend 1418, frontend 798). Migration/OpenAPI/RBAC/capabilities/digest, persistent storage and
+provider approval remain unchanged. QR-09G is backend/control-plane only, so no UI preview evidence
+is claimed. QR-09D closure and physical-phone QR-09 validation follow separately.
+
+QR-09F remediates **QR-09-D8 (Major)** without absorbing QR-09D. A genuine provider outage could
+inherit actionable QR truth from durable `pairing_available` state and stale `SCAN_QR_CODE`
+metadata; the frontend then mounted QR retrieval while WAHA was unreachable. Reconciliation now
+distinguishes current observation, missing session and transport outage. Only a current live
+`SCAN_QR_CODE` observation advertises QR availability; the outage projection fails closed without
+mutating durable pairing/reauthentication facts. Frontend outage priority suppresses every stale QR,
+creating, connecting or reconnect action.
+
+Real MySQL/Redis/application/exact-WAHA evidence held a genuine outage for more than three polling
+intervals with no QR-handler request, then recovered the same container, volume, provider session
+and durable application session. Actual local desktop/mobile browser captures show the unavailable
+state with no QR/action or horizontal overflow; these do not constitute target-host acceptance.
+All 23 release gates pass (backend 1408, frontend 798). Migration/OpenAPI/RBAC/capabilities/digest,
+persistent storage and provider approval remain unchanged. QR-09D stays externally preserved and
+unapplied; Meta rotation is `PENDING — OWNER DEFERRED`; QR-09 remains `PARTIAL — BLOCKED`. No
+automatic QR-09D or physical-phone QR-09 resume is authorized.
+
+QR-09E remediates **QR-09-D7 (Major)** without absorbing QR-09D: the QR byte request inherited
+`Accept: application/json`, and the certified WAHA runtime truthfully returned JSON even with
+`?format=image`. JSON API calls retain their JSON default; only QR retrieval now requests
+`image/png`. A new release regression starts the exact certified digest in an isolated loopback-only
+container, reproduces JSON negotiation, validates PNG negotiation through the repository client and
+asserts one ephemeral session with no persistent-volume mount. Repeated live application fetches
+also return PNG with no-store/private cache controls and no duplicate provider or durable session.
+QR bytes are never displayed, logged, persisted or scanned.
+
+All 23 release gates pass (backend 1407, frontend 796), including health, QR and signed-webhook
+certified-runtime checks plus production contracts, image scans and SBOMs. Migration head, OpenAPI,
+RBAC, frontend source, capabilities, persistent session storage and provider approval do not change.
+QR-09D's separate three-file frontend work remains preserved externally and was not reapplied.
+QR-09D and QR-09 remain `PARTIAL — BLOCKED`; Meta rotation is `PENDING — OWNER DEFERRED`, and no
+physical-phone or target-host claim is made. No automatic QR-09D or QR-09 resume is authorized.
+
+QR-09C technically remediates **QR-09-D5 (Major)**: both Compose topologies now configure the exact
+certified WAHA sender to deliver only `message`, `message.any` and `message.ack` to the existing
+HMAC-gated receiver. Production callback traffic stays on the private Compose network; development
+uses Docker's internal host gateway while retaining loopback-only provider publication. One global
+configuration keeps the dedicated signing key out of session state and avoids the duplicate
+deliveries WAHA would produce if global and per-session webhooks were both present. The backend's
+raw-body SHA-512 verifier and all application behavior remain unchanged.
+
+The new release regression executes the certified image's own sender, proves provider-generated
+HMAC, private callback reachability, a byte-identical retry after controlled failure, and a new
+signed ACK delivery after provider restart. The provider remains `2026.7.2` / `NOWEB` / `CORE` with
+zero sessions; no QR or phone interaction occurs. All 22 release gates pass (backend 1399/0 skipped,
+frontend 796). Migration head, OpenAPI, RBAC, UI, capabilities and provider approval do not change.
+
+**META WEBHOOK_VERIFY_TOKEN ROTATION: PENDING — OWNER DEFERRED.** Therefore QR-09C remains
+`PARTIAL — D5 REMEDIATED, META TOKEN ROTATION PENDING`, and QR-09 remains `PARTIAL — BLOCKED`.
+`Host Validated`, `Provider Validated` and `Production Ready` remain NO. QR-09 physical-phone
+closeout does not resume without separate explicit approval.
+
+QR-09B (WAHA runtime healthcheck remediation) is **REPOSITORY VALIDATED**. It preserves QR-09's
+failed-attempt history and records QR-09-D4 (Major): both Compose files called `wget`, which is not
+present in the exact certified image. The corrected exec-form, bounded in-image curl probe uses the
+provider-owned unauthenticated `/ping` liveness endpoint and deliberately does not assert WhatsApp
+pairing state. A real certified-image regression proves Docker healthy before and after restart,
+positive and deterministic negative command behavior, loopback-only development exposure, no
+production port, and unchanged persistent session-volume/startup semantics. All 21 release gates
+pass. No application behavior, migration, OpenAPI, RBAC, capability or provider-certification state
+changed.
+
+QR-09A (production validation remediation) is **REPOSITORY VALIDATED**: it repairs exactly the
+blockers QR-09 recorded — `0043`'s real-MySQL downgrade (no new revision; up/down/up now proven with
+data), the provider-up/session-absent HTTP 500 (now a truthful recoverable state that preserves
+durable pairing truth and never auto-recreates a session), the oversized-webhook 500 (now `413`),
+the red OpenAPI drift gate (artifact regenerated canonically; 207 paths unchanged), the missing WAHA
+deployment definition (digest-pinned, profile-gated, no production port, persistent session volume,
+operator runbook), and the `cryptography` advisory (floor raised; `pip-audit` clean). Verified
+against real MySQL 8.0.46, Redis 7.4.9 and the real pinned WAHA container. Capabilities, RBAC,
+migration head and the provider certification record are unchanged.
+
+**QR-09 itself remains `PARTIAL — BLOCKED`** and is not closed by this: physical-phone provider E2E
+(including credential survival across a restart, which was not demonstrated) and the
+browser/target-host matrix still require evidence this environment cannot produce.
+
+QR-09 (production validation) was attempted and is `PARTIAL — BLOCKED`: real MySQL `8.0.46`,
+real Redis `7.4.9`, and the real pinned WAHA container confirmed the QR-08 dedupe/routing/idempotency
+contract, but two Major defects (a real-MySQL `0043` downgrade failure; a `500` on the QR operator
+status endpoint when the provider is up but the session is absent) and one genuinely-failing required
+gate (OpenAPI drift — investigated and corrected to an ASCII-escaping cause, not the previously
+recorded resolver key-order explanation) remain open. No product, migration, OpenAPI, or capability
+change was made. Full evidence: `VALIDATION_RESULTS.md` "QR-09 — Production Validation". The
+recommended next milestone, `QR-09A — Production Validation Remediation`, is not started.
+
+Still not started, and still requiring their own milestones: provider history retrieval and
+media-byte transfer/processing.
 
 ## Phase 0 — Governance and scope lock
 
@@ -98,38 +501,65 @@ replaced.
 | CORE-05 — Lightweight Reactivation CRM — COMPLETE | Replace the planned heavy SIM/Activation operating products with the owner-approved internal CRM while preserving their backend foundations. | Exactly one of nine primary statuses; six flexible labels; Follow-up/Release dates; Task-backed Upcoming/Due Today/Overdue reminders; Complete/Snooze/Reschedule; assignee, notes, chips, filters, Audit and Timeline. | Existing Reactivation/Task/Contact/User/Audit/Timeline/Celery/frontend authorities; migration `0034_reactivation_crm`; generated contracts; ADR-0017; Design Document 30. | Status/label/date constraints; Task lifecycle/due delivery; tenant/RBAC/concurrency; immutable evidence; filter/count; keyboard/drag; accessible responsive loading/empty/error/read-only UI. | COMPLETE — one factual server-owned CRM persists refreshes, uses no duplicate status/label concept or parallel reminder system, preserves historical evidence/foundations, and adds no fake workflow. | +1 actual | `0034` Reactivation CRM (actual) |
 | CORE-07 — Customer 360 domain convergence — COMPLETE | Make the existing profile the authoritative operational workspace. | Real Reactivation/KYC/SIM/Activation facts, reminders, SLA, contact-scoped conversations, messages, campaigns, notes, documents, assignment, Tasks, Audit and Customer Timeline. | Existing Customer Profile, Inbox, Vi domain and shared section implementations; optional exact-Contact filters on existing APIs; generated contracts; ADR-0018; Design Document 31. | Exact-contact/tenant/RBAC API tests; factual composition, denied/read-only/error/no-placeholder tests; desktop/tablet/mobile and keyboard review. | COMPLETE — every section composes persisted source facts, respects permissions, deep-links to its source workflow, and introduces no duplicate record, synthetic metric, migration, or endpoint family. | +0 actual | None (actual) |
 | CORE-08 — Skipped: Not required by product owner | General Approval Engine is not required. | Preserve existing KYC-specific approval logic and completed module-level authorization safeguards; do not build an Approval Center, generic approval framework, approval queue, escalation system, or new approval authority. | Governance records only; no product source, API, model, migration, permission, or UI files. | Governance consistency and changed-file boundary only. | SKIPPED — owner decision is recorded consistently and existing safeguards remain unchanged. | +0 actual | None |
-| CORE-09 — Notification Center | Build server-backed, actionable notification delivery over the Task due evidence established in CORE-05. | Notification records, unread counts, deep links, mark-one/all-read, SSE, browser push seam, optional email/internal WhatsApp adapters, preferences and domain events. | Notification models/services/endpoints/SSE; `backend/alembic/versions/0036_*`; top-nav center and settings UI. | Fan-out/idempotency/read-state/security/SSE reconnect; Task-due adapter isolation; badge/deep-link/accessibility tests. | All approved core events create permission-safe notifications; unread state survives devices; optional channels fail without losing in-app evidence. | +6–9 | `0036` notifications |
-| CORE-10 — Dedicated Chat History | Separate operational history from the live inbox. | Agent/date/customer search, media, campaign-generated, resolved records, full audit filters, saved view and export hooks. | Conversation query extensions; chat-history route/feature; navigation; export integration. | Filter/pagination/tenant/permission/query-budget tests; route/table/mobile/accessibility tests. | Dedicated page reproduces complete factual history without mutating live-chat queues and without loading unbounded conversations. | +2–4 | None |
-| CORE-11 — Core settings, team, tags, and SLA controls | Close remaining administrative gaps using existing admin/settings foundations. | Working hours/messages, assignment, auto-resolve/read receipts, opt-in/out, pipeline/SLA rules, notification/security/audit settings; online/workload/login/permission audit; required/active attributes. | Existing settings/admin/tag/attribute backend/frontend files; possibly configuration migration. | Settings validation; role matrix; assignment/SLA calculations; audit; backward compatibility; responsive admin UI. | Every approved control is persisted, permission-scoped, audited, and consumed by the relevant service; existing APIs remain compatible. | +4–8 | `0037` only if persisted structures require it |
+| CORE-09 — Unified Notification Center — COMPLETE | Deliver durable, actionable in-app notification evidence over existing Task and Reactivation authorities. | Tenant/user-scoped records, unread count, mark-one/all-read, read-only team filter, source deep links, 15-second polling, Task due and Reactivation assignment/status projections, Audit evidence, lifecycle resolution and revision-safe redelivery. | Notification model/repository/service/endpoints, migration `0035_notification_center`, generated OpenAPI/types, top-nav center, tests, ADR-0019 and Design Document 32. | Tenant/RBAC/read-state/filter/deep-link/idempotency; task reassign/reopen/bulk/delete lifecycle; migration; generated-contract; frontend notification/layout accessibility tests. | COMPLETE — in-app evidence survives refresh/device use, stale task deliveries resolve, the correct recipient/revision can receive a fresh notice, and optional channels are not falsely claimed. | +4 actual | `0035` Notification Center (actual) |
+| CORE-10 — Dedicated Chat History — NEAR COMPLETE (`PAR-DL-02`, `PAR-HIST-01`) | Separate operational history from the live inbox. | Delivered: dedicated read route, agent/customer/status/channel/tag/date/campaign/media/audit filters, resolved records, full bounded message history, governed team-shared views, audit deep link and complete/date-bounded transcript exports. Remaining: authenticated representative-data WCAG/device/browser review and production-scale/target-host query commissioning. | Existing conversation/message/audit authorities; chat-history feature; shared export/Download Center pipeline. | Filter/pagination/tenant/permission/query-budget tests; route/sheet/mobile/accessibility tests; target-host performance evidence. | Dedicated page reproduces complete factual history without mutating live-chat queues or loading unbounded conversations. | +0–1 remaining | `0054_chat_history_filters_views` delivered |
+| CORE-11 — Core settings, team, tags, and SLA controls — PARTIAL (`CORE-11A/11B/11C` implemented) | Close remaining administrative gaps using existing admin/settings foundations. | **Delivered:** validated least-open/manual assignment, automatic/manual read state, exact opt-in/out keywords, organization-timezone weekly hours, new-window welcome, rate-limited off-hours replies, and protected inactivity auto-resolve with fresh-inbound reopen. **Remaining:** campaign preferences, pipeline/SLA, notification/security/audit settings; online/workload/login/permission audit; required/active attributes. | Existing settings/admin/tag/attribute backend/frontend files; possibly configuration migration. | Settings validation; role matrix; assignment/SLA calculations; audit; backward compatibility; responsive admin UI. | Final CORE-11 completion still requires every remaining approved control to be persisted, permission-scoped, audited and consumed; CORE-11A/11B/11C satisfy that rule for their bounded controls. | +1 actual so far | None for CORE-11A/11B/11C; next additive revision only if later structures require it |
+
+## Approved cross-cutting UI Taste Modernization
+
+This sequence modernizes the existing product without changing feature scope or rebuilding the shell.
+The sidebar, permission-aware navigation, routes, generated API contracts, source-domain ownership,
+responsive/mobile navigation, keyboard/focus behavior, reduced motion, and semantic light/dark tokens
+remain authoritative.
+
+### Audit findings
+
+1. Preserve and refine the strong shell/accessibility foundation rather than replacing it.
+2. Reframe Dashboard hierarchy around factual Reactivation operator work, not messaging alone.
+3. Separate connected Reactivation workspaces clearly from foundation/future capability.
+4. Reduce overuse of large radii, nested cards, soft fills, gradients, and decorative elevation.
+5. Converge Inbox, Contacts, and adjacent data-heavy screens on shared controls and state patterns.
+6. Clarify role-relevant everyday navigation versus advanced controls without removing approved routes.
+7. Require authenticated representative-data visual, responsive, accessibility, bundle, and
+   performance evidence; source inspection is not final acceptance.
+
+| Milestone | Objective | Scope | Completion criteria |
+|---|---|---|---|
+| UI-TASTE-01 — Documentation and audit baseline — COMPLETE | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Governance records only; design variance `4/10`, motion `3/10`, density `8/10`. | COMPLETE at `9043fe03`; documentation-only boundary and remote HEAD were verified. |
+| UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. The later owner-directed parity follow-up expands named daily tabs, adds a permission-aware Manage group and completes a guarded Live Chat intervention/handoff lifecycle. | Current repository gates pass: lint, typecheck, 818 tests and production build. Host visual/reference comparison remains pending; no parallel component system exists. |
+| UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED | Replace the messaging-led first screen with factual operational intelligence. | Cross-domain attention, blocked customers, KYC, SIM/Activation SLA risk, Campaigns, unread conversations, Templates, agent workload, today KPI changes, task snapshot and source actions. | Repository gates pass with 661 tests and split build; no fake metric/backend duplication; authenticated representative-data visual/reference review remains pending. |
+| UI-TASTE-03B — Reactivation operational hierarchy — REPOSITORY VALIDATED | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Resume only from the latest approved Git HEAD when explicitly instructed; real persisted behavior, permissions, source contracts and representative-data review pass. |
+| UI-TASTE-04 — Responsive, accessibility, and performance regression — REPOSITORY VALIDATED | Prove repository-verifiable modernization quality without claiming host evidence. | KYC route permission truth, debounced search, empty-result keyboard safety, shared modal focus/scroll behavior, narrow pagination, authenticated route splitting and dead-code removal. | **REPOSITORY VALIDATED** in workflow `30980229127`; main bundle 199.78/54.87 kB gzip; host browser/device/screen-reader evidence remains pending. |
+| UI-TASTE-05 — Owner review and merge — REPOSITORY VALIDATED | Determine owner-approval and merge readiness without adding features or changing architecture/governance. | One verified Major campaign chunk-order correction, full repository audit and synchronized validation records. | **REPOSITORY VALIDATED** in workflow `30982637585`; no repository-scope Blocker/Major remains; host evidence stays pending; explicit Owner Approval and Merge are the only next actions. |
 
 ## Phase 2 — Messaging, growth, analytics, and integrations
 
 | Milestone | Objective | Features | Files expected | Tests expected | Completion criteria | Est. OpenAPI increase | Est. migration |
 |---|---|---|---|---|---|---:|---|
-| GROW-01 — Campaign domain completion | Extend the release-ready broadcast engine only for final-scope gaps. | Broadcast/CSV/scheduled/API journeys, audience/segment/template/assignment, approval gating, delivery/read/reply/failure retry, conversion and campaign-to-reactivation facts, ROI inputs. | Existing campaign services/endpoints/UI; approval and reactivation links; analytics projections. | Approval/dispatch race; retry/idempotency; conversion attribution; permissions; end-to-end campaign reply-to-lead. | All approved campaign types and reports are factual; large campaigns cannot bypass approval; excluded Meta Ads functionality remains absent. | +3–6 | `0038` attribution fields/events if required |
-| GROW-02 — Template completion | Close template-management gaps without replacing the registry. | Draft/pending/approved/rejected, text/media/button formats, variables/preview, sync, favourites, categories, usage analytics, non-executing AI generator placeholder. | Existing template backend/frontend; favourite/category/analytics additions; generated contracts. | Meta sync/status/format/variable tests; favourite/permission/preview/accessibility tests. | Every approved template type and state is managed safely; placeholder is explicitly non-executing. | +2–4 | `0039` favourites/categories if not representable now |
-| GROW-03 — Segments and server-saved views | Make approved operational audiences reusable across users. | Dynamic/static segments, saved filters, Reactivation status/label/reminder/KYC/document/engagement predicates; private/shared views for all specified modules. | Segment extensions; saved-view models/services/APIs; `backend/alembic/versions/0040_*`; module UI integrations. | Predicate truth tables; share/RBAC/tenant/versioning; performance; route integration tests. | Views and segments are server-owned, reproducible, shareable only by permission, and usable by campaigns/reports without local-only drift. | +7–10 | `0040` saved views |
-| GROW-04 — Live simplified automation | Consume durable receipts through governed, idempotent effects. | Approved triggers/conditions/actions, delay/reminder, status/label movement, assignment, messages, notifications, stop/archive rules, approvals/handoffs, retries/DLQ, execution history. | Existing automation runtime; effect ledger/worker/services; builder/run UI; `backend/alembic/versions/0041_*`. | Effect idempotency; checkpoint/resume; approval/handoff; safe sends; domain transitions; failure/retry/DLQ; tenant/RBAC/audit; deployed Celery E2E. | The `Trigger → Conditions → Actions` examples in final scope execute through existing authorities with no duplicate side effects. | +5–8 | `0041` live effect ledger |
-| GROW-05 — Domain analytics | Extend existing rollups with lightweight Vi CRM dimensions. | Campaign/conversation/agent/reactivation status/label/reminder/source/KYC/SLA/date analytics, comparisons and exports; SIM/activation represented by case status unless explicitly reauthorized. | Analytics models/tasks/queries/endpoints/UI; `backend/alembic/versions/0042_*`; charts and filters. | Rollup determinism/rebuild/time-zone/tenant/query-budget; metric fixtures; chart/export tests. | Every scope metric has a documented formula, source event, reproducible rollup, API, UI, and export; no invented values. | +6–10 | `0042` domain rollups |
-| GROW-06 — Executive reports and Download Center | Deliver governed scheduled management reporting and one artifact home. | Revenue, conversion, ROI, productivity, workload, SLA, case-status outcomes, source, daily/weekly/monthly schedules, CSV/PDF; downloads/status/history/expiry/permissions. | Report/export services/tasks/endpoints; artifact models; `backend/alembic/versions/0043_*`; reports and download-center UI. | Formula/schedule/time-zone/PDF/CSV/expiry/approval/download-security; worker and UI tests. | Executives can schedule and retrieve all approved reports; every artifact is permission-scoped, auditable, expiring, and visible in Download Center. | +8–12 | `0043` report schedules/artifacts |
-| GROW-07 — Google Sheets | Add the only missing approved integration without a marketplace. | Admin connection, secret handling, sheet/range mapping, contact import/sync/export jobs, dedup, retries, status, audit, revocation. | Integration model/service/adapter/endpoints/tasks; `backend/alembic/versions/0044_*`; settings UI; docs. | Credential encryption/redaction; mocked Google API; mapping/dedup/idempotency/retry/revoke/tenant tests; job UI. | Authorized sheets exchange data through queued, auditable jobs; failures are recoverable; no unused integrations are introduced. | +6–9 | `0044` Google Sheets connections/jobs |
+| GROW-01 — Campaign domain completion (PARTIAL: PAR-DL-03/PAR-CAM-01) | Extend the release-ready broadcast engine only for final-scope gaps. | Delivered: governed PDF/CSV/XLSX/JSON results plus complete server-filtered/cursor-paginated recipient failure operations and confirmed retry. Remaining: conversion/campaign-to-reactivation facts and approved recovered-value/revenue/ROI inputs. | Existing campaign/reactivation/analytics authorities; shared Download Center. | Conversion attribution; source-formula truth; end-to-end campaign reply-to-lead; target-scale query plans. | Every approved campaign report is factual; delivery is never mislabeled as conversion/revenue and excluded Meta Ads functionality remains absent. | +1–2 remaining | `0055` export permission and `0056` ledger indexes delivered; future additive revision only for new source facts |
+| GROW-02 — Template completion | Close template-management gaps without replacing the registry. | Draft/pending/approved/rejected, text/media/button formats, variables/preview, sync, favourites, categories, usage analytics, non-executing AI generator placeholder. | Existing template backend/frontend; favourite/category/analytics additions; generated contracts. | Meta sync/status/format/variable tests; favourite/permission/preview/accessibility tests. | Every approved template type and state is managed safely; placeholder is explicitly non-executing. | +2–4 | Future additive revision if required |
+| GROW-03 — Segments and server-saved views — PARTIAL (`PAR-VIEW-01/02/03/04/05`) | Make approved operational audiences reusable across users. | Delivered for Reactivation, Contacts, Campaigns, KYC and Reports: module-validated filters, personal/team scopes, permission-governed sharing, Audit and portable reopening without stale transient state. Remaining: approved segment predicates/saved filters. | Shared workspace-view authority now serves all five named product workspaces without a parallel model. | Delivered tenant/private/workspace/RBAC/scope/validation/migration/route/UI tests; remaining predicate truth/performance/integration tests follow the Segment slice. | Complete only when the remaining Segment definition is server-owned and reproducible; all five delivered slices independently satisfy that contract. | +1 remaining | `0057_reactivation_saved_views` through `0061_reports_workspace_views` delivered; one future additive revision only if the Segment slice requires persistence changes |
+| GROW-04 — Live simplified automation | Consume durable receipts through governed, idempotent effects. | Approved triggers/conditions/actions, delay/reminder, status/label movement, assignment, messages, notifications, stop/archive rules, approvals/handoffs, retries/DLQ, execution history. | Existing automation runtime; effect ledger/worker/services; builder/run UI; additive migration. | Effect idempotency; checkpoint/resume; approval/handoff; safe sends; domain transitions; failure/retry/DLQ; tenant/RBAC/audit; deployed Celery E2E. | The `Trigger → Conditions → Actions` examples in final scope execute through existing authorities with no duplicate side effects. | +5–8 | Future additive revision |
+| GROW-05 — Domain analytics — PARTIAL (`PAR-REP-03/04` implemented) | Extend existing rollups with lightweight Vi CRM dimensions and factual team operations. | Delivered: event-derived Reactivation/KYC/SIM/Activation/SLA outcomes plus conversation/task teammate productivity and a separately labelled live pending-work snapshot. Remaining: campaign-to-case attribution, approved recovered-value/revenue/ROI and explicit capacity/utilization inputs. | Existing Analytics rollup/query/export/schedule pipeline; domain business-event ledger; indexed Conversation/Task authorities; additive `0051`/`0052`. | Rollup determinism/rebuild/time-zone/tenant/query-budget; stock-vs-flow truth; metric fixtures; chart/export tests. | Every scope metric has a documented source/formula and no stock value is summed across time or inferred from unrelated facts. | +1–3 remaining | Future additive revision only for approved source facts |
+| GROW-06 — Executive reports and Download Center (PARTIAL: PAR-DL-01/02/03, PAR-REP-01/02/03/04) | Finish governed management reporting and extend the implemented personal artifact home. | Delivered: contacts; eleven Analytics families/schedules/notifications; domain outcome and Team Productivity packs; Chat History transcripts; full campaign recipient results; status/history/expiry/permissions. Remaining: revenue, conversion attribution, ROI, approved capacity/utilization, compliant Scan results and generated-document artifacts. | Extend remaining approved projections/source artifacts; reuse the implemented schedule/export/Notification/Download Center authorities. | Formula/time-zone/PDF/CSV/expiry/download-security; worker and UI tests. | Executives can schedule and retrieve every approved report; every artifact is permission-scoped, auditable, expiring, and visible in Download Center. | +1–3 remaining | `0055_campaign_results_exports` delivered; future additive revision only for remaining sources |
+| GROW-07 — Google Sheets | Add the only missing approved integration without a marketplace. | Admin connection, secret handling, sheet/range mapping, contact import/sync/export jobs, dedup, retries, status, audit, revocation. | Integration model/service/adapter/endpoints/tasks; additive migration; settings UI; docs. | Credential encryption/redaction; mocked Google API; mapping/dedup/idempotency/retry/revoke/tenant tests; job UI. | Authorized sheets exchange data through queued, auditable jobs; failures are recoverable; no unused integrations are introduced. | +6–9 | Future additive revision |
 | GROW-08 — Webhook completion | Extend existing webhook operations for final domain events. | Subscription management, secrets, event selection, delivery logs, signatures, retries/replay, final-domain events, usage visibility. | Existing webhook service/endpoints/worker/UI; event catalog/docs. | Signature/replay/dedup/retry/redaction/permission/tenant tests; final-domain event fixtures. | Consumers can safely subscribe to approved events with observable, replayable delivery; provider webhooks and outbound webhooks remain distinct. | +2–4 | None unless subscription persistence lacks fields |
 
 ## Phase 3 — Enterprise completion, API, and compliant future work
 
 | Milestone | Objective | Features | Files expected | Tests expected | Completion criteria | Est. OpenAPI increase | Est. migration |
 |---|---|---|---|---|---|---:|---|
-| ENT-01 — API management and documentation | Complete the private integration surface over final-domain APIs. | Contact/campaign/reactivation/status-label-reminder/timeline/KYC APIs, preserved foundation APIs, subscriptions, API keys/permissions, usage logs, IP restrictions, regenerate/revoke, interactive docs. | Existing API-key/auth middleware; final-domain endpoints; usage models; developer UI/docs; generated contracts. | Key lifecycle/IP/RBAC/rate/usage/redaction/tenant; OpenAPI examples and compatibility tests. | Every approved resource is documented and permission-scoped; revoked/restricted keys fail immediately; OpenAPI never shrinks silently. | +4–7 | `0045` usage/IP policy if required |
-| ENT-02 — Global search and advanced audit | Index every approved entity and normalize enterprise evidence. | Customers/numbers/chats/campaigns/documents/cases/labels/reminders/notes/agents/tags search; old/new values, device/login, assignment/status/document/campaign/approval audit. | Search/audit services/endpoints/index tasks; command palette; audit timeline UI; possible index migration. | Search authorization/ranking/staleness/tenant; audit immutability/redaction; keyboard/action tests; performance. | Search returns only authorized current data and all approved mutations/access decisions produce attributable audit evidence. | +4–7 | `0046` search index/audit extensions if needed |
+| ENT-01 — API management and documentation | Complete the private integration surface over final-domain APIs. | Contact/campaign/reactivation/status-label-reminder/timeline/KYC APIs, preserved foundation APIs, subscriptions, API keys/permissions, usage logs, IP restrictions, regenerate/revoke, interactive docs. | Existing API-key/auth middleware; final-domain endpoints; usage models; developer UI/docs; generated contracts. | Key lifecycle/IP/RBAC/rate/usage/redaction/tenant; OpenAPI examples and compatibility tests. | Every approved resource is documented and permission-scoped; revoked/restricted keys fail immediately; OpenAPI never shrinks silently. | +4–7 | Future additive revision if required |
+| ENT-02 — Global search and advanced audit | Index every approved entity and normalize enterprise evidence. | Customers/numbers/chats/campaigns/documents/cases/labels/reminders/notes/agents/tags search; old/new values, device/login, assignment/status/document/campaign/approval audit. | Search/audit services/endpoints/index tasks; command palette; audit timeline UI; possible index migration. | Search authorization/ranking/staleness/tenant; audit immutability/redaction; keyboard/action tests; performance. | Search returns only authorized current data and all approved mutations/access decisions produce attributable audit evidence. | +4–7 | Future additive revision if needed |
 | ENT-03 — Command palette and advanced mobile | Complete fast keyboard and field-device operations across final routes. | All approved `Ctrl+K` actions, collapsible sidebar, drawers/modals, notification badges, skeleton/empty states, touch-safe tables/Kanban, responsive Customer 360. | Shared layout/UI primitives and module integrations; no parallel pages. | Keyboard/focus/touch/viewport/reduced-motion/high-contrast tests; route-level visual regression. | Every final route is operable on desktop keyboard and approved mobile widths with consistent, accessible primitives. | +0 | None |
 | ENT-04 — WhatsApp Scan authorization contract | Approve a compliant technical method before enabling scan execution. | Provider/legal/security/data-retention contract, allowed results, rate/queue/export/analytics design; explicit ban on unofficial WhatsApp Web enumeration. | ADR/design/security/threat-model documents; feature flag policy. | Contract review, abuse/rate/privacy threat cases; no production execution test yet. | Owner and compliance approve a documented authorized method; otherwise the shell remains non-executing and the implementation milestone is blocked honestly. | +0 | None |
-| ENT-05 — Compliant WhatsApp Scan implementation | Deliver the future module only under the approved contract. | Upload lists, batches, duplicates, queue, active/business/invalid results, retries, export, segment creation, analytics. | Scan models/services/adapter/endpoints/tasks; `backend/alembic/versions/0047_*`; existing Scan Studio UI; Download Center/Segments links. | Authorization boundary; dedup/idempotency/rate/retry/tenant/RBAC/audit/privacy; provider mocks; queued deployed E2E. | Every result comes from the approved method, is auditable/exportable, and cannot perform unofficial bulk enumeration. | +8–12 | `0047` scan batches/results |
+| ENT-05 — Compliant WhatsApp Scan implementation | Deliver the future module only under the approved contract. | Upload lists, batches, duplicates, queue, active/business/invalid results, retries, export, segment creation, analytics. | Scan models/services/adapter/endpoints/tasks; additive migration; existing Scan Studio UI; Download Center/Segments links. | Authorization boundary; dedup/idempotency/rate/retry/tenant/RBAC/audit/privacy; provider mocks; queued deployed E2E. | Every result comes from the approved method, is auditable/exportable, and cannot perform unofficial bulk enumeration. | +8–12 | Future additive revision |
 
 ## Phase 4 — Final quality, commissioning, and acceptance
 
 | Milestone | Objective | Features | Files expected | Tests expected | Completion criteria | Est. OpenAPI increase | Est. migration |
 |---|---|---|---|---|---|---:|---|
-| REL-01 — Full-scope accessibility and UX acceptance | Validate the premium UI with real workflows and data. | WCAG-oriented audit, keyboard/focus, contrast, screen-reader labels, responsive/mobile, loading/empty/error states, final AiSensy-inspired permitted workflow review. | Fixes only in existing components/routes; accessibility evidence and runbook updates. | Automated accessibility plus manual desktop/mobile/browser matrix; workflow UAT. | No critical accessibility issue; every approved route passes owner UX acceptance; excluded surfaces remain absent. | +0 | None |
+| REL-01 — Full-scope accessibility and UX acceptance | Validate the premium UI with real workflows and data. | WCAG-oriented audit, keyboard/focus, contrast, screen-reader labels, responsive/mobile, loading/empty/error states, final permitted workflow review. | Fixes only in existing components/routes; accessibility evidence and runbook updates. | Automated accessibility plus manual desktop/mobile/browser matrix; workflow UAT. | No critical accessibility issue; every approved route passes owner UX acceptance; excluded surfaces remain absent. | +0 | None |
 | REL-02 — Security, resilience, and capacity certification | Prove scale and failure behavior after feature completion. | SAST/dependency/image scans, SBOM, backup/restore, Redis/Celery/provider loss, load/stress/spike/soak, 1M-contact target, bundle/query optimization. | Existing quality/deployment scripts; focused fixes; evidence artifacts/docs. | Full static/pre-merge/release/deployed gates; chaos/recovery/performance lab. | All repository gates pass; capacity budgets and recovery objectives have reproducible evidence; no known high/critical release blocker. | +0 | None unless an additive performance index is reviewed |
 | REL-03 — Target-host commissioning and final acceptance | Close environment-only evidence and release the complete private platform. | TLS/host hardening, secrets, migrations, owner bootstrap, MySQL/Redis/Celery/nginx health, monitoring/log shipping/alerts/synthetics, UAT, restore and rollback rehearsal. | Deployment configuration/runbooks; final governance ledgers; release notes/tag. | Target-host smoke/E2E; alerts/dead-man; restore/rollback; acceptance checklist. | Every `VALIDATION_RESULTS.md` item is `PASS`, every module is 100% or explicitly owner-deferred, final scope traceability is complete, and owner approves release. | +0 | Upgrade through final additive head |
 
@@ -137,19 +567,19 @@ replaced.
 
 | Final-scope area | Roadmap coverage |
 |---|---|
-| Dashboard; Customer 360; Reactivation; KYC; Documents; SIM/Activation status facts; SLA | CORE-02–CORE-05, CORE-07, GROW-05, GROW-06; standalone heavy SIM/Activation workspaces require a later explicit owner instruction |
-| Inbox; Chat History; Contacts | CORE-01, CORE-07, CORE-10, GROW-03 |
+| Dashboard; Customer 360; Reactivation; KYC; Documents; SIM/Activation status facts; SLA | CORE-02–CORE-05, CORE-07, UI-TASTE-02–UI-TASTE-04, GROW-05, GROW-06; standalone heavy SIM/Activation workspaces require a later explicit owner instruction |
+| Inbox; Chat History; Contacts | CORE-01, CORE-07, UI-TASTE-02–UI-TASTE-04, CORE-10, GROW-03 |
 | Campaigns; Templates; Segments; Automation | GROW-01–GROW-04 |
 | Analytics; Executive Reports | GROW-05–GROW-06 |
 | Team; roles; tags; attributes; settings | CORE-11 |
-| Notifications | CORE-09 |
+| Notifications | CORE-09, UI-TASTE-03–UI-TASTE-04 |
 | Google Sheets; Webhooks | GROW-07–GROW-08 |
 | API and API keys | ENT-01 |
 | Global Search; Command Palette; Audit Timeline; Saved Views | GROW-03, ENT-02, ENT-03 |
 | Module-specific approval safeguards; Download Center | CORE-08 skipped by owner; existing KYC/campaign/automation safeguards preserved; GROW-06 covers Download Center only |
 | WhatsApp Scan | ENT-04–ENT-05 |
-| Dark/light, mobile, tables, charts, drawers, Kanban, loaders, empty states, badges, keyboard | CORE-01, module milestones, ENT-03, REL-01 |
-| Accessibility, performance, Docker, Celery, Redis, security, production | Every closeout gate; REL-01–REL-03 |
+| Dark/light, mobile, tables, charts, drawers, Kanban, loaders, empty states, badges, keyboard | CORE-01, UI-TASTE-02–UI-TASTE-04, module milestones, ENT-03, REL-01 |
+| Accessibility, performance, Docker, Celery, Redis, security, production | Every closeout gate; UI-TASTE-04; REL-01–REL-03 |
 
 ## Roadmap completion rule
 

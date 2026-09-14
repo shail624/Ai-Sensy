@@ -254,6 +254,14 @@ class CampaignRecipient(IntPKMixin, Base):
         # dispatch incapable of messaging someone twice (Doc 03 §8.3; FR-CAM-06/08).
         Index("uq_crecip_campaign_contact", "campaign_id", "contact_id", unique=True),
         Index("ix_crecip_campaign_status", "campaign_id", "status"),
+        Index("ix_crecip_campaign_created", "campaign_id", "created_at", "id"),
+        Index(
+            "ix_crecip_campaign_status_created",
+            "campaign_id",
+            "status",
+            "created_at",
+            "id",
+        ),
         Index("ix_crecip_status_created", "status", "created_at"),
         Index("ix_crecip_wamid", "wamid"),
         Index("ix_crecip_batch", "batch_id"),

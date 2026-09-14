@@ -96,6 +96,7 @@ beforeEach(() => {
     "campaigns:write",
     "campaigns:send",
     "campaigns:manage",
+    "campaigns:export",
   ];
 });
 
@@ -500,6 +501,15 @@ describe("CampaignActions — permission gating", () => {
     expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Retry/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export results" })).not.toBeInTheDocument();
+  });
+
+  it("offers governed result export only with its entitlement on the detail surface", () => {
+    const onExport = vi.fn();
+    withProviders(<CampaignActions campaign={campaignFixture()} onExport={onExport} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Export results" }));
+    expect(onExport).toHaveBeenCalledOnce();
   });
 
   it("offers send but not lifecycle control to a sender without manage", () => {
@@ -543,6 +553,18 @@ describe("CampaignActions — confirmation", () => {
     expect(
       within(screen.getByRole("dialog")).getByText(/Reactivation July/),
     ).toBeInTheDocument();
+  });
+
+  it("confirms the failed-recipient boundary before retrying", () => {
+    withProviders(
+      <CampaignActions campaign={campaignFixture({ status: "running", failed_count: 2 })} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry 2 failed" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Retry failed recipients?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Successful recipients are not sent again/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Retry 2 failed" })).toBeInTheDocument();
   });
 });
 

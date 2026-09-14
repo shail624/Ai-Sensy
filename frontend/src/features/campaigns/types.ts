@@ -6,6 +6,8 @@ export type CampaignList = components["schemas"]["CampaignListResponse"];
 export type CampaignServerQuery = NonNullable<paths["/api/v1/campaigns"]["get"]["parameters"]["query"]>;
 export type CampaignCreateRequest = components["schemas"]["CampaignCreateRequest"];
 export type CampaignUpdateRequest = components["schemas"]["CampaignUpdateRequest"];
+export type CampaignView = components["schemas"]["CampaignViewResponse"];
+export type CampaignViewCreate = components["schemas"]["CampaignViewCreate"];
 export type CampaignPreview = components["schemas"]["CampaignPreviewResponse"];
 export type CampaignProgress = components["schemas"]["CampaignProgressResponse"];
 export type CampaignState = components["schemas"]["CampaignStateResponse"];
@@ -18,6 +20,12 @@ export type CampaignScheduleResult = components["schemas"]["CampaignScheduleResp
 export type ScheduleEntry = components["schemas"]["ScheduleEntry"];
 export type RecipientEntry = components["schemas"]["RecipientEntry"];
 export type RecipientsPage = components["schemas"]["RecipientsResponse"];
+export type CampaignResultsExportRequest = components["schemas"]["CampaignResultsExportRequest"];
+export type CampaignResultsExportProgress = components["schemas"]["ExportProgressResponse"];
+export type CampaignResultsExportAccepted = components["schemas"]["JobAcceptedResponse"];
+export type CampaignResultsExportFormat = NonNullable<CampaignResultsExportRequest["format"]>;
+export type CampaignResultsExportStatus = NonNullable<CampaignResultsExportRequest["status"]>;
+export type RecipientLedgerStatus = CampaignResultsExportStatus;
 export type AudienceRef = components["schemas"]["AudienceRef"];
 export type VariableMap = components["schemas"]["VariableMap"];
 
@@ -63,6 +71,11 @@ export const RECIPIENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const RECIPIENT_STATUSES: string[] = Object.keys(RECIPIENT_STATUS_LABELS);
+
+export interface RecipientLedgerQuery {
+  status: RecipientLedgerStatus | "";
+  cursor?: string;
+}
 
 export const AUDIENCE_TYPE_LABELS: Record<AudienceType, string> = {
   segment: "Segment",

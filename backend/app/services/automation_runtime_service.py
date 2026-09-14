@@ -20,6 +20,7 @@ from app.models.automation import (
     AUTOMATION_ATTEMPT_FAILED,
     AUTOMATION_ATTEMPT_INTERRUPTED,
     AUTOMATION_ATTEMPT_RUNNING,
+    AUTOMATION_ATTEMPT_SKIPPED,
     AUTOMATION_ATTEMPT_SUCCEEDED,
     AUTOMATION_RUN_FAILED,
     AUTOMATION_RUN_QUEUED,
@@ -225,6 +226,18 @@ class AutomationRuntimeService:
         if issues:
             raise AutomationRunExecutionError("Pinned automation graph failed validation.")
         order = self._topological_nodes(version.graph_json)
+        branch = self._bounded_condition_branch(version.graph_json)
+        skipped_branch_node_ids: set[str] = set()
+        selected_branch: str | None = None
+        if branch is not None:
+            condition, yes_node_ids, no_node_ids = branch
+            config = condition.get("config", {})
+            actual = self._lookup(run.trigger_input_json, str(config["field"]))
+            matched = self._compare(actual, str(config["operator"]), config.get("value"))
+            selected_node_ids = set(yes_node_ids if matched else no_node_ids)
+            unselected_node_ids = set(no_node_ids if matched else yes_node_ids)
+            skipped_branch_node_ids = unselected_node_ids - selected_node_ids
+            selected_branch = "yes" if matched else "no"
 
         now = utcnow()
         for attempt in await self._attempts.running(run.id):
@@ -239,10 +252,10 @@ class AutomationRuntimeService:
         run.error_detail = None
         await self._session.commit()
 
-        successful = await self._attempts.successful_node_ids(run.id)
+        completed = await self._attempts.completed_node_ids(run.id)
         for node in order:
             node_id = str(node["id"])
-            if node_id in successful:
+            if node_id in completed:
                 continue
             attempt = AutomationStepAttempt(
                 organization_id=run.organization_id,
@@ -255,6 +268,17 @@ class AutomationRuntimeService:
             )
             await self._attempts.add(attempt)
             await self._session.commit()
+            if node_id in skipped_branch_node_ids:
+                attempt.output_json = {
+                    "reason": "branch_not_selected",
+                    "selected_branch": selected_branch,
+                    "condition_node_id": str(branch[0]["id"]) if branch is not None else None,
+                }
+                attempt.status = AUTOMATION_ATTEMPT_SKIPPED
+                attempt.finished_at = utcnow()
+                run.completed_steps += 1
+                await self._session.commit()
+                continue
             try:
                 attempt.output_json = self._simulate_node(node, run.trigger_input_json)
                 attempt.status = AUTOMATION_ATTEMPT_SUCCEEDED
@@ -394,6 +418,146 @@ class AutomationRuntimeService:
         if len(ordered) != len(nodes):
             raise AutomationRunExecutionError("Published graph contains a cycle.")
         return ordered
+
+    @staticmethod
+    def _bounded_condition_branch(
+        graph: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str], list[str]] | None:
+        nodes = {str(node["id"]): node for node in graph.get("nodes", [])}
+        edges = graph.get("edges", [])
+        if not 4 <= len(nodes) <= 7 or len(edges) not in {len(nodes) - 1, len(nodes)}:
+            return None
+        conditions = [node for node in nodes.values() if node.get("kind") == "condition"]
+        triggers = [node for node in nodes.values() if node.get("kind") == "trigger"]
+        if len(conditions) != 1 or len(triggers) != 1:
+            return None
+        condition = conditions[0]
+        condition_id = str(condition["id"])
+        trigger_id = str(triggers[0]["id"])
+        outgoing: dict[str, list[dict[str, Any]]] = {node_id: [] for node_id in nodes}
+        incoming: dict[str, int] = dict.fromkeys(nodes, 0)
+        for edge in edges:
+            source = str(edge.get("source"))
+            target = str(edge.get("target"))
+            if source not in nodes or target not in nodes:
+                return None
+            outgoing[source].append(edge)
+            incoming[target] += 1
+            if incoming[target] > 2:
+                return None
+        condition_edges = outgoing[condition_id]
+        trigger_edges = outgoing[trigger_id]
+        if (
+            len(condition_edges) != 2
+            or len(trigger_edges) != 1
+            or str(trigger_edges[0].get("target")) != condition_id
+            or str(trigger_edges[0].get("label") or "").strip()
+            or incoming[trigger_id] != 0
+            or incoming[condition_id] != 1
+        ):
+            return None
+        targets: dict[str, str] = {}
+        for edge in condition_edges:
+            label = str(edge.get("label") or "").strip().lower()
+            target = str(edge.get("target"))
+            if (
+                label not in {"yes", "no"}
+                or label in targets
+                or target not in nodes
+                or incoming[target] != 1
+            ):
+                return None
+            targets[label] = target
+        if set(targets) != {"yes", "no"}:
+            return None
+
+        delay_ids = {node_id for node_id, node in nodes.items() if node.get("kind") == "delay"}
+        wait_ids = {node_id for node_id, node in nodes.items() if node.get("kind") == "wait"}
+        if len(delay_ids) > 1 or wait_ids:
+            return None
+        merge_ids = {node_id for node_id, count in incoming.items() if count == 2}
+        if len(merge_ids) > 1:
+            return None
+        merge_id = next(iter(merge_ids), None)
+        shared_node_ids: list[str] = []
+        if merge_id is None:
+            if delay_ids:
+                return None
+        elif merge_id in delay_ids:
+            merge_edges = outgoing[merge_id]
+            if len(merge_edges) != 1:
+                return None
+            merge_edge = merge_edges[0]
+            shared_effect_id = str(merge_edge.get("target"))
+            if (
+                str(merge_edge.get("label") or "").strip()
+                or shared_effect_id not in nodes
+                or incoming[shared_effect_id] != 1
+                or nodes[shared_effect_id].get("kind") in {"trigger", "condition", "delay", "wait"}
+                or outgoing[shared_effect_id]
+            ):
+                return None
+            shared_node_ids = [merge_id, shared_effect_id]
+        else:
+            if (
+                delay_ids
+                or merge_id in {trigger_id, condition_id}
+                or nodes[merge_id].get("kind") in {"trigger", "condition", "delay", "wait"}
+                or outgoing[merge_id]
+            ):
+                return None
+            shared_node_ids = [merge_id]
+        branch_node_ids: set[str] = set()
+
+        def ordered_branch(first_id: str) -> tuple[list[str], bool] | None:
+            ordered: list[str] = []
+            reaches_shared = False
+            current = first_id
+            while True:
+                if (
+                    current in branch_node_ids
+                    or current in {trigger_id, condition_id}
+                    or nodes[current].get("kind") in {"trigger", "condition"}
+                ):
+                    return None
+                branch_node_ids.add(current)
+                ordered.append(current)
+                if len(ordered) > 2:
+                    return None
+                current_edges = outgoing[current]
+                if not current_edges:
+                    break
+                if len(current_edges) != 1:
+                    return None
+                edge = current_edges[0]
+                if str(edge.get("label") or "").strip():
+                    return None
+                next_id = str(edge.get("target"))
+                if merge_id is not None and next_id == merge_id:
+                    reaches_shared = True
+                    break
+                if next_id not in nodes or incoming[next_id] != 1:
+                    return None
+                current = next_id
+            return ordered, reaches_shared
+
+        yes_branch = ordered_branch(targets["yes"])
+        no_branch = ordered_branch(targets["no"])
+        non_gate_node_ids = set(nodes) - {trigger_id, condition_id}
+        expected_branch_node_ids = non_gate_node_ids - set(shared_node_ids)
+        if (
+            yes_branch is None
+            or no_branch is None
+            or branch_node_ids != expected_branch_node_ids
+            or yes_branch[1] != (merge_id is not None)
+            or no_branch[1] != (merge_id is not None)
+        ):
+            return None
+        yes_node_ids, _ = yes_branch
+        no_node_ids, _ = no_branch
+        yes_node_ids.extend(shared_node_ids)
+        no_node_ids.extend(shared_node_ids)
+        return condition, yes_node_ids, no_node_ids
 
     @classmethod
     def _simulate_node(

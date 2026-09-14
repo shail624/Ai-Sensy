@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { apiErrorMessage, useCampaigns, useHasPermission } from "@/features/campaigns/api";
 import { CampaignFilters } from "@/features/campaigns/CampaignFilters";
+import { CampaignSavedViews } from "@/features/campaigns/CampaignSavedViews";
 import { CampaignTable } from "@/features/campaigns/CampaignTable";
 import { formatCount } from "@/features/campaigns/format";
 import { PAGE_SIZE, selectCampaignPage } from "@/features/campaigns/selectors";
@@ -88,6 +89,8 @@ export function CampaignList(): JSX.Element {
           </Link>
         ) : null}
       </div>
+
+      <CampaignSavedViews query={query} onApply={apply} />
 
       {campaigns.isLoading ? (
         <Spinner label="Loading campaigns…" />

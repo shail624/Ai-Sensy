@@ -28,7 +28,20 @@ SOURCE_CONTACT = "contact"
 SOURCE_ATTRIBUTE = "attribute"
 SOURCE_TAG = "tag"
 SOURCE_ENGAGEMENT = "engagement"
-FIELD_SOURCES = (SOURCE_CONTACT, SOURCE_ATTRIBUTE, SOURCE_TAG, SOURCE_ENGAGEMENT)
+SOURCE_REACTIVATION = "reactivation"
+SOURCE_KYC = "kyc"
+SOURCE_DOCUMENT = "document"
+SOURCE_ACTIVATION = "activation"
+FIELD_SOURCES = (
+    SOURCE_CONTACT,
+    SOURCE_ATTRIBUTE,
+    SOURCE_TAG,
+    SOURCE_ENGAGEMENT,
+    SOURCE_REACTIVATION,
+    SOURCE_KYC,
+    SOURCE_DOCUMENT,
+    SOURCE_ACTIVATION,
+)
 
 
 class Segment(IntPKMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -73,7 +86,8 @@ class SegmentRule(IntPKMixin, Base):
     __table_args__ = (
         Index("ix_segrules_segment", "segment_id", "group_index"),
         CheckConstraint(
-            "field_source IN ('contact','attribute','tag','engagement')",
+            "field_source IN "
+            "('contact','attribute','tag','engagement','reactivation','kyc','document','activation')",
             name="ck_segrules_source",
         ),
         MYSQL_TABLE_ARGS,

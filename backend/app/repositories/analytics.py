@@ -17,6 +17,7 @@ from app.models.analytics import (
     AnalyticsCampaignRollup,
     AnalyticsContactRollup,
     AnalyticsConversationRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsFailureRollup,
     AnalyticsMessageRollup,
     AnalyticsRollupRun,
@@ -29,6 +30,7 @@ type AnalyticsFact = (
     AnalyticsCampaignRollup
     | AnalyticsContactRollup
     | AnalyticsConversationRollup
+    | AnalyticsDomainOutcomeRollup
     | AnalyticsFailureRollup
     | AnalyticsMessageRollup
     | AnalyticsTaskRollup
@@ -37,6 +39,7 @@ type AnalyticsFactModel = (
     type[AnalyticsCampaignRollup]
     | type[AnalyticsContactRollup]
     | type[AnalyticsConversationRollup]
+    | type[AnalyticsDomainOutcomeRollup]
     | type[AnalyticsFailureRollup]
     | type[AnalyticsMessageRollup]
     | type[AnalyticsTaskRollup]

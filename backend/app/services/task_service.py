@@ -29,6 +29,7 @@ from app.core.exceptions import (
     VersionConflictError,
 )
 from app.db.mixins import utcnow
+from app.models.audit import ACTOR_SYSTEM, ACTOR_USER
 from app.models.contact import Contact
 from app.models.contact_event import (
     EVENT_TASK_ASSIGNED,
@@ -77,6 +78,7 @@ from app.repositories.task import (
     TaskRepository,
 )
 from app.services.audit_service import AuditAction, AuditService
+from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
 from app.services.notification_service import NotificationService
 
@@ -212,6 +214,7 @@ class TaskService:
         self._repo = TaskRepository(session)
         #: The frozen timeline writer — task lifecycle projects through it, never around it.
         self._timeline = ContactEventService(session)
+        self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
 
     # --- Reads --------------------------------------------------------------------------------
@@ -331,7 +334,7 @@ class TaskService:
         self,
         *,
         organization_id: int,
-        actor: User,
+        actor: User | None,
         contact_id: uuidlib.UUID,
         conversation_id: uuidlib.UUID | None,
         title: str,
@@ -353,11 +356,15 @@ class TaskService:
         conversation_int = await self._resolve_conversation_id(organization_id, conversation_id)
         if conversation_id is not None and conversation_int is None:
             raise NotFoundError("Conversation not found.")
+        if actor is None and assigned_agent_id is None:
+            raise BadRequestError("A system-created task requires an assigned agent.")
         assignee = (
             await self._require_user(organization_id, assigned_agent_id)
             if assigned_agent_id is not None
             else actor
         )
+        assert assignee is not None
+        actor_id = actor.id if actor is not None else None
         task = Task(
             organization_id=organization_id,
             contact_id=contact.id,
@@ -375,15 +382,19 @@ class TaskService:
             due_at=due_at,
             has_time=has_time,
             reminder_at=reminder_at,
-            created_by=actor.id,
+            created_by=actor_id,
         )
         await self._repo.add(task)
-        self._add_event(task, TASK_EVENT_CREATED, actor.id, to_json=self._snapshot(task))
+        self._add_event(task, TASK_EVENT_CREATED, actor_id, to_json=self._snapshot(task))
         await self._project(task, EVENT_TASK_CREATED)
         await self._audit_task(
-            task, AuditAction.TASK_CREATED, actor_id=actor.id, after=self._snapshot(task)
+            task,
+            AuditAction.TASK_CREATED,
+            actor_id=actor_id,
+            actor_type=ACTOR_SYSTEM if actor is None else None,
+            after=self._snapshot(task),
         )
-        if assignee.id != actor.id:
+        if actor is not None and assignee.id != actor.id:
             self._add_event(
                 task, TASK_EVENT_ASSIGNED, actor.id, to_json={"assigned_agent": assignee.public_id}
             )
@@ -497,6 +508,7 @@ class TaskService:
         # the completion note is surfaced on the customer-visible timeline (FR-TASK-07).
         surfaced = completion_notes if create_timeline_note else None
         await self._project(task, EVENT_TASK_COMPLETED, note=surfaced)
+        await self._record_completion_fact(task, actor.id)
         if surfaced:
             self._add_event(task, TASK_EVENT_NOTE_ADDED, actor.id, note=surfaced)
         self._bump(task, actor.id)
@@ -879,6 +891,8 @@ class TaskService:
             projection = _STATUS_PROJECTION.get(status)
             if projection is not None:
                 await self._project(task, projection)
+            if status == TASK_STATUS_COMPLETED:
+                await self._record_completion_fact(task, actor.id)
         if notification_revision_changed:
             await NotificationService(self._session).resolve_task(task)
         self._bump(task, actor.id)
@@ -1026,18 +1040,31 @@ class TaskService:
             payload=payload,
         )
 
+    async def _record_completion_fact(self, task: Task, actor_id: int) -> None:
+        """Publish one immutable, contact-scoped fact for the pending row-version revision."""
+        if task.completed_at is None:  # pragma: no cover - guarded by the completion transition
+            raise TaskStateError("A task without a completion time cannot emit task.completed.")
+        await self._business_events.record_task_completed(
+            task=task,
+            actor_id=actor_id,
+            completion_revision=(task.row_version or 0) + 1,
+            occurred_at=task.completed_at,
+        )
+
     async def _audit_task(
         self,
         task: Task,
         action: str,
         *,
         actor_id: int | None,
+        actor_type: str | None = None,
         before: dict[str, Any] | None = None,
         after: dict[str, Any] | None = None,
     ) -> None:
         await self._audit.record(
             action,
             actor_user_id=actor_id,
+            actor_type=actor_type or ACTOR_USER,
             organization_id=task.organization_id,
             entity_type="task",
             entity_id=task.id,

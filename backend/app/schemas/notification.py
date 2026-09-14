@@ -10,7 +10,12 @@ from pydantic import BaseModel
 from app.api.pagination import Page
 
 NotificationType = Literal[
-    "follow_up_due", "release_date_due", "case_assigned", "case_status_changed"
+    "follow_up_due",
+    "release_date_due",
+    "case_assigned",
+    "case_status_changed",
+    "automation_attention",
+    "report_ready",
 ]
 NotificationStatus = Literal["unread", "read", "overdue", "resolved"]
 
@@ -41,6 +46,7 @@ class NotificationResponse(BaseModel):
     contact: EntityReference | None
     reactivation_case: EntityReference | None
     task: EntityReference | None
+    action_url: str | None = None
 
 
 class NotificationsPage(BaseModel):
