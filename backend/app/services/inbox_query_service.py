@@ -27,6 +27,7 @@ from app.models.message import Message
 from app.models.tag import Tag
 from app.models.user import User
 from app.models.waba import PhoneNumber
+from app.repositories.campaign import CampaignRepository
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.conversation_tag import ConversationTagRepository
@@ -84,6 +85,7 @@ class InboxQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._conversations = ConversationRepository(session)
+        self._campaigns = CampaignRepository(session)
         self._contacts = ContactRepository(session)
         self._messages = MessageRepository(session)
         self._users = UserRepository(session)
@@ -103,6 +105,11 @@ class InboxQueryService:
         assignee: str | None,
         number: str | None,
         tag: str | None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        campaign: str | None = None,
+        has_media: bool = False,
+        has_audit: bool = False,
         q: str | None,
     ) -> ConversationListResult:
         """The inbox list, filtered and searched as Doc 04 §18.1 defines, newest activity first."""
@@ -112,10 +119,17 @@ class InboxQueryService:
         contact_id, contact_impossible = await self._resolve_contact(organization_id, contact)
         phone_number_id, number_impossible = await self._resolve_number(organization_id, number)
         tag_id, tag_impossible = await self._resolve_tag(organization_id, tag)
+        campaign_id, campaign_impossible = await self._resolve_campaign(organization_id, campaign)
 
         # A filter that named a real-looking but non-existent assignee/number/tag matches nothing —
         # returned as an empty page, not an error: the query was valid, the target just isn't here.
-        if contact_impossible or assignee_impossible or number_impossible or tag_impossible:
+        if (
+            contact_impossible
+            or assignee_impossible
+            or number_impossible
+            or tag_impossible
+            or campaign_impossible
+        ):
             return ConversationListResult([], {}, {}, {}, {}, {}, has_more=False)
 
         conversations, has_more = await self._conversations.list_page(
@@ -126,6 +140,11 @@ class InboxQueryService:
             unassigned=unassigned,
             phone_number_id=phone_number_id,
             tag_id=tag_id,
+            activity_from=date_from,
+            activity_to=date_to,
+            campaign_id=campaign_id,
+            has_media=has_media,
+            has_audit=has_audit,
             q=q,
             limit=limit,
             cursor=cursor,
@@ -178,9 +197,7 @@ class InboxQueryService:
             return None, True
         return found.id, False
 
-    async def _resolve_tag(
-        self, organization_id: int, tag: str | None
-    ) -> tuple[int | None, bool]:
+    async def _resolve_tag(self, organization_id: int, tag: str | None) -> tuple[int | None, bool]:
         """(tag_id, impossible) for the by-tag filter (Doc 04 §18.1 v1.3).
 
         A malformed uuid is a 400 (via ``_as_uuid``); a well-formed but unknown/foreign tag is
@@ -190,6 +207,18 @@ class InboxQueryService:
             return None, False
         found = await self._tags.get_active_by_uuid(
             organization_id, self._as_uuid(tag, "tag").bytes
+        )
+        if found is None:
+            return None, True
+        return found.id, False
+
+    async def _resolve_campaign(
+        self, organization_id: int, campaign: str | None
+    ) -> tuple[int | None, bool]:
+        if not campaign:
+            return None, False
+        found = await self._campaigns.get_active_by_uuid(
+            organization_id, self._as_uuid(campaign, "campaign").bytes
         )
         if found is None:
             return None, True
@@ -246,9 +275,7 @@ class InboxQueryService:
         return MessagePage(conversation.public_id, messages, has_more)
 
     # --- Batch resolution ----------------------------------------------------
-    async def _contacts_for(
-        self, conversations: list[Conversation]
-    ) -> dict[int, Contact]:
+    async def _contacts_for(self, conversations: list[Conversation]) -> dict[int, Contact]:
         ids = {c.contact_id for c in conversations}
         if not ids:
             return {}
@@ -264,9 +291,7 @@ class InboxQueryService:
         ).all()
         return {n.id: n.public_id for n in rows}
 
-    async def _endpoint_connectors_for(
-        self, conversations: list[Conversation]
-    ) -> dict[int, str]:
+    async def _endpoint_connectors_for(self, conversations: list[Conversation]) -> dict[int, str]:
         """``channel_endpoint_id`` -> the owning connection's ``connector_type`` (QR-08)."""
         ids = {c.channel_endpoint_id for c in conversations if c.channel_endpoint_id is not None}
         if not ids:
@@ -291,9 +316,7 @@ class InboxQueryService:
         user = await self._users.get_by_id(conversation.assigned_user_id)
         return user.public_id if user is not None else None
 
-    async def _conversation(
-        self, organization_id: int, public_id: uuidlib.UUID
-    ) -> Conversation:
+    async def _conversation(self, organization_id: int, public_id: uuidlib.UUID) -> Conversation:
         conversation = await self._conversations.get_active_by_uuid(
             organization_id, public_id.bytes
         )

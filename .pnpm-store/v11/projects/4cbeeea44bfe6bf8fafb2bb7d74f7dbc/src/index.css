@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — the semantic color system (Doc 05 DS-5), expressed as CSS variables so
+ * light/dark is a pure token swap. The theme provider stamps data-theme="light|dark" on <html>.
+ */
+:root,
+:root[data-theme="light"] {
+  --color-bg-canvas: #f6f7fb;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-2: #f3f4f8;
+  --color-bg-hover: #f1f2f7;
+  --color-text-primary: #101426;
+  --color-text-secondary: #5b6478;
+  --color-text-disabled: #99a1b3;
+  --color-border-default: #e7e9f0;
+  --color-border-strong: #d3d7e2;
+  --color-accent: #0f766e;
+  --color-accent-strong: #0b5f59;
+  --color-accent-soft: #e6f5f2;
+  --color-accent-fg: #ffffff;
+  /* Text on the matching `-soft` fill. The base tone is tuned for solid marks (dots, bars) and does
+     not reach 4.5:1 as 12px text on its own tint, which DS-10 requires in both themes. */
+  --color-accent-on-soft: #0b625c;
+  --color-success-on-soft: #0a6c33;
+  --color-warning-on-soft: #935700;
+  --color-danger-on-soft: #b21c33;
+  --color-info-on-soft: #14568f;
+  --color-success: #12a150;
+  --color-success-soft: #e7f6ee;
+  --color-warning: #d98207;
+  --color-warning-soft: #fdf1e0;
+  --color-danger: #e0364e;
+  --color-danger-soft: #fce9ec;
+  --color-info: #1f7fd6;
+  --color-info-soft: #e7f1fc;
+  --color-focus-ring: #14a89c;
+  --color-nav-bg: #0a3a36;
+  --color-nav-subtle: #0d443f;
+  --color-nav-hover: #12534c;
+  --color-nav-active-bg: #176158;
+  --color-nav-border: rgba(214, 247, 239, 0.14);
+  --color-nav-text: #f3fcf9;
+  --color-nav-muted: #9ac8bf;
+  --color-nav-indicator: #69e0c3;
+  --shadow-sm: 0 1px 2px rgba(16, 20, 38, 0.04), 0 1px 3px rgba(16, 20, 38, 0.06);
+  --shadow-md: 0 2px 4px rgba(16, 20, 38, 0.04), 0 8px 20px rgba(16, 20, 38, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 20, 38, 0.12);
+  --brand-from: #25d366;
+  --brand-to: #0f766e;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-bg-canvas: #0a0e1a;
+  --color-bg-surface: #121727;
+  --color-bg-surface-2: #1a2033;
+  --color-bg-hover: #1e2540;
+  --color-text-primary: #eef1f8;
+  --color-text-secondary: #99a2ba;
+  --color-text-disabled: #5a6486;
+  --color-border-default: #232c44;
+  --color-border-strong: #33405f;
+  --color-accent: #2dd4bf;
+  --color-accent-strong: #5eead4;
+  --color-accent-soft: #123a38;
+  --color-accent-fg: #ffffff;
+  --color-accent-on-soft: #5eead4;
+  --color-success-on-soft: #4fd98a;
+  --color-warning-on-soft: #f5b769;
+  --color-danger-on-soft: #f8899a;
+  --color-info-on-soft: #74bdf8;
+  --color-success: #29c46a;
+  --color-success-soft: #12271c;
+  --color-warning: #f0a13a;
+  --color-warning-soft: #2a2012;
+  --color-danger: #f2586e;
+  --color-danger-soft: #2a1620;
+  --color-info: #45a6f5;
+  --color-info-soft: #10233a;
+  --color-focus-ring: #2dd4bf;
+  --color-nav-bg: #071f21;
+  --color-nav-subtle: #0b292a;
+  --color-nav-hover: #103638;
+  --color-nav-active-bg: #16484a;
+  --color-nav-border: rgba(194, 242, 232, 0.13);
+  --color-nav-text: #f0fbf8;
+  --color-nav-muted: #8ab6b0;
+  --color-nav-indicator: #5eead4;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --brand-from: #25d366;
+  --brand-to: #14915a;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg-canvas: #0a0e1a;
+    --color-bg-surface: #121727;
+    --color-bg-surface-2: #1a2033;
+    --color-bg-hover: #1e2540;
+    --color-text-primary: #eef1f8;
+    --color-text-secondary: #99a2ba;
+    --color-text-disabled: #5a6486;
+    --color-border-default: #232c44;
+    --color-border-strong: #33405f;
+    --color-accent: #2dd4bf;
+    --color-accent-strong: #5eead4;
+    --color-accent-soft: #123a38;
+    --color-accent-fg: #ffffff;
+    --color-accent-on-soft: #5eead4;
+    --color-success-on-soft: #4fd98a;
+    --color-warning-on-soft: #f5b769;
+    --color-danger-on-soft: #f8899a;
+    --color-info-on-soft: #74bdf8;
+    --color-success: #29c46a;
+    --color-success-soft: #12271c;
+    --color-warning: #f0a13a;
+    --color-warning-soft: #2a2012;
+    --color-danger: #f2586e;
+    --color-danger-soft: #2a1620;
+    --color-info: #45a6f5;
+    --color-info-soft: #10233a;
+    --color-focus-ring: #2dd4bf;
+    --color-nav-bg: #071f21;
+    --color-nav-subtle: #0b292a;
+    --color-nav-hover: #103638;
+    --color-nav-active-bg: #16484a;
+    --color-nav-border: rgba(194, 242, 232, 0.13);
+    --color-nav-text: #f0fbf8;
+    --color-nav-muted: #8ab6b0;
+    --color-nav-indicator: #5eead4;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+    --brand-from: #25d366;
+    --brand-to: #14915a;
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-text-primary antialiased;
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* Slim, unobtrusive scrollbars — the default chunky bars read as unfinished. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-disabled);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The WhatsApp brand mark gradient, reused by the sidebar logo and dashboard accents. */
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  }
+}

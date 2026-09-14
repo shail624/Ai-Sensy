@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -50,6 +50,7 @@ KIND_CAMPAIGNS = "campaigns"
 KIND_CONVERSATIONS = "conversations"
 KIND_TASKS = "tasks"
 KIND_CONTACTS = "contacts"
+KIND_DOMAIN_OUTCOMES = "domain_outcomes"
 ROLLUP_KINDS: tuple[str, ...] = (
     KIND_MESSAGES,
     KIND_FAILURES,
@@ -57,6 +58,7 @@ ROLLUP_KINDS: tuple[str, ...] = (
     KIND_CONVERSATIONS,
     KIND_TASKS,
     KIND_CONTACTS,
+    KIND_DOMAIN_OUTCOMES,
 )
 
 # --- Run outcomes (Doc 15 §23.1) ---------------------------------------------------------------
@@ -339,6 +341,77 @@ class AnalyticsContactRollup(IntPKMixin, TimestampMixin, Base):
         return f"<AnalyticsContactRollup org={self.organization_id} at={self.bucket_start}>"
 
 
+class AnalyticsDomainOutcomeRollup(IntPKMixin, TimestampMixin, Base):
+    """Vi CRM funnel, case-outcome and SLA evidence from immutable business events.
+
+    ``domain``/``outcome``/``source`` are conformed dimensions. All measures remain additive;
+    conversion, approval, breach and turnaround KPIs are derived only after a requested range has
+    been summed.
+    """
+
+    __tablename__ = "analytics_domain_outcome_rollups"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "grain",
+            "bucket_start",
+            "domain",
+            "outcome",
+            "source",
+            "actor_user_id",
+            name="uq_ador_grain",
+        ),
+        Index(
+            "ix_ador_org_bucket_domain",
+            "organization_id",
+            "grain",
+            "bucket_start",
+            "domain",
+        ),
+        CheckConstraint(
+            "domain != '' AND outcome != '' AND source != ''", name="ck_ador_dimensions"
+        ),
+        MYSQL_TABLE_ARGS,
+    )
+
+    organization_id: Mapped[int] = _organization_id("fk_ador_organization_id")
+    grain: Mapped[str] = _grain()
+    bucket_start: Mapped[datetime] = _bucket_start()
+    domain: Mapped[str] = mapped_column(String(24), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(64), nullable=False)
+    source: Mapped[str] = mapped_column(String(40), nullable=False)
+    actor_user_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
+
+    reactivation_case_created_count: Mapped[int] = _counter()
+    reactivation_transition_count: Mapped[int] = _counter()
+    reactivation_completed_count: Mapped[int] = _counter()
+    reactivation_not_required_count: Mapped[int] = _counter()
+    reactivation_turnaround_seconds_sum: Mapped[int] = _accumulator()
+    reactivation_turnaround_count: Mapped[int] = _counter()
+    eligibility_decision_count: Mapped[int] = _counter()
+    eligibility_eligible_count: Mapped[int] = _counter()
+    eligibility_not_eligible_count: Mapped[int] = _counter()
+    eligibility_review_required_count: Mapped[int] = _counter()
+    kyc_decision_count: Mapped[int] = _counter()
+    kyc_approved_count: Mapped[int] = _counter()
+    kyc_rejected_count: Mapped[int] = _counter()
+    kyc_needs_information_count: Mapped[int] = _counter()
+    kyc_turnaround_seconds_sum: Mapped[int] = _accumulator()
+    kyc_turnaround_count: Mapped[int] = _counter()
+    sim_transition_count: Mapped[int] = _counter()
+    sim_delivered_count: Mapped[int] = _counter()
+    sim_failed_count: Mapped[int] = _counter()
+    activation_transition_count: Mapped[int] = _counter()
+    activation_completed_count: Mapped[int] = _counter()
+    activation_rejected_count: Mapped[int] = _counter()
+    sla_started_count: Mapped[int] = _counter()
+    sla_breached_count: Mapped[int] = _counter()
+    sla_resolved_count: Mapped[int] = _counter()
+
+    def __repr__(self) -> str:  # pragma: no cover - debug aid
+        return f"<AnalyticsDomainOutcomeRollup {self.outcome!r} at={self.bucket_start}>"
+
+
 class AnalyticsRollupRun(IntPKMixin, TimestampMixin, Base):
     """Per-organization, per-kind watermark and last outcome (Doc 15 §9.7, §23).
 
@@ -372,6 +445,7 @@ __all__ = [
     "KIND_CAMPAIGNS",
     "KIND_CONTACTS",
     "KIND_CONVERSATIONS",
+    "KIND_DOMAIN_OUTCOMES",
     "KIND_FAILURES",
     "KIND_MESSAGES",
     "KIND_TASKS",
@@ -383,6 +457,7 @@ __all__ = [
     "AnalyticsCampaignRollup",
     "AnalyticsContactRollup",
     "AnalyticsConversationRollup",
+    "AnalyticsDomainOutcomeRollup",
     "AnalyticsFailureRollup",
     "AnalyticsMessageRollup",
     "AnalyticsRollupRun",

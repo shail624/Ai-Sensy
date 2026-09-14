@@ -506,13 +506,16 @@ def test_export_request_validates_report_and_format():
         report="messages", format="csv", filters=AnalyticsRangeFilters(preset="last_30d")
     )
     assert request.report == "messages"
+    assert ReportExportRequest(
+        report="messages", format="pdf", filters=AnalyticsRangeFilters(preset="today")
+    ).format == "pdf"
     with pytest.raises(ValidationError):
         ReportExportRequest(
             report="unicorns", format="csv", filters=AnalyticsRangeFilters(preset="today")
         )
     with pytest.raises(ValidationError):
         ReportExportRequest(
-            report="messages", format="pdf", filters=AnalyticsRangeFilters(preset="today")
+            report="messages", format="xml", filters=AnalyticsRangeFilters(preset="today")
         )
 
 

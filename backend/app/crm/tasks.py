@@ -12,10 +12,29 @@ from typing import Any
 
 from app.db.session import get_sessionmaker
 from app.queue.base_task import TrackedTask, register_task, run_async
-from app.queue.registry import EXPORTS, IMPORTS
+from app.queue.registry import EXPORTS, IMPORTS, SCHEDULER_TICK
 from app.services.bulk_service import BulkService
 from app.services.export_service import ExportService
 from app.services.import_service import ImportService
+from app.services.inbox_operations_service import InboxOperationsService
+
+
+async def _auto_resolve_inactive_conversations() -> dict[str, int]:
+    async with get_sessionmaker()() as session:
+        return await InboxOperationsService(session).auto_resolve_inactive()
+
+
+@register_task(
+    queue=SCHEDULER_TICK,
+    name="app.crm.tasks.auto_resolve_inactive_conversations",
+)
+def auto_resolve_inactive_conversations(self: TrackedTask) -> dict[str, int]:
+    """Apply configured inactivity policies; row locks make overlapping ticks converge."""
+    try:
+        return run_async(_auto_resolve_inactive_conversations())
+    except Exception as exc:  # noqa: BLE001 - registry policy owns retry classification
+        self.smart_retry(exc)
+        raise
 
 
 async def _run_import(import_id: str) -> dict[str, Any]:
@@ -49,6 +68,26 @@ async def _run_export(export_id: str) -> dict[str, Any]:
 @register_task(queue=EXPORTS, name="app.crm.tasks.run_contact_export")
 def run_contact_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
     """Generate a contact export. Retries are classified/backed off by the queue framework."""
+    try:
+        return run_async(_run_export(export_id))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+
+@register_task(queue=EXPORTS, name="app.crm.tasks.run_conversation_transcript_export")
+def run_conversation_transcript_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
+    """Generate one governed conversation transcript through the shared export service."""
+    try:
+        return run_async(_run_export(export_id))
+    except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal
+        self.smart_retry(exc)
+        raise
+
+
+@register_task(queue=EXPORTS, name="app.crm.tasks.run_campaign_results_export")
+def run_campaign_results_export(self: TrackedTask, export_id: str) -> dict[str, Any]:
+    """Generate one governed campaign-results artifact through the shared export service."""
     try:
         return run_async(_run_export(export_id))
     except Exception as exc:  # noqa: BLE001 - classification decides retry vs terminal

@@ -10,10 +10,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ValidationError
 from app.models.settings import FeatureFlag, Setting
 from app.models.user import User
 from app.repositories.settings import FeatureFlagRepository, SettingRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.inbox_operations_service import INBOX_OPERATIONS_KEY
 
 
 def _infer_value_type(value: Any) -> str:
@@ -40,6 +42,17 @@ class SettingsService:
     async def update_settings(
         self, *, organization_id: int, actor: User, values: dict[str, Any]
     ) -> list[Setting]:
+        if INBOX_OPERATIONS_KEY in values:
+            raise ValidationError(
+                "The inbox operations policy must be updated through its validated endpoint.",
+                errors=[
+                    {
+                        "field": f"values.{INBOX_OPERATIONS_KEY}",
+                        "code": "reserved_setting",
+                        "message": "use PUT /settings/inbox-operations",
+                    }
+                ],
+            )
         for key, value in values.items():
             await self._settings.upsert_org(
                 organization_id=organization_id,

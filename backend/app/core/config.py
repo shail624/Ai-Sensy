@@ -214,6 +214,14 @@ class Settings(BaseSettings):
             return json.loads(text)
         return [origin.strip() for origin in text.split(",") if origin.strip()]
 
+    @field_validator("waha_organization_id", mode="before")
+    @classmethod
+    def _empty_waha_organization_id_is_unconfigured(cls, value: object) -> object:
+        """Normalize Compose's empty optional scope to the safe unconfigured value."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def sqlalchemy_database_uri(self) -> str:

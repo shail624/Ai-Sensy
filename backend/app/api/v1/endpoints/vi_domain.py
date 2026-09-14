@@ -35,6 +35,9 @@ from app.schemas.vi_domain import (
     KycOperationsResponse,
     KycStatus,
     KycUpdateRequest,
+    KycViewCreate,
+    KycViewResponse,
+    KycViewsResponse,
     ReactivationCaseListResponse,
     ReactivationCaseResponse,
     ReactivationCreateRequest,
@@ -47,6 +50,9 @@ from app.schemas.vi_domain import (
     ReactivationStageEventResponse,
     ReactivationTransitionRequest,
     ReactivationUpdateRequest,
+    ReactivationViewCreate,
+    ReactivationViewResponse,
+    ReactivationViewsResponse,
     ReminderView,
     SimOrderCreateRequest,
     SimOrderEventListResponse,
@@ -64,6 +70,8 @@ from app.schemas.vi_domain import (
     SlaPolicyUpdateRequest,
     StageEventListResponse,
 )
+from app.services.kyc_view_service import KycViewService
+from app.services.reactivation_view_service import ReactivationViewService
 from app.services.vi_domain_service import ViDomainService
 
 router = APIRouter()
@@ -89,6 +97,60 @@ PipelineQuery = Annotated[str | None, Query(max_length=160)]
 PipelineStages = Annotated[list[ReactivationStage] | None, Query()]
 PipelineLabels = Annotated[list[ReactivationLabel] | None, Query()]
 KycStatuses = Annotated[list[KycStatus] | None, Query()]
+
+
+@router.get(
+    "/reactivation/views",
+    response_model=ReactivationViewsResponse,
+    summary="List personal and team-shared Reactivation views",
+)
+async def list_reactivation_views(
+    session: SessionDep, actor: ReactivationReader
+) -> ReactivationViewsResponse:
+    rows, can_manage_shared = await ReactivationViewService(session).list(actor)
+    return ReactivationViewsResponse(
+        data=[
+            ReactivationViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/reactivation/views",
+    response_model=ReactivationViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared Reactivation view",
+)
+async def create_reactivation_view(
+    payload: ReactivationViewCreate,
+    session: SessionDep,
+    actor: ReactivationReader,
+) -> ReactivationViewResponse:
+    service = ReactivationViewService(session)
+    row = await service.create(actor, payload)
+    return ReactivationViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/reactivation/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team Reactivation view",
+)
+async def delete_reactivation_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: ReactivationReader,
+) -> None:
+    await ReactivationViewService(session).delete(actor, view_id)
 
 
 @router.get("/reactivation-pipeline", response_model=ReactivationPipelineResponse)
@@ -321,6 +383,58 @@ async def get_kyc_operations(
     )
 
 
+@router.get(
+    "/kyc/views",
+    response_model=KycViewsResponse,
+    summary="List personal and team-shared KYC views",
+)
+async def list_kyc_views(session: SessionDep, actor: KycReader) -> KycViewsResponse:
+    rows, can_manage_shared = await KycViewService(session).list(actor)
+    return KycViewsResponse(
+        data=[
+            KycViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/kyc/views",
+    response_model=KycViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared KYC view",
+)
+async def create_kyc_view(
+    payload: KycViewCreate,
+    session: SessionDep,
+    actor: KycReader,
+) -> KycViewResponse:
+    service = KycViewService(session)
+    row = await service.create(actor, payload)
+    return KycViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/kyc/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team KYC view",
+)
+async def delete_kyc_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: KycReader,
+) -> None:
+    await KycViewService(session).delete(actor, view_id)
+
+
 @router.get("/contacts/{contact_id}/kyc-cases", response_model=KycCaseListResponse)
 async def list_contact_kyc_cases(
     contact_id: uuidlib.UUID, session: SessionDep, actor: KycReader
@@ -425,15 +539,11 @@ async def remove_kyc_document_reference(
     )
 
 
-@router.get(
-    "/kyc-cases/{kyc_id}/appointments", response_model=KycAppointmentListResponse
-)
+@router.get("/kyc-cases/{kyc_id}/appointments", response_model=KycAppointmentListResponse)
 async def list_kyc_appointments(
     kyc_id: uuidlib.UUID, session: SessionDep, actor: KycReader
 ) -> KycAppointmentListResponse:
-    rows = await ViDomainService(session).list_kyc_appointments(
-        actor.organization_id, kyc_id
-    )
+    rows = await ViDomainService(session).list_kyc_appointments(actor.organization_id, kyc_id)
     return KycAppointmentListResponse(data=[KycAppointmentResponse(**row) for row in rows])
 
 

@@ -36,6 +36,9 @@ from app.schemas.contact import (
     ContactResponse,
     ContactsPage,
     ContactUpdateRequest,
+    ContactViewCreate,
+    ContactViewResponse,
+    ContactViewsResponse,
 )
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
 from app.schemas.export_job import ExportCreateRequest, ExportProgressResponse
@@ -54,6 +57,7 @@ from app.services.bulk_service import BulkService
 from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
+from app.services.contact_view_service import ContactViewService
 from app.services.export_service import ExportService
 from app.services.import_service import ImportService
 from app.services.tag_service import TagService
@@ -142,7 +146,9 @@ async def list_contacts(
         next_cursor = _encode_cursor(result.next_sort, getattr(last, result.next_sort), last.id)
     return ContactsPage(
         data=data,
-        page=Page(limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total),
+        page=Page(
+            limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total
+        ),
     )
 
 
@@ -171,6 +177,61 @@ async def create_contact(
         },
     )
     return ContactResponse.from_contact(contact)
+
+
+@router.get(
+    "/contacts/views",
+    response_model=ContactViewsResponse,
+    summary="List personal and team-shared Contacts views",
+)
+async def list_contact_views(
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> ContactViewsResponse:
+    rows, can_manage_shared = await ContactViewService(session).list(actor)
+    return ContactViewsResponse(
+        data=[
+            ContactViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/contacts/views",
+    response_model=ContactViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared Contacts view",
+)
+async def create_contact_view(
+    payload: ContactViewCreate,
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> ContactViewResponse:
+    service = ContactViewService(session)
+    row = await service.create(actor, payload)
+    return ContactViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/contacts/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team Contacts view",
+)
+async def delete_contact_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> None:
+    await ContactViewService(session).delete(actor, view_id)
 
 
 @router.get("/contacts/{contact_id}", response_model=ContactResponse, summary="Get a contact")

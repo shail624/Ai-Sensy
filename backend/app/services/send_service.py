@@ -45,6 +45,7 @@ from app.channels.session import SessionState
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
+from app.models.audit import ACTOR_SYSTEM
 from app.models.channel_connection import ChannelEndpoint
 from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.conversation import Conversation
@@ -281,9 +282,7 @@ class SendService:
             organization_id=organization_id, wa_id=wa_id, source=SOURCE_API
         )
         if contact.opt_in_status == OPT_IN_OPTED_OUT:
-            raise OptedOutError(
-                "This contact has opted out of messages and cannot be contacted."
-            )
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
 
         conversation = await self._conversations.thread_for(number=number, contact=contact)
         self._require_window(conversation, message_type)
@@ -475,9 +474,66 @@ class SendService:
         await self._session.commit()
         return message
 
-    async def _asset_for(
-        self, organization_id: int, content: dict[str, Any]
-    ) -> MediaAsset | None:
+    async def accept_system_text_for_conversation(
+        self,
+        *,
+        conversation: Conversation,
+        contact: Contact,
+        body: str,
+        kind: str,
+        source_message_id: int,
+    ) -> Message:
+        """Persist one policy-selected text reply inside the caller's inbound transaction.
+
+        The inbound message has already established the conversation/provider and opened Meta's
+        customer-service window. This method deliberately does not commit or dispatch: the inbound
+        service owns atomicity, and the task adapter dispatches only after that commit succeeds.
+        """
+        if contact.opt_in_status == OPT_IN_OPTED_OUT:
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
+        text = body.strip()
+        if not text:
+            raise ValidationError("An automatic text reply requires a non-empty body.")
+        if (conversation.phone_number_id is None) == (conversation.channel_endpoint_id is None):
+            raise ValidationError("The conversation has no unambiguous channel owner.")
+
+        now = utcnow()
+        content = {"body": text}
+        message = Message(
+            organization_id=conversation.organization_id,
+            conversation_id=conversation.id,
+            phone_number_id=conversation.phone_number_id,
+            channel_endpoint_id=conversation.channel_endpoint_id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            message_type=MessageType.TEXT.value,
+            content_json=content,
+            status=MSG_ACCEPTED,
+            created_at=now,
+        )
+        await self._messages.add(message)
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(MessageType.TEXT.value, content),
+            occurred_at=now,
+        )
+        await self._audit.record(
+            AuditAction.MESSAGE_SENT,
+            actor_type=ACTOR_SYSTEM,
+            organization_id=conversation.organization_id,
+            entity_type="message",
+            entity_id=message.id,
+            after={"type": message.message_type, "conversation_id": conversation.public_id},
+            metadata={
+                "source": "inbox_operations",
+                "kind": kind,
+                "source_message_id": source_message_id,
+            },
+        )
+        return message
+
+    async def _asset_for(self, organization_id: int, content: dict[str, Any]) -> MediaAsset | None:
         """Resolve a `media_asset_id` reference to the asset, or fail before anything is queued.
 
         Checked on the request path so a caller learns immediately that the asset is unknown,
@@ -495,9 +551,7 @@ class SendService:
             raise NotFoundError("Media asset not found.")
         return asset
 
-    async def _template_for(
-        self, organization_id: int, content: dict[str, Any]
-    ) -> MessageTemplate:
+    async def _template_for(self, organization_id: int, content: dict[str, Any]) -> MessageTemplate:
         """Resolve and vet the template a send names (FR-TPL-03/04).
 
         Both checks happen here, on the request path, because both have an answer the caller can
@@ -635,7 +689,10 @@ class SendService:
         Idempotent by `wamid` (Doc 06 §8): a redelivered task finds the id the channel already
         gave us and stops, because at-least-once delivery must not become at-least-once *sending*.
         """
-        message = await self._messages.get_by_id(message_pk)
+        # Duplicate webhook/task delivery may enqueue the same durable reply more than once. Hold
+        # this row through provider acceptance and commit so a concurrent worker waits, refreshes,
+        # then observes ``wamid`` instead of making a second provider call.
+        message = await self._messages.lock_by_id(message_pk)
         if message is None:
             logger.warning("send_message_missing", extra={"message_pk": message_pk})
             return {"status": "missing", "message_pk": message_pk}
@@ -656,9 +713,7 @@ class SendService:
         contact = await self._contacts.get_by_id(message.contact_id)
         recipient = contact.wa_id if contact else ""
         # Before the adapter, not after: the gate exists to stop the call, not to measure it.
-        decision = await RateGate().acquire(
-            number, recipient=recipient, category=message.category
-        )
+        decision = await RateGate().acquire(number, recipient=recipient, category=message.category)
         if not decision.allowed:
             if decision.terminal:
                 return await self.fail(
@@ -679,9 +734,7 @@ class SendService:
             # A stored asset becomes a channel id here, at the last moment: the id expires, so
             # resolving it at accept time would let it lapse in the queue (Doc 07 §17.3).
             media_id = await self._resolve_media(message, adapter)
-            result = await adapter.send(
-                self._outbound(message, to=recipient, media_id=media_id)
-            )
+            result = await adapter.send(self._outbound(message, to=recipient, media_id=media_id))
         finally:
             await adapter.close()
 
@@ -746,9 +799,7 @@ class SendService:
         await self._session.commit()
         return {"status": "sent", "message_pk": message.id, "wamid": message.wamid}
 
-    async def _resolve_media(
-        self, message: Message, adapter: ChannelAdapter
-    ) -> str | None:
+    async def _resolve_media(self, message: Message, adapter: ChannelAdapter) -> str | None:
         """Upload the referenced asset to the channel and return its id (Doc 07 §17.3)."""
         if message.media_asset_id is None:
             return None
@@ -796,9 +847,7 @@ class SendService:
             return OutboundMessage(
                 to=to,
                 type=MessageType.REACTION,
-                content=ReactionContent(
-                    message_id=reaction["message_id"], emoji=reaction["emoji"]
-                ),
+                content=ReactionContent(message_id=reaction["message_id"], emoji=reaction["emoji"]),
             )
         if "template" in content:
             spec = content["template"]

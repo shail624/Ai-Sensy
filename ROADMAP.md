@@ -1,10 +1,59 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 This is the canonical forward roadmap from the current repository baseline. It is additive to, and
 does not overwrite, the historical module roadmap in `docs/ROADMAP.md` or the frozen design records
 under `docs/design/`.
 
-Last synchronized: `2026-08-09T22:56:26+05:30`.
+Last synchronized: `2026-09-13`.
+
+UI-REF-02 closes the bounded Live Chat search/view-strip/empty-column shell change, not complete
+Live Chat equivalence. Frontend **883/883**, types/build/lint and desktop/mobile preview pass.
+Populated chat/action/profile acceptance remains, followed by Contacts and Campaigns comparisons.
+See Design Document 73. Backend/API/migration/delivery state and module estimates are unchanged.
+
+## Latest UI priority — UI-REF-01
+
+Screenshot-aligned compact rail and persistent Manage panel implemented. Next acceptance work:
+Live Chat states 1–3, Contacts 4–9, Campaigns 10–17, then Manage 44–55, including real controls
+and previews. See Design Document 72. Frontend **882/882**, types/lint/build and bounded
+desktop/mobile checks pass; full parity and cumulative release/production validation remain
+pending. Unfinished GROW-03 segment changes at migration **0062** are preserved, not completed.
+
+## Current release-candidate checkpoint
+
+PAR-AUTO-22 remains the last worktree to pass the complete release quality profile **23/23 in
+685.9s**: **1521 backend tests with zero skips**, **832 frontend tests**, complete static, security,
+dependency, image-contract/SBOM and certified WAHA runtime gates. `REL-CERT-01`'s pre-PAR-AUTO-19
+cumulative deployed evidence remains **25/25 in 597.4s**, including the disposable ten-service
+browser, performance, dependency-failure and log-correlation gates. Its 30-read canary was
+**5.764ms p95** against a **300ms** budget. The exact current PAR-VIEW-05 tree separately passes
+focused Reports saved-view contracts **12/12**, **875 frontend tests**, static **6/6**, strict mypy
+across **322 files**, synchronized **235-path** OpenAPI and production build. Full backend is
+**1579 passed / 6 MySQL-only skipped / 0 failed in 413.35s**. Its
+Docker/security release rerun remains pending.
+This closes repository/local-deployment release blockers only for the last fully gated tree.
+
+It does not reorder or silently complete the roadmap below. The 31 canonical module estimates have
+a simple unweighted mean of **77.0%** (recalculated median **88%**). Product gaps remain in the named GROW/ENT
+milestones, and REL-01 accessibility/UAT, the remaining REL-02 capacity/restore evidence, and
+REL-03 target-host TLS/secrets/monitoring/rollback/acceptance are still pending. No commit, push,
+release tag, or live deployment was performed.
 
 ## Authority and baseline
 
@@ -34,15 +83,121 @@ Last synchronized: `2026-08-09T22:56:26+05:30`.
 - Exactly one implementation milestone is closed per reviewed commit. Stop after each milestone for
   owner approval.
 
-Milestone status: `CORE-09 — Unified Notification Center` is complete at baseline `62d4daa`.
-CORE-09 delivers durable tenant/user-scoped notifications, unread count, mark-one/all-read,
-permission-aware read-only team filtering, source deep links, 15-second polling, Task/Reactivation
-projection, Audit evidence, migration `0035_notification_center`, and a 193-path generated contract.
-It deliberately does not claim SSE, browser push, email, or internal WhatsApp delivery. **CORE-08 —
-Skipped: Not required by product owner.** No generic approval authority or Approval Center will be
-built; existing KYC-specific approval logic and completed authorization safeguards remain preserved.
+Current milestone status: `CORE-11C — Inactivity Auto-Resolve` is repository-implemented inside the
+still-`PARTIAL` CORE-11. On top of CORE-11A/11B operations, it adds an opt-in bounded inactivity
+scanner, open-Task/unread protection, row-locked idempotent resolution evidence and safe fresh-
+inbound reopen without a migration, new route or duplicate workflow authority. The remaining
+CORE-11 settings/team/SLA work stays in the row below. `CORE-09 — Unified Notification Center`
+remains complete, and
+**CORE-08 — Skipped: Not required by product owner** remains unchanged. No generic approval
+authority or Approval Center will be built; existing KYC-specific approval logic and completed
+authorization safeguards remain preserved.
 
 `UI-TASTE-01` documentation/audit and `UI-TASTE-02` shared design-system modernization are complete. `UI-TASTE-03A` operator-first Dashboard is implemented and repository-validated from baseline `7d826987`; authenticated representative-data visual/reference review remains pending. `UI-TASTE-03B` Reactivation operational hierarchy, `UI-TASTE-04` responsive/accessibility/performance regression and `UI-TASTE-05` owner review/merge readiness are Repository Validated. UI-TASTE-05 remains Repository Validated; the owner has separately authorized only M13-06B provider-neutral control-plane work.
+
+The 2026-08-21 owner clarification makes AiSensy-style named tabs and workflows the visible product
+baseline while retaining original branding/assets and the permanent exclusions. The repository-
+validated follow-up expands named daily navigation by default, organizes existing additional routes
+under `Manage`, and labels the existing Live Chat filters `Requested`, `Active` and `Intervened` over
+real pending/open/current-assignee facts. The next repository-validated slice makes that operator
+lifecycle executable: a row-locked, audited and idempotent `Intervene` action claims a request;
+another agent cannot steal it; and only the owner can `Resolve`, including through the older generic
+status route. PAR-AUTO-04 supplies the governed `Human handoff` effect, and PAR-AUTO-05 now connects
+the first automatic path: a privacy-safe real inbound event creates one locked receipt and pinned
+Trigger → Human handoff live run, placing the conversation in `Requested` once. Unsupported graph
+shapes fail closed and test mode stays simulated. PAR-AUTO-06 adds one optional privacy-safe
+Condition before that handoff. A match continues; a non-match records a skipped effect. PAR-AUTO-07
+adds Create task as the first internal work effect: direct or conditional inbound paths create one
+existing tenant-scoped Task with publisher assignment, immutable due time and receipt-keyed replay
+recovery. PAR-AUTO-08 adds Apply tag as the second internal effect: the immutable existing CRM tag
+is attached once through row-locked Tag/Contact, Timeline and Audit authorities; replay and an
+already-present tag cannot duplicate evidence. PAR-AUTO-09 adds Assignment as the third internal
+work effect: a published specific user is revalidated at execution, or durable per-flow receipt
+order rotates across eligible Inbox members. The Conversation row lock preserves any existing
+owner, and crash replay cannot duplicate the system Audit. PAR-AUTO-10 adds Remove tag as the
+fourth internal work effect: the immutable CRM tag is detached through the same locked Contact/Tag,
+usage, Timeline and Audit authorities; already-absent and replayed removal are safe no-ops.
+PAR-AUTO-11 completes internal Notification as the fifth internal work effect: one Contact-linked
+delivery goes to the active eligible publisher through the existing Notification Center and
+receipt/node replay converges without duplication. Backend, migration, static, frontend and
+production-build gates pass; Automation advances to **96%**. Migration is `0046`; no route,
+permission code, provider action, customer send or parallel authority is added. PAR-AUTO-12 then
+adds bounded sequential execution: one to four distinct proven effects run in connected order, and
+completed node attempts checkpoint worker retry without duplicating domain work. Branches,
+repeated effect kinds and larger sequences still fail closed; Automation advances to **98%**.
+PAR-AUTO-13 activates one bounded durable Delay in that linear sequence: the worker records a
+running checkpoint, schedules the same receipt task and cannot execute downstream effects before
+the due time. Early/duplicate delivery converges, and due resume does not repeat upstream work;
+Automation advances to **99%**. PAR-AUTO-14 then promotes Contact Created to a second bounded live
+event for Apply tag, Remove tag and internal Notification, with event-safe Condition fields and the
+existing Delay. A minute receipt scanner on the existing scheduler queue recovers new and genuinely
+stale work while leaving paused delays to their scheduled continuation; Automation remains **99%**.
+General branching, Wait-for-event, further live event consumers, campaign/webhook/customer-message
+effects, capacity/skill routing, SLA presentation and authenticated host/browser acceptance remain
+future work. PAR-AUTO-15 adds Conversation Auto-Resolved as a third bounded live event: it creates
+safe internal follow-up Tasks, changes tags or notifies the publisher from tenant-checked event
+lineage, while Handoff and Assignment fail closed on the resolved chat. The existing receipt
+dispatcher provides recovery, and Automation remains **99%**.
+PAR-AUTO-16 promotes Schedule to a fourth bounded live trigger. A clean published cron persists an
+indexed next UTC run in the organization timezone; the minute heartbeat claims one deterministic
+slot/event/receipt, advances past missed occurrences and reuses existing receipt recovery. Its live
+path is limited to one workspace-only publisher Notification with one optional Delay. Migration is
+`0047`; general branching, Wait-for-event, external/customer actions and reconciliation remain
+future work, so Automation remains **99%**. PAR-AUTO-17 then promotes one Wait node to a durable
+live checkpoint on event-backed paths: it persists the original receipt/run/node and Contact,
+resumes only on that customer's future Message Received event, and requires a 60-second-to-30-day
+timeout plus a later approved internal effect. The existing minute receipt heartbeat owns timeout
+and enqueue-failure recovery. Migration is `0048`; additional wait/event projections, general
+branching and external/customer actions remain future work, so Automation remains **99%**.
+PAR-AUTO-18 activates the existing Task completed Wait choice. Single and bulk Task completion now
+append one deterministic, privacy-safe `task.completed` Business Event in the authoritative Task
+transaction; a reopened/re-completed Task receives a distinct revision fact. Only a future
+same-organization/Contact completion can resume the original run, while timeout and failed-enqueue
+recovery continue through the existing receipt heartbeat. At that checkpoint, Lead-stage
+projection, general branching, external/customer actions and reconciliation remained future work,
+so Automation remained **99%**.
+PAR-AUTO-19 now consumes the authoritative immutable Reactivation stage transition as the live
+`lead.stage_changed` alias rather than duplicating CRM state. Previous/New stage conditions may
+drive a Contact-linked Task, tag changes or an internal Notification through the existing Delay or
+same-customer Wait. Private transition reasons and internal case/stage identifiers are excluded,
+and no Conversation is fabricated. Handoff, Assignment, general branching, external/customer
+actions, recipient/team routing and reconciliation remain future work, so Automation remains
+**99%**.
+PAR-AUTO-20 adds one bounded terminal Yes/No split to event-backed Conditions. Explicit `yes` and
+`no` edges each end at one already-approved internal effect; only the selected action executes and
+the other is durably skipped. Safe test mode follows the same decision, and the builder labels and
+locks the split while offering a return to linear mode. Multiple Conditions, nested or multi-step
+branches, Delay/Wait within branch bodies, external/customer actions, recipient/team routing and
+reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-21 extends each side of that exact split to one or two ordered distinct internal effects
+under the unchanged four-effect ceiling. Selected steps resume from durable checkpoints, every
+unselected node is skipped explicitly, and safe test mode mirrors the body without mutation. The
+builder exposes a dedicated Yes/No effect palette and safe terminal removal. Multiple/nested
+Conditions, longer bodies, branch Delay/Wait or merging, external/customer actions, recipient/team
+routing and reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-22 adds one optional shared follow-up after that exact split. Both branch terminals may
+converge on one trigger-safe terminal effect under the same four-effect ceiling. Only the selected
+branch and shared node execute; alternate-only nodes stay durably skipped and replay cannot
+duplicate the shared domain effect. The builder exposes `+ Both`/`After both` and preserves the
+merge while inserting or removing a branch terminal. Arbitrary/multiple merges, multiple/nested
+Conditions, longer bodies, branch Delay/Wait, external/customer actions, recipient/team routing
+and reconciliation remain future work, so Automation remains **99%**.
+PAR-AUTO-23 allows that exact shared follow-up to pause once through a durable Delay immediately
+before its action. The selected branch checkpoints first; early/duplicate delivery reuses one
+running Delay attempt, and due resume executes the shared effect exactly once before completing
+alternate-only skip evidence. The builder inserts/removes the `Shared delay` without leaving a
+terminal timer. Branch-specific Delay/Wait, multiple timers, arbitrary/multiple merges, multiple/
+nested Conditions, longer bodies, external/customer actions, recipient/team routing and
+reconciliation remain future work, so Automation remains **99%**.
+PAR-DL-01 partially delivers GROW-06's artifact home by projecting existing contact and analytics
+CSV/XLSX/JSON exports into one personal, tenant- and current-permission-scoped Download Center.
+It adds normalized status/expiry, fresh signed links, URL filters, polling and keyset history without
+duplicating the export pipeline. PAR-REP-01 adds real paginated PDF artifacts for all seven existing
+analytics report families through that same pipeline. PAR-REP-02 adds personal daily/weekly/monthly
+schedule management, row-locked automatic export generation and ready notifications. New
+executive/domain metrics remain governed by PAR-REP-03/04. PAR-DL-02 adds permission-scoped
+complete/date-bounded conversation transcripts in four formats through the same personal artifact
+home. Campaign/scan and generated-document sources remain in GROW-06 and their source milestones.
 
 ## Module 13 — Enterprise Omnichannel Channel Manager
 
@@ -308,8 +463,8 @@ replaced.
 | CORE-07 — Customer 360 domain convergence — COMPLETE | Make the existing profile the authoritative operational workspace. | Real Reactivation/KYC/SIM/Activation facts, reminders, SLA, contact-scoped conversations, messages, campaigns, notes, documents, assignment, Tasks, Audit and Customer Timeline. | Existing Customer Profile, Inbox, Vi domain and shared section implementations; optional exact-Contact filters on existing APIs; generated contracts; ADR-0018; Design Document 31. | Exact-contact/tenant/RBAC API tests; factual composition, denied/read-only/error/no-placeholder tests; desktop/tablet/mobile and keyboard review. | COMPLETE — every section composes persisted source facts, respects permissions, deep-links to its source workflow, and introduces no duplicate record, synthetic metric, migration, or endpoint family. | +0 actual | None (actual) |
 | CORE-08 — Skipped: Not required by product owner | General Approval Engine is not required. | Preserve existing KYC-specific approval logic and completed module-level authorization safeguards; do not build an Approval Center, generic approval framework, approval queue, escalation system, or new approval authority. | Governance records only; no product source, API, model, migration, permission, or UI files. | Governance consistency and changed-file boundary only. | SKIPPED — owner decision is recorded consistently and existing safeguards remain unchanged. | +0 actual | None |
 | CORE-09 — Unified Notification Center — COMPLETE | Deliver durable, actionable in-app notification evidence over existing Task and Reactivation authorities. | Tenant/user-scoped records, unread count, mark-one/all-read, read-only team filter, source deep links, 15-second polling, Task due and Reactivation assignment/status projections, Audit evidence, lifecycle resolution and revision-safe redelivery. | Notification model/repository/service/endpoints, migration `0035_notification_center`, generated OpenAPI/types, top-nav center, tests, ADR-0019 and Design Document 32. | Tenant/RBAC/read-state/filter/deep-link/idempotency; task reassign/reopen/bulk/delete lifecycle; migration; generated-contract; frontend notification/layout accessibility tests. | COMPLETE — in-app evidence survives refresh/device use, stale task deliveries resolve, the correct recipient/revision can receive a fresh notice, and optional channels are not falsely claimed. | +4 actual | `0035` Notification Center (actual) |
-| CORE-10 — Dedicated Chat History | Separate operational history from the live inbox. | Agent/date/customer search, media, campaign-generated, resolved records, full audit filters, saved view and export hooks. | Conversation query extensions; chat-history route/feature; navigation; export integration. | Filter/pagination/tenant/permission/query-budget tests; route/table/mobile/accessibility tests. | Dedicated page reproduces complete factual history without mutating live-chat queues and without loading unbounded conversations. | +2–4 | None |
-| CORE-11 — Core settings, team, tags, and SLA controls | Close remaining administrative gaps using existing admin/settings foundations. | Working hours/messages, assignment, auto-resolve/read receipts, opt-in/out, pipeline/SLA rules, notification/security/audit settings; online/workload/login/permission audit; required/active attributes. | Existing settings/admin/tag/attribute backend/frontend files; possibly configuration migration. | Settings validation; role matrix; assignment/SLA calculations; audit; backward compatibility; responsive admin UI. | Every approved control is persisted, permission-scoped, audited, and consumed by the relevant service; existing APIs remain compatible. | +4–8 | Next additive revision only if persisted structures require it |
+| CORE-10 — Dedicated Chat History — NEAR COMPLETE (`PAR-DL-02`, `PAR-HIST-01`) | Separate operational history from the live inbox. | Delivered: dedicated read route, agent/customer/status/channel/tag/date/campaign/media/audit filters, resolved records, full bounded message history, governed team-shared views, audit deep link and complete/date-bounded transcript exports. Remaining: authenticated representative-data WCAG/device/browser review and production-scale/target-host query commissioning. | Existing conversation/message/audit authorities; chat-history feature; shared export/Download Center pipeline. | Filter/pagination/tenant/permission/query-budget tests; route/sheet/mobile/accessibility tests; target-host performance evidence. | Dedicated page reproduces complete factual history without mutating live-chat queues or loading unbounded conversations. | +0–1 remaining | `0054_chat_history_filters_views` delivered |
+| CORE-11 — Core settings, team, tags, and SLA controls — PARTIAL (`CORE-11A/11B/11C` implemented) | Close remaining administrative gaps using existing admin/settings foundations. | **Delivered:** validated least-open/manual assignment, automatic/manual read state, exact opt-in/out keywords, organization-timezone weekly hours, new-window welcome, rate-limited off-hours replies, and protected inactivity auto-resolve with fresh-inbound reopen. **Remaining:** campaign preferences, pipeline/SLA, notification/security/audit settings; online/workload/login/permission audit; required/active attributes. | Existing settings/admin/tag/attribute backend/frontend files; possibly configuration migration. | Settings validation; role matrix; assignment/SLA calculations; audit; backward compatibility; responsive admin UI. | Final CORE-11 completion still requires every remaining approved control to be persisted, permission-scoped, audited and consumed; CORE-11A/11B/11C satisfy that rule for their bounded controls. | +1 actual so far | None for CORE-11A/11B/11C; next additive revision only if later structures require it |
 
 ## Approved cross-cutting UI Taste Modernization
 
@@ -332,7 +487,7 @@ remain authoritative.
 | Milestone | Objective | Scope | Completion criteria |
 |---|---|---|---|
 | UI-TASTE-01 — Documentation and audit baseline — COMPLETE | Freeze branch, baseline, findings, boundaries, priorities, and acceptance order before coding. | Governance records only; design variance `4/10`, motion `3/10`, density `8/10`. | COMPLETE at `9043fe03`; documentation-only boundary and remote HEAD were verified. |
-| UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. | Repository gates pass: lint, typecheck, 657 tests, build and production audit. Host visual/reference comparison remains pending; no parallel component system or navigation redesign exists. |
+| UI-TASTE-02 — Shared design-system modernization — COMPLETE AND OWNER-APPROVED | Establish consistent enterprise density and hierarchy before page work. | Named radius tiers; shared form, toolbar, filter and pagination primitives; Button/Card/PageHeader/PageContainer refinements; adoption in Contacts, Inbox and Notification Center. The later owner-directed parity follow-up expands named daily tabs, adds a permission-aware Manage group and completes a guarded Live Chat intervention/handoff lifecycle. | Current repository gates pass: lint, typecheck, 818 tests and production build. Host visual/reference comparison remains pending; no parallel component system exists. |
 | UI-TASTE-03A — Operator-first Dashboard — IMPLEMENTED | Replace the messaging-led first screen with factual operational intelligence. | Cross-domain attention, blocked customers, KYC, SIM/Activation SLA risk, Campaigns, unread conversations, Templates, agent workload, today KPI changes, task snapshot and source actions. | Repository gates pass with 661 tests and split build; no fake metric/backend duplication; authenticated representative-data visual/reference review remains pending. |
 | UI-TASTE-03B — Reactivation operational hierarchy — REPOSITORY VALIDATED | Apply the shared system to the highest-value Reactivation operator workflow without rebuilding its authority. | Stage/action hierarchy, due/reminder/SLA prioritization, connected-vs-foundation maturity, saved-view/pagination truth and responsive density. | Resume only from the latest approved Git HEAD when explicitly instructed; real persisted behavior, permissions, source contracts and representative-data review pass. |
 | UI-TASTE-04 — Responsive, accessibility, and performance regression — REPOSITORY VALIDATED | Prove repository-verifiable modernization quality without claiming host evidence. | KYC route permission truth, debounced search, empty-result keyboard safety, shared modal focus/scroll behavior, narrow pagination, authenticated route splitting and dead-code removal. | **REPOSITORY VALIDATED** in workflow `30980229127`; main bundle 199.78/54.87 kB gzip; host browser/device/screen-reader evidence remains pending. |
@@ -342,12 +497,12 @@ remain authoritative.
 
 | Milestone | Objective | Features | Files expected | Tests expected | Completion criteria | Est. OpenAPI increase | Est. migration |
 |---|---|---|---|---|---|---:|---|
-| GROW-01 — Campaign domain completion | Extend the release-ready broadcast engine only for final-scope gaps. | Broadcast/CSV/scheduled/API journeys, audience/segment/template/assignment, approval gating, delivery/read/reply/failure retry, conversion and campaign-to-reactivation facts, ROI inputs. | Existing campaign services/endpoints/UI; approval and reactivation links; analytics projections. | Approval/dispatch race; retry/idempotency; conversion attribution; permissions; end-to-end campaign reply-to-lead. | All approved campaign types and reports are factual; large campaigns cannot bypass approval; excluded Meta Ads functionality remains absent. | +3–6 | Future additive revision if required |
+| GROW-01 — Campaign domain completion (PARTIAL: PAR-DL-03/PAR-CAM-01) | Extend the release-ready broadcast engine only for final-scope gaps. | Delivered: governed PDF/CSV/XLSX/JSON results plus complete server-filtered/cursor-paginated recipient failure operations and confirmed retry. Remaining: conversion/campaign-to-reactivation facts and approved recovered-value/revenue/ROI inputs. | Existing campaign/reactivation/analytics authorities; shared Download Center. | Conversion attribution; source-formula truth; end-to-end campaign reply-to-lead; target-scale query plans. | Every approved campaign report is factual; delivery is never mislabeled as conversion/revenue and excluded Meta Ads functionality remains absent. | +1–2 remaining | `0055` export permission and `0056` ledger indexes delivered; future additive revision only for new source facts |
 | GROW-02 — Template completion | Close template-management gaps without replacing the registry. | Draft/pending/approved/rejected, text/media/button formats, variables/preview, sync, favourites, categories, usage analytics, non-executing AI generator placeholder. | Existing template backend/frontend; favourite/category/analytics additions; generated contracts. | Meta sync/status/format/variable tests; favourite/permission/preview/accessibility tests. | Every approved template type and state is managed safely; placeholder is explicitly non-executing. | +2–4 | Future additive revision if required |
-| GROW-03 — Segments and server-saved views | Make approved operational audiences reusable across users. | Dynamic/static segments, saved filters, Reactivation status/label/reminder/KYC/document/engagement predicates; private/shared views for all specified modules. | Segment extensions; saved-view models/services/APIs; additive migration; module UI integrations. | Predicate truth tables; share/RBAC/tenant/versioning; performance; route integration tests. | Views and segments are server-owned, reproducible, shareable only by permission, and usable by campaigns/reports without local-only drift. | +7–10 | Future additive revision |
+| GROW-03 — Segments and server-saved views — PARTIAL (`PAR-VIEW-01/02/03/04/05`) | Make approved operational audiences reusable across users. | Delivered for Reactivation, Contacts, Campaigns, KYC and Reports: module-validated filters, personal/team scopes, permission-governed sharing, Audit and portable reopening without stale transient state. Remaining: approved segment predicates/saved filters. | Shared workspace-view authority now serves all five named product workspaces without a parallel model. | Delivered tenant/private/workspace/RBAC/scope/validation/migration/route/UI tests; remaining predicate truth/performance/integration tests follow the Segment slice. | Complete only when the remaining Segment definition is server-owned and reproducible; all five delivered slices independently satisfy that contract. | +1 remaining | `0057_reactivation_saved_views` through `0061_reports_workspace_views` delivered; one future additive revision only if the Segment slice requires persistence changes |
 | GROW-04 — Live simplified automation | Consume durable receipts through governed, idempotent effects. | Approved triggers/conditions/actions, delay/reminder, status/label movement, assignment, messages, notifications, stop/archive rules, approvals/handoffs, retries/DLQ, execution history. | Existing automation runtime; effect ledger/worker/services; builder/run UI; additive migration. | Effect idempotency; checkpoint/resume; approval/handoff; safe sends; domain transitions; failure/retry/DLQ; tenant/RBAC/audit; deployed Celery E2E. | The `Trigger → Conditions → Actions` examples in final scope execute through existing authorities with no duplicate side effects. | +5–8 | Future additive revision |
-| GROW-05 — Domain analytics | Extend existing rollups with lightweight Vi CRM dimensions. | Campaign/conversation/agent/reactivation status/label/reminder/source/KYC/SLA/date analytics, comparisons and exports; SIM/activation represented by case status unless explicitly reauthorized. | Analytics models/tasks/queries/endpoints/UI; additive migration; charts and filters. | Rollup determinism/rebuild/time-zone/tenant/query-budget; metric fixtures; chart/export tests. | Every scope metric has a documented formula, source event, reproducible rollup, API, UI, and export; no invented values. | +6–10 | Future additive revision |
-| GROW-06 — Executive reports and Download Center | Deliver governed scheduled management reporting and one artifact home. | Revenue, conversion, ROI, productivity, workload, SLA, case-status outcomes, source, daily/weekly/monthly schedules, CSV/PDF; downloads/status/history/expiry/permissions. | Report/export services/tasks/endpoints; artifact models; additive migration; reports and download-center UI. | Formula/schedule/time-zone/PDF/CSV/expiry/approval/download-security; worker and UI tests. | Executives can schedule and retrieve all approved reports; every artifact is permission-scoped, auditable, expiring, and visible in Download Center. | +8–12 | Future additive revision |
+| GROW-05 — Domain analytics — PARTIAL (`PAR-REP-03/04` implemented) | Extend existing rollups with lightweight Vi CRM dimensions and factual team operations. | Delivered: event-derived Reactivation/KYC/SIM/Activation/SLA outcomes plus conversation/task teammate productivity and a separately labelled live pending-work snapshot. Remaining: campaign-to-case attribution, approved recovered-value/revenue/ROI and explicit capacity/utilization inputs. | Existing Analytics rollup/query/export/schedule pipeline; domain business-event ledger; indexed Conversation/Task authorities; additive `0051`/`0052`. | Rollup determinism/rebuild/time-zone/tenant/query-budget; stock-vs-flow truth; metric fixtures; chart/export tests. | Every scope metric has a documented source/formula and no stock value is summed across time or inferred from unrelated facts. | +1–3 remaining | Future additive revision only for approved source facts |
+| GROW-06 — Executive reports and Download Center (PARTIAL: PAR-DL-01/02/03, PAR-REP-01/02/03/04) | Finish governed management reporting and extend the implemented personal artifact home. | Delivered: contacts; eleven Analytics families/schedules/notifications; domain outcome and Team Productivity packs; Chat History transcripts; full campaign recipient results; status/history/expiry/permissions. Remaining: revenue, conversion attribution, ROI, approved capacity/utilization, compliant Scan results and generated-document artifacts. | Extend remaining approved projections/source artifacts; reuse the implemented schedule/export/Notification/Download Center authorities. | Formula/time-zone/PDF/CSV/expiry/download-security; worker and UI tests. | Executives can schedule and retrieve every approved report; every artifact is permission-scoped, auditable, expiring, and visible in Download Center. | +1–3 remaining | `0055_campaign_results_exports` delivered; future additive revision only for remaining sources |
 | GROW-07 — Google Sheets | Add the only missing approved integration without a marketplace. | Admin connection, secret handling, sheet/range mapping, contact import/sync/export jobs, dedup, retries, status, audit, revocation. | Integration model/service/adapter/endpoints/tasks; additive migration; settings UI; docs. | Credential encryption/redaction; mocked Google API; mapping/dedup/idempotency/retry/revoke/tenant tests; job UI. | Authorized sheets exchange data through queued, auditable jobs; failures are recoverable; no unused integrations are introduced. | +6–9 | Future additive revision |
 | GROW-08 — Webhook completion | Extend existing webhook operations for final domain events. | Subscription management, secrets, event selection, delivery logs, signatures, retries/replay, final-domain events, usage visibility. | Existing webhook service/endpoints/worker/UI; event catalog/docs. | Signature/replay/dedup/retry/redaction/permission/tenant tests; final-domain event fixtures. | Consumers can safely subscribe to approved events with observable, replayable delivery; provider webhooks and outbound webhooks remain distinct. | +2–4 | None unless subscription persistence lacks fields |
 

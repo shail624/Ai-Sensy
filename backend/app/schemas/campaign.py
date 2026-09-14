@@ -5,15 +5,27 @@ from __future__ import annotations
 import uuid as uuidlib
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
+from app.api.pagination import Page
 from app.models.campaign import Campaign, CampaignRecipient, CampaignSchedule
 from app.models.contact import Contact
+from app.models.reactivation_view import WorkspaceView
 from app.services.cost_estimation_service import UNRESOLVED_COUNTRY, Estimate
 
 AudienceTypeName = Literal["segment", "tag", "list", "upload"]
+RecipientStatusName = Literal[
+    "pending",
+    "queued",
+    "sent",
+    "delivered",
+    "read",
+    "failed",
+    "skipped",
+    "cancelled",
+]
 
 
 class VariableMapping(BaseModel):
@@ -119,6 +131,79 @@ class CampaignListResponse(BaseModel):
     data: list[CampaignResponse]
 
 
+CampaignViewVisibility = Literal["private", "shared"]
+CampaignViewStatus = Literal[
+    "draft",
+    "scheduled",
+    "queued",
+    "running",
+    "paused",
+    "completed",
+    "cancelled",
+    "failed",
+]
+CampaignViewSort = Literal[
+    "-created_at",
+    "created_at",
+    "name",
+    "-name",
+    "-total_recipients",
+]
+
+
+class CampaignViewFilters(BaseModel):
+    """Portable Campaign list state; local page position is intentionally never persisted."""
+
+    q: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
+        | None
+    ) = None
+    status: CampaignViewStatus | None = None
+    sort: CampaignViewSort = "-created_at"
+
+
+class CampaignViewCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    visibility: CampaignViewVisibility = "private"
+    display: Literal["list"] = "list"
+    filters: CampaignViewFilters
+
+
+class CampaignViewResponse(BaseModel):
+    id: uuidlib.UUID
+    name: str
+    visibility: CampaignViewVisibility
+    display: Literal["list"]
+    filters: CampaignViewFilters
+    is_owner: bool
+    can_delete: bool
+    created_at: datetime
+
+    @classmethod
+    def from_view(
+        cls,
+        row: WorkspaceView,
+        *,
+        actor_user_id: int,
+        can_manage_shared: bool,
+    ) -> CampaignViewResponse:
+        is_owner = row.created_by_user_id == actor_user_id
+        return cls(
+            id=uuidlib.UUID(row.public_id),
+            name=row.name,
+            visibility=row.visibility,
+            display="list",
+            filters=CampaignViewFilters.model_validate(row.filters_json),
+            is_owner=is_owner,
+            can_delete=is_owner if row.visibility == "private" else can_manage_shared,
+            created_at=row.created_at,
+        )
+
+
+class CampaignViewsResponse(BaseModel):
+    data: list[CampaignViewResponse]
+
+
 class CampaignPreviewResponse(BaseModel):
     """Audience size + sample renders (Doc 04 §17)."""
 
@@ -130,10 +215,17 @@ class CampaignPreviewResponse(BaseModel):
 
 class RecipientEntry(BaseModel):
     contact_id: str | None
+    contact_name: str | None
     wa_id: str | None
     status: str
     variables: dict[str, Any] | None
     error_code: str | None
+    retry_count: int
+    queued_at: datetime | None
+    sent_at: datetime | None
+    delivered_at: datetime | None
+    read_at: datetime | None
+    failed_at: datetime | None
     created_at: datetime
 
     @classmethod
@@ -142,17 +234,26 @@ class RecipientEntry(BaseModel):
     ) -> RecipientEntry:
         return cls(
             contact_id=contact.public_id if contact else None,
+            contact_name=contact.full_name if contact else None,
             wa_id=contact.wa_id if contact else None,
             status=recipient.status,
             variables=recipient.variables_json,
             error_code=recipient.error_code,
+            retry_count=recipient.retry_count,
+            queued_at=recipient.queued_at,
+            sent_at=recipient.sent_at,
+            delivered_at=recipient.delivered_at,
+            read_at=recipient.read_at,
+            failed_at=recipient.failed_at,
             created_at=recipient.created_at,
         )
 
 
 class RecipientsResponse(BaseModel):
     data: list[RecipientEntry]
-    has_more: bool
+    page: Page
+    # Kept during the v1 compatibility window for existing integrations.
+    has_more: bool = Field(deprecated=True)
 
 
 class CampaignDispatchResponse(BaseModel):

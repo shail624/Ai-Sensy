@@ -6,9 +6,12 @@ from datetime import datetime
 
 from sqlalchemy import and_, func, or_, select
 
+from app.models.audit import AuditLog
 from app.models.contact import Contact
-from app.models.conversation import Conversation
+from app.models.conversation import CONV_OPEN, CONV_PENDING, CONV_RESOLVED, Conversation
 from app.models.conversation_tag import conversation_tags
+from app.models.message import Message
+from app.models.task import TASK_STATUS_OPEN, Task
 from app.repositories.base import BaseRepository
 
 
@@ -67,6 +70,11 @@ class ConversationRepository(BaseRepository[Conversation]):
         unassigned: bool = False,
         phone_number_id: int | None = None,
         tag_id: int | None = None,
+        activity_from: datetime | None = None,
+        activity_to: datetime | None = None,
+        campaign_id: int | None = None,
+        has_media: bool = False,
+        has_audit: bool = False,
         q: str | None = None,
         limit: int,
         cursor: tuple[datetime, int] | None = None,
@@ -95,6 +103,43 @@ class ConversationRepository(BaseRepository[Conversation]):
             clauses.append(Conversation.assigned_user_id == assignee_id)
         if phone_number_id is not None:
             clauses.append(Conversation.phone_number_id == phone_number_id)
+        if activity_from is not None:
+            clauses.append(sort_key >= activity_from)
+        if activity_to is not None:
+            clauses.append(sort_key < activity_to)
+        if campaign_id is not None:
+            clauses.append(
+                select(Message.id)
+                .where(
+                    Message.organization_id == organization_id,
+                    Message.conversation_id == Conversation.id,
+                    Message.campaign_id == campaign_id,
+                )
+                .exists()
+            )
+        if has_media:
+            clauses.append(
+                select(Message.id)
+                .where(
+                    Message.organization_id == organization_id,
+                    Message.conversation_id == Conversation.id,
+                    Message.media_asset_id.is_not(None),
+                )
+                .exists()
+            )
+        if has_audit:
+            # Only direct conversation actions are in scope: assignment and status events use
+            # ``entity_type=conversation``. Internal-note contents and message provider events are
+            # deliberately not inferred or exposed by this list filter.
+            clauses.append(
+                select(AuditLog.id)
+                .where(
+                    AuditLog.organization_id == organization_id,
+                    AuditLog.entity_type == "conversation",
+                    AuditLog.entity_id == Conversation.id,
+                )
+                .exists()
+            )
 
         stmt = select(Conversation)
         if tag_id is not None:
@@ -119,14 +164,76 @@ class ConversationRepository(BaseRepository[Conversation]):
             )
         if cursor is not None:
             c_ts, c_id = cursor
-            clauses.append(
-                or_(sort_key < c_ts, and_(sort_key == c_ts, Conversation.id < c_id))
-            )
+            clauses.append(or_(sort_key < c_ts, and_(sort_key == c_ts, Conversation.id < c_id)))
 
         stmt = (
-            stmt.where(*clauses)
-            .order_by(sort_key.desc(), Conversation.id.desc())
-            .limit(limit + 1)
+            stmt.where(*clauses).order_by(sort_key.desc(), Conversation.id.desc()).limit(limit + 1)
         )
         rows = list((await self.session.scalars(stmt)).all())
         return rows[:limit], len(rows) > limit
+
+    async def active_counts_by_assignee(
+        self, organization_id: int, assignee_ids: list[int]
+    ) -> dict[int, int]:
+        """Open workload used by the organization assignment policy."""
+        if not assignee_ids:
+            return {}
+        stmt = (
+            select(Conversation.assigned_user_id, func.count(Conversation.id))
+            .where(
+                Conversation.organization_id == organization_id,
+                Conversation.deleted_at.is_(None),
+                Conversation.status != CONV_RESOLVED,
+                Conversation.assigned_user_id.in_(assignee_ids),
+            )
+            .group_by(Conversation.assigned_user_id)
+        )
+        return {
+            int(assignee_id): int(count)
+            for assignee_id, count in (await self.session.execute(stmt)).all()
+            if assignee_id is not None
+        }
+
+    async def lock_by_id(self, organization_id: int, conversation_id: int) -> Conversation | None:
+        """Serialize per-thread policy decisions and refresh facts changed by a prior waiter."""
+        stmt = (
+            select(Conversation)
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.organization_id == organization_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return (await self.session.scalars(stmt)).first()
+
+    async def auto_resolve_candidates(
+        self, *, organization_id: int, cutoff: datetime, limit: int
+    ) -> list[Conversation]:
+        """A bounded candidate scan; the service row-locks and rechecks before mutation."""
+        open_task = (
+            select(Task.id)
+            .where(
+                Task.organization_id == organization_id,
+                Task.conversation_id == Conversation.id,
+                Task.status == TASK_STATUS_OPEN,
+                Task.deleted_at.is_(None),
+            )
+            .exists()
+        )
+        stmt = (
+            select(Conversation)
+            .where(
+                Conversation.organization_id == organization_id,
+                Conversation.deleted_at.is_(None),
+                Conversation.status.in_((CONV_OPEN, CONV_PENDING)),
+                Conversation.unread_count == 0,
+                Conversation.last_message_at.is_not(None),
+                Conversation.last_message_at <= cutoff,
+                Conversation.updated_at <= cutoff,
+                ~open_task,
+            )
+            .order_by(Conversation.last_message_at, Conversation.id)
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())

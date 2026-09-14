@@ -22,6 +22,7 @@ from app.api.v1.endpoints import (
     contact_identity,
     contacts,
     conversations,
+    downloads,
     jobs,
     leads,
     media,
@@ -69,6 +70,8 @@ api_router.include_router(jobs.router, tags=["Queue"])
 api_router.include_router(media.router, tags=["Media"])
 # Signed-URL download target for the artifacts background jobs produce (exports, error reports).
 api_router.include_router(artifacts.router, tags=["Media"])
+# Personal, permission-filtered history over generated export artifacts.
+api_router.include_router(downloads.router, tags=["Downloads"])
 
 # Module 4 — WhatsApp Core: WABAs & phone numbers (Doc 04 §13.2/§13.3; Doc 07 §5).
 api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])

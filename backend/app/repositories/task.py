@@ -53,6 +53,13 @@ def _priority_rank_expr() -> ColumnElement[int]:
 class TaskRepository(BaseRepository[Task]):
     model = Task
 
+    async def by_idempotency_key(self, organization_id: int, idempotency_key: bytes) -> Task | None:
+        stmt = select(Task).where(
+            Task.organization_id == organization_id,
+            Task.idempotency_key == idempotency_key,
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def get_active_by_uuid(self, organization_id: int, public_id: bytes) -> Task | None:
         """One active task by uuid within the org (a foreign uuid is a 404)."""
         stmt = select(Task).where(
@@ -62,9 +69,7 @@ class TaskRepository(BaseRepository[Task]):
         )
         return (await self.session.scalars(stmt)).first()
 
-    async def resolve_ids(
-        self, organization_id: int, public_ids: list[uuidlib.UUID]
-    ) -> list[Task]:
+    async def resolve_ids(self, organization_id: int, public_ids: list[uuidlib.UUID]) -> list[Task]:
         """Active tasks for a set of uuids (bulk actions, Doc 14 §7.1)."""
         if not public_ids:
             return []
@@ -266,6 +271,22 @@ class TaskRepository(BaseRepository[Task]):
             .with_for_update(skip_locked=True)
         )
         return list((await self.session.scalars(stmt)).all())
+
+    async def has_open_for_conversation(
+        self, *, organization_id: int, conversation_id: int
+    ) -> bool:
+        """Whether unresolved follow-up work protects a conversation from auto-resolution."""
+        stmt = select(
+            select(Task.id)
+            .where(
+                Task.organization_id == organization_id,
+                Task.conversation_id == conversation_id,
+                Task.status == TASK_STATUS_OPEN,
+                Task.deleted_at.is_(None),
+            )
+            .exists()
+        )
+        return bool(await self.session.scalar(stmt))
 
 
 __all__ = ["TaskRepository", "TASK_PRIORITIES", "SORT_DUE_AT", "SORT_CREATED_AT", "SORT_PRIORITY"]

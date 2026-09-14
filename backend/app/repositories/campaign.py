@@ -109,6 +109,54 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         rows = list((await self.session.scalars(stmt)).all())
         return rows[:limit], len(rows) > limit
 
+    async def paginate_for_export(
+        self,
+        campaign_pk: int,
+        organization_id: int,
+        *,
+        status: str | None,
+        limit: int,
+        cursor: tuple[datetime, int] | None,
+    ) -> tuple[list[tuple[CampaignRecipient, Contact | None]], bool]:
+        """Oldest-first keyset page joined to current tenant-safe contact identity.
+
+        Campaign recipient rows are the outcome authority. The contact join supplies only current
+        human-readable identity; a corrupt cross-tenant contact reference deliberately renders
+        blank rather than disclosing another organization's data.
+        """
+        clauses = [CampaignRecipient.campaign_id == campaign_pk]
+        if status:
+            clauses.append(CampaignRecipient.status == status)
+        if cursor is not None:
+            c_created, c_id = cursor
+            clauses.append(
+                or_(
+                    CampaignRecipient.created_at > c_created,
+                    and_(
+                        CampaignRecipient.created_at == c_created,
+                        CampaignRecipient.id > c_id,
+                    ),
+                )
+            )
+        stmt = (
+            select(CampaignRecipient, Contact)
+            .outerjoin(
+                Contact,
+                and_(
+                    Contact.id == CampaignRecipient.contact_id,
+                    Contact.organization_id == organization_id,
+                ),
+            )
+            .where(*clauses)
+            .order_by(CampaignRecipient.created_at, CampaignRecipient.id)
+            .limit(limit + 1)
+        )
+        raw_rows = list((await self.session.execute(stmt)).tuples().all())
+        rows: list[tuple[CampaignRecipient, Contact | None]] = [
+            (recipient, contact) for recipient, contact in raw_rows
+        ]
+        return rows[:limit], len(rows) > limit
+
     async def list_unsent(self, campaign_pk: int) -> list[CampaignRecipient]:
         """Recipients that still owe a send — what a resumed dispatch picks up (FR-CAM-09)."""
         stmt = (
@@ -211,13 +259,16 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         return len(rows)
 
     async def contacts_for(
-        self, campaign_pk: int, recipients: list[CampaignRecipient]
+        self, organization_id: int, recipients: list[CampaignRecipient]
     ) -> dict[int, Contact]:
-        """The contacts behind a page of recipients, in one query (no N+1 on the roster)."""
+        """Tenant-safe contacts behind a recipient page, in one query (no N+1)."""
         ids = [r.contact_id for r in recipients]
         if not ids:
             return {}
-        stmt = select(Contact).where(Contact.id.in_(ids))
+        stmt = select(Contact).where(
+            Contact.organization_id == organization_id,
+            Contact.id.in_(ids),
+        )
         return {c.id: c for c in (await self.session.scalars(stmt)).all()}
 
 

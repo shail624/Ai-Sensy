@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel
 
@@ -16,10 +16,11 @@ class AutomationTriggerReceiptResponse(BaseModel):
     event_type: str
     event_version: int
     version_no: int
-    status: Literal["received"]
+    status: Literal["received", "processing", "processed", "failed"]
     source: str | None
     occurred_at: datetime
     received_at: datetime
+    processed_at: datetime | None
 
     @classmethod
     def of(cls, view: AutomationTriggerReceiptView) -> AutomationTriggerReceiptResponse:
@@ -29,10 +30,14 @@ class AutomationTriggerReceiptResponse(BaseModel):
             event_type=view.event_type,
             event_version=view.event_version,
             version_no=view.version_no,
-            status="received",
+            status=cast(
+                Literal["received", "processing", "processed", "failed"],
+                view.status,
+            ),
             source=view.source,
             occurred_at=view.occurred_at,
             received_at=view.received_at,
+            processed_at=view.processed_at,
         )
 
 

@@ -284,11 +284,13 @@ class CampaignService:
 
     async def recipients(
         self, campaign: Campaign, *, status: str | None, limit: int, cursor: Any
-    ) -> tuple[list[CampaignRecipient], bool, dict[int, Contact]]:
+    ) -> tuple[list[CampaignRecipient], bool, int, dict[int, Contact]]:
         rows, has_more = await self._recipients.paginate(
             campaign.id, status=status, limit=limit, cursor=cursor
         )
-        return rows, has_more, await self._recipients.contacts_for(campaign.id, rows)
+        total = await self._recipients.count_for_campaign(campaign.id, status=status)
+        contacts = await self._recipients.contacts_for(campaign.organization_id, rows)
+        return rows, has_more, total, contacts
 
     # --- Internals -----------------------------------------------------------
     async def _template(

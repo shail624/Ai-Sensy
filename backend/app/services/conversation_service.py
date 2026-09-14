@@ -33,7 +33,7 @@ from app.models.contact_event import (
     REF_TYPE_CONTACT_IDENTITY,
 )
 from app.models.contact_identity import ContactIdentity
-from app.models.conversation import PREVIEW_LENGTH, WINDOW, Conversation
+from app.models.conversation import CONV_OPEN, CONV_RESOLVED, PREVIEW_LENGTH, WINDOW, Conversation
 from app.models.waba import PhoneNumber
 from app.repositories.contact import ContactRepository
 from app.repositories.contact_identity import ContactIdentityRepository
@@ -41,6 +41,7 @@ from app.repositories.conversation import ConversationRepository
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
+from app.services.inbox_operations_service import InboxOperationsService
 
 #: Doc 03 ``contacts.source`` — how this contact record came to exist.
 SOURCE_WEBHOOK = "webhook"
@@ -55,6 +56,7 @@ class ConversationService:
         self._events = ContactEventService(session)
         self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
+        self._operations = InboxOperationsService(session)
 
     async def _get_or_create_contact(
         self, *, organization_id: int, wa_id: str, source: str
@@ -169,9 +171,7 @@ class ConversationService:
                 occurred_at=occurred_at,
             )
         else:
-            await self._observe_contact(
-                contact, profile_name=profile_name, occurred_at=occurred_at
-            )
+            await self._observe_contact(contact, profile_name=profile_name, occurred_at=occurred_at)
 
         await self.remember_endpoint_contact_identity(
             endpoint=endpoint,
@@ -318,9 +318,7 @@ class ConversationService:
         return row
 
     @staticmethod
-    def _require_owned_endpoint(
-        endpoint: ChannelEndpoint, connection: ChannelConnection
-    ) -> None:
+    def _require_owned_endpoint(endpoint: ChannelEndpoint, connection: ChannelConnection) -> None:
         if (
             endpoint.connection_id != connection.id
             or endpoint.organization_id != connection.organization_id
@@ -376,6 +374,7 @@ class ConversationService:
                 channel_type=number.channel_type or ChannelType.WHATSAPP.value,
             )
             await self._conversations.add(conversation)
+            await self._operations.assign_new_conversation(conversation)
         elif conversation.deleted_at is not None:
             # A new message revives an archived thread rather than starting a second one.
             conversation.deleted_at = None
@@ -390,14 +389,29 @@ class ConversationService:
         Upsert, not create: ``uq_conv_number_contact`` means one thread per (number, contact), and
         every later message on it lands here again.
         """
+        conversation, _ = await self.open_for_inbound_with_window(
+            number=number, contact=contact, occurred_at=occurred_at
+        )
+        return conversation
+
+    async def open_for_inbound_with_window(
+        self, *, number: PhoneNumber, contact: Contact, occurred_at: datetime
+    ) -> tuple[Conversation, bool]:
+        """Open the thread and report whether this inbound begins a new 24-hour window."""
         conversation = await self.thread_for(number=number, contact=contact)
+        conversation = (
+            await self._conversations.lock_by_id(number.organization_id, conversation.id)
+            or conversation
+        )
+        previous_inbound = conversation.last_inbound_at
+        opened_new_window = previous_inbound is None or occurred_at >= previous_inbound + WINDOW
         if conversation.last_inbound_at is None or occurred_at > conversation.last_inbound_at:
             conversation.last_inbound_at = occurred_at
             conversation.window_expires_at = occurred_at + WINDOW
         # Denormalized for `ix_conv_window`; `Conversation.window_is_open` is the read-time truth.
         conversation.is_window_open = conversation.window_is_open
         await self._conversations.flush()
-        return conversation
+        return conversation, opened_new_window
 
     # --- Provider-neutral (channel-endpoint-owned, e.g. WAHA) analogues (QR-08) -----------------
     #
@@ -420,6 +434,7 @@ class ConversationService:
                 channel_type=ChannelType.WHATSAPP.value,
             )
             await self._conversations.add(conversation)
+            await self._operations.assign_new_conversation(conversation)
         elif conversation.deleted_at is not None:
             conversation.deleted_at = None
         await self._conversations.flush()
@@ -435,13 +450,28 @@ class ConversationService:
         WAHA send path *enforces* the Meta-only 24-hour customer-service-window rule those fields
         back; WhatsApp Multi-Device carries no such restriction.
         """
+        conversation, _ = await self.open_for_inbound_endpoint_with_window(
+            endpoint=endpoint, contact=contact, occurred_at=occurred_at
+        )
+        return conversation
+
+    async def open_for_inbound_endpoint_with_window(
+        self, *, endpoint: ChannelEndpoint, contact: Contact, occurred_at: datetime
+    ) -> tuple[Conversation, bool]:
+        """Endpoint-owned window update with the same serialized new-window fact."""
         conversation = await self.thread_for_endpoint(endpoint=endpoint, contact=contact)
+        conversation = (
+            await self._conversations.lock_by_id(endpoint.organization_id, conversation.id)
+            or conversation
+        )
+        previous_inbound = conversation.last_inbound_at
+        opened_new_window = previous_inbound is None or occurred_at >= previous_inbound + WINDOW
         if conversation.last_inbound_at is None or occurred_at > conversation.last_inbound_at:
             conversation.last_inbound_at = occurred_at
             conversation.window_expires_at = occurred_at + WINDOW
         conversation.is_window_open = conversation.window_is_open
         await self._conversations.flush()
-        return conversation
+        return conversation, opened_new_window
 
     async def _touch_last_message(
         self, conversation: Conversation, *, preview: str, occurred_at: datetime
@@ -461,6 +491,24 @@ class ConversationService:
         Called only when a message was actually inserted, so a redelivery can never inflate the
         unread badge (FR-WA-07).
         """
+        if (
+            conversation.status == CONV_RESOLVED
+            and (
+                conversation.last_message_at is None
+                or occurred_at >= conversation.last_message_at
+            )
+        ):
+            conversation.status = CONV_OPEN
+            await self._audit.record(
+                AuditAction.CONVERSATION_STATUS_CHANGED,
+                actor_type=ACTOR_SYSTEM,
+                organization_id=conversation.organization_id,
+                entity_type="conversation",
+                entity_id=conversation.id,
+                before={"status": CONV_RESOLVED},
+                after={"status": CONV_OPEN},
+                metadata={"source": "inbound_message"},
+            )
         conversation.unread_count += 1
         await self._touch_last_message(conversation, preview=preview, occurred_at=occurred_at)
 

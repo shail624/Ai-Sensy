@@ -11,14 +11,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import SessionDep, require_permissions
+from app.api.deps import CurrentUserDep, SessionDep, require_permissions
 from app.models.user import User
 from app.schemas.settings import (
     FeatureFlagPatchRequest,
     FeatureFlagResponse,
+    InboxOperationsResponse,
+    InboxOperationsSettings,
     SettingResponse,
     SettingsUpdateRequest,
 )
+from app.services.inbox_operations_service import InboxOperationsService
 from app.services.settings_service import SettingsService
 
 router = APIRouter()
@@ -41,6 +44,34 @@ async def update_settings(
         organization_id=actor.organization_id, actor=actor, values=payload.values
     )
     return [SettingResponse.from_setting(s) for s in settings]
+
+
+@router.get(
+    "/settings/inbox-operations",
+    response_model=InboxOperationsResponse,
+    summary="Read the effective inbox operations policy",
+)
+async def get_inbox_operations(
+    session: SessionDep, actor: CurrentUserDep
+) -> InboxOperationsResponse:
+    # Every authenticated inbox user consumes auto_mark_read. The policy contains no secrets;
+    # mutation remains restricted to settings:manage below.
+    return await InboxOperationsService(session).get(actor.organization_id)
+
+
+@router.put(
+    "/settings/inbox-operations",
+    response_model=InboxOperationsResponse,
+    summary="Update the validated inbox operations policy",
+)
+async def update_inbox_operations(
+    payload: InboxOperationsSettings,
+    session: SessionDep,
+    actor: SettingsManageActor,
+) -> InboxOperationsResponse:
+    return await InboxOperationsService(session).update(
+        organization_id=actor.organization_id, actor=actor, policy=payload
+    )
 
 
 @router.get("/feature-flags", response_model=list[FeatureFlagResponse], summary="List feature flags")

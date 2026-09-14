@@ -1273,7 +1273,7 @@ async def test_oversized_waha_delivery_echoes_no_body_content(client) -> None:
 
 
 @pytest.mark.anyio
-async def test_normal_sized_and_badly_signed_deliveries_are_unaffected(client) -> None:
+async def test_normal_sized_and_badly_signed_deliveries_are_unaffected(client, dispatched) -> None:
     """The bound is the only thing D3 changed: valid stays 200, invalid HMAC stays 403."""
     delivery = _waha_delivery(
         event="message",

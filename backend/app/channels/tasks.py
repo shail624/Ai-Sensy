@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.automation.tasks import consume_automation_trigger_receipt
 from app.db.session import get_sessionmaker
 from app.queue.base_task import TrackedTask, register_task, run_async
 from app.queue.registry import (
@@ -183,8 +184,19 @@ def process_inbound_message(self: TrackedTask, event_pk: int) -> dict[str, Any]:
             raise  # unreachable: smart_retry always raises
         return run_async(_dead_letter(event_pk, f"{type(exc).__name__}: {exc}"))
 
+    if result.get("auto_reply_message_pk"):
+        # The inbound transaction persisted both the source and accepted reply before returning.
+        # Redelivery returns the same durable reply id, and SendService.deliver is idempotent once
+        # a provider id exists, so a lost post-commit dispatch can be recovered safely.
+        send_message.apply_async(args=[result["auto_reply_message_pk"]])
     if result.get("media_pending"):
         # The attachment travels on its own lane so a 15 MB video cannot delay the message that
         # carried it (Doc 07 §17.2/§17.4).
         download_inbound_media.apply_async(args=[result["message_pk"]])
+    for receipt in result.get("automation_receipts", []):
+        # The receipt and inbound message committed together. A webhook redelivery queues the same
+        # receipt/task id again; the consumer's lock and pinned live run make that safe.
+        consume_automation_trigger_receipt.apply_async(
+            args=[receipt["receipt_pk"]], task_id=receipt["task_id"]
+        )
     return result

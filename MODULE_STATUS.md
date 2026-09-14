@@ -1,9 +1,46 @@
 # Module Status
 
+## UI-REF-04 — Live Chat category semantics (2026-09-14, local)
+
+Restores the owner's category definitions: Active = open; Requesting = open and
+unassigned; Intervened = current assignment ownership across statuses. Switching
+categories preserves only search. Reference-style captions are retained.
+PASS: 32 focused inbox tests and frontend TypeScript checking. Added regression
+coverage for conflicting status/assignee/tag filters while retaining search.
+PENDING – Host Machine Validation: authenticated populated preview and release.
+No completion percentage increase. Uncommitted on the existing dirty checkout;
+this entry does not certify or commit the unrelated local work or full UI parity.
+
+
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 Completion percentages are evidence-based estimates against
 `VI_REACTIVATION_FINAL_PRODUCT_SCOPE.md`, not measures of code volume or visual polish. Existing
 foundations are preserved; percentages increase only when real backend contracts, permissions,
 audit behavior, UI integration, and tests are complete.
+
+UI-REF-02: Live Chat strip/search and empty desktop columns aligned; frontend **883/883**,
+types/build/lint and desktop/mobile preview pass. Full populated parity remains pending in
+Design Document 73. No module percentage increases and no production certification.
+
+UI-REF-01 (2026-09-13): screenshot-aligned rail/Manage implemented; frontend **882/882**,
+types/lint/build and bounded desktop/mobile preview pass. No estimate is raised. **77.0% is
+the historical approved-scope estimate, not full AiSensy visual parity.** Detailed screen/button
+comparisons remain open in Design Document 72. Unfinished segment work is not credited here.
 
 GOV-02 adds a completion gate without changing any percentage: new or materially changed screens
 must also pass ADR-0012 and the twenty-point premium screen Definition of Done in Design Document
@@ -16,8 +53,799 @@ converges those facts with identity, WhatsApp history, documents, tasks, KYC/SIM
 campaigns and evidence inside the existing Customer 360 route. CORE-09 adds the durable unified
 Notification Center without creating a second task, reminder, audit, or domain authority. Completed
 authorities are reused; separate heavy SIM fulfilment and Activation operations remain owner-deferred.
+CORE-11A/11B/11C now consume one validated Inbox policy for routing/read/consent, organization-
+timezone hours, guarded customer replies and protected inactivity resolution; later administrative
+slices remain explicit.
 
-Last synchronized: `2026-08-09T22:56:26+05:30`.
+Last synchronized: `2026-09-13`.
+
+## REL-CERT-01 — Consolidated Production Closure Certification
+
+- **Status:** `REPOSITORY/LOCAL-DEPLOYMENT CERTIFIED`; the pre-PAR-AUTO-19 cumulative deployed gate
+  remains **25/25 PASS** in **597.4s**, while PAR-AUTO-22 remains the last complete release profile
+  at **23/23 in 685.9s**. The changed PAR-VIEW-05 tree awaits that Docker/security rerun.
+- **Evidence:** last complete release evidence is **1521 backend tests with zero skips**, **832 frontend
+  tests**, strict types across **305 backend files**, synchronized **211-path** OpenAPI, production
+  build, clean SAST/dependency/source/image scans, exact 29-task backend image contract, frontend
+  image contract and CycloneDX SBOMs. The preserved fresh disposable ten-service run passed the
+  owner browser journey, Redis-down `503` readiness, zero synthetic-secret/PII leaks, and a
+  **5.764ms p95** canary against a **300ms** budget.
+- **Completion accounting:** this validation does not inflate feature percentages. Across the 31
+  canonical module rows below, the simple unweighted average is **77.0%** and the recalculated
+  median is **88%**.
+  Automation/API are **99%**, Inbox/Contacts **98%**, Reactivation/Tags **96%**, KYC is **90%**,
+  while
+  Google Sheets, WhatsApp Scan, remaining Download Center artifact families, Executive Reports,
+  segment predicates, Chat History, Analytics and enterprise/commissioning work keep the product
+  below 100%.
+- **Boundary:** repository and disposable local deployment are release-candidate clean. Target-host
+  secrets/TLS, monitoring/alerts, backup-restore/rollback rehearsal, representative-data UAT and
+  owner acceptance remain `PENDING – Host Machine Validation`; `Production Ready: NO` for a live
+  customer launch until those external gates close.
+
+## PAR-VIEW-05 — Governed Report Saved Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Executive Reports advances **75% → 80%**, Saved Views
+  **85% → 95%**, and full scope **76.5% → 77.0%** (median advances **86% → 88%**).
+- **Authority:** Reports extends the same workspace-view service/repository/table already used by
+  KYC, Campaigns, Contacts and Reactivation. Every `analytics:read` user governs private
+  definitions; `analytics:views_manage` protects team publishing/deletion. Workspace, tenant and
+  private-user boundaries fail closed.
+- **Portability/safety:** one exact period preset or complete custom range, day/week granularity and
+  optional previous-period comparison are stored. Report tab, export format, schedule/progress and
+  other transient state are excluded. Applying a view changes only the existing Analytics URL
+  filter contract.
+- **UI/evidence:** private/team chips and the responsive `Save / manage` sheet were verified in an
+  authenticated local desktop and 390-pixel mobile preview. Focused backend contracts **12/12**,
+  focused Analytics UI **41/41**, full frontend **47 files / 875 tests**, strict mypy **322 files**,
+  static **6/6**, **235-path** OpenAPI drift and Vite **8.2.2** build pass. Full backend:
+  **1579 passed / 6 MySQL-only skipped / 0 failed in 413.35s**.
+- **Boundary:** remaining `GROW-03` work is the approved segment-predicate/saved-filter slice.
+  Revenue/ROI and campaign attribution, capacity/utilization facts, representative-data WCAG/device
+  review, production-scale commissioning and target-host release gates remain separate. No
+  provider/customer call, commit, push, release or deployment occurred.
+
+## PAR-VIEW-04 — Governed KYC Saved Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; KYC advances **85% → 90%**, Saved Views **75% → 85%**,
+  API **98% → 99%**, and full scope **76.0% → 76.5%** (median remains **86%**).
+- **Authority:** KYC extends the same workspace-view service/repository/table already used by
+  Campaigns, Contacts and Reactivation. Every `kyc:read` user governs private definitions;
+  `kyc:views_manage` protects team publishing/deletion. Workspace, tenant and private-user
+  boundaries fail closed.
+- **Portability/safety:** trimmed customer search and one validated KYC lifecycle status are stored.
+  Fetch limit, selected case, checklist/documents, appointments, SLA/detail and reviewer/manager
+  decisions are excluded. Applying a definition clears selection and changes only URL filter state.
+- **UI/evidence:** lock/team chips and the responsive `Save / manage` sheet reuse the existing KYC
+  queue language and controls. Focused API/migration/OpenAPI contracts **12/12**, focused KYC UI
+  **2 files / 8 tests**, full frontend **46 files / 870 tests**, strict mypy **321 files**, static
+  **6/6**, OpenAPI drift and Vite **8.2.2** build pass. Full backend: **1574 passed / 6 MySQL-only
+  skipped / 0 failed in 450.05s**.
+- **Boundary:** Reports saved views and remaining segment predicates are still pending. Server
+  pagination, protected-media/high-volume commissioning, authenticated representative-data
+  WCAG/device review and target-host release gates remain separate. No provider/customer call,
+  commit, push, release or deployment occurred.
+
+## PAR-VIEW-03 — Governed Campaign Saved Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Campaigns advances **94% → 95%**, Saved Views **65% →
+  75%**, API **97% → 98%**, and full scope **75.6% → 76.0%** (median remains **86%**).
+- **Authority:** Campaigns extends the same workspace-view service/repository/table already used by
+  Reactivation and Contacts. Every `campaigns:read` user governs private definitions;
+  `campaigns:views_manage` protects team publishing/deletion. Workspace, tenant and private-user
+  boundaries fail closed.
+- **Portability/safety:** trimmed search, validated campaign lifecycle status and list sort are
+  stored; local page number is excluded. Applying a definition returns to page one and changes only
+  list URL state—the campaign roster, recipient paging, dispatch and lifecycle authorities remain
+  untouched.
+- **UI/evidence:** lock/team chips and the responsive `Save / manage` sheet reuse the existing
+  Campaign list language and controls. Focused saved-view backend **16/16**, migration **5/5**,
+  focused Campaign UI **54/54**, full frontend **45 files / 866 tests**, strict mypy **320 files**,
+  static **6/6**, OpenAPI drift and Vite **8.2.2** build pass. Full backend: **1569 passed / 6
+  MySQL-only skipped / 0 failed in 395.87s**.
+- **Boundary:** KYC and Reports saved views plus remaining segment predicates are still pending.
+  Campaign attribution/revenue/ROI, authenticated representative-data WCAG/device review,
+  production-scale commissioning and target-host release gates remain separate. No campaign send,
+  provider/customer call, commit, push, release or deployment occurred.
+
+## PAR-VIEW-02 — Governed Contacts Saved Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Contacts advances **95% → 98%**, Saved Views **55% → 65%**,
+  API **96% → 97%**, and full scope **75.2% → 75.6%** (median remains **86%**).
+- **Authority:** Contacts reuses the Reactivation workspace-view persistence and governance service.
+  Every `contacts:read` user governs private definitions; `contacts:views_manage` protects team
+  publishing/deletion. Workspace, tenant and private-user boundaries fail closed.
+- **Portability/safety:** search, tag UUID and validated enum-attribute selections are stored;
+  cursors are excluded. Per-scope caps, case-insensitive names, organization locking, scoped
+  indexes/checks and atomic Audit evidence remain common to both integrations.
+- **UI/evidence:** the existing Contacts search/filter/mobile sheet, cursor paging, bulk actions and
+  export rules remain authoritative. Lock/team chips and the responsive `Save / manage` sheet apply
+  definitions without stale paging. Focused backend **16/16**, focused frontend **19/19**, full
+  frontend **44 files / 863 tests**, complete backend **1564 passed / 6 MySQL-only skipped / 0
+  failed in 506.04s**, strict mypy **319 files**, static **6/6** and Vite **8.2.2** build pass.
+- **Boundary:** authenticated representative-data browser/WCAG/device review remains pending; the
+  in-app local preview was attempted but local-page access was denied. No provider/customer/release
+  action occurred.
+
+## PAR-VIEW-01 — Governed Reactivation Saved Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Reactivation advances **94% → 96%**, Saved Views **42% →
+  55%**, API **95% → 96%**, and full scope **74.7% → 75.2%** (median remains **86%**).
+- **Authority:** every `reactivation:read` user may persist and delete personal definitions;
+  `reactivation:views_manage` governs team publishing/deletion. Lists contain all tenant team views
+  plus only the actor's private views; foreign/private UUIDs fail closed.
+- **Portability/safety:** validated search, owner, status, label, reminder and date filters plus
+  board/list mode are stored without pagination. Scopes are independently capped at 25, names are
+  case-insensitively unique under an organization lock, visibility/display have database checks,
+  and create/delete commit with Audit evidence.
+- **UI:** compact lock/team chips apply a saved definition without stale page state. The responsive
+  `Save / manage` sheet provides plain-language visibility, permission truth, grouped management,
+  errors and explicit deletion confirmation while preserving all existing Reactivation controls.
+- **Persistence/API:** `0057_reactivation_saved_views` adds the scoped table/indexes/checks and one
+  permission, preserving one **58-revision** head. Three operations advance OpenAPI to **227 paths**
+  with synchronized generated TypeScript.
+- **Validation:** focused backend **13/13**, Reactivation UI **12/12**, full backend **1559 passed / 6
+  MySQL-only skipped / 0 failed in 459.36s**, full frontend **43 files / 860 tests**, strict mypy
+  **317 files**, changed-file Ruff/OpenAPI drift, lint/types and production build PASS.
+- **Boundary:** saved views for Contacts/Campaigns/KYC/Reports, campaign conversion/revenue/ROI,
+  target-scale and authenticated host/WCAG/device/release gates remain. No provider call, customer
+  send, commit, push or deployment occurred.
+
+## PAR-CAM-01 — Campaign Recipient Failure Operations
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Campaigns advance **90% → 94%** and full scope **74.5% →
+  74.7%**. The current-table median is **86%**; this corrects the prior 85% summary rather than
+  claiming another feature increase.
+- **Complete ledger:** Campaign Detail no longer filters only the first 50 loaded recipients. The
+  existing ledger endpoint declares exact status, bounded limit and cursor parameters; returns a
+  total-aware page envelope while preserving v1 `has_more`; and the UI provides busy-safe forward/
+  previous cursor navigation over the complete stored roster.
+- **Operational evidence:** rows show tenant-safe current contact identity, status, safe failure
+  code, retry count and latest lifecycle timestamp. Cross-tenant contact references resolve blank;
+  provider/internal message identities and internal error detail stay out of the response.
+- **Retry safety:** the existing `campaigns:send`-protected failed-recipient retry, rate gate,
+  idempotent roster behavior, smart-retry engine, queue and Audit authority are preserved. A new
+  confirmation states the exact failed count and that successful recipients are not sent again;
+  errors remain visible in the dialog and state refreshes after success.
+- **Persistence/API:** additive `0056_campaign_recipient_operations` adds the two composite indexes
+  matching unfiltered and status-filtered `(created_at,id)` scans. One linear head advances to **57
+  revisions**. OpenAPI remains **225 paths** with synchronized generated TypeScript.
+- **Validation:** Campaign/migration regression **107/107**, focused Campaign UI **51/51**, complete
+  frontend **43 files / 857 tests**, static **6/6**, strict mypy **314 files**, OpenAPI drift and
+  Vite **8.2.2** build PASS. Complete backend: **1553 passed / 6 MySQL-only skipped / 0 failed in
+  476.67s**. Campaigns chunk is **109.34/28.02 kB gzip**.
+- **Boundary:** campaign-to-reactivation conversion and approved recovered-value/revenue/ROI facts,
+  Docker/security rerun, target-MySQL scale evidence and authenticated target-host commissioning
+  remain. No provider call, customer send, commit, push or deployment occurred.
+
+## PAR-DL-03 — Governed Campaign Results Exports
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Campaigns advance **85% → 90%**, Download Center **80% →
+  88%**, API **94% → 95%**, and full scope **74.1% → 74.5%** (median remains **85%**).
+- **Authority/security:** new `campaigns:export` separates bulk extraction from campaign reading,
+  sending and lifecycle management. Start/progress/Center access is tenant-, requester-, campaign-
+  and current-permission-scoped; cross-campaign job substitution and foreign-user UUIDs return 404.
+- **Artifact:** the persisted recipient ledger streams oldest-first in 500-row keyset batches with
+  optional recipient-status filtering. Current contact identity, factual delivery state, safe error
+  code, retry/cost and lifecycle timestamps are included; provider/message IDs, variables, internal
+  error detail and storage/provider references are excluded. Formula-leading cells are neutralized.
+- **Shared pipeline/UI:** PDF/CSV/XLSX/JSON reuse the existing export row, queue, storage, expiry,
+  signed URL and audit flow. Campaign Detail adds a responsive export sheet with progress/direct
+  download, and Download Center adds a permission-filtered Campaign results family.
+- **Persistence/API:** additive `0055_campaign_results_exports` adds only the entitlement and keeps
+  one **56-revision** head. Start/progress bring OpenAPI to **225 paths**; generated TypeScript and
+  the **32-task** source image contract are synchronized.
+- **Validation:** campaign/export backend **106/106**, provider/OpenAPI/smoke/image regression
+  **32/32**, migration **5/5**, focused Campaign/Download/navigation UI **63/63**, complete frontend
+  **42 files / 854 tests**, static **6/6**, strict mypy **314 files**, OpenAPI drift and Vite **8.2.2**
+  build PASS. Complete backend: **1552 passed / 6 MySQL-only skipped / 0 failed in 475.58s**.
+  Campaigns chunk is **108.35/27.75 kB gzip**;
+  Download Center **7.18/2.54 kB gzip**.
+- **Boundary:** Campaign conversion/ROI attribution and failed-message retry UX, compliant Scan and
+  generated-document artifacts, Docker/security rerun and target-host commissioning remain. No
+  campaign send, provider call, commit, push or deployment occurred.
+
+## PAR-HIST-01 — Advanced Chat History Filters and Shared Views
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Chat History advances **70% → 88%**, Saved Views **35% →
+  42%**, API **93% → 94%**, and full scope **73.3% → 74.1%** (median remains **85%**).
+- **Factual filtering:** inclusive-`from`/exclusive-`to`, campaign, media and audit filters compose
+  with existing status/assignee/number/tag/customer search and keyset pagination. Campaign/media
+  predicates read the message ledger; audit scope reads direct conversation audit evidence and
+  requires `audit:read`.
+- **Shared views:** organization-scoped records store validated portable filters. Every inbox reader
+  can apply ordinary team views; `inbox:views_manage` governs create/delete, audit-scoped views stay
+  hidden without `audit:read`, mutations are audited, and foreign UUIDs cannot cross tenants.
+- **UI:** immediate basic controls remain; compact team-view chips and a responsive Advanced bottom-
+  sheet/dialog add date/campaign/media/audit controls, validation, Clear/Apply and manager-only view
+  governance.
+- **Persistence/API:** `0054_chat_history_filters_views` adds one table and one permission while
+  preserving a single **55-revision** head. OpenAPI advances to **223 paths** with synchronized
+  generated TypeScript.
+- **Validation:** new backend **10/10**, Inbox/conversation/QR regression **77/77**, migration **5/5**,
+  Chat History UI **41/41**, complete frontend **41 files / 850 tests**, static **6/6**, strict mypy
+  **314 files**, OpenAPI drift and Vite **8.2.2** build PASS. Complete backend:
+  **1547 passed / 6 MySQL-only skipped / 0 failed in 458.04s**. Chat History chunk is
+  **23.82/6.91 kB gzip**.
+- **Boundary:** authenticated representative-data WCAG/device/browser review and production-scale
+  query commissioning remain. Docker/security rerun and target-host
+  TLS/secrets/monitoring/restore/UAT/acceptance remain separate; no provider call, customer send,
+  commit, push or deployment occurred.
+
+## PAR-DL-02 — Governed Chat History Transcript Exports
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Chat History advances **55% → 70%**, Download Center
+  **74% → 80%**, API **92% → 93%**, and full scope **72.5% → 73.3%** (median remains **85%**).
+- **Authority/security:** a new `inbox:export` entitlement separates extraction from ordinary Inbox
+  reading. Transcript creation, progress and Download Center visibility are tenant-, requester- and
+  current-permission-scoped; start/completion remain in the existing immutable export audit flow.
+- **Artifact:** one selected persisted conversation streams oldest-first from the indexed message
+  ledger in 500-row keyset batches. Complete-thread or optional inclusive calendar-day ranges can
+  generate PDF, CSV, XLSX or JSON. Provider message IDs, private media URLs, provider media IDs and
+  internal storage references are deliberately excluded; spreadsheet formula triggers are neutralized.
+- **Shared pipeline/UI:** transcript jobs reuse the existing `exports` row, `exports` queue, worker
+  retry policy, storage provider, expiry, signed URL and personal Download Center. Chat History adds
+  a permission-truthful export sheet with date range, live progress, direct download and Center link;
+  Download Center adds the `chat_history` category and navigation entitlement.
+- **Persistence/API:** additive `0053_conversation_transcript_exports` creates no table and preserves
+  one linear **54-revision** head. Start/progress resources bring OpenAPI to **221 paths**; generated
+  TypeScript and the **31-task** source image contract are synchronized.
+- **Validation:** focused backend **35/35**, focused Chat History/Download/navigation UI **50/50**,
+  complete backend **1537 passed / 6 MySQL-only skipped / 0 failed in 445.40s**, complete frontend
+  **41 files / 845 tests**, static **6/6**, strict mypy **310 files**, migration round-trip and Vite
+  **8.2.2** production build PASS. Chat History chunk is **15.34 kB / 4.90 kB gzip**.
+- **Boundary:** list-level date/campaign/media/audit filters, server-shared Chat History saved views,
+  campaign/Scan/generated-document artifact families, Docker/security rerun and target-host
+  commissioning remain pending. No campaign send, provider call or live deployment occurred.
+
+## PAR-REP-04 — Team Productivity and Current Workload
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Analytics advances **75% → 82%**, Executive Reports
+  **65% → 75%**, Download Center **73% → 74%**, Team Management **82% → 86%**, and API **91% →
+  92%**.
+- **Authority:** historical productivity remains event-derived additive flow; current pending work
+  is a bounded live snapshot over indexed tenant Conversation/Task authorities and is never summed
+  across dates.
+- **Productivity/UI:** conversation and task throughput now share a responsive Team Productivity
+  workspace; managers also see unresolved/unread chats, open/overdue/due-today tasks, unassigned
+  work and inactive owners still carrying pending items.
+- **Reports:** Team Productivity extends the fixed catalogue to eleven and reuses PDF/XLSX/CSV/JSON,
+  personal schedules, ready notifications, expiry, signed links and Download Center history.
+- **Persistence/API:** additive `0052_team_productivity_reports` preserves one linear **53-revision**
+  head; current workload plus named task productivity bring OpenAPI to **219 paths** with generated
+  TypeScript synchronized.
+- **Validation:** focused backend **79 passed / 6 MySQL-only skipped**, focused Analytics UI
+  **36/36**, complete backend **1534 passed / 6 MySQL-only skipped / 0 failed in 367.01s**,
+  complete frontend **41 files / 843 tests**, static **6/6**, strict mypy **310 files**, migration
+  round-trip and Vite **8.2.2** production build PASS.
+- **Boundary:** revenue/recovered value, campaign attribution/ROI, explicit capacity limits and
+  utilization, online presence, login history, permission-audit UI and target-host acceptance remain.
+
+## PAR-REP-03 — Domain Outcome Analytics
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Analytics advances **55% → 75%**, Executive Reports
+  **50% → 65%**, Download Center **72% → 73%**, and API **90% → 91%**.
+- **Authority:** one rebuildable domain-outcome fact family derives only from immutable business
+  events; operational Reactivation/KYC/SIM/Activation/SLA aggregates remain authoritative.
+- **Metrics:** factual case creation/stage/terminal outcomes, eligibility, KYC decisions and
+  turnaround, SIM/Activation outcomes and SLA starts/breaches/resolutions with source/actor/outcome
+  dimensions. Conversion/approval/breach/turnaround values are read-time formulas over additive
+  components and return unknown when no denominator exists.
+- **Reports/UI:** Analytics now presents a responsive Business outcomes tab and KPI cards. Three
+  new Reactivation/KYC/Service-level report families reuse PDF/XLSX/CSV/JSON exports, schedules,
+  ready notifications and Download Center delivery.
+- **Persistence/API:** additive `0051_domain_outcome_analytics` produces one linear **52-revision**
+  head; OpenAPI is **217 paths** and generated TypeScript is synchronized.
+- **Validation:** focused backend **144/144**, focused Analytics UI **35/35**, complete backend
+  **1532 passed / 6 MySQL-only skipped / 0 failed in 426.19s**, complete frontend **41 files / 842
+  tests**, static **6/6**, strict mypy **309 files**, migration round-trip and production build PASS.
+- **Boundary:** revenue, campaign conversion attribution/ROI, capacity/workload, remaining artifact
+  families, external delivery and target-host acceptance remain pending.
+
+## PAR-REP-02 — Scheduled Analytics Reports
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Executive Reports advance **35% → 50%**, Download Center
+  **70% → 72%**, Notifications **85% → 86%**, and API **89% → 90%**.
+- **Authority:** personal daily/weekly/monthly schedules create the existing Analytics export job;
+  the current worker, storage, expiry, signed link and Download Center remain authoritative.
+- **Safety:** both `analytics:export` and `analytics:executive` are required; schedules are personal
+  and tenant-scoped, updates/deletes use row versions, due claims use `SKIP LOCKED`, and inactive or
+  permission-revoked owners are disabled before any artifact is created.
+- **Delivery/UI:** fixed report/format/range/grouping choices, IANA timezone/local-time recurrence,
+  create/edit/pause/resume/two-step-delete controls, next-run truth and an idempotent `report_ready`
+  notification deep-linking to Download Center.
+- **Persistence/API:** additive `0050_scheduled_analytics_reports` produces one linear **51-revision**
+  head; OpenAPI is **214 paths**, generated TypeScript and the 30-task inventory are synchronized.
+- **Validation:** scheduled lifecycle **5/5**, combined backend **71/71**, focused Analytics UI
+  **34/34**, complete backend **1530 passed / 6 MySQL-only skipped / 0 failed in 425.43s**, complete
+  frontend **41 files / 841 tests**, static **6/6**, strict mypy **309 files**, migration round-trip,
+  local browser boot/no-console-error check and production build PASS.
+- **Boundary:** no new revenue/ROI/productivity/workload/SLA/case-outcome projection, transcript/
+  campaign/Scan/generated-document family, external delivery channel or target-host acceptance.
+
+## PAR-REP-01 — Analytics PDF Reports
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Executive Reports advance **25% → 35%** and Download Center
+  advances **65% → 70%**.
+- **Authority:** all seven existing analytics report families gain PDF through the same rollup,
+  export job, queue, storage, expiry, signed-link and Download Center pipeline. Contact PDF remains
+  rejected.
+- **Artifact:** deterministic landscape-A4 tables with repeated headers/page numbers, bounded cell
+  fitting, empty-result text and explicit micro-unit cost labels.
+- **Persistence/API:** additive `0049_report_pdf_exports` produces one linear **50-revision** head.
+  OpenAPI remains **212 paths** and generated TypeScript is synchronized.
+- **Validation:** focused backend **139/139**, focused Analytics/Download UI **36/36**, complete
+  backend **1525 passed / 6 MySQL-only skipped / 0 failed in 434.13s**, complete frontend **41 files /
+  839 tests**, static **6/6**, strict mypy **306 files**, current backend dependency audit with no
+  known vulnerabilities and production build PASS. A three-page sample passes Poppler page-by-page
+  visual review and structural/text inspection.
+- **Boundary:** schedules, revenue/ROI/productivity/workload/SLA/case-outcome reports, transcript/
+  campaign/Scan/generated-document artifacts and target-host acceptance remain pending.
+
+## PAR-DL-01 — Unified Download Center
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Download Center advances **30% → 65%**.
+- **Authority:** one projection over existing `exports` jobs, storage artifacts and signed links;
+  no duplicate job table, artifact store, queue or retry mechanism.
+- **Security:** organization + requesting-user ownership and current `contacts:export` /
+  `analytics:export` family permissions are enforced. Expired artifacts never receive a link.
+- **UI:** entitled Tools tab, URL-backed type/status filters, keyset pagination, manual refresh,
+  active-job polling and complete loading/error/empty/status/action states.
+- **Validation:** Download API **5/5**, corrected path-count + API **7/7**, focused UI/navigation
+  **14/14**, complete backend **1523 passed / 6 MySQL-only skips / 0 failed in 326.78s**, complete
+  frontend **41 files / 838 tests**, static **6/6**, strict mypy **306 files**, synchronized
+  **212-path** OpenAPI and production build PASS. `DownloadsPage` is **7.03/2.50 kB gzip**.
+- **Boundary:** contact and analytics CSV/XLSX/JSON exports are connected. PDF, scheduled/executive
+  reports, Chat History transcripts, campaign/scan exports and generated-document artifacts remain.
+  No migration, permission code, queue, storage provider or customer send is added.
+
+## PAR-AUTO-23 — Shared Delay Before Follow-Up
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while one shared follow-up may
+  pause durably after either bounded Yes/No outcome.
+- **Topology:** both branch terminals converge on exactly one Delay, which points to exactly one
+  terminal trigger-safe shared effect. The existing four-effect ceiling is unchanged.
+- **Replay/test safety:** the selected body checkpoints before the Delay. Early/duplicate delivery
+  reuses one running attempt; due resume completes the timer, executes the shared effect once and
+  skips only alternate-only nodes. Safe test mode mirrors the path without mutation.
+- **UI:** `Add shared delay before follow-up` inserts a labeled `Shared delay`; removal reconnects
+  both branch terminals, while removing its dependent follow-up removes the timer as well.
+- **Validation:** live/safe runtime **54/54**, Automation/API/trigger/Schedule/migration **77/77**,
+  focused UI **23/23**, full backend **1524/1524 in 475.70s**, full frontend **40 files / 833 tests**,
+  static **6/6** and production build PASS; AutomationPage is **52.47/13.23 kB gzip**.
+- **Release boundary:** the Docker/security release rerun was blocked when its required approval
+  service exhausted usage. PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release
+  certificate and is not attributed to this tree.
+- **Scope boundary:** no migration/route/permission/queue/provider/customer send. Branch-specific
+  Delay/Wait, multiple timers, arbitrary/multiple merges, multiple/nested Conditions, longer bodies,
+  external actions and operational reconciliation remain.
+
+## PAR-AUTO-22 — Bounded Shared Follow-Up
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while both sides of one bounded
+  Yes/No split may converge on one terminal trigger-safe internal effect.
+- **Topology:** both branch terminals point to exactly one shared node. It has two incoming edges,
+  no outgoing edge and stays under the existing four-effect graph ceiling. Each executable path
+  keeps distinct effect kinds.
+- **Replay/test safety:** only the selected branch and shared node execute. Unselected-only nodes
+  are durably skipped; the shared node belongs to both path projections and executes once under
+  existing node/domain idempotency. Safe test mode mirrors the same path without mutation.
+- **UI:** the active branch exposes `+ Both` and labels the node `After both`; second branch steps
+  can be inserted before the merge, and removal safely reconnects or removes the shared follow-up.
+- **Validation:** live/safe runtime **51/51**, combined Automation/API/migration **78/78**, focused
+  UI **22/22**, full frontend **40 files / 832 tests**, static **6/6**, and complete release profile
+  **23/23 in 685.9s**. That run includes **1521 backend tests with zero skips**, strict mypy **305
+  files**, OpenAPI **211 paths**, production build, image contracts/scans and SBOMs; AutomationPage
+  is **50.52/12.77 kB gzip**.
+- **Boundary:** no migration/route/permission/queue/provider/customer send. Arbitrary/multiple
+  merges, multiple/nested Conditions, longer branch bodies, branch Delay/Wait, external actions
+  and operational reconciliation remain.
+
+## PAR-AUTO-21 — Bounded Multi-Step Branch Bodies
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while each side of one bounded
+  Yes/No split may contain one or two ordered distinct internal effects.
+- **Topology:** one event-backed Condition owns explicit `yes` and `no` edges. Each side remains a
+  linear body of at most two trigger-safe effects under the existing four-effect total ceiling.
+- **Replay/test safety:** only the selected body executes from durable node checkpoints; every
+  unselected node is terminal skipped evidence. Safe test mode simulates the same selected body.
+- **UI:** the active branch exposes a dedicated Yes/No effect palette, labels second steps, blocks
+  unsafe reordering and permits only the terminal addition to be removed directly.
+- **Validation:** live/safe runtime **48/48**, combined Automation/API/migration **75/75**, focused
+  UI **21/21**, full frontend **40 files / 831 tests**, static **6/6**, and complete release profile
+  **23/23 in 609.3s**. That run includes **1518 backend tests with zero skips**, strict mypy **305
+  files**, OpenAPI **211 paths**, production build, image contracts/scans and SBOMs; AutomationPage
+  is **48.38/12.24 kB gzip**.
+- **Boundary:** no migration/route/permission/queue/provider/customer send. Multiple/nested
+  Conditions, longer branch bodies, branch Delay/Wait, merging, external actions and operational
+  reconciliation remain.
+
+## PAR-AUTO-20 — Bounded Live Yes/No Branch
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while one real terminal decision
+  split gains live and safe-test execution.
+- **Topology:** exactly one event-backed Condition may own one `yes` and one `no` edge, each ending
+  at one trigger-safe internal effect. Only the selected effect executes; the other receives durable
+  skipped evidence containing the selected branch.
+- **Replay/test safety:** existing node/domain idempotency protects the chosen effect. Safe test mode
+  selects the same branch and simulates only that action without changing business state.
+- **UI:** after exactly Trigger, Condition, Yes action and No action exist, the builder can label and
+  lock the split or return it to a linear gate.
+- **Validation:** live/safe runtime **45/45**, combined Automation/API/migration **60/60**, focused
+  UI **20/20**, full frontend **40 files / 830 tests**, static **6/6**, and complete release profile
+  **23/23 in 417.8s**. That run includes **1515 backend tests with zero skips**, strict mypy **305
+  files**, OpenAPI **211 paths**, production build, image contracts/scans and SBOMs; AutomationPage
+  is **44.79/11.20 kB gzip**.
+- **Boundary:** no migration/route/permission/queue/provider/customer send. Multiple Conditions,
+  nested or multi-step branch bodies, branch Delay/Wait, external actions and reconciliation remain.
+
+## PAR-AUTO-19 — Live Lead-Stage Changed Automation
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while a fifth bounded trigger
+  and third Wait event gain live evidence.
+- **Authority/privacy:** the existing immutable `reactivation.stage.transitioned` fact is consumed
+  as `lead.stage_changed`; Automation receives only previous/new stage and the tenant-checked public
+  Contact ID. The private transition reason and internal Reactivation identifiers are excluded.
+- **Live path:** Previous/New stage conditions may lead through one Delay or Wait to Contact-linked
+  Task, Apply tag, Remove tag and internal Notification. No Conversation is fabricated; Handoff,
+  Assignment, branches and external/customer actions remain fail-closed.
+- **Wait/recovery:** only a future same-organization/Contact stage transition may resume the pinned
+  receipt/run. Existing subscription, node-attempt and receipt-heartbeat evidence owns replay,
+  timeout and enqueue-failure recovery.
+- **Validation:** focused runtime **35/35**, combined Automation/Reactivation/migration **56/56**,
+  Automation UI **19/19**, full frontend **40 files / 829 tests**, static **6/6**, and complete
+  release profile **23/23 in 389.1s**. That run includes **1512 backend tests with zero skips**,
+  strict mypy **305 files**, OpenAPI **211 paths**, production build, image contracts and scans;
+  AutomationPage is **42.56/10.49 kB gzip**.
+- **Boundary:** no migration/route/permission/queue/provider/customer send. Head remains `0048`
+  (**49 revisions**). General branching, external/customer actions, recipient/team routing and
+  operational reconciliation remain pending.
+
+## PAR-AUTO-18 — Durable Task-Completed Wait
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while a second Wait event gains
+  live same-customer evidence.
+- **Task authority:** single and bulk completion append deterministic `task.completed` Business
+  Events in the existing Task/history/Timeline/Audit transaction. Reopened/re-completed Tasks use a
+  distinct completion revision.
+- **Privacy/isolation:** only Task public ID, type, priority, completed status and revision are
+  projected. Title, description and completion note are excluded; wrong-organization/Contact
+  completions cannot resume a Wait.
+- **Resume/recovery:** the matching fact releases the original receipt and the existing minute
+  receipt heartbeat resumes the pinned run/checkpoints. Timeout and replay behavior are unchanged.
+- **Validation:** focused **4/4**, Task/Wait **53/53**, combined **130/130**, Automation UI **18/18**,
+  full frontend **40 files / 828 tests**, static **6/6**, strict mypy **305 files** and production
+  build PASS; AutomationPage is **42.56/10.78 kB gzip**. Applicable backend is **1501 passed / 6
+  MySQL skips / 1 Redis deselection** in **377.10s**.
+- **Boundary:** no migration/route/permission/queue/provider/customer send. Head remains `0048`
+  (**49 revisions**) and OpenAPI **211 paths**. Lead-stage projection is now delivered by
+  PAR-AUTO-19; general branching, external/customer actions and operational reconciliation remain.
+
+## PAR-AUTO-17 — Durable Wait for Event
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while one event-backed path gains
+  durable wait/resume.
+- **Wait contract:** one Wait may pause for the same Contact's future `message.received` event for
+  60 seconds to 30 days and must precede a later approved internal effect.
+- **Persistence:** additive `0048_automation_wait_subscriptions` owns organization/contact scope,
+  original receipt/run/node lineage, deadline, match UUID and resolution state. Head is `0048`
+  (**49 revisions**); OpenAPI remains **211 paths**.
+- **Resume/recovery:** a matching inbound can dispatch the original receipt immediately; failed
+  enqueue and due timeout are recovered by the existing minute receipt heartbeat. Duplicate work
+  converges on the same Wait attempt and downstream checkpoints.
+- **Validation:** Wait **3/3**, combined Automation **55/55**, wider regression **112/112**,
+  Automation UI **17/17**, full frontend **40 files / 827 tests**, static **6/6**, strict mypy **305
+  files** and build PASS; AutomationPage is **42.50/10.77 kB gzip**. Applicable backend is **1499
+  passed / 6 MySQL skips / 1 Redis deselection** in **400.25s**; final temporal edge **3/3** passes.
+- **Boundary:** Schedule Wait, multiple Waits, terminal Wait, general branching, external/customer
+  actions, recipient/team routing and operational reconciliation remain pending. Task and
+  Lead-stage event projections were subsequently delivered by PAR-AUTO-18 and PAR-AUTO-19.
+
+## PAR-AUTO-16 — Durable Live Schedule
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while a fourth trigger gains
+  bounded live execution.
+- **Timezone schedule:** publishing projects the five-field cron to indexed UTC `next_run_at` from
+  the organization IANA timezone. Disable clears it; enable and republish recompute it.
+- **Durable claim:** the minute scheduler row-locks a bounded clean/enabled due set, writes one
+  deterministic immutable `schedule` event and exact receipt, then advances to the first future
+  occurrence. Existing stale-receipt recovery owns post-commit enqueue failure.
+- **Live boundary:** Schedule may deliver one workspace-only Notification to the active eligible
+  publisher, with one optional Delay. Condition, Task, tags, Handoff, Assignment, Wait, webhook,
+  campaign and customer-message effects fail closed.
+- **Migration/API:** additive `0047_automation_schedule_due` adds only the nullable projection and
+  due index; head is `0047` (**48 revisions**), OpenAPI remains **211 paths**, and generated
+  TypeScript is synchronized.
+- **Validation:** Schedule **4/4**, combined Automation **42/42**, wider regression **222/222**,
+  Automation UI **16/16**, full frontend **40 files / 826 tests**, static **6/6**, strict mypy **305
+  files** and build PASS; AutomationPage is **41.90/10.62 kB gzip**. Applicable backend is **1496
+  passed / 6 MySQL skips / 1 Redis deselection** in **376.13s**.
+- **Boundary:** general branching, Wait-for-event, external/customer actions, recipient/team
+  routing, capacity/skill routing and operational reconciliation remain.
+
+## PAR-AUTO-15 — Conversation Auto-Resolved Live Follow-up
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while a third event type gains
+  bounded live execution.
+- **Event-safe path:** Conversation Auto-Resolved may create a publisher-assigned follow-up Task,
+  Apply tag, Remove tag and internal Notification, with one approved Condition and one Delay.
+- **Lineage:** public Contact/Conversation references are tenant-checked from immutable Business
+  Event lineage for the run; stored event payload evidence is not changed.
+- **Resolved-chat boundary:** Human handoff and Assignment fail closed before any effect, so the
+  workflow cannot silently reopen or re-own the resolved Conversation.
+- **Validation:** runtime **29/29**, combined regression **50/50**, wider regression **180/180**,
+  Automation frontend **15/15**, full frontend **40 files / 825 tests**, static **6/6**, strict mypy
+  **305 files**, OpenAPI **211 paths** and build PASS; AutomationPage is **41.33/10.48 kB gzip**.
+  Applicable backend is **1492 passed / 6 MySQL skips / 1 Redis deselection** in **212.83s**.
+- **Boundary:** general branching, Wait-for-event, further live events, external/customer actions,
+  recipient/team routing, capacity/skill routing and operational reconciliation remain.
+
+## PAR-AUTO-14 — Contact Created Live Consumer and Receipt Recovery
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Automation remains **99%** while a second event type gains
+  bounded live execution.
+- **Event-safe path:** Contact Created may execute Apply tag, Remove tag and internal Notification,
+  optionally behind the approved source/opt-in Condition and one durable Delay.
+- **Durable dispatch:** the existing scheduler queue scans once per minute, row-locks received or
+  genuinely stale processing receipts, and hands them to the existing idempotent Automation worker.
+  New rows are leased before dispatch; stale rows retain their recovery evidence.
+- **Delay ownership:** a paused Delay has no processing lease and is excluded from the scanner; its
+  already-scheduled continuation remains the sole resume owner.
+- **Fail-closed boundary:** Handoff, Create task and Assignment require Conversation context and are
+  rejected before any Contact Created effect. Other event types remain test-only.
+- **Validation:** runtime **26/26**, focused trigger/scheduler/runtime **35/35**, wider regression
+  **175/175**, Automation frontend **14/14**, full frontend **40 files / 824 tests**, static **6/6**,
+  strict mypy **305 files**, OpenAPI **211 paths** and build PASS; AutomationPage is
+  **40.93/10.39 kB gzip**. Canonical execution preserves **1489 passes / 6 MySQL skips / 1 known
+  Redis-only failure**; applicable backend is **1489 passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** general branching, Wait-for-event, further live event consumers, external/customer
+  actions, recipient/team routing, capacity/skill routing and operational reconciliation remain.
+
+## PAR-AUTO-13 — Durable Live Delay
+
+- **Status:** `REPOSITORY IMPLEMENTED`; completion advances **98% → 99%**.
+- **Delay contract:** one 60-second-to-30-day Delay may pause an otherwise supported connected
+  inbound sequence of up to four distinct internal effects.
+- **Checkpoint/resume:** one running Delay attempt stores the due time. The existing Automation
+  worker schedules the same receipt task; early duplicates cannot pass the checkpoint, and due
+  delivery resumes without replaying completed upstream effects.
+- **Fail-closed boundary:** multiple delays, branches, Wait-for-event nodes, repeated effect kinds,
+  larger sequences and external/unsupported nodes apply no effect.
+- **Validation:** live runtime **22/22**, wider regression **166/166**, Automation frontend
+  **13/13**, full frontend **40 files / 823 tests**, static **6/6**, strict mypy **305 files**,
+  OpenAPI **211 paths** and build PASS; AutomationPage is **40.53/10.33 kB gzip**. Canonical backend
+  is **1485 passed / 6 MySQL skips / 1 known Redis-only failure**; applicable backend is **1485
+  passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** general branching, event waits, other event consumers, recipient/team routing,
+  campaign/webhook/customer-message actions and operational reconciliation remain future.
+
+## PAR-AUTO-12 — Bounded Sequential Effect Runtime
+
+- **Status:** `REPOSITORY IMPLEMENTED`; completion advances **96% → 98%**.
+- **Sequence contract:** one inbound Trigger, one optional approved Condition and one to four
+  distinct existing live effects execute in their connected order.
+- **Checkpoint/replay:** completed node attempts are durable checkpoints. Retry resumes from the
+  first incomplete node; existing effect idempotency prevents duplicate domain work.
+- **Fail-closed boundary:** branches, repeated effect kinds, more than four effects, multiple
+  conditions, waits/delays and external/unsupported nodes apply no effect.
+- **Validation:** live runtime **19/19**, combined regression **88/88**, Automation frontend
+  **12/12**, full frontend **40 files / 822 tests**, static **6/6**, strict mypy **305 files**,
+  OpenAPI **211 paths** and build PASS; AutomationPage is **40.17/10.23 kB gzip**. Canonical backend
+  is **1482 passed / 6 MySQL skips / 1 known Redis-only failure**; applicable backend is **1482
+  passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** general branching, waits/delays, other event consumers, recipient/team routing,
+  campaign/webhook/customer-message actions and complete retry/DLQ/reconciliation remain future.
+
+## PAR-AUTO-11 — Live Internal Notification Executor
+
+- **Status:** `REPOSITORY IMPLEMENTED`; completion advances **94% → 96%**.
+- **Effect contract:** exact Trigger → Notification and Trigger → Condition → Notification paths
+  create one Contact-linked internal Notification Center delivery for the active publisher.
+- **Safety/replay:** the publisher must retain same-tenant `tasks:read` access. Receipt/node dedup
+  makes crash replay `already_delivered`; conflicting evidence and invalid references fail closed.
+  A false Condition records skipped and creates no delivery.
+- **Boundary:** migration `0046` adds only `automation_attention` to the existing Notification type
+  constraint. There is no new route, permission, queue, external channel, provider or customer send.
+- **Validated:** runtime **15/15**, combined Notification/migration regression **23/23**, static
+  **6/6**, strict mypy **305 files**, OpenAPI **211 paths**, migration round trip and canonical
+  backend **1478 passed / 6 MySQL skips / 1 known Redis-only failure**; applicable backend **1478
+  passed / 6 MySQL skips / 1 Redis deselection**. Frontend ESLint/TypeScript, focused Automation/
+  Notification **14/14**, full frontend **40 files / 821 tests** and production build pass;
+  AutomationPage is **40.08/10.20 kB gzip**.
+- **Remaining boundary:** multiple effects/general branching, other event consumers, waits/delays,
+  campaign/webhook/customer-message effects, recipient/team routing and complete retry/DLQ/
+  reconciliation operations remain future PAR-AUTO work.
+
+## PAR-AUTO-10 — Live Remove Tag Executor
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Remove tag is the fourth internal work effect while the
+  general chatbot/automation engine remains partial.
+- **Effect contract:** exact Trigger → Remove tag and Trigger → Condition → Remove tag paths detach
+  the immutable published CRM tag from the inbound Contact through the existing tenant authority.
+- **Concurrency/evidence:** Contact and Tag locks protect the association and usage counter. A new
+  automatic removal creates one system Audit and one Timeline event; replay/already-absent is a
+  successful no-op without duplicate domain evidence.
+- **Condition/tenancy:** a false privacy-safe Condition records skipped and leaves the existing tag
+  attached. Missing, deleted, malformed, nil and foreign Contact/Tag references fail closed.
+- **Validation:** runtime **13/13**, combined runtime/Tag regression **45/45**, full frontend
+  **40 files / 821 tests**, focused Automation **11/11**, static **6/6**, strict mypy **305 files**,
+  OpenAPI **211 paths**, build PASS and AutomationPage **39.68/10.12 kB gzip**. Canonical backend:
+  **1476 passed / 6 MySQL skips / 1 known Redis-only failure**; applicable: **1476 passed / 6 MySQL
+  skips / 1 Redis deselection**.
+- **Boundary:** multiple effects/general branching, waits/delays, notification/campaign/webhook/
+  customer-message executors, other consumers and complete retry/DLQ/reconciliation operations
+  remain pending.
+
+## PAR-AUTO-09 — Live Assignment Executor
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Assignment is the third internal work effect while the
+  general chatbot/automation engine remains partial.
+- **Effect contract:** exact Trigger → Assignment and Trigger → Condition → Assignment paths assign
+  the inbound Conversation to a published specific user or deterministic per-flow round robin.
+- **Eligibility/ownership:** specific users and rotation candidates must be active same-tenant users
+  with effective Inbox read access at execution. The locked Conversation keeps any existing owner;
+  Automation never steals or replaces it.
+- **Replay/evidence:** a new ownership change and one system `conversation.assigned` Audit commit
+  together. Crash replay finishes as `already_assigned` without another mutation, version bump or
+  Audit. A false privacy-safe Condition records skipped and no ownership effect.
+- **Validation:** runtime **11/11**, combined Automation/Inbox regression **45/45**, full frontend
+  **40 files / 820 tests**, focused Automation **10/10**, static **6/6**, strict mypy **305 files**,
+  OpenAPI **211 paths**, build PASS and AutomationPage **38.91/10.05 kB gzip**. Canonical backend:
+  **1474 passed / 6 MySQL skips / 1 known Redis-only failure**; applicable: **1474 passed / 6 MySQL
+  skips / 1 Redis deselection**.
+- **Boundary:** multiple effects/general branching, waits/delays, Remove tag, notification/campaign/
+  webhook/customer-message executors, team capacity/skill routing, other consumers and complete
+  retry/DLQ/reconciliation operations remain pending.
+
+## PAR-AUTO-08 — Live Apply Tag Executor
+
+- **Status:** `REPOSITORY IMPLEMENTED`; Apply tag is the second internal live effect while the
+  general chatbot/automation engine remains partial.
+- **Effect contract:** exact Trigger → Apply tag and Trigger → Condition → Apply tag paths attach
+  the immutable published CRM tag to the inbound Contact through the existing tenant authority.
+- **Concurrency/evidence:** Contact and Tag locks protect the association and usage counter.
+  Automated writes create one system Audit and one Timeline event; replay/already-present is a
+  successful no-op without duplicate domain evidence.
+- **Condition/tenancy:** a false privacy-safe Condition records skipped and no CRM effect. Missing,
+  deleted, malformed, nil and foreign Contact/Tag references fail closed inside the receipt tenant.
+- **Validation:** runtime **9/9**, combined Tag regression **32/32**, full frontend **40 files / 819
+  tests**, focused Automation **9/9**, static **6/6**, strict mypy **305 files**, OpenAPI **211 paths**,
+  build PASS and AutomationPage **37.93/9.84 kB gzip**. Canonical backend: **1472 passed / 6 MySQL
+  skips / 1 known Redis-only failure**; applicable: **1472 passed / 6 MySQL skips / 1 Redis
+  deselection**.
+- **Boundary:** Remove tag, multiple effects/general branching, waits/delays, assignment/
+  notification/customer-message executors, other consumers and retry/DLQ/reconciliation remain.
+
+## PAR-AUTO-07 — Live Create Task Executor
+
+- **Status:** `REPOSITORY IMPLEMENTED`; the first internal work effect is live while the general
+  chatbot/automation engine remains partial.
+- **Effect contract:** exact Trigger → Create task and Trigger → Condition → Create task paths create
+  one existing Task linked to the inbound Contact/Conversation. Published inputs are trimmed title,
+  existing type, existing priority and a 5-minute-to-365-day due delay.
+- **Ownership/evidence:** the active automation publisher is assignee; system creation reuses Task
+  history, Contact Timeline and Audit. Missing/inactive/cross-tenant references fail closed.
+- **Replay/condition:** receipt UUID plus canonical command hash recovers one Task after a worker
+  crash and rejects command drift. A false privacy-safe Condition records skipped and no Task effect.
+- **Validation:** runtime **7/7**, Task API **45/45**, full frontend **40 files / 818 tests**, focused
+  Automation **8/8**, static **6/6**, strict mypy **305 files**, OpenAPI **211 paths**, build PASS and
+  AutomationPage **37.59/9.76 kB gzip**. Canonical backend: **1470 passed / 6 MySQL skips / 1 known
+  Redis-only failure**; applicable backend: **1470 passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** general branches, waits/delays, tag/notification/customer-message executors, other
+  live consumers and complete retry/DLQ/reconciliation operations remain pending.
+
+## PAR-AUTO-06 — Privacy-Safe Live Conditions
+
+- **Status:** `REPOSITORY IMPLEMENTED`; one optional linear condition is live, while general
+  branching and the broader chatbot engine remain partial.
+- **Decision contract:** exact Trigger → Condition → Human handoff graphs may read only event type,
+  source, message direction or message type with `eq`, `ne`, `contains` or `exists`. Every other
+  field/operator/shape fails closed before an effect.
+- **Evidence:** matching continues to the existing idempotent handoff; non-matching records a
+  terminal `skipped` handoff and succeeds with no Conversation change. Decision evidence stores
+  field/operator/presence/match only, never the actual private value.
+- **Persistence/UI:** additive migration `0045` (46 revisions) adds skipped-attempt evidence.
+  Automation suggests live-safe condition metadata and distinguishes completed no-effect runs.
+  OpenAPI remains **211 paths**.
+- **Validation:** conditional runtime/migration **10/10**, full frontend **40 files / 818 tests**,
+  focused Automation **8/8**, static gate **6/6**, strict mypy **305 files**, build PASS and
+  AutomationPage **35.98/9.43 kB gzip**. Canonical backend: **1468 passed / 6 MySQL skips / 1 known
+  Redis-only failure**; applicable backend: **1468 passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** multiple conditions/general branches, waits/delays, other live consumers,
+  task/tag/notification/customer-message executors and complete retry/DLQ/reconciliation remain.
+
+## PAR-AUTO-05 — Automatic Inbound Handoff Runtime
+
+- **Status:** `REPOSITORY IMPLEMENTED`; the exact inbound Trigger → Human handoff path is live,
+  while the general chatbot/runtime remains partial.
+- **Event/dispatch:** a new inbound Message records a connector-authored, content-free
+  `message.received` Business Event and matching receipts atomically. Post-commit dispatch is
+  deterministic; completed/failed receipts are not requeued and a stale processing lease can
+  recover.
+- **Execution/evidence:** one locked receipt creates one pinned `mode=live` run with trigger and
+  handoff attempts. The existing idempotent handoff produces real Live Chat Requested; unsupported
+  graph shapes fail closed with run/receipt evidence. Test mode remains simulated.
+- **Persistence/UI:** additive migration `0044` (45 revisions) adds receipt/run lineage and terminal
+  timestamps. Automation shows live/test Run history and actual receipt state with bounded polling;
+  OpenAPI remains **211 paths**.
+- **Evidence:** focused final regression **40/40**, full frontend **40 files / 817 tests**, static
+  gate **6/6**, strict mypy **305 files**, migration round-trip **5/5**, build PASS and
+  AutomationPage **35.10/9.16 kB gzip**. Canonical backend: **1465 passed / 6 MySQL skips / 1 known
+  Redis-only failure**; applicable backend: **1465 passed / 6 MySQL skips / 1 Redis deselection**.
+- **Boundary:** conditions/branching, waits/delays, other live event consumers and executors,
+  customer-message actions and complete retry/DLQ/reconciliation UI remain pending.
+
+## PAR-AUTO-04 — Governed Automation Human Handoff
+
+- **Status:** `REPOSITORY IMPLEMENTED`; this is one real production action contract, not a claim of
+  a general live automation runtime.
+- **Authoring:** clean immutable definitions can include a typed `Human handoff` node with a bounded
+  published reason. The original builder marks the node as a live contract; safe test runs remain
+  fully simulated and side-effect-free.
+- **Execution:** a publisher-scoped, UUID-idempotent API row-locks the same-tenant conversation and
+  requests it through existing `pending`. Already requested/intervened chats are preserved;
+  historical resolved ownership is cleared; old replays cannot requeue a claimed chat.
+- **Evidence:** deterministic Business Event plus Audit evidence commit with the existing status/
+  assignment facts. Backend Automation/Inbox **76/76**, focused definition/handoff **14/14**, full
+  frontend **40 files / 817 tests**, OpenAPI **211 paths**, static gate **6/6** with strict mypy over
+  **304 files**, production build PASS and applicable backend **1462 passed / 6 MySQL skips / 1
+  known Redis-dependent deselection**.
+- **Boundary at delivery:** no migration, new permission, queue, provider action or customer send.
+  PAR-AUTO-05 has since added the exact automatic inbound run; general graphs, retry operations and
+  every other executor remain future PAR-AUTO work.
+
+## AiSensy-style navigation and Live Chat intervention follow-up
+
+- **Status:** `REPOSITORY VALIDATED`; Inbox advances because the visible lifecycle now performs
+  guarded server work rather than only relabelling filters.
+- **Navigation:** named daily tabs are visible by default; Templates and every additional entitled
+  product area remain under `Manage`; compact mode is still user-selectable.
+- **Live Chat:** `Requested`, `Active` and `Intervened` are factual views over the existing pending,
+  open and current-user assignment contracts. `Intervene` atomically claims a request, protects
+  against double claim, audits ownership/status and is idempotent; only that owner can `Resolve`,
+  including through the legacy status route. No migration, new permission or duplicate state
+  machine is introduced.
+- **Evidence:** intervention backend **24/24**, combined contract regression **26/26**, intervention/
+  thread frontend **37/37**, complete frontend **40 files / 816 tests**, ESLint, TypeScript and
+  production build PASS. OpenAPI/generated TypeScript are synchronized at **210 paths**.
+- **Pending:** general chatbot execution beyond the exact automatic inbound handoff path, SLA badges, authenticated
+  representative-data visual/accessibility/browser comparison and target-host concurrency.
+
+## CORE-11C — Inactivity Auto-Resolve
+
+- **Milestone status:** `REPOSITORY IMPLEMENTED`; CORE-11 remains `PARTIAL`.
+- **Completion effect:** Settings and Inbox advance because a bounded timer now performs guarded
+  conversation lifecycle work rather than storing an inert preference.
+- **Reuse:** reserved Inbox Operations setting, Conversation status/activity facts, open Tasks,
+  Audit, Business Event, existing Celery Beat and `scheduler.tick`. No migration, new path,
+  permission, queue or workflow engine.
+- **Safety:** disabled by default; 1–720-hour bound; only read inactive open/pending threads;
+  snoozed/resolved/unread/recent/open-Task rows protected; row-locked recheck; deterministic event;
+  new current inbound reopens, duplicate/older replay does not.
+- **Evidence:** backend focused **48 passed**, applicable suite **1453 passed / 6 MySQL skips / 1
+  Redis case deselected**; canonical unfiltered suite records the same 1453 passes plus the known
+  Redis-only failure. Ruff, strict mypy (302 files), OpenAPI drift and static gate 6/6 PASS.
+  Frontend **39 files / 811 tests**, lint/types/build PASS.
+- **Pending:** authenticated representative-data visual/accessibility/browser review, target-host
+  MySQL/Celery concurrency and remaining CORE-11 controls.
+
+## CORE-11B — Working Hours and Guarded Automatic Replies
+
+- **Milestone status:** `REPOSITORY IMPLEMENTED`; CORE-11 remains `PARTIAL`.
+- **Completion effect:** Settings and Inbox advance because working hours and welcome/off-hours
+  replies are now persisted, audited and consumed rather than display-only controls.
+- **Reuse:** existing Organization timezone, reserved Inbox Operations setting, Conversation/
+  Message ledger, Business Event, Audit, queue and provider adapters. No migration, new path,
+  permission, scheduler or parallel authority.
+- **Safety:** defaults off; exact opt-out suppresses; stale/future replay fails closed; off-hours
+  precedes welcome and is limited to one per conversation/24 hours; welcome requires a newly opened
+  24-hour customer window; duplicate reply delivery serializes on the durable Message row.
+- **Evidence:** backend focused **40 passed**, delivery/Inbox **73 passed / 1 known Redis case
+  deselected**, applicable suite **1450 passed / 6 MySQL skips / 1 Redis case deselected**; Ruff,
+  strict mypy (302 files), OpenAPI drift and static gate 6/6 PASS. Frontend **39 files / 810 tests**,
+  lint/types/build PASS.
+- **Pending:** authenticated representative-data visual/accessibility/browser review, target-host
+  concurrency and live delivery commissioning, plus remaining CORE-11 controls.
 
 ## Module 13 — QR-09L WAHA ACK Routing and LID Recipient Identity Remediation
 
@@ -477,40 +1305,40 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
 | Dashboard | 82% | UI-TASTE-03A replaces the messaging-led home with a permission-aware operational desk over real Reactivation, KYC, Task, Campaign, Inbox, Template and Analytics sources; 661 frontend tests and production build pass | Authenticated representative-data visual/WCAG/browser review, server-owned exact cross-domain aggregate totals beyond bounded source reads, and final route-performance commissioning. | Reactivation, KYC, Tasks, Campaigns, Inbox, Templates, Analytics |
-| Inbox | 91% | Shared Inbox + Live Chat plus CORE-07 exact-contact reuse; UI-TASTE-02 converges search, advanced filters, saved views, bulk selects, and pagination on shared accessible controls | Page-specific hierarchy polish, intervention-request lifecycle, SLA badges, and authenticated responsive/accessibility regression. | Notifications, SLA, shared design system |
-| Chat History | 55% | A dedicated, permission-aware `/chat-history` route now composes the existing conversation/message contract — search, status, agent and channel filters, cursor pagination, full message history and an `audit:read`-gated audit-trail deep link — separate from Live Chat's live-triage workspace | Date-range and campaign-generated filtering require a contract extension (`MessageResponse` carries no `campaign_id`; the endpoints have no date-range query param); media-only filtering and audit-scoped filtering are not implemented; transcript export and a Download Center remain unimplemented. | Audit, Download Center |
-| Contacts | 95% | FR-CON-04 baseline plus UI-TASTE-02 shared search/filter/mobile-sheet/pagination convergence | Page-specific table and bulk-action polish, final opt-in/eligibility/assignment/export regression, and server-shared saved views; no rebuild. | Saved Views, Reactivation, shared design system |
+| Inbox | 98% | Shared Inbox + Live Chat with factual Requested/Active/Intervened views, executable row-locked Intervene/owner-only Resolve and an automatic inbound published-automation Human handoff that safely produces Requested once without requeueing claimed chats; CORE-11A/11B/11C routing/read/hours/replies/auto-resolve plus existing search, filters, saved views, bulk selects and pagination remain | General chatbot execution beyond the exact inbound handoff path, SLA badges, target-host concurrency and authenticated responsive/accessibility regression. | Automation, Notifications, SLA, Settings, shared design system |
+| Chat History | 88% | PAR-HIST-01 adds factual date/campaign/media/audit list filters and governed organization-shared views to PAR-DL-02 transcripts; the read-only route retains immediate search/status/agent/channel/tag controls, full bounded messages, audit deep link and secure Download Center delivery | Authenticated representative-data WCAG/device/browser review and production-scale/target-host query commissioning. | Audit, Download Center, Saved Views |
+| Contacts | 98% | PAR-VIEW-02 adds governed tenant-scoped private/team definitions over the existing server-evaluated search/tag/enum-attribute filter contract while preserving URL state, mobile sheet, cursor paging, bulk actions and export audience truth | Final opt-in/eligibility/assignment/export representative-data regression, target-device/WCAG review and production-scale query commissioning; no rebuild. | Saved Views, Reactivation, shared design system |
 | Customer 360 | 90% | CORE-07 factual workspace composes identity/attributes, WhatsApp threads/messages, Reactivation CRM/reminders/notes/SLA, Tasks, Documents, KYC/SIM/Activation, Campaigns, Audit and Timeline with permission-aware source deep links | UI-TASTE hierarchy/density pass, target-device/WCAG, representative-data query-budget and production-scale commissioning; incorporate future approved source-domain facts without duplicating them. | Source domain milestones, performance lab, shared design system |
-| Campaigns | 85% | Broadcast engine, guided journey and existing authorization safeguards complete | Conversion/ROI to reactivation, failed-message retry UX and complete audience reports; no generic approval engine is required. | Reactivation analytics |
+| Campaigns | 95% | PAR-VIEW-03 adds governed private/team list definitions over the existing URL-backed search/status/sort contract to PAR-CAM-01 recipient operations and PAR-DL-03 exports; applying a view resets only transient page state | Campaign-to-reactivation conversion attribution and approved recovered-value/revenue/ROI facts; authenticated representative-data/scale commissioning; no generic approval engine is required. | Saved Views, Reactivation analytics, Download Center |
 | Templates | 80% | Registry, create/sync/status/media flows complete | Categories/favourites server sync, button/variable preview regression, usage analytics, explicit AI placeholder. | Analytics, settings/Meta sync |
 | Segments | 75% | Dynamic/static segment and preset foundation | Complete reactivation/KYC/documents/activation/engagement predicates and shared saved filters. | Domain models, Saved Views |
-| Automation | 65% | Definitions, safe test runtime, trigger receipts and existing authorization concepts complete | Governed live receipt consumption, conditions/actions, delays, reminders, module-specific handoff, idempotent effects and operational UI. | Notifications, domain services |
-| Analytics | 55% | Messaging rollups and exports complete | Add reactivation funnel/drop-off, lead source, KYC turnaround, case outcomes, SLA, agent comparison, and date exports. | Domain events and reporting projections |
-| Executive Reports | 25% | Analytics-backed report shell | Revenue/ROI/productivity/workload/SLA/case-outcome reports, schedules, CSV/PDF delivery. | Analytics, Download Center, Notifications |
-| Reactivation | 94% | CORE-05/07/09 authorities plus UI-TASTE-03B CRM-first hierarchy, URL-backed work views, shared filters, permission-truthful connected navigation, bounded 25-case pagination and 668-test frontend validation | Server-shared saved views, reactivation analytics, authenticated representative-data visual/WCAG/device review and production-scale performance commissioning. | Tasks, Notifications, Analytics, shared design system |
-| KYC | 85% | CORE-04 persisted queue/detail workspace, three governed checks, protected Aadhaar/PAN checklist references, Task-backed appointment lifecycle, separated reviewer/manager decisions, structured rejection, immutable audit/Timeline, SLA, Customer 360 and Reactivation handoff complete | Server pagination/saved views, production protected-media commissioning, high-volume performance, and target-browser/device WCAG regression. | Documents, Tasks, Reactivation, Customer 360 |
+| Automation | 99% | Versioned definitions, safe test runtime and durable receipt dispatch drive event-safe connected effects with one optional approved Condition, one bounded durable Delay, same-customer Message-received, Task-completed or Lead-stage-changed Wait and checkpoint replay. One Condition may also split to one or two ordered distinct internal effects on each Yes/No side with durable unchosen-branch evidence and one optional terminal shared follow-up reached by both outcomes; that shared follow-up may pause once through a common durable Delay. Message Received validates all six internal effects; Contact Created validates tag changes/Notification; Conversation Auto-Resolved validates follow-up Task, tag changes and Notification; Schedule durably projects organization-timezone cron slots to workspace-only Notification; Lead Stage Changed validates previous/new-stage conditions, Contact-linked Task, tags and Notification without exposing transition reasons. | Multiple/nested Conditions, longer branch bodies, branch-specific Delay/Wait, multiple timers, arbitrary or multiple merges, additional event projections, campaign/webhook/customer-message executors, recipient/team notification routing, capacity/skill routing, and operational reconciliation UI. | Inbox, Tasks, Contacts/Tags, Notifications, Reactivation, domain services |
+| Analytics | 82% | Messaging/campaign/domain facts now include PAR-REP-04 conversation/task teammate productivity plus a separately labelled live pending-work snapshot; factual KPIs, comparisons and governed exports remain source-aligned | Campaign-to-case conversion attribution, approved recovered-value/revenue/ROI formulas, explicit capacity/utilization inputs and production-scale query commissioning. | Domain events and reporting projections |
+| Executive Reports | 80% | PDF, personal schedules, governed personal/team report views and eleven governed families now cover messaging, campaign, cost, Reactivation/KYC/SLA and Team Productivity evidence | Revenue/ROI, campaign conversion attribution, approved capacity/utilization reports and separately approved external delivery channels. | Analytics, Download Center, Notifications, Saved Views |
+| Reactivation | 96% | PAR-VIEW-01 adds audited tenant-scoped personal/team saved filters and board/list definitions to the CORE-05/07/09 authority, CRM-first hierarchy, URL-backed work views, connected navigation and bounded pagination | Campaign-to-case conversion attribution, authenticated representative-data visual/WCAG/device review and production-scale performance commissioning. | Tasks, Notifications, Analytics, shared design system |
+| KYC | 90% | PAR-VIEW-04 adds governed private/team definitions over URL-backed customer search and lifecycle status to the CORE-04 persisted queue/detail, protected-document checklist, Task appointment and separated decision workflow | Server pagination, production protected-media commissioning, high-volume performance, and target-browser/device WCAG regression. | Saved Views, Documents, Tasks, Reactivation, Customer 360 |
 | Documents | 87% | Phase 4A governed documents plus CORE-04 verified Aadhaar/PAN purpose references without plaintext identity numbers | Download policies, generated-document links and final encryption/retention commissioning; no generic approval authority is required. | Download Center |
 | SIM Orders | 35% | CORE-02 order/event lifecycle, address/service area, owner, serial, delivery/failure/customer confirmation, SLA and APIs are preserved; CORE-05 exposes the lightweight `SIM Required` case status | No standalone heavy UI is planned; future exceptional operations require an explicit owner instruction. | Reactivation status, KYC evidence, SLA |
 | Activation | 35% | CORE-02 record lifecycle, hand-off, verification/approval/completion/rejection rules, RBAC, audit and APIs are preserved; CORE-05 exposes `Activation Pending`, `Completed` and `Not Required` case outcomes | No standalone Activation Queue or generic approval engine is planned; future exceptional operations require an explicit owner instruction. | Reactivation status, Notifications |
-| Notifications | 85% | CORE-09 durable center plus UI-TASTE-02 shared type/status/date/assignee filters and action controls; polling, read-state, team view and deep links are preserved | Page-specific visual hierarchy, authenticated responsive review, notification settings, and separately approved optional channels. SSE/browser push/email/internal WhatsApp are not implied. | Tasks, Reactivation, user preferences, shared design system |
-| Settings | 80% | Organization/application/flags/preferences routes complete, plus permission-aware Tags, Canned Messages and User Attributes administration panels | Approved business/WhatsApp hours/messages, assignment/auto-resolve/read receipts, campaign/opt-in, pipeline/SLA/notifications/security/audit controls. | Domain configuration APIs, RBAC |
-| API | 87% | 200-path OpenAPI 3.1 contract; M13-02 adds seven identity-resolution/review paths with generated TypeScript authority | Remaining final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
+| Notifications | 86% | CORE-09 durable center plus UI-TASTE-02 filters/actions and PAR-REP-02 idempotent scheduled-report-ready deliveries with a Download Center deep link; polling, read-state and team view are preserved | Page-specific visual hierarchy, authenticated responsive review, notification settings, and separately approved optional channels. SSE/browser push/email/internal WhatsApp are not implied. | Tasks, Reactivation, Reports, user preferences, shared design system |
+| Settings | 92% | CORE-11A/11B/11C provide one validated, audited, service-consumed Inbox policy for assignment, read-state, exact opt-in/out keywords, organization-timezone hours, guarded replies and inactivity auto-resolve; organization/application/flags/preferences plus Tags, Canned Messages and User Attributes remain complete | Campaign, pipeline/SLA, notification/security/audit controls and later team settings. | Domain configuration APIs, RBAC |
+| API | 99% | 235-path OpenAPI 3.1 contract with synchronized generated TypeScript; governed Reports, KYC, Campaign, Contacts and Reactivation personal/team views join campaign exports, Chat History, transcripts, Team workload, Analytics and Download Center resources | Remaining final-domain routes, usage logs/IP restrictions completeness, key regeneration/revocation UX, published documentation. | Each domain milestone, Download Center |
 | Webhooks | 80% | Provider webhooks and operations surface complete | Subscription governance, delivery/retry visibility, outbound final-domain events, security/usage documentation. | Domain event taxonomy, API permissions |
 | Google Sheets | 0% | Not implemented | Approved credential model, contact import/sync/export jobs, mapping, audit, retries, admin UX. | Jobs, API keys/secrets, Contacts |
 | WhatsApp Scan | 15% | Honest non-executing Scan Studio shell | Compliant provider contract, upload/batches/dedup/queue/results/retry/export/segments/analytics; no unofficial Web scanning. | Owner-approved compliant method, Jobs, Segments, Download Center |
 | Approval Workflow | 20% | **CORE-08 — Skipped: Not required by product owner.** Existing KYC-specific approval logic and completed campaign/automation authorization safeguards are preserved. | No Approval Center, generic approval framework, approval queue, escalation system or new approval authority will be built. | Existing module-specific RBAC and audit only |
-| Download Center | 30% | Backend export jobs exist | Unified user route for CSV/PDF/campaign/contact/scan/generated artifacts, status, expiry, permissions, and history. | Export jobs, Documents |
+| Download Center | 88% | One permission/status/expiry/signed-link history now carries contacts, eleven Analytics families/schedules, Chat History transcripts and PAR-DL-03 governed campaign recipient results | Add compliant Scan-result and generated-document sources plus any separately approved artifact retry controls. | Source export/report/document milestones |
 
 ## Additional scope modules
 
 | Module | Completion | Current milestone / evidence | Pending work | Dependencies |
 |---|---:|---|---|---|
-| Enterprise Omnichannel Channel Manager | 44% | M13-00–M13-06A are Repository Validated: provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session/runtime/pairing control plane, sync checkpoints and media references; migrations `0036`–`0040`; unchanged 200-path API | WAHA host certification, live QR/login, event ingestion, history execution, media transfer, messaging and UI remain pending and blocked | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/MediaAsset/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020/0021 and Design Document 33 |
-| Shared Enterprise Design System | 94% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination, page headers and shared surface refinements with 657-test validation | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, remaining authenticated host visual/reference approval and final WCAG/browser matrix. | UI-TASTE-03–05 |
-| Team Management | 80% | Users, roles, permissions, workload foundations complete | Online presence, assignment rules, login history, permission audit, final role matrix. | Notifications, audit, Settings |
+| Enterprise Omnichannel Channel Manager | 52% | M13-00–M13-06B and QR-01–QR-08 provide provider-neutral contracts, exact Contact identity, persistent connections/secrets, durable session/runtime/pairing control plane, signed inbound ingestion, approved manual text/ACK routing and unified Inbox integration; migration line is preserved through the current `0048` head | Target-host/provider acceptance, remaining correlated outbound/persistence/logout evidence, provider history retrieval, media-byte transfer, final analytics/diagnostics and full browser/device commissioning. | Existing Contact/Organization/ChannelConnection/ChannelSession/ChannelAdapter/MediaAsset/capabilities, FeatureFlag, RBAC/tenant/audit foundations, frozen ADR-0020/0021 and Design Document 33 |
+| Shared Enterprise Design System | 94% | UI-TASTE-02 implements governed radius/density, forms, toolbars, filters, pagination and page headers; the current parity follow-up adds expanded named daily navigation and a permission-aware Manage group without removing routes | Authenticated representative-data visual/reference approval, remaining priority-screen adoption, remaining authenticated host visual/reference approval and final WCAG/browser matrix. | UI-TASTE-03–05 |
+| Team Management | 86% | Users/roles/permissions and least-open assignment now join PAR-REP-04 teammate conversation/task performance plus live unresolved/unread/open/overdue workload, including unassigned and inactive-owner risks | Online presence, richer capacity/skill rules, explicit capacity limits/utilization, login history, permission audit and final role matrix. | Notifications, audit, Settings |
 | Tags and Attributes | 96% | Both halves of this row are now reachable in the product: tag CRUD through Settings → Tags (search, usage filter, create/rename/recolour/delete, usage counts) and attribute-definition CRUD through Settings → User Attributes (search, type filter, create/edit/delete, immutable key/type display); contact links, filters and existing domain schemas complete | Required/active controls and final domain-specific fields for attribute definitions; preserve existing model. | Settings, domain schemas |
 | Global Search / Command Palette | 85% | Search and `Ctrl+K` foundation complete | Index final domain records/documents/notes/agents/tags and add all approved quick actions. | Final domain APIs |
-| Saved Views | 35% | Local favourites/recent destinations and inbox views exist | Server synchronization and sharing for contacts, campaigns, reactivation, KYC, reports, and chat history. | Users/RBAC, module filters |
+| Saved Views | 95% | One governed workspace-view authority now serves audited tenant-scoped private/team Reports, KYC, Campaign, Contacts and Reactivation definitions; personal Inbox settings and team Chat History views remain preserved | Complete the approved segment-predicate/saved-filter slice while retaining module-specific validation and Audit truth. | Users/RBAC, module filters, Segments |
 | Audit Timeline | 90% | CORE-07 exposes distinct Customer Timeline and Audit views over existing immutable evidence, including source references and deep links | Normalize remaining old/new values, device/login, generalized approvals and document-access evidence. | All final domain events |
 
 ## Update rule

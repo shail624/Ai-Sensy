@@ -41,6 +41,7 @@ from app.models.analytics import (
     KIND_CAMPAIGNS,
     KIND_CONTACTS,
     KIND_CONVERSATIONS,
+    KIND_DOMAIN_OUTCOMES,
     KIND_FAILURES,
     KIND_MESSAGES,
     KIND_TASKS,
@@ -50,9 +51,20 @@ from app.models.analytics import (
     AnalyticsCampaignRollup,
     AnalyticsContactRollup,
     AnalyticsConversationRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsFailureRollup,
     AnalyticsMessageRollup,
     AnalyticsTaskRollup,
+)
+from app.models.business_event import (
+    BUSINESS_EVENT_ACTIVATION_TRANSITIONED,
+    BUSINESS_EVENT_ELIGIBILITY_DECIDED,
+    BUSINESS_EVENT_KYC_DECIDED,
+    BUSINESS_EVENT_REACTIVATION_CREATED,
+    BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
+    BUSINESS_EVENT_SIM_TRANSITIONED,
+    BUSINESS_EVENT_SLA_RECORDED,
+    BusinessEvent,
 )
 from app.models.campaign import (
     RECIPIENT_DELIVERED,
@@ -84,6 +96,7 @@ from app.models.task_event import (
     TASK_EVENT_SKIPPED,
     TaskEvent,
 )
+from app.models.vi_domain import KycCase, ReactivationCase
 from app.repositories.analytics import AnalyticsFact, AnalyticsFactModel, AnalyticsRepository
 
 logger = get_logger(__name__)
@@ -108,6 +121,7 @@ _DIMENSIONS: dict[AnalyticsFactModel, tuple[str, ...]] = {
     AnalyticsConversationRollup: ("phone_number_id", "assigned_user_id"),
     AnalyticsTaskRollup: ("assigned_agent_id", "task_type"),
     AnalyticsContactRollup: (),
+    AnalyticsDomainOutcomeRollup: ("domain", "outcome", "source", "actor_user_id"),
 }
 _NON_MEASURE = {"id", "organization_id", "grain", "bucket_start", "created_at", "updated_at"}
 
@@ -300,6 +314,10 @@ class AnalyticsRollupService:
             KIND_CONVERSATIONS: (AnalyticsConversationRollup, self._build_conversations),
             KIND_TASKS: (AnalyticsTaskRollup, self._build_tasks),
             KIND_CONTACTS: (AnalyticsContactRollup, self._build_contacts),
+            KIND_DOMAIN_OUTCOMES: (
+                AnalyticsDomainOutcomeRollup,
+                self._build_domain_outcomes,
+            ),
         }
         written = 0
         for kind in kinds:
@@ -728,6 +746,184 @@ class AnalyticsRollupService:
                 opted_out_count=opted_out,
                 reactivated_count=reactivated,
                 active_count=active,
+            )
+        ]
+
+    async def _build_domain_outcomes(
+        self, organization_id: int, lower: datetime, upper: datetime
+    ) -> list[AnalyticsDomainOutcomeRollup]:
+        """Build Vi CRM funnel/outcome/SLA facts from the immutable business-event ledger."""
+        event_types = (
+            BUSINESS_EVENT_REACTIVATION_CREATED,
+            BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
+            BUSINESS_EVENT_ELIGIBILITY_DECIDED,
+            BUSINESS_EVENT_KYC_DECIDED,
+            BUSINESS_EVENT_SIM_TRANSITIONED,
+            BUSINESS_EVENT_ACTIVATION_TRANSITIONED,
+            BUSINESS_EVENT_SLA_RECORDED,
+        )
+        events = list(
+            (
+                await self._session.scalars(
+                    select(BusinessEvent)
+                    .where(
+                        BusinessEvent.organization_id == organization_id,
+                        BusinessEvent.event_type.in_(event_types),
+                        BusinessEvent.occurred_at >= lower,
+                        BusinessEvent.occurred_at < upper,
+                    )
+                    .order_by(BusinessEvent.id)
+                )
+            ).all()
+        )
+        if not events:
+            return []
+
+        case_ids = {
+            event.subject_id
+            for event in events
+            if event.event_type
+            in (BUSINESS_EVENT_REACTIVATION_CREATED, BUSINESS_EVENT_REACTIVATION_TRANSITIONED)
+            and event.subject_id is not None
+        }
+        kyc_ids = {
+            event.subject_id
+            for event in events
+            if event.event_type == BUSINESS_EVENT_KYC_DECIDED and event.subject_id is not None
+        }
+        cases = {
+            row.id: row
+            for row in (
+                await self._session.scalars(
+                    select(ReactivationCase).where(
+                        ReactivationCase.organization_id == organization_id,
+                        ReactivationCase.id.in_(case_ids),
+                    )
+                )
+            ).all()
+        }
+        kyc_cases = {
+            row.id: row
+            for row in (
+                await self._session.scalars(
+                    select(KycCase).where(
+                        KycCase.organization_id == organization_id,
+                        KycCase.id.in_(kyc_ids),
+                    )
+                )
+            ).all()
+        }
+
+        measure_names = _measures_of(AnalyticsDomainOutcomeRollup)
+        grouped: dict[tuple[str, str, str, int | None], dict[str, int]] = {}
+
+        for event in events:
+            payload = event.payload_json or {}
+            source = event.source or "unknown"
+            domain = "unknown"
+            outcome = event.event_type
+            increments: dict[str, int] = {}
+
+            if event.event_type == BUSINESS_EVENT_REACTIVATION_CREATED:
+                domain, outcome = "reactivation", "reactivation.created"
+                case_row = cases.get(event.subject_id or 0)
+                source = case_row.source if case_row else source
+                increments["reactivation_case_created_count"] = 1
+            elif event.event_type == BUSINESS_EVENT_REACTIVATION_TRANSITIONED:
+                domain = "reactivation"
+                stage = str(payload.get("to_stage") or "unknown")
+                outcome = f"reactivation.stage.{stage}"
+                case_row = cases.get(event.subject_id or 0)
+                source = case_row.source if case_row else source
+                increments["reactivation_transition_count"] = 1
+                if stage in {"completed", "not_required"}:
+                    increments[f"reactivation_{stage}_count"] = 1
+                    if case_row is not None:
+                        elapsed = max(
+                            int((event.occurred_at - case_row.created_at).total_seconds()), 0
+                        )
+                        increments["reactivation_turnaround_seconds_sum"] = elapsed
+                        increments["reactivation_turnaround_count"] = 1
+            elif event.event_type == BUSINESS_EVENT_ELIGIBILITY_DECIDED:
+                domain = "eligibility"
+                status = str(payload.get("status") or "unknown")
+                outcome = f"eligibility.{status}"
+                source = str(payload.get("source") or source)
+                increments["eligibility_decision_count"] = 1
+                metric = {
+                    "eligible": "eligibility_eligible_count",
+                    "not_eligible": "eligibility_not_eligible_count",
+                    "review_required": "eligibility_review_required_count",
+                }.get(status)
+                if metric:
+                    increments[metric] = 1
+            elif event.event_type == BUSINESS_EVENT_KYC_DECIDED:
+                domain = "kyc"
+                decision = str(payload.get("decision") or "unknown")
+                decision_type = str(payload.get("decision_type") or "unknown")
+                outcome = f"kyc.{decision_type}.{decision}"
+                increments["kyc_decision_count"] = 1
+                final = decision == "rejected" or (
+                    decision == "approved" and decision_type == "manager_approval"
+                )
+                if decision == "approved" and decision_type == "manager_approval":
+                    increments["kyc_approved_count"] = 1
+                elif decision == "rejected":
+                    increments["kyc_rejected_count"] = 1
+                elif decision == "needs_information":
+                    increments["kyc_needs_information_count"] = 1
+                kyc_row = kyc_cases.get(event.subject_id or 0)
+                if final and kyc_row is not None:
+                    elapsed = max(
+                        int((event.occurred_at - kyc_row.created_at).total_seconds()), 0
+                    )
+                    increments["kyc_turnaround_seconds_sum"] = elapsed
+                    increments["kyc_turnaround_count"] = 1
+            elif event.event_type == BUSINESS_EVENT_SIM_TRANSITIONED:
+                domain = "sim"
+                status = str(payload.get("to_status") or "unknown")
+                outcome = f"sim.{status}"
+                increments["sim_transition_count"] = 1
+                if status in {"delivered", "failed"}:
+                    increments[f"sim_{status}_count"] = 1
+            elif event.event_type == BUSINESS_EVENT_ACTIVATION_TRANSITIONED:
+                domain = "activation"
+                status = str(payload.get("to_status") or "unknown")
+                outcome = f"activation.{status}"
+                increments["activation_transition_count"] = 1
+                if status in {"completed", "rejected"}:
+                    increments[f"activation_{status}_count"] = 1
+            elif event.event_type == BUSINESS_EVENT_SLA_RECORDED:
+                domain = "sla"
+                status = str(payload.get("event_type") or "unknown")
+                entity_type = str(payload.get("entity_type") or "unknown")
+                outcome = f"sla.{entity_type}.{status}"
+                metric = {
+                    "started": "sla_started_count",
+                    "breached": "sla_breached_count",
+                    "resolved": "sla_resolved_count",
+                }.get(status)
+                if metric:
+                    increments[metric] = 1
+
+            key = (domain, outcome, source, event.actor_id)
+            totals = grouped.setdefault(key, dict.fromkeys(measure_names, 0))
+            for metric, value in increments.items():
+                totals[metric] += value
+
+        return [
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization_id,
+                grain=GRAIN_HOUR,
+                bucket_start=lower,
+                domain=domain,
+                outcome=outcome,
+                source=source,
+                actor_user_id=actor_user_id,
+                **totals,
+            )
+            for (domain, outcome, source, actor_user_id), totals in sorted(
+                grouped.items(), key=lambda item: tuple(str(value) for value in item[0])
             )
         ]
 

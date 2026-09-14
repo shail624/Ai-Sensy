@@ -1,32 +1,106 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-04 — Live Chat category semantics (2026-09-14, local)
+
+Restores the owner's category definitions: Active = open; Requesting = open and
+unassigned; Intervened = current assignment ownership across statuses. Switching
+categories preserves only search. Reference-style captions are retained.
+PASS: 32 focused inbox tests and frontend TypeScript checking. Added regression
+coverage for conflicting status/assignee/tag filters while retaining search.
+PENDING – Host Machine Validation: authenticated populated preview and release.
+No completion percentage increase. Uncommitted on the existing dirty checkout;
+this entry does not certify or commit the unrelated local work or full UI parity.
+
+
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 > GitHub at the latest approved HEAD is the repository source of truth. Keep repository-verifiable
 > engineering evidence separate from host/provider/runtime acceptance.
 
-_Last updated: 2026-08-09 · QR-09D, QR-09G, QR-09H, QR-09I, QR-09J and QR-09L are REPOSITORY/RUNTIME VALIDATED; QR-09 remains
-PARTIAL — BLOCKED, on top of QR-09C/QR-09B/QR-09A remediation and QR-08 Unified Inbox integration,
-QR-01 WAHA provider adapter
-foundation, the QR-00 provider selection and provider-message identity foundation, the MySQL
-migration evidence hardening, the Alembic version-table MySQL fix (long revision ids), the Chat
-History pagination/polling/accessibility hardening, the Dedicated Chat History workspace, the User
-Attributes remediation, its test-hardening follow-up and M13-06B. Provider certification still
-blocks every live history, media, event and adapter behavior._
+Latest UI checkpoint: **UI-REF-02**, reference-order Live Chat strip/search and empty desktop
+columns. Frontend **883/883**, types/build/lint and desktop/mobile preview pass. Full populated
+workflow parity is pending in Design Document 73. No backend/API/migration/delivery change.
+
+_Previous update: 2026-09-13 · UI-REF-01 local UI slice: frontend 882/882,
+types/lint/build and bounded desktop/mobile preview pass. Design Document 72 records remaining
+screen parity. Separate unfinished GROW-03 segment work advances the migration head to 0062;
+OpenAPI remains 235. Cumulative backend/release revalidation is pending. PAR-VIEW-05 is the
+prior fully source-validated slice. PAR-AUTO-22 remains the last complete 23/23 Docker-backed release profile.
+REL-CERT-01's prior 25/25 disposable-deployment
+evidence remains preserved. CORE-11C remains the current bounded administrative product milestone.
+QR-09D/G/H/I/J/L evidence remains preserved and QR-09 remains PARTIAL — BLOCKED._
 
 ## Current state
 
 - **Branch:** `ui/taste-modernization`
 - **Starting HEAD:** `1d109b984b165f166e8575e5fd4fa3648ce903dc` (`feat(channels): establish QR provider foundation`)
 - **Release:** `1.0.0-rc1`
-- **Migration/OpenAPI:** `0043_conversation_channel_endpoints` (44 revisions; +1, additive expand-only) · **207 paths** — unchanged by QR-09 (validation only; no migration, route, or contract was added or modified)
-- **Current milestone:** `QR-09L — WAHA ACK Routing and LID Recipient Identity Remediation — REPOSITORY/RUNTIME VALIDATED`. QR-09-D13 is application-level `REMEDIATED`; correlated physical ACK certification remains pending. `QR-09` remains `PARTIAL (BLOCKED)`; prior evidence remains preserved.
-- **Latest change:** endpoint-owned status events now derive WAHA from persisted event ownership
-  instead of the worker's Meta default. Exact WAHA `@lid`, `@c.us` and `@s.whatsapp.net` reply
-  routes persist in the existing provider-scoped Contact identity authority; only a factual phone
-  JID can establish `whatsapp_phone`, and outbound never rebuilds a LID as `@c.us`. The preserved
-  unmatched DEVICE ACK safely replayed through WAHA parsing and endpoint correlation without being
-  attributed to either historical message. Canonical premerge 14/14 (backend 1444, frontend 806)
-  and applicable release/runtime 8/8 passed. The linked provider remains WORKING/paired with restart
-  count zero. New QR09-L-ACK physical send/read/ACK evidence remains pending.
+- **Repository/local-deployment certification:** `REL-CERT-01 — PASS`. Its pre-PAR-AUTO-19 tree
+  passed **25/25** deployed gates in **597.4s**, including a fresh disposable ten-service browser/
+  performance/failure exercise. On the prior PAR-AUTO-22 tree, the complete release profile
+  passes **23/23 in 685.9s** with **1521 backend tests / zero skips**, **832 frontend tests**, clean
+  lint/types/OpenAPI/build/SAST/dependency/source/image scans, exact image contracts and SBOMs, and
+  certified WAHA runtime checks. The earlier PAR-VIEW-05 tree passed focused Reports
+  saved-view/API/migration/OpenAPI **12/12**, complete backend **1579 passed / 6 MySQL-only skipped /
+  0 failed in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**,
+  synchronized **235-path** OpenAPI and production build. The Docker/security release rerun
+  remains pending.
+  The preserved deployed canary was **5.764ms p95 / 300ms budget**;
+  Redis-down readiness was **503 degraded** with zero synthetic-secret/PII log leaks.
+- **Completion boundary:** the prior release gate is preserved, not rerun for the cumulative tree; full approved product
+  scope is not 100%. The 31 canonical rows sum to 2,388: the simple unweighted mean is **77.0%**
+  and the recalculated median is **88%**. Target-host TLS/secrets/monitoring/restore/UAT and remaining module work are
+  still pending; no commit, push, or live deployment was authorized.
+- **Migration/OpenAPI:** `0062_segment_domain_predicates` (**63 revisions**, unfinished segment delta) · **235 paths**.
+  PAR-VIEW-05 adds governed Reports list/create/delete contracts through the shared view authority; JSON/TypeScript remain
+  synchronized.
+- **Prior administrative milestone:** `CORE-11C — Inactivity Auto-Resolve — REPOSITORY
+  IMPLEMENTED`; CORE-11 remains `PARTIAL`.
+- **Prior feature change:** PAR-VIEW-05 persists one report period/custom range, day/week granularity and
+  optional comparison as private or team views through the same service/repository/table as KYC,
+  Campaigns, Contacts and Reactivation. Every Analytics reader may govern personal views;
+  `analytics:views_manage` protects team publishing/deletion. Workspace-aware caps, names, indexes,
+  isolation, validation and Audit fail closed. Private/team chips and the responsive management
+  sheet reopen URL-backed report filters without storing tab, export, schedule or progress state.
+  Focused contracts **12/12**, focused Analytics UI **41/41**, full frontend **47 files / 875
+  tests**, static **6/6**, strict mypy **322 files** and production build pass. Authenticated local
+  desktop/mobile previews pass for this bounded workflow. Prior PAR-AUTO-22 release evidence remains
+  preserved; head is `0061` (**62 revisions**), Executive Reports advances **75% → 80%**, Saved
+  Views **85% → 95%** and full scope **76.5% → 77.0%**; median advances **86% → 88%**.
+- **Historical UI parity follow-up (shell superseded by UI-REF-01):** the expanded named sidebar exposes Dashboard, Live Chat, Chat
+  History, Campaigns, Contacts, Automation and Analytics; `Manage` preserves every entitled
+  template/audience/channel/additional/admin route. Live Chat now labels its persisted filters
+  `Requested`, `Active` and `Intervened` without inventing chatbot state. `Intervene` performs an
+  atomic, audited, retry-safe claim and only that owner can `Resolve`; a second agent cannot steal or
+  close the chat through either action route or the legacy status route. Backend intervention
+  **24/24**, combined contract regression **26/26**, focused frontend **37/37**, full frontend **40
+  files / 816 tests**, lint and production build PASS. The applicable full backend is **1457 passed /
+  6 MySQL skipped / 1 known Redis-dependent deselection**.
+- **Latest CORE-11 change:** the existing organization policy now drives optional inactivity resolution.
+  Only read, inactive open/pending conversations without an open Task qualify; snoozed/unread/recent
+  rows are protected, each mutation is row-locked/audited/evented, and genuinely new inbound reopens
+  a resolved thread while duplicate/stale delivery does not. Frontend **811 tests**, lint and build
+  pass; focused backend **48 tests**, static quality and OpenAPI drift pass. The applicable backend
+  suite is **1453 passed / 6 MySQL skipped / 1 Redis-dependent test deselected**; authenticated
+  visual/host evidence and later CORE-11 controls remain pending.
+- **CORE-11A/11B/11C boundary:** assignment/read/consent, working-hours/welcome/off-hours and
+  protected inactivity auto-resolve controls are implemented. Pipeline/SLA, notification/security/
+  audit settings, campaign preferences, team presence/
+  workload/login/permission audit and required/active attributes are explicitly not claimed.
 - **Superseded change:** QR-09J closes QR-09-D12 (Blocker): a real signed external inbound reached both
   certified WAHA event variants but dead-lettered because the adapter returned aware UTC into a
   repository whose MySQL DATETIME/`utcnow()` convention is naive UTC. Normalization now occurs at
@@ -555,6 +629,200 @@ blocks every live history, media, event and adapter behavior._
   execution for `test_migrations_mysql.py` both remain open, explicitly recorded, and out of scope
   for this follow-up.
 
+### PAR-VIEW-05 — Governed Report saved views
+
+- Extends the shared saved-view discriminator with `reports`; Reports, KYC, Campaigns, Contacts and
+  Reactivation share one governance service, persistence repository, tenant boundary and cap/name/
+  lock policy. No second table or browser-only authority is introduced.
+- Stores only one exact period preset or complete custom range, day/week granularity and optional
+  previous-period comparison. Applying a view uses the existing Analytics URL contract; report tab,
+  export format, schedule/progress and other transient state are excluded.
+- Every Analytics reader governs private rows; `analytics:views_manage` protects organization-shared
+  publishing/deletion. Lists contain tenant team rows plus only the actor's private rows, and
+  workspace/tenant/private identifiers fail closed. Mutations commit with immutable Audit.
+- Private/team chips and the responsive `Save / manage` sheet were verified in authenticated local
+  desktop and 390-pixel mobile previews using an isolated database.
+- `0061_reports_workspace_views` advances one linear head to **62 revisions**; list/create/delete
+  operations advance OpenAPI to **235 paths** with synchronized generated TypeScript.
+- Focused backend contracts **12/12**, focused Analytics UI **41/41**, full frontend **47 files /
+  875 tests**, static **6/6**, strict mypy **322 files**, OpenAPI drift and production build PASS.
+  Full backend: **1579 passed / 6 MySQL-only skipped / 0 failed in 413.35s**.
+- Remaining `GROW-03` work is the Segment predicate/saved-filter slice. Representative-data WCAG/
+  device, scale, Docker/security and target-host commissioning remain pending. No provider/customer/
+  commit/push/release/deployment action occurred.
+
+### PAR-VIEW-04 — Governed KYC saved views
+
+- Extends the shared saved-view discriminator with `kyc`; KYC, Campaigns, Contacts and Reactivation
+  continue to share one governance service, persistence repository, tenant boundary and
+  cap/name/lock policy. No second table or browser-only view authority is introduced.
+- Stores only trimmed customer search and one validated lifecycle status. KYC queue filters are
+  URL-backed; applying a view clears transient selection, while fetch bounds, checklist/documents,
+  appointments, SLA/detail and reviewer/manager decisions are deliberately excluded.
+- Every KYC reader governs private rows; `kyc:views_manage` protects organization-shared
+  publishing/deletion. Lists contain tenant team rows plus only the actor's private rows, and
+  workspace/tenant/private identifiers fail closed. Mutations commit with immutable Audit.
+- Lock/team chips and the responsive `Save / manage` sheet provide grouped management, permission
+  truth, API errors and confirmed deletion without changing any KYC case.
+- `0060_kyc_workspace_views` advances one linear head to **61 revisions**; list/create/delete
+  operations advance OpenAPI to **233 paths** with synchronized generated TypeScript.
+- Focused API/migration/OpenAPI contracts **12/12**, KYC UI **2 files / 8 tests**, full frontend
+  **46 files / 870 tests**, static **6/6**, strict mypy **321 files**, OpenAPI drift and production
+  build PASS. Full backend: **1574 passed / 6 MySQL-only skipped / 0 failed in
+  450.05s**.
+- Authenticated representative-data visual/WCAG/device review remains pending rather than PASS.
+  Reports views, remaining segment predicates, protected-media/scale and host commissioning remain.
+  No send/provider/customer/commit/push/release/deployment action occurred.
+
+### PAR-VIEW-03 — Governed Campaign saved views
+
+- Extends the shared saved-view discriminator with `campaigns`; Campaigns, Contacts and
+  Reactivation continue to share one governance service, persistence repository, tenant boundary
+  and cap/name/lock policy. No second table or browser-only view authority is introduced.
+- Stores only trimmed search, validated lifecycle status and list sort. The URL-backed Campaign
+  list remains authoritative; applying a view resets local page to one, while roster, recipient
+  cursor, dispatch and lifecycle state are deliberately excluded.
+- Every Campaign reader governs private rows; `campaigns:views_manage` protects organization-
+  shared publishing/deletion. Lists contain tenant team rows plus only the actor's private rows,
+  and workspace/tenant/private identifiers fail closed. Mutations commit with immutable Audit.
+- Lock/team chips and the responsive `Save / manage` sheet provide grouped management, permission
+  truth, API errors and confirmed deletion without changing any campaign.
+- `0059_campaign_workspace_views` advances one linear head to **60 revisions**; list/create/delete
+  operations advance OpenAPI to **231 paths** with synchronized generated TypeScript.
+- Focused saved-view backend **16/16**, migration **5/5**, Campaign UI **54/54**, full frontend **45
+  files / 866 tests**, static **6/6**, strict mypy **320 files**, OpenAPI drift and production build
+  PASS. Full backend: **1569 passed / 6 MySQL-only skipped / 0 failed in 395.87s**.
+- Authenticated representative-data visual/WCAG/device review remains pending rather than PASS.
+  KYC/Reports views, remaining segment predicates, attribution/revenue/ROI and host commissioning
+  remain. No send/provider/customer/release action occurred.
+
+### PAR-VIEW-02 — Governed Contacts saved views
+
+- Extends the existing saved-view store with a required workspace discriminator; Reactivation and
+  Contacts share one governance service, persistence repository, tenant boundary and cap/name/lock
+  policy. The original physical table name is retained for additive upgrade compatibility.
+- Stores only trimmed search, tag UUID and validated enum-attribute filters. The existing Contacts
+  search compiler, cursor paging, bulk actions and export rule audience remain authoritative;
+  applying a view drops any stale cursor.
+- Every Contacts reader governs private rows; `contacts:views_manage` protects organization-shared
+  publishing/deletion. Lists contain tenant team rows plus only the actor's private rows, and
+  workspace/tenant/private identifiers fail closed. Mutations commit with immutable Audit evidence.
+- The existing responsive Contacts filter experience remains. Lock/team chips and the accessible
+  `Save / manage` sheet provide grouped management, permission truth, API errors and confirmed
+  deletion without changing contacts.
+- `0058_contacts_workspace_views` advances one linear head to **59 revisions**; list/create/delete
+  operations advance OpenAPI to **229 paths** with synchronized generated TypeScript.
+- Focused backend **16/16**, focused UI **19/19**, full backend **1564 passed / 6 MySQL-only skipped
+  / 0 failed in 506.04s**, full frontend **44 files / 863 tests**, static **6/6**, strict mypy **319
+  files**, OpenAPI drift and production build PASS.
+- In-app local-page access was denied, so authenticated representative-data visual/WCAG/device
+  review remains pending rather than PASS. Campaigns/KYC/Reports views, attribution/revenue/ROI and
+  host commissioning remain. No provider/customer/release action occurred.
+
+### PAR-VIEW-01 — Governed Reactivation saved views
+
+- Adds validated, tenant-scoped personal/team view definitions over existing Reactivation search,
+  owner, status, label, reminder and date filters plus board/list mode; page position is excluded.
+- Every Reactivation reader governs personal views; `reactivation:views_manage` protects team
+  publishing/deletion. Another user's private UUID and foreign-tenant UUID fail as not found.
+- Independent 25-view caps, case-insensitive scoped names, organization locking, database checks and
+  atomic create/delete Audit evidence preserve concurrency and governance boundaries.
+- Existing factual work views and URL state remain. Lock/team chips and an accessible responsive
+  `Save / manage` sheet provide permission-truthful creation, grouped management, errors and
+  deliberate deletion confirmation without changing any Reactivation case.
+- `0057_reactivation_saved_views` advances one linear head to **58 revisions**; list/create/delete
+  operations advance OpenAPI to **227 paths** with synchronized generated TypeScript.
+- Focused backend **13/13**, focused UI **12/12**, full backend **1559 passed / 6 MySQL-only skipped /
+  0 failed in 459.36s**, full frontend **43 files / 860 tests**, strict mypy **317 files**,
+  changed-file Ruff, OpenAPI drift, frontend lint/types and production build PASS.
+- Remaining: Contacts/Campaigns/KYC/Reports view integrations, attribution/revenue/ROI, target-scale
+  and host commissioning. No provider/customer/release action occurred.
+
+### PAR-CAM-01 — Campaign recipient failure operations
+
+- Declares `status`, bounded `limit` and `cursor` on the existing recipient-ledger resource and adds
+  a total-aware page envelope while keeping top-level `has_more` for v1 compatibility.
+- Resolves current contact name/WhatsApp identity through an organization predicate, exposes safe
+  status/error/retry/lifecycle facts, and leaves provider/message/internal error identities absent.
+- Campaign Detail now filters the complete server roster and navigates forward/back through keyset
+  cursor history. Failed-recipient retry requires an explicit count/boundary confirmation and keeps
+  mutation errors in the decision dialog; the existing send permission, rate limiter, smart retry,
+  idempotent roster, queue and Audit contracts remain authoritative.
+- Additive `0056_campaign_recipient_operations` adds composite indexes for unfiltered and exact-
+  status `(campaign_id, created_at, id)` scans. One linear head advances to **57 revisions**;
+  OpenAPI remains **225 paths** and generated TypeScript is synchronized.
+- Campaign/migration regression **107/107**, focused Campaign UI **51/51**, complete frontend **43
+  files / 857 tests**, complete backend **1553 passed / 6 MySQL-only skipped / 0 failed in 476.67s**,
+  static **6/6**, strict mypy **314 files** and Vite **8.2.2** build PASS.
+- Still open: campaign-to-reactivation conversion and approved recovered-value/revenue/ROI sources,
+  target-MySQL scale evidence, Docker/security rerun and host commissioning. No send/provider action.
+
+### PAR-DL-03 — Governed Campaign results exports
+
+- Adds a distinct `campaigns:export` entitlement and tenant/requester/campaign-scoped start/progress
+  contracts. A job UUID cannot be substituted below another campaign and current permission still
+  gates Download Center visibility.
+- Streams the authoritative recipient ledger oldest-first in 500-row keyset batches, optionally by
+  recipient status. The artifact includes current contact identity plus factual status/error-code/
+  retry/cost/timestamps while excluding provider/message IDs, variables and internal error detail.
+- PDF/CSV/XLSX/JSON reuse the existing export row, queue, hardened writers, storage, expiry, signed
+  links and audit. Campaign Detail adds the responsive export/progress sheet; Download Center adds
+  the Campaign results category and navigation entitlement.
+- Additive `0055_campaign_results_exports` preserves one **56-revision** head. OpenAPI is **225
+  paths**, generated TypeScript is synchronized and source image inventory is **32 tasks**.
+- Campaign/export regression **106/106**, provider/OpenAPI/smoke/image **32/32**, migration **5/5**,
+  focused UI **63/63**, complete backend **1552 passed / 6 MySQL-only skipped / 0 failed in
+  475.58s**, complete frontend **42 files / 854
+  tests**, static **6/6**, strict mypy **314 files** and production build PASS.
+- Still open after PAR-CAM-01: campaign conversion/ROI, compliant Scan/generated-document artifacts and
+  host commissioning. No send/provider action.
+
+### PAR-HIST-01 — Advanced Chat History filters and shared views
+
+- Extends the existing conversation list with declared inclusive-`from`/exclusive-`to`, campaign,
+  media and audit parameters. Campaign/media use tenant-scoped ledger `EXISTS`; audit uses direct
+  conversation audit evidence and requires `audit:read`. Existing keyset order and basic filters
+  remain authoritative.
+- Adds `conversation_history_views`: a 25-per-organization, case-insensitively named collection of
+  validated portable filters. `inbox:read` lists/applies ordinary views; new
+  `inbox:views_manage` creates/deletes them; audit-scoped views remain invisible without audit
+  access. Create/delete are audited and tenant-isolated.
+- Chat History adds compact team-view chips and an original responsive Advanced bottom-sheet/dialog
+  with local calendar bounds, campaign/media/audit controls, validation and permission-truthful
+  manager governance. Personal Live Chat preferences are unchanged.
+- Additive `0054_chat_history_filters_views` preserves one **55-revision** head. OpenAPI is **223
+  paths** and generated TypeScript is synchronized; no queue, provider, storage or customer-send
+  contract changed.
+- Focused backend **10/10**, existing Inbox/conversation/QR **77/77**, migration **5/5**, Chat
+  History UI **41/41**, complete backend **1547 passed / 6 MySQL-only skipped / 0 failed in
+  458.04s**, complete frontend **41 files / 850
+  tests**, static **6/6**, strict mypy **314 files** and production build PASS.
+- Remaining Chat History work is authenticated representative-data WCAG/device/browser review and
+  production-scale target-host query commissioning. Docker/security and live-host acceptance remain
+  separate.
+
+### PAR-DL-02 — Governed Chat History transcript exports
+
+- Adds one selected-conversation export contract and personal progress contract under the dedicated
+  `inbox:export` permission. The UI only offers the action when both the Chat History route and this
+  extraction entitlement are available; ordinary `inbox:read` users keep a read-only history view.
+- The worker resolves the conversation inside the requester tenant and streams chronological ledger
+  rows in 500-row keyset batches. Optional `from` (inclusive) / `to` (exclusive) instants support the
+  UI's whole-day range; no browser-loaded page is mistaken for the complete thread.
+- PDF/CSV/XLSX/JSON reuse the current export job, queue, format writer, storage, expiry, signed link,
+  audit and Download Center. A new `chat_history` Center category is permission- and owner-filtered.
+- Artifact content includes timestamp, direction, participant role, message type, human content,
+  status and public message ID. Provider/storage/media identifiers and private links are excluded;
+  spreadsheet formula triggers remain neutralized by the shared writer.
+- Additive `0053_conversation_transcript_exports` seeds the permission only; no domain or artifact
+  table is added. OpenAPI is **221 paths**, the source image inventory is **31 tasks**, and generated
+  TypeScript is synchronized.
+- Focused backend **35/35**, focused frontend **50/50**, complete backend **1537 passed / 6 MySQL-
+  only skipped / 0 failed in 445.40s**, complete frontend **41 files / 845 tests**, static **6/6**,
+  strict mypy **310 files** and production build PASS.
+- Still open: list-level date/campaign/media/audit filtering, shared Chat History saved views,
+  campaign/Scan/generated-document artifacts and target-host acceptance. No send/provider action.
+
 ### Dedicated Chat History read workspace over the existing conversation and message contract
 
 - Added a `/chat-history` route and permission-aware `inbox:read` navigation entry — a read-only
@@ -570,14 +838,11 @@ blocks every live history, media, event and adapter behavior._
 - Deliberately exposes no assignment, status, tag, note or send control — those remain Live Chat's
   job; this route only reads. A deep link opens the selected conversation in Live Chat; a second
   deep link to the audit trail is shown only to `audit:read` holders and hidden otherwise.
-- Date-range filtering and transcript export are named in the UI as not yet available rather than
-  offered as disabled controls — neither is backed by the current contract (`MessageResponse` has
-  no `campaign_id`, the endpoints have no date-range query param, and no export entity exists for
-  this data).
-- Frontend only: no backend file, migration, endpoint, permission code, OpenAPI path, RBAC
-  definition or generated type changed. Closes the frontend half of `ROADMAP.md`'s `CORE-10`; the
-  backend "Conversation query extensions" and export capability it also names remain unimplemented
-  and are recorded as open follow-up, not claimed here.
+- At this historical foundation milestone, date-range filtering and transcript export were named as
+  unavailable instead of being faked. PAR-DL-02 now supersedes the transcript half with a real
+  selected-thread artifact contract; list-level date/campaign filters remain open.
+- This historical slice was frontend-only. PAR-DL-02 later adds the export permission, worker and
+  two API resources; the remaining backend conversation-query extensions stay open.
 - **Follow-up hardening (same day):** removed the dead Previous-page control (the backend never
   returns `prev_cursor`) in favour of a bounded "Back to newest" reset; disabled the inherited 10s
   poll for the selected conversation's detail and messages via an optional, backward-compatible

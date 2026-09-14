@@ -21,6 +21,10 @@ from app.schemas.automation import (
     AutomationVersionResponse,
     AutomationVersionsResponse,
 )
+from app.schemas.automation_handoff import (
+    AutomationHandoffRequest,
+    AutomationHandoffResponse,
+)
 from app.schemas.automation_runtime import (
     AutomationRunResponse,
     AutomationRunsResponse,
@@ -30,6 +34,7 @@ from app.schemas.automation_trigger import (
     AutomationTriggerReceiptResponse,
     AutomationTriggerReceiptsResponse,
 )
+from app.services.automation_handoff_service import AutomationHandoffService
 from app.services.automation_runtime_service import AutomationRuntimeService
 from app.services.automation_service import AutomationService
 from app.services.automation_trigger_service import AutomationTriggerService
@@ -40,6 +45,33 @@ AutomationReader = Annotated[User, Depends(require_permissions("automations:read
 AutomationWriter = Annotated[User, Depends(require_permissions("automations:write"))]
 AutomationPublisher = Annotated[User, Depends(require_permissions("automations:publish"))]
 AutomationStatus = Literal["draft", "published", "disabled"]
+
+
+@router.post(
+    "/automations/{automation_id}/handoffs",
+    response_model=AutomationHandoffResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Request a human handoff from a published automation",
+)
+async def request_automation_handoff(
+    automation_id: uuidlib.UUID,
+    payload: AutomationHandoffRequest,
+    response: Response,
+    session: SessionDep,
+    actor: AutomationPublisher,
+    idempotency_key: Annotated[uuidlib.UUID, Header(alias="Idempotency-Key")],
+) -> AutomationHandoffResponse:
+    result = await AutomationHandoffService(session).request_handoff(
+        organization_id=actor.organization_id,
+        actor=actor,
+        automation_id=automation_id,
+        conversation_id=payload.conversation_id,
+        node_id=payload.node_id,
+        idempotency_key=idempotency_key,
+    )
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return AutomationHandoffResponse.of(result)
 
 
 @router.get("/automations", response_model=AutomationListResponse, summary="List automations")

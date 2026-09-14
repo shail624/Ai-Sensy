@@ -17,6 +17,7 @@ from app.models.contact import Contact
 from app.models.conversation import WINDOW, Conversation
 from app.models.message import (
     DIRECTION_INBOUND,
+    DIRECTION_OUTBOUND,
     MSG_ACCEPTED,
     MSG_DELIVERED,
     MSG_FAILED,
@@ -27,6 +28,9 @@ from app.models.message import (
     advances,
 )
 from app.models.webhook import WH_PROCESSED
+from app.repositories.message import MessageRepository
+from app.schemas.settings import InboxOperationsSettings
+from app.services.inbox_operations_service import InboxOperationsService
 from app.services.message_service import (
     APPLIED,
     DUPLICATE,
@@ -69,12 +73,55 @@ async def _inbound(client, make_user, session_factory, monkeypatch, message=None
     """Seed a number, deliver one inbound message, and apply it end-to-end."""
     await _seed_number(client, make_user, session_factory, monkeypatch)
     routed = await _deliver(
-        client, session_factory, monkeypatch, make_user,
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
         _delivery(messages=[message or _message()]),
     )
     assert routed, "the webhook processor must route an inbound message to inbound.process"
     async with session_factory() as session:
         return await MessageService(session).apply_inbound(routed[0])
+
+
+async def _set_inbox_operations(session_factory, **overrides) -> None:
+    """Persist a validated organization policy through the same service as the API."""
+    from app.models.user import User
+
+    async with session_factory() as session:
+        owner = (await session.scalars(select(User).where(User.email == "owner@vi.co"))).one()
+        policy = InboxOperationsSettings.model_validate(overrides)
+        await InboxOperationsService(session).update(
+            organization_id=owner.organization_id, actor=owner, policy=policy
+        )
+
+
+def _fresh_message(*, wamid: str, body: str = "hello") -> dict:
+    occurred_at = utcnow().replace(tzinfo=UTC)
+    return _message(wamid=wamid, body=body) | {"timestamp": str(int(occurred_at.timestamp()))}
+
+
+def _closed_week() -> list[dict[str, object]]:
+    """A one-hour interval six hours ahead of now, guaranteed closed at test execution."""
+    start_hour = (utcnow().hour + 6) % 24
+    end_hour = (start_hour + 1) % 24
+    return [
+        {
+            "day": day,
+            "enabled": True,
+            "start": f"{start_hour:02d}:00",
+            "end": f"{end_hour:02d}:00",
+        }
+        for day in (
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        )
+    ]
 
 
 # --- Inbound application (FR-WA-06) ------------------------------------------
@@ -116,9 +163,7 @@ async def test_inbound_contact_creation_is_audited_and_timelined(
     async with session_factory() as session:
         audit = list(
             (
-                await session.scalars(
-                    select(AuditLog).where(AuditLog.action == "contact.created")
-                )
+                await session.scalars(select(AuditLog).where(AuditLog.action == "contact.created"))
             ).all()
         )
         events = list((await session.scalars(select(ContactEvent))).all())
@@ -127,12 +172,305 @@ async def test_inbound_contact_creation_is_audited_and_timelined(
     assert [e.event_type for e in events] == ["contact_created"]
 
 
+async def test_configured_consent_keyword_updates_contact_in_the_inbound_transaction(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.audit import ACTOR_SYSTEM, AuditLog
+    from app.models.contact_event import ContactEvent
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        consent={
+            "enabled": True,
+            "opt_in_keywords": ["START"],
+            "opt_out_keywords": ["STOP"],
+        },
+    )
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_message(wamid="wamid.STOP", body="  stop  ")]),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(routed[0])
+
+    (contact,) = await _rows(session_factory, Contact)
+    assert contact.opt_in_status == "opted_out"
+    assert contact.opt_out_at is not None
+    async with session_factory() as session:
+        events = list(
+            (
+                await session.scalars(
+                    select(ContactEvent).where(ContactEvent.event_type == "optin_changed")
+                )
+            ).all()
+        )
+        audit = list(
+            (
+                await session.scalars(
+                    select(AuditLog).where(
+                        AuditLog.action == "contact.updated",
+                        AuditLog.actor_type == ACTOR_SYSTEM,
+                    )
+                )
+            ).all()
+        )
+    assert len(events) == 1
+    assert events[0].payload_json == {
+        "from": "unknown",
+        "to": "opted_out",
+        "source": "inbound_keyword",
+    }
+    assert len(audit) == 1 and audit[0].metadata_json["keyword"] == "STOP"
+
+
+async def test_least_open_policy_assigns_a_new_thread_to_an_eligible_user(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.audit import ACTOR_SYSTEM, AuditLog
+    from app.models.user import User
+
+    # Created first so the zero-load tie resolves to the agent, not the later Owner account.
+    agent = await make_user(email="agent@vi.co", password="Agent-Pass1", roles=("agent",))
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(session_factory, assignment_mode="least_open")
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_message(wamid="wamid.ASSIGNED")]),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(routed[0])
+
+    (conversation,) = await _rows(session_factory, Conversation)
+    assert conversation.assigned_user_id == agent.user.id
+    async with session_factory() as session:
+        assigned = (
+            await session.scalars(
+                select(AuditLog).where(AuditLog.action == "conversation.assigned")
+            )
+        ).one()
+        assignee = await session.get(User, conversation.assigned_user_id)
+    assert assigned.actor_type == ACTOR_SYSTEM
+    assert assigned.after_json["policy"] == "least_open"
+    assert assignee is not None and assignee.email == "agent@vi.co"
+
+
+async def test_welcome_reply_is_atomic_idempotent_and_limited_to_a_new_window(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.audit import ACTOR_SYSTEM, AuditLog
+    from app.models.business_event import (
+        BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED,
+        BusinessEvent,
+    )
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        automatic_replies={
+            "welcome_enabled": True,
+            "welcome_body": "Thanks for contacting Vi.",
+        },
+    )
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.WELCOME")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(routed[0])
+    assert first["auto_reply_message_pk"]
+
+    messages = await _rows(session_factory, Message)
+    assert [(row.direction, row.content_json) for row in messages] == [
+        (DIRECTION_INBOUND, {"body": "hello"}),
+        (DIRECTION_OUTBOUND, {"body": "Thanks for contacting Vi."}),
+    ]
+    async with session_factory() as session:
+        event = (
+            await session.scalars(
+                select(BusinessEvent).where(
+                    BusinessEvent.event_type == BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED
+                )
+            )
+        ).one()
+        audit = (
+            await session.scalars(
+                select(AuditLog).where(
+                    AuditLog.action == "message.sent",
+                    AuditLog.actor_type == ACTOR_SYSTEM,
+                )
+            )
+        ).one()
+    assert event.payload_json["kind"] == "welcome"
+    assert event.payload_json["reply_message_id"] == first["auto_reply_message_pk"]
+    assert audit.metadata_json["source"] == "inbox_operations"
+
+    # A post-commit task retry recovers the same reply id for dispatch and creates no second row.
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(routed[0])
+    assert duplicate["status"] == DUPLICATE
+    assert duplicate["auto_reply_message_pk"] == first["auto_reply_message_pk"]
+    assert len(await _rows(session_factory, Message)) == 2
+
+    second_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.SAME-WINDOW", body="One more question")]),
+    )
+    async with session_factory() as session:
+        second = await MessageService(session).apply_inbound(second_routed[-1])
+    assert "auto_reply_message_pk" not in second
+    assert len(await _rows(session_factory, Message)) == 3
+
+
+async def test_locked_duplicate_recheck_recovers_the_same_automatic_reply(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    """A concurrent waiter that missed the optimistic lookup rechecks after the thread lock."""
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        automatic_replies={"welcome_enabled": True, "welcome_body": "Welcome once."},
+    )
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.LOCKED-DUPLICATE")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(routed[0])
+
+    original_lookup = MessageRepository.get_by_provider_message_id
+    lookups = 0
+
+    async def miss_before_lock(self, provider_message_id, *, phone_number_id):
+        nonlocal lookups
+        lookups += 1
+        if lookups == 1:
+            return None
+        return await original_lookup(self, provider_message_id, phone_number_id=phone_number_id)
+
+    monkeypatch.setattr(MessageRepository, "get_by_provider_message_id", miss_before_lock)
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(routed[0])
+
+    assert lookups == 2
+    assert duplicate["status"] == DUPLICATE
+    assert duplicate["message_pk"] == first["message_pk"]
+    assert duplicate["auto_reply_message_pk"] == first["auto_reply_message_pk"]
+    assert len(await _rows(session_factory, Message)) == 2
+
+
+async def test_off_hours_reply_takes_precedence_and_is_rate_limited(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.business_event import BusinessEvent
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        working_hours={"enabled": True, "days": _closed_week()},
+        automatic_replies={
+            "welcome_enabled": True,
+            "welcome_body": "Welcome.",
+            "off_hours_enabled": True,
+            "off_hours_body": "We are closed right now.",
+        },
+    )
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.OFF-HOURS")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(routed[0])
+    assert first["auto_reply_message_pk"]
+    assert (await _rows(session_factory, Message))[-1].content_json == {
+        "body": "We are closed right now."
+    }
+
+    routed_again = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.OFF-HOURS-AGAIN")]),
+    )
+    async with session_factory() as session:
+        second = await MessageService(session).apply_inbound(routed_again[-1])
+        events = list((await session.scalars(select(BusinessEvent))).all())
+    assert "auto_reply_message_pk" not in second
+    assert [
+        event.payload_json["kind"]
+        for event in events
+        if event.event_type.endswith("reply.accepted")
+    ] == ["off_hours"]
+
+
+async def test_stale_or_opted_out_inbound_never_triggers_an_automatic_reply(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        consent={
+            "enabled": True,
+            "opt_in_keywords": ["START"],
+            "opt_out_keywords": ["STOP"],
+        },
+        automatic_replies={
+            "welcome_enabled": True,
+            "welcome_body": "Welcome.",
+        },
+    )
+    stale_at = (utcnow() - timedelta(hours=25)).replace(tzinfo=UTC)
+    stale = _message(wamid="wamid.STALE", body="hello") | {
+        "timestamp": str(int(stale_at.timestamp()))
+    }
+    stale_routed = await _deliver(
+        client, session_factory, monkeypatch, make_user, _delivery(messages=[stale])
+    )
+    async with session_factory() as session:
+        stale_result = await MessageService(session).apply_inbound(stale_routed[0])
+    assert "auto_reply_message_pk" not in stale_result
+
+    stop_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.STOP-FRESH", body="STOP")]),
+    )
+    async with session_factory() as session:
+        stop_result = await MessageService(session).apply_inbound(stop_routed[-1])
+    assert "auto_reply_message_pk" not in stop_result
+    assert all(row.direction == DIRECTION_INBOUND for row in await _rows(session_factory, Message))
+
+
 async def test_second_message_reuses_contact_and_thread(
     client, make_user, session_factory, monkeypatch, dispatched
 ) -> None:
     await _inbound(client, make_user, session_factory, monkeypatch)
     await _deliver(
-        client, session_factory, monkeypatch, make_user,
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
         _delivery(messages=[_message(wamid="wamid.SECOND", body="are you there?")]),
     )
     routed = [r.id for r in await _events(session_factory)][-1:]
@@ -148,6 +486,78 @@ async def test_second_message_reuses_contact_and_thread(
     assert len(await _rows(session_factory, Message)) == 2
 
 
+async def test_new_inbound_reopens_resolved_thread_but_duplicate_and_stale_delivery_do_not(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.audit import ACTOR_SYSTEM, AuditLog
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    first_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.REOPEN-BASE")]),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(first_routed[0])
+        conversation = (await session.scalars(select(Conversation))).one()
+        conversation.status = "resolved"
+        await session.commit()
+
+    # A broker retry is not a new customer action and must leave the manual/automatic resolution.
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(first_routed[0])
+    assert duplicate["status"] == DUPLICATE
+
+    stale_at = (utcnow() - timedelta(hours=1)).replace(tzinfo=UTC)
+    stale_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(
+            messages=[
+                _message(wamid="wamid.REOPEN-STALE", body="older delivery")
+                | {"timestamp": str(int(stale_at.timestamp()))}
+            ]
+        ),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(stale_routed[-1])
+        assert (await session.scalars(select(Conversation))).one().status == "resolved"
+
+    fresh_at = (utcnow() + timedelta(seconds=5)).replace(tzinfo=UTC)
+    fresh_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(
+            messages=[
+                _message(wamid="wamid.REOPEN-FRESH", body="new question")
+                | {"timestamp": str(int(fresh_at.timestamp()))}
+            ]
+        ),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(fresh_routed[-1])
+        conversation = (await session.scalars(select(Conversation))).one()
+        audits = list(
+            (
+                await session.scalars(
+                    select(AuditLog).where(
+                        AuditLog.action == "conversation.status_changed",
+                        AuditLog.actor_type == ACTOR_SYSTEM,
+                    )
+                )
+            ).all()
+        )
+    assert conversation.status == "open"
+    assert len(audits) == 1
+    assert audits[0].metadata_json == {"source": "inbound_message"}
+
+
 async def test_media_message_stores_a_canonical_reference(
     client, make_user, session_factory, monkeypatch, dispatched
 ) -> None:
@@ -157,7 +567,12 @@ async def test_media_message_stores_a_canonical_reference(
         "id": "wamid.IMAGE",
         "timestamp": "1752739200",
         "type": "image",
-        "image": {"id": "media-99", "mime_type": "image/jpeg", "sha256": "abc", "caption": "my bill"},
+        "image": {
+            "id": "media-99",
+            "mime_type": "image/jpeg",
+            "sha256": "abc",
+            "caption": "my bill",
+        },
     }
     await _inbound(client, make_user, session_factory, monkeypatch, message=image)
 
@@ -222,7 +637,9 @@ async def test_window_truth_is_computed_not_read_from_the_flag(session_factory) 
     assert stale.window_is_open is False
 
     fresh = Conversation(
-        organization_id=1, phone_number_id=1, contact_id=1,
+        organization_id=1,
+        phone_number_id=1,
+        contact_id=1,
         window_expires_at=utcnow() + timedelta(hours=1),
     )
     assert fresh.window_is_open is True
@@ -260,9 +677,7 @@ async def test_replayed_older_message_does_not_rewind_the_thread(
         "type": "text",
         "text": {"body": "sent earlier, arrived later"},
     }
-    await _deliver(
-        client, session_factory, monkeypatch, make_user, _delivery(messages=[older])
-    )
+    await _deliver(client, session_factory, monkeypatch, make_user, _delivery(messages=[older]))
     routed = [r.id for r in await _events(session_factory)][-1:]
     async with session_factory() as session:
         await MessageService(session).apply_inbound(routed[0])
@@ -348,11 +763,9 @@ async def test_out_of_order_status_is_a_no_op(
     for event in await _events(session_factory):
         async with session_factory() as session:
             outcomes.append(
-                (
-                    await WebhookService(session).process(
-                        event.id, dispatch_inbound=_fail_routing
-                    )
-                )["outcome"]
+                (await WebhookService(session).process(event.id, dispatch_inbound=_fail_routing))[
+                    "outcome"
+                ]
             )
     assert outcomes == [APPLIED, IGNORED_STALE]
 
@@ -431,6 +844,53 @@ def test_inbound_task_is_bound_to_the_inbound_process_queue() -> None:
     import app.channels.tasks as tasks
 
     assert tasks.process_inbound_message.queue_name == "inbound.process"
+
+
+def test_inbound_task_dispatches_a_persisted_automatic_reply(monkeypatch) -> None:
+    import app.channels.tasks as tasks
+
+    queued: list[list[int]] = []
+    monkeypatch.setattr(tasks.send_message, "apply_async", lambda args: queued.append(args))
+
+    async def _with_reply(event_pk: int):
+        return {
+            "status": "applied",
+            "message_pk": 42,
+            "media_pending": False,
+            "auto_reply_message_pk": 77,
+        }
+
+    monkeypatch.setattr(tasks, "_apply_inbound", _with_reply)
+    tasks.process_inbound_message.run(1)
+
+    assert queued == [[77]]
+
+
+def test_inbound_task_dispatches_durable_automation_receipts(monkeypatch) -> None:
+    import app.channels.tasks as tasks
+
+    queued: list[tuple[list[int], str | None]] = []
+    monkeypatch.setattr(
+        tasks.consume_automation_trigger_receipt,
+        "apply_async",
+        lambda args, task_id=None: queued.append((args, task_id)),
+    )
+
+    async def _with_receipts(event_pk: int):
+        return {
+            "status": "applied",
+            "message_pk": 42,
+            "media_pending": False,
+            "automation_receipts": [
+                {"receipt_pk": 9, "task_id": "receipt-task-9"},
+                {"receipt_pk": 10, "task_id": "receipt-task-10"},
+            ],
+        }
+
+    monkeypatch.setattr(tasks, "_apply_inbound", _with_receipts)
+    tasks.process_inbound_message.run(1)
+
+    assert queued == [([9], "receipt-task-9"), ([10], "receipt-task-10")]
 
 
 def test_ledger_error_dead_letters_instead_of_retrying(monkeypatch) -> None:

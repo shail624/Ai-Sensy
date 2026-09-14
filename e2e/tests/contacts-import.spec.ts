@@ -66,8 +66,12 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(page.getByRole("heading", { name: "Engagement funnel" })).toBeVisible();
 
   await page.goto("/reactivation");
-  await expect(page.getByRole("heading", { name: "Reactivation", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "One governed customer journey" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reactivation CRM", exact: true })).toBeVisible();
+  const reactivationSections = page.getByRole("navigation", { name: "Reactivation sections" });
+  await expect(reactivationSections.getByRole("link", { name: "Pipeline" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "KYC" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "Documents" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "Reports" })).toBeVisible();
 
   await page.goto("/automation");
   await expect(page.getByRole("heading", { name: "Automation", exact: true })).toBeVisible();
@@ -111,7 +115,9 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await page.goto(automationUrl);
   await expect(page.getByRole("heading", { name: "Trigger receipts" })).toBeVisible();
   await expect(page.getByText("contact.created", { exact: true })).toBeVisible();
-  await expect(page.getByText("Evidence only. No action executed.")).toBeVisible();
+  await expect(
+    page.getByText("durably dispatched to their bounded live paths", { exact: false }),
+  ).toBeVisible();
 
   await page.goto("/scan");
   await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();

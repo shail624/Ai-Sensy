@@ -1,7 +1,9 @@
 """User management endpoints (Doc 04 §12.1).
 
 Reads require ``users:read``; mutations require ``users:manage`` (Owner superuser bypasses).
-Users are scoped to the caller's organization. Listing is cursor-paginated (Doc 04 §3/§6)
+The current workload snapshot instead requires ``analytics:read`` + ``tasks:assign`` and exposes
+only teammate names and pending-work counts. Users are scoped to the caller's organization.
+Listing is cursor-paginated (Doc 04 §3/§6)
 with the filters ``filter[is_active][bool]`` / ``filter[role][eq]`` and quick search ``q``.
 """
 
@@ -10,7 +12,7 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
@@ -18,12 +20,14 @@ from app.models.user import User
 from app.schemas.user import (
     PreferencesResponse,
     PreferencesUpdateRequest,
+    TeamWorkloadResponse,
     UserCreateRequest,
     UserResponse,
     UsersPage,
     UserUpdateRequest,
 )
 from app.services.settings_service import SettingsService
+from app.services.team_workload_service import TeamWorkloadService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -31,6 +35,9 @@ router = APIRouter()
 UsersReadActor = Annotated[User, Depends(require_permissions("users:read"))]
 UsersManageActor = Annotated[User, Depends(require_permissions("users:manage"))]
 SelfActor = Annotated[User, Depends(require_permissions("auth:self"))]
+TeamWorkloadActor = Annotated[
+    User, Depends(require_permissions("analytics:read", "tasks:assign"))
+]
 
 
 def _bool_param(value: str | None) -> bool | None:
@@ -112,6 +119,24 @@ async def update_preferences(
         user=actor, preferences=payload.preferences
     )
     return PreferencesResponse(preferences=prefs)
+
+
+@router.get(
+    "/users/workload",
+    response_model=TeamWorkloadResponse,
+    summary="Current team workload snapshot",
+)
+async def team_workload(
+    session: SessionDep,
+    actor: TeamWorkloadActor,
+    timezone: Annotated[str | None, Query(max_length=64)] = None,
+) -> TeamWorkloadResponse:
+    """Pending work by teammate; conversation/task tables remain the live authorities."""
+    snapshot = await TeamWorkloadService(session).snapshot(
+        organization_id=actor.organization_id,
+        timezone_name=timezone or actor.timezone,
+    )
+    return TeamWorkloadResponse.from_snapshot(snapshot)
 
 
 @router.get("/users/{user_id}", response_model=UserResponse, summary="Get a user")

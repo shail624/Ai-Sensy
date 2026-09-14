@@ -154,9 +154,14 @@ def test_backend_image_smoke_imports_the_worker_task_modules() -> None:
     command = image_contract.smoke_command("docker", "app:test", "backend")
     code = command[-1]
     assert "loader.import_default_modules()" in code
-    assert "len(app.openapi()['paths']) == 207" in code
-    assert ") == 25" in code
-    assert "startswith('app.')" in code
+    assert (
+        f"len(app.openapi()['paths']) == {image_contract.canonical_openapi_path_count()}" in code
+    )
+    assert "registered_tasks == expected_tasks" in code
+    assert "'missing':" in code
+    assert "'unexpected':" in code
+    assert len(image_contract.EXPECTED_APPLICATION_TASKS) == 32
+    assert all(task_name in code for task_name in image_contract.EXPECTED_APPLICATION_TASKS)
 
 
 def test_quality_runner_stops_at_first_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -344,3 +349,12 @@ def test_deployed_compose_commands_are_scoped_to_generated_projects() -> None:
     assert command[2:4] == ("--project-name", "wa-e2e-123-abc")
     with pytest.raises(ValueError, match="non-isolated"):
         deployed_stack_gate.compose_command("docker", "wa-platform", "down")
+
+
+def test_deployed_stack_environment_satisfies_every_required_compose_variable() -> None:
+    compose_text = deployed_stack_gate.PRODUCTION_COMPOSE.read_text(encoding="utf-8")
+    environment, _owner_email, _owner_password = deployed_stack_gate.stack_environment(
+        "quality-gate", 18080
+    )
+
+    assert release_contract.required_variables(compose_text) <= environment.keys()

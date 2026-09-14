@@ -44,6 +44,19 @@ class SettingRepository(BaseRepository[Setting]):
         )
         return (await self.session.scalars(stmt)).first()
 
+    async def list_org_settings_by_key(self, key: str) -> list[Setting]:
+        """All organization policies for a scheduled, cross-tenant policy consumer."""
+        stmt = (
+            select(Setting)
+            .where(
+                Setting.scope == SCOPE_ORGANIZATION,
+                Setting.key_name == key,
+                Setting.organization_id.is_not(None),
+            )
+            .order_by(Setting.organization_id, Setting.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
     async def upsert_org(
         self,
         *,

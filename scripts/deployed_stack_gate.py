@@ -52,6 +52,11 @@ def stack_environment(image_tag: str, http_port: int) -> tuple[dict[str, str], s
             "REDIS_PASSWORD": secrets.token_urlsafe(24),
             "META_APP_SECRET": secrets.token_urlsafe(24),
             "META_WEBHOOK_VERIFY_TOKEN": secrets.token_urlsafe(24),
+            # Compose interpolates every service before profile selection, so the optional WAHA
+            # service's fail-closed variables need isolated synthetic values even though this
+            # deployed browser gate does not enable or pair the WAHA profile.
+            "WAHA_API_KEY": secrets.token_urlsafe(24),
+            "WAHA_WEBHOOK_HMAC_SECRET": secrets.token_urlsafe(24),
             "API_WORKERS": "1",
             "WORKER_REALTIME_CONCURRENCY": "1",
             "WORKER_BULK_CONCURRENCY": "1",
@@ -276,6 +281,8 @@ def run_gate(*, app_image_tag: str, runner_image: str) -> int:
                 "REDIS_PASSWORD",
                 "META_APP_SECRET",
                 "META_WEBHOOK_VERIFY_TOKEN",
+                "WAHA_API_KEY",
+                "WAHA_WEBHOOK_HMAC_SECRET",
             )),
         ]
         log_evidence = validate_runtime_logs(

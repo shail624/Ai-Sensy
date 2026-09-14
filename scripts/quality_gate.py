@@ -163,8 +163,8 @@ def _security_steps(python: str, npm: str, docker: str) -> list[Step]:
             BACKEND,
         ),
         Step(
-            "frontend production dependency audit",
-            (npm, "audit", "--omit=dev", "--audit-level=high"),
+            "frontend dependency audit",
+            (npm, "audit", "--audit-level=high"),
             FRONTEND,
         ),
         Step(

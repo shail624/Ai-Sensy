@@ -13,6 +13,16 @@ from app.repositories.base import BaseRepository
 class MessageRepository(BaseRepository[Message]):
     model = Message
 
+    async def lock_by_id(self, message_id: int) -> Message | None:
+        """Serialize delivery attempts for one durable outbound ledger row."""
+        stmt = (
+            select(Message)
+            .where(Message.id == message_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def get_for_org(self, organization_id: int, public_id: bytes) -> Message | None:
         """Fetch by public id, scoped to the tenant. Messages are never soft-deleted (Doc 03 §9.2)."""
         stmt = select(Message).where(
@@ -45,6 +55,42 @@ class MessageRepository(BaseRepository[Message]):
             select(Message)
             .where(*clauses)
             .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(limit + 1)
+        )
+        rows = list((await self.session.scalars(stmt)).all())
+        return rows[:limit], len(rows) > limit
+
+    async def list_for_transcript(
+        self,
+        conversation_pk: int,
+        *,
+        limit: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        cursor: tuple[datetime, int] | None = None,
+    ) -> tuple[list[Message], bool]:
+        """Stream a thread oldest-first for a human-readable transcript.
+
+        The same ``(conversation_id, created_at)`` index and ``(created_at, id)`` keyset used by
+        the inbox read path keep this bounded. ``start`` is inclusive and ``end`` is exclusive.
+        """
+        clauses = [Message.conversation_id == conversation_pk]
+        if start is not None:
+            clauses.append(Message.created_at >= start)
+        if end is not None:
+            clauses.append(Message.created_at < end)
+        if cursor is not None:
+            c_created, c_id = cursor
+            clauses.append(
+                or_(
+                    Message.created_at > c_created,
+                    and_(Message.created_at == c_created, Message.id > c_id),
+                )
+            )
+        stmt = (
+            select(Message)
+            .where(*clauses)
+            .order_by(Message.created_at.asc(), Message.id.asc())
             .limit(limit + 1)
         )
         rows = list((await self.session.scalars(stmt)).all())

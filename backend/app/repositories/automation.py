@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import func, select
 
 from app.models.automation import AutomationFlow, AutomationFlowVersion
+from app.models.organization import Organization
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -114,5 +117,32 @@ class AutomationRepository(BaseRepository[AutomationFlow]):
                 AutomationFlow.active_version_no.is_not(None),
                 AutomationFlow.active_content_hash == AutomationFlow.draft_content_hash,
             )
+        )
+        return list((await self.session.execute(stmt)).tuples().all())
+
+    async def due_schedules(
+        self, now: datetime, *, limit: int
+    ) -> list[tuple[AutomationFlow, AutomationFlowVersion, Organization]]:
+        """Lock a bounded set of clean, enabled schedule publications that are due."""
+        stmt = (
+            select(AutomationFlow, AutomationFlowVersion, Organization)
+            .join(
+                AutomationFlowVersion,
+                (AutomationFlowVersion.flow_id == AutomationFlow.id)
+                & (AutomationFlowVersion.version_no == AutomationFlow.active_version_no),
+            )
+            .join(Organization, Organization.id == AutomationFlow.organization_id)
+            .where(
+                AutomationFlow.status == "published",
+                AutomationFlow.active_version_no.is_not(None),
+                AutomationFlow.active_content_hash == AutomationFlow.draft_content_hash,
+                AutomationFlow.next_run_at.is_not(None),
+                AutomationFlow.next_run_at <= now,
+                Organization.is_active.is_(True),
+                Organization.deleted_at.is_(None),
+            )
+            .order_by(AutomationFlow.next_run_at.asc(), AutomationFlow.id.asc())
+            .limit(limit)
+            .with_for_update(skip_locked=True)
         )
         return list((await self.session.execute(stmt)).tuples().all())

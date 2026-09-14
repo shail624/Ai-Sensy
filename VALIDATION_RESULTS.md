@@ -1,10 +1,880 @@
 # Validation Results
 
+## UI-REF-04 — Live Chat category semantics (2026-09-14, local)
+
+Restores the owner's category definitions: Active = open; Requesting = open and
+unassigned; Intervened = current assignment ownership across statuses. Switching
+categories preserves only search. Reference-style captions are retained.
+PASS: 32 focused inbox tests and frontend TypeScript checking. Added regression
+coverage for conflicting status/assignee/tag filters while retaining search.
+PENDING – Host Machine Validation: authenticated populated preview and release.
+No completion percentage increase. Uncommitted on the existing dirty checkout;
+this entry does not certify or commit the unrelated local work or full UI parity.
+
+
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 > Status vocabulary is restricted to `PASS`, `FAIL`, and
 > `PENDING – Host Machine Validation`. This ledger records the latest applicable evidence and
 > separates repository-verifiable engineering gates from target-host visual/commissioning evidence.
 
-Last synchronized: `2026-08-09T22:56:26+05:30`.
+Last synchronized: `2026-09-13`.
+
+## UI-REF-02 — latest Live Chat UI checkpoint
+
+PASS: **47 files / 883 frontend tests**, 8.26s; TypeScript/build, ESLint and changed-file diff
+checks. PASS: authenticated 1440x900 view switching and 390x844 advanced-filter preview with
+no document-width overflow. PENDING – Host Machine Validation: populated full Live Chat parity,
+complete device/accessibility acceptance and cumulative release/production validation.
+No backend/API/migration change. Design Document 73 records evidence; earlier gates are historical.
+
+## UI-REF-01 — latest local UI delta
+
+| Check | Status | Evidence |
+|---|---|---|
+| Frontend regression | PASS | 47 files / 882 tests, zero failures, 7.69s. |
+| Frontend static/build | PASS | TypeScript, ESLint, production build; existing mixed-import warnings remain. |
+| Navigation | PASS | Captions, persistent Manage, section permissions, unique/current deep links, keyboard entry/Escape, focus restoration and real consent controls. |
+| Local preview | PASS | Isolated workspace: 1440x900 desktop, 390x844 mobile, no document-width overflow, drawer close/focus and consent focus. |
+| Full screenshot parity | PENDING – Host Machine Validation | Design Document 72 lists unmatched screens/forms/buttons; no all-product equivalence claimed. |
+| Cumulative backend/release | PENDING – Host Machine Validation | Unfinished segment delta at 0062 is preserved; API remains 235. Earlier PAR-VIEW-05 and Docker evidence below are historical, not reruns. |
+| Delivery/acceptance | PENDING – Host Machine Validation | GitHub remains 1865f4b; no commit, push, production deployment or owner acceptance. |
+
+## REL-CERT-01 — Consolidated Production Closure Certification
+
+**Status: `REPOSITORY/LOCAL-DEPLOYMENT CERTIFIED`.** PAR-AUTO-22 remains the last worktree to pass
+the complete `release` profile **23/23 in 685.9s**. The changed PAR-VIEW-05 tree passes complete
+local source validation but awaits the Docker/security release rerun. The cumulative `deployed` profile remains
+preserved at **25/25 in 597.4s** on the certified pre-PAR-AUTO-19 tree.
+`Host Validated: NO` · `Provider Validated: conditional/preserved` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Static contracts | PASS | Static **6/6**: Ruff, strict mypy over **322 source files**, **235-path** OpenAPI drift, frontend lint/types and browser-test types. |
+| Complete tests | PASS | Exact current tree: **1579 backend passed / 6 MySQL-only skipped / 0 failed in 413.35s**; **47 frontend files / 875 tests**. |
+| Build and dependencies | PASS | Exact current Vite **8.2.2** production build passes. Current backend audit, including ReportLab, reports **no known vulnerabilities**; frontend/E2E audit evidence remains from the last complete PAR-AUTO-22 release gate. |
+| Security | PASS | Bandit, tracked-source vulnerability/secret/IaC scan, both production-image vulnerability scans and CycloneDX SBOMs pass. |
+| Runtime contracts | PASS | Development Compose, certified WAHA health/restart, QR JSON/PNG negotiation, provider-generated SHA-512 HMAC/retry/restart, and ten-service edge-only release contract pass. |
+| Production images | PASS | Rebuilt backend exposes canonical **211 paths** and the exact **29** `app.*` Celery tasks; frontend nginx/runtime contract passes. |
+| Deployed browser | PASS | Fresh disposable ten-service stack; owner signs in, imports/finds a Contact, visits Broadcasts/Analytics/Reactivation, publishes/tests Automation, observes a real `contact.created` receipt, and validates Scan Studio/mobile overflow. Playwright **1/1** in **9.7s**. |
+| Performance | PASS | Authenticated `GET /api/v1/contacts`: 5 warmups + 30 samples; p50 **5.235ms**, p95 **5.764ms**, max **6.625ms**, budget **<300ms**. |
+| Failure readiness | PASS | With Redis stopped, `/ready` returned **503 degraded** with database/storage up and Redis down. |
+| Observability/privacy | PASS | **158** JSON events, **155** HTTP events, **149** shared edge/application request IDs, all application requests correlated, **0** synthetic-secret/PII leaks. |
+| Full-scope completion | PENDING – Host Machine Validation | The 31 canonical rows sum to 2,388: **77.0%** unweighted mean and **88%** median. Remaining feature milestones and target-host TLS/secrets/monitoring/restore/UAT are not converted into PASS by a local source gate. |
+| GitHub/live release | PENDING – Host Machine Validation | Work remains uncommitted at baseline HEAD `1865f4b`; no push, release tag, target-host deployment, or owner acceptance was performed. |
+
+## PAR-VIEW-05 — Governed Report Saved Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** Analytics readers can reuse validated personal report filters
+and authorized managers can publish the same definitions to their tenant through the shared
+workspace-view authority. `Host Validated: NO` · `Provider Validated: NOT APPLICABLE` ·
+`Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Shared authority and isolation | PASS | Reports, KYC, Campaigns, Contacts and Reactivation share one service/repository/table. Workspace participates in list/get/count/name/index/unique scope. Readers receive tenant team rows plus only their private rows; cross-workspace identifiers fail closed. |
+| Permission and audit | PASS | Every `analytics:read` user can govern personal views; `analytics:views_manage` protects team create/delete. Create/delete commit atomically with `report_view.created/deleted` Audit rows. |
+| Portable validation | PASS | One exact preset or complete custom date range, day/week granularity and optional previous-period comparison are stored. Report tab, export format, schedule/progress and other transient state are not in the API schema or persisted. |
+| UI implementation | PASS | Private/team chips and the responsive `Save / manage` sheet preserve the existing Analytics tabs, filters, report queries, exports and schedules. Applying a definition writes only validated URL filter state. |
+| Migration/API | PASS | `0061_reports_workspace_views` preserves one **62-revision** head and expands the shared database check to `reports`; SQLite upgrade/downgrade/re-upgrade passes. OpenAPI advances **233 → 235 paths** and generated TypeScript is synchronized. |
+| Focused tests | PASS | API/migration/OpenAPI/permission contracts **12/12**; focused Analytics UI **41/41**. |
+| Complete tests | PASS | Backend **1579 passed / 6 MySQL-only skipped / 0 failed in 413.35s**; frontend **47 files / 875 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **322 files**, OpenAPI drift, frontend lint/types/browser-test types and Vite **8.2.2** build pass. Analytics chunk **433.88/122.56 kB gzip**. |
+| Authenticated local preview | PASS | Isolated local database, owner login, desktop Analytics route, team `Monthly leadership` view creation and 390-pixel responsive management sheet were verified. Empty/unknown metrics are factual because no representative production rollups were injected. |
+| Representative-data WCAG/device review | PENDING – Host Machine Validation | The bounded local preview is not production-data, full browser/device-matrix, screen-reader, contrast or target-host acceptance evidence. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Executive Reports **75% → 80%**, Saved Views **85% → 95%**, full product **76.5% → 77.0%**; median advances **86% → 88%**. Remaining `GROW-03` work is the Segment predicate/saved-filter slice. Revenue/ROI/attribution, capacity truth, scale and host commissioning remain pending. |
+
+## PAR-VIEW-04 — Governed KYC Saved Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** KYC readers can reuse validated personal queue filters and
+authorized managers can publish the same definitions to their tenant through the shared
+workspace-view authority. `Host Validated: NO` · `Provider Validated: NOT APPLICABLE` ·
+`Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Shared authority and isolation | PASS | KYC, Campaigns, Contacts and Reactivation share one service/repository/table. Workspace participates in list/get/count/name/index/unique scope. Readers receive tenant team rows plus only their private rows; cross-workspace identifiers fail closed. |
+| Permission and audit | PASS | Every `kyc:read` user can govern personal views; `kyc:views_manage` protects team create/delete. Create/delete commit atomically with `kyc_view.created/deleted` Audit rows. |
+| Portable validation | PASS | Trimmed customer search and one exact lifecycle status are stored. The 200-row fetch bound, selected case, checklist/documents, appointments, SLA/detail and reviewer/manager decision state are not in the API schema or persisted. |
+| UI implementation | PASS | Lock/team chips and the responsive `Save / manage` sheet preserve the existing KYC queue, metrics, list/mobile views, case drawer and mutations. Search/status are URL-backed for reload/share truth; applying a definition clears only selected-case state. |
+| Migration/API | PASS | `0060_kyc_workspace_views` preserves one **61-revision** head and expands the shared database check to `kyc`; SQLite upgrade/downgrade/re-upgrade passes. OpenAPI advances **231 → 233 paths** and generated TypeScript is synchronized. |
+| Focused tests | PASS | API/migration/OpenAPI/permission contracts **12/12**; KYC UI **2 files / 8 tests**. |
+| Complete tests | PASS | Backend **1574 passed / 6 MySQL-only skipped / 0 failed in 450.05s**; frontend **46 files / 870 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **321 files**, OpenAPI drift, frontend lint/types/browser-test types and Vite **8.2.2** build pass. Reactivation/KYC chunk **94.77/21.45 kB gzip**. |
+| Authenticated visual/WCAG/device review | PENDING – Host Machine Validation | The implementation reuses the tested saved-view component language, but no authenticated representative-data KYC screenshot, protected-media or device result is claimed. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | KYC **85% → 90%**, Saved Views **75% → 85%**, API **98% → 99%**, full product **76.0% → 76.5%**; median remains **86%**. Reports views, remaining segment predicates, server pagination, scale/protected-media and host commissioning remain pending. |
+
+## PAR-VIEW-03 — Governed Campaign Saved Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** Campaign readers can reuse validated personal list filters and
+authorized managers can publish the same definitions to their tenant through the shared
+workspace-view authority. `Host Validated: NO` · `Provider Validated: NOT APPLICABLE` ·
+`Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Shared authority and isolation | PASS | Campaigns, Contacts and Reactivation share one service/repository/table. Workspace participates in list/get/count/name/index/unique scope. Readers receive tenant team rows plus only their private rows; cross-workspace identifiers fail closed. |
+| Permission and audit | PASS | Every `campaigns:read` user can govern personal views; `campaigns:views_manage` protects team create/delete. Create/delete commit atomically with `campaign_view.created/deleted` Audit rows. |
+| Portable validation | PASS | Trimmed search, exact lifecycle status and supported list sort are stored. Local page number is not in the API schema or persisted; applying a definition returns to page one. Recipient cursor, dispatch and lifecycle state are excluded. |
+| UI implementation | PASS | Lock/team chips and the responsive `Save / manage` sheet preserve the existing Campaign search/status/sort, list actions, pagination, empty/error states and deliberate deletion confirmation. |
+| Migration/API | PASS | `0059_campaign_workspace_views` preserves one **60-revision** head and expands the shared database check to `campaigns`; SQLite upgrade/downgrade/re-upgrade passes. OpenAPI advances **229 → 231 paths** and generated TypeScript is synchronized. |
+| Focused tests | PASS | Shared Campaign/Contacts/Reactivation saved-view API **16/16**; migration **5/5**; Campaign UI **54/54**. |
+| Complete tests | PASS | Backend **1569 passed / 6 MySQL-only skipped / 0 failed in 395.87s**; frontend **45 files / 866 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **320 files**, OpenAPI drift, frontend lint/types/browser-test types and Vite **8.2.2** build pass. Campaigns chunk **120.31/30.52 kB gzip**. |
+| Authenticated visual/WCAG/device review | PENDING – Host Machine Validation | The implementation reuses the already-tested saved-view component language, but no new authenticated representative-data browser screenshot or device result is claimed. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Campaigns **94% → 95%**, Saved Views **65% → 75%**, API **97% → 98%**, full product **75.6% → 76.0%**; median remains **86%**. KYC/Reports views, remaining segment predicates, attribution/revenue/ROI and host commissioning remain pending. |
+
+## PAR-VIEW-02 — Governed Contacts Saved Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** Contacts readers can reuse validated personal filters and
+authorized managers can publish the same definitions to their tenant through the shared
+workspace-view authority. `Host Validated: NO` · `Provider Validated: NOT APPLICABLE` ·
+`Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Shared authority and isolation | PASS | Contacts and Reactivation share one service/repository/table. Workspace is part of list/get/count/name/index/unique scope. Readers receive tenant team rows plus only their private rows; cross-workspace identifiers fail closed. |
+| Permission and audit | PASS | Every `contacts:read` user can govern personal views; `contacts:views_manage` protects team create/delete. Create/delete commit atomically with `contact_view.created/deleted` Audit rows. |
+| Portable validation | PASS | Trimmed search, tag UUID and up to 25 validated enum-attribute selections are stored. Cursor is neither in the API schema nor persisted; applying a definition intentionally returns to the first server page. |
+| UI implementation | PASS | Lock/team chips and the responsive `Save / manage` sheet preserve the existing Contacts search/filter/mobile sheet, bulk actions, exports, empty/error states and deliberate deletion confirmation. |
+| Migration/API | PASS | `0058_contacts_workspace_views` preserves one **59-revision** head and migrates prior rows to workspace `reactivation`; SQLite upgrade/downgrade/re-upgrade passes. OpenAPI advances **227 → 229 paths** and generated TypeScript is synchronized. |
+| Focused tests | PASS | Shared saved-view/API/Reactivation/migration backend **16/16**; Contacts/Reactivation UI **19/19**. |
+| Complete tests | PASS | Backend **1564 passed / 6 MySQL-only skipped / 0 failed in 506.04s**; frontend **44 files / 863 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **319 files**, OpenAPI drift, frontend lint/types/browser-test types and Vite **8.2.2** build pass. |
+| Authenticated visual/WCAG/device review | PENDING – Host Machine Validation | The browser skill was used, but the in-app browser denied local-page access. No screenshot or interactive result is claimed; representative-data review remains a target-host gate. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Contacts **95% → 98%**, Saved Views **55% → 65%**, API **96% → 97%**, full product **75.2% → 75.6%**; median remains **86%**. Campaigns/KYC/Reports view integrations, attribution/revenue/ROI and host commissioning remain pending. |
+
+## PAR-VIEW-01 — Governed Reactivation Saved Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** Operators can reuse validated personal filters and authorized
+managers can publish the same definitions to their tenant. `Host Validated: NO` ·
+`Provider Validated: NOT APPLICABLE` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Scope and tenant isolation | PASS | Readers receive all tenant team views plus only their private rows. Another user's private UUID and foreign-tenant UUID return 404. Private/shared scopes are independently capped and case-insensitively unique under an organization lock. |
+| Permission and audit | PASS | Every `reactivation:read` user can govern personal views; `reactivation:views_manage` protects team create/delete. Create/delete commit with immutable Audit rows. |
+| Portable validation | PASS | Search, owner UUID, status, label, reminder bucket/date and board/list mode are validated; pagination is not stored. Invalid enum/UUID/filter bodies fail validation and database checks constrain visibility/display. |
+| UI | PASS | Lock/team chips apply definitions without stale page state. The responsive management sheet exposes plain-language visibility, permission truth, grouped definitions, API errors and explicit deletion confirmation while preserving the existing work views and case workflow. |
+| Migration/API | PASS | `0057_reactivation_saved_views` preserves one **58-revision** head; SQLite upgrade/downgrade/re-upgrade verifies the table/indexes. OpenAPI advances **225 → 227 paths** and generated TypeScript is synchronized. |
+| Focused tests | PASS | Reactivation view/migration/Vi API **13/13**; Reactivation UI **12/12**. |
+| Complete tests | PASS | Backend **1559 passed / 6 MySQL-only skipped / 0 failed in 459.36s**; frontend **43 files / 860 tests**. |
+| Static/build | PASS | Strict mypy **317 files**, changed-file Ruff lint/format, OpenAPI drift, frontend lint/types and Vite **8.2.2** build pass. Reactivation chunk **89.27/20.09 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Reactivation **94% → 96%**, Saved Views **42% → 55%**, API **95% → 96%**, full product **74.7% → 75.2%**; median remains **86%**. Other module views, campaign attribution/revenue/ROI and host commissioning remain pending. |
+
+## PAR-CAM-01 — Campaign Recipient Failure Operations
+
+**Status: `REPOSITORY IMPLEMENTED`.** Campaign operators can filter and page the complete stored
+recipient ledger and deliberately retry only failed recipients. `Host Validated: NO` ·
+`Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Ledger contract | PASS | Existing resource declares exact `status`, bounded `limit` and `cursor`; returns a total-aware `page.next_cursor`; and preserves top-level `has_more` for v1 clients. Invalid declared statuses fail validation. |
+| Paging/filter truth | PASS | Newest-first `(created_at,id)` keyset pages have no overlap, totals use the same campaign/status predicate, and the UI sends status/cursor to the server instead of filtering only its loaded first page. |
+| Tenant/privacy | PASS | Current contact resolution includes `organization_id`; a deliberately corrupted foreign contact reference returns blank identity. Only name/WhatsApp identity, status, safe error code, retry count and lifecycle timestamps are shown; provider/message/internal error identities remain absent. |
+| Retry boundary | PASS | UI confirms exact failed count and successful-recipient exclusion before calling the existing `campaigns:send`-protected retry. Existing lifecycle/rate/smart-retry/queue/idempotency/Audit behavior is unchanged and campaign queries invalidate on success. |
+| Migration | PASS | `0056_campaign_recipient_operations` adds unfiltered and status-filtered composite scan indexes, preserves one **57-revision** head, and SQLite upgrade/downgrade/re-upgrade verifies both index names. |
+| API/UI | PASS | OpenAPI remains **225 paths** with synchronized generated TypeScript. Campaign Detail has server filter, forward/previous paging, current identity, retry/lifecycle facts, factual totals and complete loading/empty/error/busy states. |
+| Focused tests | PASS | Campaign/migration regression **107/107**; Campaign actions/recipient operations/results UI **51/51**. |
+| Complete frontend | PASS | **43 files / 857 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **314 files**, OpenAPI drift, frontend lint/types, browser-test types and Vite **8.2.2** production build PASS. Campaigns **109.34/28.02 kB gzip**. |
+| Complete backend | PASS | **1553 passed / 6 MySQL-only skipped / 0 failed in 476.67s**. The skips are explicitly live-MySQL-only migration checks; the hermetic SQLite migration round trip passed. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Campaigns **90% → 94%** and full product **74.5% → 74.7%**. Current-table median is **86%**; the prior 85% summary correction is not counted as feature progress. Conversion/ROI source facts and host commissioning remain pending. |
+
+## PAR-DL-03 — Governed Campaign Results Exports
+
+**Status: `REPOSITORY IMPLEMENTED`.** Authorized managers can generate complete or recipient-
+status-filtered campaign result artifacts through the existing personal artifact pipeline.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authorization/isolation | PASS | New `campaigns:export`; start/progress/Center are tenant-, requester-, campaign- and current-permission-scoped. Agent access is denied, another authorized user receives 404, and a job UUID cannot be substituted below another campaign. |
+| Bounded ledger truth | PASS | The persisted campaign recipient ledger streams oldest-first in 500-row `(created_at,id)` keyset batches with optional exact recipient-status filtering. The browser's visible page is never treated as complete evidence. |
+| Artifact privacy | PASS | PDF/CSV/XLSX/JSON include campaign/current-contact identity, status, safe error code, retry/cost and lifecycle timestamps. Provider/message IDs, variables, internal error detail and storage/provider references are excluded; formula-leading cells are neutralized. |
+| Shared pipeline | PASS | Existing export job, `exports` queue, retry policy, hardened writers, storage, expiry, signed URL and audit flow are reused. Download Center adds only the permission-filtered `campaigns` category. |
+| API/UI | PASS | Start/progress bring OpenAPI to **225 paths** with synchronized generated TypeScript. Campaign Detail adds a responsive export/progress/direct-download sheet; navigation and Center recognize the entitlement. |
+| Migration/task contract | PASS | Additive `0055_campaign_results_exports` preserves one **56-revision** head and adds no table. SQLite round trip passes; source image inventory is exactly **32 application tasks**. |
+| Focused tests | PASS | Campaign/export backend **106/106**; provider/OpenAPI/smoke/image **32/32**; migration **5/5**; Campaign/Download/navigation UI **63/63**. |
+| Complete tests | PASS | Backend **1552 passed / 6 MySQL-only skipped / 0 failed in 475.58s**; frontend **42 files / 854 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **314 files**, OpenAPI drift, frontend lint/types, browser-test types and Vite **8.2.2** production build PASS. Campaigns **108.35/27.75 kB gzip**; Download Center **7.18/2.54 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Campaigns **85% → 90%**, Download Center **80% → 88%**, API **94% → 95%**, full product **74.1% → 74.5%**; median remains **85%**. Conversion/ROI, retry UX, Scan/generated-document artifacts and host commissioning stay pending. |
+
+## PAR-HIST-01 — Advanced Chat History Filters and Shared Views
+
+**Status: `REPOSITORY IMPLEMENTED`.** Authorized Inbox users can compose ledger-backed history
+filters and managers can govern reusable team views. `Host Validated: NO` ·
+`Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Filter truth | PASS | Date bounds apply to effective conversation activity; campaign, media and audit predicates use correlated ledger existence checks rather than the browser's loaded page. Campaign UUIDs are tenant-resolved and malformed/foreign values cannot disclose data. |
+| Authorization/isolation | PASS | `has_audit` and audit-scoped views require `audit:read`; shared-view mutations require new `inbox:views_manage`. List, create and delete remain organization-scoped, with tenant-safe 404 behavior and audited mutations. |
+| Shared-view governance | PASS | Team views have case-insensitive organization-unique names, a 25-view cap, canonical validated portable filters and creator/audit metadata. Audit-scoped views are hidden when permission is absent. Existing personal Live Chat views remain unchanged. |
+| API/UI | PASS | Three shared-view lifecycle resources plus expanded conversation filters bring OpenAPI to **223 paths** with synchronized generated TypeScript. Chat History adds a responsive advanced-filter sheet, active count, URL persistence and team-view chips. |
+| Migration | PASS | Additive `0054_chat_history_filters_views` adds the entitlement and shared-view table while preserving one linear **55-revision** head. SQLite upgrade/downgrade/re-upgrade passes. |
+| Focused tests | PASS | New API/filter/view behavior **10/10**; existing Inbox/conversation/QR regression **77/77**; migration **5/5**; Chat History UI **41/41**. |
+| Complete tests | PASS | Backend **1547 passed / 6 MySQL-only skipped / 0 failed in 458.04s**; frontend **41 files / 850 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **314 files**, OpenAPI drift, frontend lint/types, browser-test types and Vite **8.2.2** production build PASS. Chat History chunk **23.82/6.91 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Commissioning | PENDING – Host Machine Validation | Authenticated representative-data checks across supported devices, browser accessibility and target-database query-plan/performance evidence require the deployment host and owner credentials. |
+| Completion | PASS | Chat History **70% → 88%**, Saved Views **35% → 42%**, API **93% → 94%**, full product **73.3% → 74.1%**; median remains **85%**. Remaining Chat History work is target-host commissioning, while other roadmap modules still have feature gaps. |
+
+## PAR-DL-02 — Governed Chat History Transcript Exports
+
+**Status: `REPOSITORY IMPLEMENTED`.** Authorized managers can generate complete or date-bounded
+selected-thread transcripts through the existing personal artifact pipeline. `Host Validated: NO` ·
+`Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authorization/isolation | PASS | New `inbox:export` entitlement; create/progress and Download Center are tenant-, requester- and current-permission-scoped. Ordinary agent access is denied and another authorized user receives 404 for a foreign job UUID. |
+| Bounded ledger truth | PASS | Selected conversation is tenant-resolved before enqueue; the worker reads oldest-first in 500-row `(created_at,id)` keyset batches with optional inclusive `from` / exclusive `to` UTC bounds. Browser-loaded pages are not treated as complete history. |
+| Artifact privacy | PASS | PDF/CSV/XLSX/JSON include timestamp, direction, participant role, message type/content/status/public ID. Provider message/media IDs, private media URLs and internal storage references are excluded; formula-leading cells are neutralized. |
+| Shared pipeline | PASS | Existing export job, `exports` queue, retry policy, storage, expiry, signed URL and export audit flow are reused. Download Center adds only the permission-filtered `chat_history` category. |
+| API/UI | PASS | Start/progress bring OpenAPI to **221 paths** with synchronized generated TypeScript. Chat History adds a responsive export sheet with range/format/progress/direct-download/Center states; navigation accepts the new artifact entitlement. |
+| Migration/task contract | PASS | Additive `0053_conversation_transcript_exports` preserves one **54-revision** head and adds no table. SQLite upgrade/downgrade/re-upgrade passes; source image inventory is exactly **31 application tasks**. |
+| Focused tests | PASS | Backend transcript/Download/migration/smoke/image-contract **35/35**; Chat History/Download/navigation UI **50/50**. |
+| Complete tests | PASS | Backend **1537 passed / 6 MySQL-only skipped / 0 failed in 445.40s**; frontend **41 files / 845 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **310 files**, OpenAPI drift, frontend lint/types, browser-test types and Vite **8.2.2** production build PASS. Chat History chunk **15.34/4.90 kB gzip**; Download Center **7.12/2.52 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Chat History **55% → 70%**, Download Center **74% → 80%**, API **92% → 93%**, full product **72.5% → 73.3%**; median remains **85%**. List-level advanced filters/saved views, remaining artifact sources and host commissioning stay pending. |
+
+## PAR-REP-04 — Team Productivity and Current Workload
+
+**Status: `REPOSITORY IMPLEMENTED`.** Historical productivity flows and current pending-work stock
+are now presented together without conflating their formulas. `Host Validated: NO` ·
+`Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Stock/flow truth | PASS | Conversation/task productivity remains event-derived and additive; current unresolved/open workload is a separately timestamped live snapshot and is never summed across dates. |
+| Current workload | PASS | Tenant-scoped indexed reads publish unresolved/unread chats, unread messages and open/overdue/due-today tasks; unassigned work and inactive/deleted owners retaining work remain visible. |
+| Authorization | PASS | Workload requires existing `analytics:read` + `tasks:assign`; analyst/agent access is denied, no new permission code or role mutation was introduced. |
+| Reports/Center | PASS | Team Productivity extends the fixed catalogue to eleven and reuses CSV/XLSX/JSON/PDF, personal schedules, notification, expiry, signed download and Download Center authorities. |
+| API/UI | PASS | Current Team workload and task productivity bring OpenAPI to **219 paths**. Analytics presents responsive conversation/task productivity and live workload tables with generated-client types. |
+| Migration | PASS | Additive `0052_team_productivity_reports`; SQLite upgrade/downgrade/re-upgrade and single-head checks pass at **53 revisions**. |
+| Focused tests | PASS | Workload/Analytics/schedule/migration/contract **79 passed / 6 MySQL-only skipped**; Analytics UI **36/36**. |
+| Complete tests | PASS | Backend **1534 passed / 6 MySQL-only skipped / 0 failed in 367.01s**; frontend **41 files / 843 tests**. |
+| Static/build | PASS | Static **6/6**, strict mypy **310 files**, OpenAPI drift, frontend lint/types, browser-test types and Vite **8.2.2** production build PASS. Analytics chunk **427.87 kB / 121.06 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Analytics **75% → 82%**, Executive Reports **65% → 75%**, Download Center **73% → 74%**, Team Management **82% → 86%**, API **91% → 92%**, whole product **71.8% → 72.5%**; median becomes **85%**. Revenue/ROI/attribution, explicit capacity inputs, remaining artifacts and host commissioning remain pending. |
+
+## PAR-REP-03 — Domain Outcome Analytics
+
+**Status: `REPOSITORY IMPLEMENTED`.** Immutable Vi domain events now drive factual business
+outcome analytics, comparisons, reports and schedules. `Host Validated: NO` ·
+`Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Derived authority | PASS | One rebuildable fact family reads tenant-scoped immutable business events. Reactivation/KYC/SIM/Activation/SLA records remain authoritative; bucket retry/backfill converges by replacement. |
+| Formula truth | PASS | Counts/sums only at rest; terminal success/drop-off, eligibility/KYC approval, SLA breach/resolution and turnaround averages are derived after range aggregation. Empty denominators return unknown. |
+| Domain coverage | PASS | Reactivation creation/stage/terminal/source; eligibility; KYC decision/terminal turnaround; SIM/Activation terminal outcomes; SLA starts/breaches/resolutions; outcome/source/actor dimensions. |
+| Reports/Center | PASS | Reactivation, KYC and Service Levels extend the fixed report catalogue to ten and reuse CSV/XLSX/JSON/PDF, schedules, notification, expiry, signed download and personal Download Center authorities. |
+| API/UI | PASS | Three named resources bring OpenAPI to **217 paths**. Analytics presents responsive Business outcomes tables, lead sources and formula-backed KPI cards with generated-client types. |
+| Migration | PASS | Additive `0051_domain_outcome_analytics`; SQLite upgrade/downgrade/re-upgrade and single-head checks pass at **52 revisions**. |
+| Focused tests | PASS | Domain rollup/query/API/export/schedule/migration **144/144**; Analytics UI **35/35**. |
+| Frontend/build | PASS | Complete frontend **41 files / 842 tests**; lint/types and Vite **8.2.2** production build PASS. Analytics chunk **423.51 kB / 120.07 kB gzip**. |
+| Static contracts | PASS | Static **6/6**, strict mypy **309 files**, OpenAPI drift, frontend lint/types and browser-test types PASS. |
+| Complete backend | PASS | Exact current tree: **1532 passed / 6 MySQL-only skipped / 0 failed in 426.19s**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Analytics **55% → 75%**, Executive Reports **50% → 65%**, Download Center **72% → 73%**, API **90% → 91%**, whole product **70.6% → 71.8%**; median remains **82%**. Revenue/ROI/conversion attribution, workload/capacity, remaining artifact families and host commissioning remain pending. |
+
+## PAR-REP-02 — Scheduled Analytics Reports
+
+**Status: `REPOSITORY IMPLEMENTED`.** Authorized executives can manage personal timezone-aware
+daily, weekly and monthly schedules over the seven existing Analytics report families.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Every due occurrence calls the existing report-export request boundary; the shared export job/queue/worker/storage/expiry/signed-link/Download Center pipeline owns the artifact. |
+| Scope/RBAC | PASS | Both `analytics:export` and `analytics:executive`; organization + owner scope; 25 personal rows; case-insensitive names; inactive/deleted/revoked owners are disabled before dispatch. |
+| Time and concurrency | PASS | Daily/weekly/monthly shapes use IANA zones and precomputed naive-UTC next occurrences. Due rows are claimed one transaction at a time with `FOR UPDATE SKIP LOCKED`; a second tick produces no duplicate. |
+| Lifecycle/API | PASS | Create/list/full-update/pause/resume/two-step-delete UI and optimistic version conflicts; fixed reports/formats/ranges/grouping and cadence-specific validation. Collection/item resources bring OpenAPI to **214 paths**. |
+| Notification/Center | PASS | Ready workers emit one `report_ready` item per export and deep-link to the ready Analytics Download Center filter; artifact permission/expiry rules remain authoritative. |
+| Migration/task inventory | PASS | Additive `0050_scheduled_analytics_reports`; SQLite upgrade/downgrade/re-upgrade and single-head checks pass at **51 revisions**. The minute heartbeat is registered and the image contract is synchronized at **30 app tasks**. |
+| Focused tests | PASS | Scheduled lifecycle **5/5**; combined Analytics/Notification/smoke/contracts **71/71**; Analytics UI **34/34**. |
+| Complete source validation | PASS | Backend **1530 passed / 6 MySQL-only skipped / 0 failed in 425.43s**; frontend **41 files / 841 tests**; static **6/6**, strict mypy **309 files**, OpenAPI drift and Vite **8.2.2** production build PASS. |
+| Browser check | PASS | A disposable migrated local stack rendered the live sign-in shell with zero browser console warnings/errors; authenticated representative-data report-schedule/device acceptance remains target-host validation. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Executive Reports **35% → 50%**, Download Center **70% → 72%**, Notifications **85% → 86%**, API **89% → 90%**, whole product **70.0% → 70.6%**; median remains **82%**. New domain projections, other artifact families, optional external delivery and host commissioning remain pending. |
+
+## PAR-REP-01 — Analytics PDF Reports
+
+**Status: `REPOSITORY IMPLEMENTED`.** All seven existing analytics report families now generate
+governed PDF artifacts through the shared asynchronous export and Download Center pipeline.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing rollup queries, `exports` record, queue, worker, storage, retention, signed artifact route and Download Center are reused; no duplicate report/download system. |
+| Format boundary | PASS | Analytics accepts CSV/XLSX/JSON/PDF; contacts still reject PDF at schema/service boundaries. Fixed server catalogues own report names, columns and titles. |
+| Artifact quality | PASS | Paginated compressed landscape-A4 tables repeat titles, headers and page numbers, bound text to cells, show empty-result truth and label raw cost micro-units honestly. |
+| Signed download/Center | PASS | A completed PDF returns `application/pdf` with attachment filename and valid signature, then appears ready in the requesting user's analytics Download Center history. |
+| Migration/API | PASS | Additive `0049_report_pdf_exports`; SQLite upgrade/downgrade/re-upgrade and single-head checks pass at **50 revisions**. OpenAPI remains **212 paths** with synchronized generated TypeScript. |
+| Focused tests | PASS | Backend Analytics/report/format/export/Download/migration **139/139**; Analytics/Download UI **36/36**. |
+| Complete source validation | PASS | Backend **1525 passed / 6 MySQL-only skipped / 0 failed in 434.13s**; frontend **41 files / 839 tests**; static **6/6**, strict mypy **306 files**, OpenAPI drift, current backend dependency audit with no known vulnerabilities and production build PASS. |
+| Visual/structural PDF QA | PASS | Three-page sample rendered with Poppler and inspected page by page: no clipping, overlap, broken glyphs or alignment defects. `pdfinfo`/`pypdf` confirm landscape A4, 3 pages, title metadata and complete boundary-row text. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Executive Reports advance **25% → 35%**, Download Center **65% → 70%**, and whole product **69.5% → 70.0%**. Schedules, new executive/domain metrics and other artifact families remain pending. |
+
+## PAR-DL-01 — Unified Download Center
+
+**Status: `REPOSITORY IMPLEMENTED`.** Existing contact and analytics exports now have one personal,
+permission-scoped history and secure download surface.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Existing authority reuse | PASS | One projection over `exports`, the existing export queue, storage artifact and signed-URL path; no duplicate table/store/retry pipeline. |
+| Ownership and RBAC | PASS | Organization + requesting-user scope; current `contacts:export` and `analytics:export` permissions independently filter families. Same-tenant jobs owned by another user remain hidden. |
+| Status and expiry | PASS | Pending/processing/ready/failed/expired filters use normalized semantics. Ready-but-expired rows render expired and receive no URL; ready retained artifacts receive fresh short-lived signatures. |
+| UI and history | PASS | Entitled Tools tab, URL-backed filters, newest-first keyset pagination, manual refresh, active polling, timestamps/row counts and complete loading/error/empty/action states. |
+| Focused tests | PASS | Download API **5/5**; corrected OpenAPI-count + API regression **7/7**; focused Download/navigation UI **14/14**. |
+| Complete source validation | PASS | Backend **1523 passed / 6 MySQL-only skips / 0 failed in 326.78s**; frontend **41 files / 838 tests**; static **6/6**, strict mypy **306 files**, synchronized **212-path** OpenAPI and production build PASS. `DownloadsPage` is **7.03/2.50 kB gzip**. |
+| Migration/scope | PASS | No migration, permission code, queue, storage provider or customer send. Head remains `0048` (**49 revisions**). PDF/schedules/executive reports/transcripts/campaign/scan/generated-document artifact sources remain pending. |
+| Docker/security release rerun | PENDING – Host Machine Validation | PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Download Center advances **30% → 65%**; whole-product estimate advances **68.4% → 69.5%**. |
+
+## PAR-AUTO-23 — Shared Delay Before Follow-Up
+
+**Status: `REPOSITORY IMPLEMENTED`.** One optional durable Delay may sit between the exact bounded
+Yes/No convergence and its terminal shared internal follow-up.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Exact topology | PASS | Both branch terminals converge on one Delay; it has exactly two incoming edges and one unlabeled edge to one terminal trigger-safe shared effect. The four-effect ceiling remains unchanged. |
+| Durable pause | PASS | True and false live cases execute only the selected Notification, create one running Delay attempt and leave the shared Task absent before its deadline. |
+| Resume/replay | PASS | Early duplicate delivery reuses the selected Notification and Delay attempt. Due delivery completes the Delay, creates one shared Task, records alternate-only skip evidence, and terminal replay creates no duplicate. |
+| Safe test | PASS | The immutable test runtime simulates the selected body, shared Delay and shared Task, skips only the alternate Notification and performs no business mutation. |
+| Builder | PASS | `Add shared delay before follow-up` inserts a 60-second-to-30-day `Shared delay` before `After both`. Removing it reconnects both outcomes; removing the follow-up also removes the dependent timer. |
+| Fail-closed boundary | PASS | Branch-specific Delay/Wait, multiple delays, terminal Delay, Wait at merge, arbitrary/multiple merges, nested/multiple Conditions, longer bodies and external/customer actions remain unsupported. |
+| API/migration | PASS | No route or migration. Head remains `0048` (**49 revisions**), OpenAPI remains **211 paths**, and no permission, queue, provider call or customer send is added. |
+| Focused/combined | PASS | Live plus safe runtime **54/54**; Automation/API/trigger/Schedule/migration **77/77**; focused UI **23/23**. |
+| Complete source validation | PASS | Backend **1524/1524 in 475.70s**; frontend **40 files / 833 tests**; static **6/6**, strict mypy **305 files**, OpenAPI drift and production build PASS. `AutomationPage` is **52.47 kB / 13.23 kB gzip**. |
+| Docker/security release rerun | PENDING – Host Machine Validation | Required escalation was rejected because the approval service exhausted its usage allowance. No bypass was attempted. PAR-AUTO-22's **23/23 in 685.9s** remains the last complete release certificate and is not attributed to this changed tree. |
+| Completion | PASS | Automation remains **99%**; branch-specific timers, arbitrary/multiple merges, multiple/nested Conditions, longer bodies, external/customer actions, recipient/team routing and reconciliation remain pending. |
+
+## PAR-AUTO-22 — Bounded Shared Follow-Up
+
+**Status: `REPOSITORY IMPLEMENTED`.** Both outcomes of one bounded event-backed Yes/No Condition
+may converge on one terminal shared internal effect under the existing four-effect ceiling.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Exact topology | PASS | Trigger connects to one Condition; explicit `yes` and `no` bodies each reach one optional shared effect. Exactly one node may have two incoming edges, it must be terminal, and both branch chains must reach it. |
+| Selected and shared execution | PASS | True and false live cases execute the selected Notification plus one shared Task. Unselected-only Notification is skipped, while the shared node belongs to both path projections and executes exactly once. |
+| Replay safety | PASS | Duplicate receipt/worker consumption reuses one terminal run and one shared domain effect. Completed branch checkpoints resume at the shared node without repeating prior work. |
+| Safe test | PASS | The immutable test runtime simulates the selected body and shared Task, skips only alternate-only nodes and performs no business mutation. |
+| Builder | PASS | `+ Both` creates one `After both` node with two incoming edges; a second branch step can be inserted before it, and removals preserve or remove the merge safely. |
+| Fail-closed boundary | PASS | Arbitrary/multiple/non-terminal merges, partial convergence, repeated effect kind on an executable path, multiple/nested Conditions, longer bodies, branch Delay/Wait, loops and external/customer actions remain unsupported. |
+| API/migration | PASS | No route or migration. Head remains `0048` (**49 revisions**), OpenAPI remains **211 paths**, and no permission, queue, provider call or customer send is added. |
+| Focused/combined | PASS | Live plus safe runtime **51/51**; combined Automation live/runtime/API/migration **78/78**; focused UI **22/22**. |
+| Release gate | PASS | Complete profile **23/23 in 685.9s**: **1521 backend tests with zero skips**, **40 frontend files / 832 tests**, strict mypy **305 files**, OpenAPI/build, SAST/dependency/source/image scans, certified WAHA runtime, image contracts and SBOMs. `AutomationPage` is **50.52 kB / 12.77 kB gzip**. |
+| Completion | PASS | Automation remains **99%**; arbitrary/multiple merges, multiple/nested Conditions, longer bodies, branch Delay/Wait, external/customer actions, recipient/team routing and reconciliation remain pending. |
+
+## PAR-AUTO-21 — Bounded Multi-Step Branch Bodies
+
+**Status: `REPOSITORY IMPLEMENTED`.** Each side of one event-backed Yes/No Condition may execute
+one or two ordered distinct internal effects with complete evidence for the unselected body.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Exact topology | PASS | Trigger connects to one Condition; explicit `yes` and `no` edges each lead through one or two linear trigger-safe effects under the existing four-effect total ceiling. |
+| Selected-only execution | PASS | True and false cases execute exactly the selected Notification and Task in order; both alternate-body nodes are terminal skipped evidence with Condition and selected-branch identity. |
+| Replay safety | PASS | Duplicate receipt/worker consumption reuses the terminal run and one copy of each selected domain effect. A selected body resumes from completed node checkpoints. |
+| Safe test | PASS | The immutable test runtime simulates both selected steps and marks both alternate steps skipped without business mutation. |
+| Builder | PASS | The active split exposes separate Yes/No effect controls, labels second steps, prevents repeated kinds and third additions, locks reordering and supports safe terminal removal or linear restoration. |
+| Fail-closed boundary | PASS | Multiple/nested Conditions, three-step bodies, repeated kinds inside one body, branch Delay/Wait, more than two outcomes, external/customer actions and merging remain unsupported. |
+| API/migration | PASS | No route or migration. Head remains `0048` (**49 revisions**), OpenAPI remains **211 paths**, and no permission, queue, provider call or customer send is added. |
+| Focused/combined | PASS | Live plus safe runtime **48/48**; combined Automation live/runtime/API/migration **75/75**; focused UI **21/21**. |
+| Release gate | PASS | Complete profile **23/23 in 609.3s**: **1518 backend tests with zero skips**, **40 frontend files / 831 tests**, strict mypy **305 files**, OpenAPI/build, SAST/dependency/source/image scans, certified WAHA runtime, image contracts and SBOMs. `AutomationPage` is **48.38 kB / 12.24 kB gzip**. |
+| Completion | PASS | Automation remains **99%**; nested/multiple Conditions, longer bodies, branch Delay/Wait or merging, external/customer actions, recipient/team routing and reconciliation remain pending. |
+
+## PAR-AUTO-20 — Bounded Live Yes/No Branch
+
+**Status: `REPOSITORY IMPLEMENTED`.** One event-backed Condition may select exactly one terminal Yes
+or No internal effect while preserving explicit evidence for the unselected branch.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Exact topology | PASS | Trigger connects to one Condition; the Condition owns exactly one `yes` and one `no` edge, each ending at one trigger-safe internal effect. Missing/duplicate labels, merging and arbitrary fan-out fail closed. |
+| Selected-only execution | PASS | True and false cases execute exactly one effect and create one Notification; the alternate node is terminal `skipped` evidence with Condition and selected-branch identity. |
+| Replay safety | PASS | Duplicate receipt/worker consumption reuses the terminal run and one domain effect. Same-kind effects on alternate branches are safe because only one branch can execute. |
+| Safe test | PASS | The immutable test runtime follows the same decision, simulates only the selected action and records the alternate action skipped without business mutation. |
+| Builder | PASS | Exactly four ordered nodes enable a labeled Yes/No split; branch badges are visible, adding/reordering locks while active, and the operator can return to a linear gate. |
+| Fail-closed boundary | PASS | Multiple Conditions, nested/multi-step branches, branch Delay/Wait, more than two outcomes, external/customer actions and branch merging remain unsupported. |
+| API/migration | PASS | No route or migration. Head remains `0048` (**49 revisions**), OpenAPI remains **211 paths**, and no permission, queue, provider call or customer send is added. |
+| Focused/combined | PASS | Live plus safe runtime **45/45**; combined Automation live/runtime/API/migration **60/60**; focused UI **20/20**. |
+| Release gate | PASS | Complete profile **23/23 in 417.8s**: **1515 backend tests with zero skips**, **40 frontend files / 830 tests**, strict mypy **305 files**, OpenAPI/build, SAST/dependency/source/image scans, certified WAHA runtime, image contracts and SBOMs. `AutomationPage` is **44.79 kB / 11.20 kB gzip**. |
+| Completion | PASS | Automation remains **99%**; multiple/nested branches, multi-step branch bodies, external/customer actions, recipient/team routing and reconciliation remain pending. |
+
+## PAR-AUTO-19 — Live Lead-Stage Changed Automation
+
+**Status: `REPOSITORY IMPLEMENTED`.** The authoritative CRM stage transition now drives a bounded
+privacy-safe live trigger and same-customer Wait event.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Single transition authority | PASS | Reactivation still writes the immutable `reactivation.stage.transitioned` fact with stage history, Audit, Timeline and owner Notification. Automation consumes that fact as `lead.stage_changed`; it creates no duplicate CRM event or pipeline state. |
+| Privacy and isolation | PASS | Run input contains only `from_stage`, `to_stage` and the tenant-checked public Contact ID. Private transition reason and internal case/stage identifiers are excluded; another organization/Contact cannot match. |
+| Bounded live trigger | PASS | Previous/New stage conditions may lead through Delay/Wait to Contact-linked Task, Apply tag, Remove tag or internal Notification. Task has no fabricated Conversation; Handoff, Assignment, branches and external/customer actions fail closed. |
+| Wait/replay | PASS | Only a future same-organization/Contact stage transition resolves the subscription. Duplicate event/receipt/worker delivery converges on one Wait attempt and downstream Notification. |
+| API/migration boundary | PASS | No route or migration. Head remains `0048` (**49 revisions**), OpenAPI remains **211 paths**, and no permission, queue, provider operation or customer send is added. |
+| Focused/combined backend | PASS | Lead-stage live trigger/Wait runtime **35/35**; combined Automation definition/runtime, Reactivation service/API and migration regression **56/56**. |
+| Complete frontend | PASS | Focused Automation **19/19**; complete frontend **40 files / 829 tests**. |
+| Release gate | PASS | Complete profile **23/23 in 389.1s**: **1512 backend tests with zero skips**, strict mypy **305 files**, OpenAPI/build, SAST/dependency/source/image scans, certified WAHA runtime, image contracts and SBOMs. `AutomationPage` is **42.56 kB / 10.49 kB gzip**. |
+| Completion | PASS | Automation remains **99%**; general branching, external/customer actions, recipient/team routing and operational reconciliation remain pending. |
+
+## PAR-AUTO-18 — Durable Task-Completed Wait
+
+**Status: `REPOSITORY IMPLEMENTED`.** A bounded live Wait may now resume on the same customer's
+future immutable Task completion fact or its existing timeout path.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Completion authority | PASS | Single and bulk completion append `task.completed` inside the existing Task/history/Timeline/Audit transaction; projection failure rolls back the mutation. |
+| Cycle idempotency | PASS | Organization/Task/revision UUID converges retries; reopen then re-complete produces a distinct immutable event. |
+| Privacy and scope | PASS | The event excludes title, description and completion note. Same organization/Contact/event/start/deadline matching rejects another customer's completion. |
+| Resume/replay | PASS | Matching releases the original receipt; the existing heartbeat/consumer resumes the same run and duplicate delivery converges on one Wait attempt and Notification. |
+| API/migration boundary | PASS | No route or migration. Head remains `0048` (**49 revisions**) and OpenAPI remains **211 paths**. Lead stage changed was still test-only at this checkpoint and is now delivered by PAR-AUTO-19. |
+| Focused/wider backend | PASS | Completion-cycle/live-Wait **4/4**; Task/Wait **53/53**; combined Automation/Task/API/Notification/KYC **130/130**. |
+| Complete frontend | PASS | Focused Automation **18/18**; complete frontend **40 files / 828 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI drift and production build PASS; `AutomationPage` is **42.56 kB / 10.78 kB gzip**. |
+| Applicable backend | PASS | **1501 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **377.10s**. The excluded QR-08 case reproduces its unchanged local-Redis failure in **65.28s**. |
+| Completion | PASS | Automation remains **99%**; Lead-stage projection is now delivered by PAR-AUTO-19, while general branching, external/customer actions and reconciliation remain pending. |
+
+## PAR-AUTO-17 — Durable Wait for Event
+
+**Status: `REPOSITORY IMPLEMENTED`.** One event-backed live run may pause for the same customer's
+future inbound message or a bounded timeout, then resume its pinned checkpoints.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Durable pause | PASS | Reaching one supported Wait creates exactly one running attempt and one original-receipt subscription; the run becomes `retrying` and carries no processing lease or broker-owned long timer. |
+| Exact event match | PASS | Only a future `message.received` in the same organization and Contact, before the deadline, can resolve the row. The immutable matched event UUID is retained. |
+| Timeout/recovery | PASS | The existing minute receipt heartbeat row-locks due waits, records `timed_out`, releases and claims the original receipt, then the same consumer continues to the later effect. |
+| Replay/isolation | PASS | Wrong-Contact events do not resume; duplicate event/receipt/worker delivery converges on one subscription, Wait attempt and Notification. |
+| Fail-closed boundary | PASS | Timeout is required; one Wait must precede a later effect. Schedule, multiple Waits, branches, `lead.stage_changed`, `task.completed` and unsupported paths remain rejected. |
+| Migration/API | PASS | Additive `0048_automation_wait_subscriptions` upgrade/downgrade/re-upgrade passes; head is `0048` (**49 revisions**). OpenAPI remains **211 paths**. |
+| Focused/wider backend | PASS | Wait **3/3**; combined Automation/API/Schedule/migration **55/55**; wider Inbox/message/provider/Task **112/112**. |
+| Complete frontend | PASS | Focused Automation **17/17**; complete frontend **40 files / 827 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI drift and production build PASS; `AutomationPage` is **42.50 kB / 10.77 kB gzip**. |
+| Applicable backend | PASS | **1499 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **400.25s**; the final future-occurrence edge rerun passes **3/3**. |
+| Completion | PASS | Automation remains **99%**; general branching, additional wait/event projections, external/customer actions and reconciliation remain pending. |
+
+## PAR-AUTO-16 — Durable Live Schedule
+
+**Status: `REPOSITORY IMPLEMENTED`.** The existing cron trigger now owns a restart-safe,
+organization-timezone due projection and one workspace-only live Notification path.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Timezone projection | PASS | Publish computes indexed UTC `next_run_at` from the organization IANA timezone; UI exposes the next run. Disable clears it and enable recomputes it. |
+| Bounded scheduler | PASS | Minute Beat heartbeat selects only clean enabled due flows, row-locks with `SKIP LOCKED`, obeys the shared scan limit and advances to the first future occurrence. |
+| Slot idempotency | PASS | Organization/flow/version/slot UUID creates one immutable `schedule` event and exact receipt; a second tick sees no due work and redelivery reuses one live run/Notification. |
+| Live boundary | PASS | Trigger → optional Delay → one internal Notification succeeds without Contact linkage. Condition, Task and every contact/conversation/external effect fail closed. |
+| Migration/API | PASS | Additive `0047_automation_schedule_due` upgrade/downgrade/re-upgrade passes; head is `0047` (**48 revisions**). OpenAPI remains **211 paths** and generated TypeScript is synchronized. |
+| Focused/wider backend | PASS | Schedule **4/4**; combined Automation **42/42**; wider Automation/Inbox/Tasks/Tags/Notifications **222/222**. |
+| Complete frontend | PASS | Focused Automation **16/16**; complete frontend **40 files / 826 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI drift and production build PASS; `AutomationPage` is **41.90 kB / 10.62 kB gzip**. |
+| Applicable backend | PASS | **1496 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **376.13s**. |
+| Completion | PASS | Automation remains **99%**; general branching, Wait-for-event, external/customer actions and reconciliation remain pending. |
+
+## PAR-AUTO-15 — Conversation Auto-Resolved Live Follow-up
+
+**Status: `REPOSITORY IMPLEMENTED`.** The existing auto-resolution event now drives a bounded,
+event-safe internal follow-up path.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Auto-resolved live path | PASS | Create task, Apply tag, Remove tag and internal Notification reuse their existing tenant-scoped domain authorities. |
+| Immutable lineage | PASS | Tenant-checked public Contact/Conversation references are resolved from Business Event subject/contact IDs for execution without changing stored event payload evidence. |
+| Event-safe Condition | PASS | `payload.previous_status` and `payload.inactive_after_hours` are approved; a false previous-status Condition skips all downstream effects. |
+| Resolved-chat boundary | PASS | A graph containing Handoff fails before a preceding Tag; Assignment is equally rejected, so Automation cannot silently reopen or re-own the resolved chat. |
+| Durable dispatch | PASS | The existing receipt scanner claims the projected auto-resolve receipt and the idempotent worker converges duplicate delivery to one Task, tag association and Notification. |
+| Focused/wider backend | PASS | Runtime **29/29**; combined **50/50**; wider Automation/Inbox/Tasks/Tags/Notifications **180/180**. |
+| Complete frontend | PASS | Focused Automation **15/15**; complete frontend **40 files / 825 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI **211 paths** and production build PASS; `AutomationPage` is **41.33 kB / 10.48 kB gzip**. |
+| Applicable backend | PASS | **1492 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **212.83s**. The unchanged Redis-only case is already separately reproduced and recorded. |
+| Completion | PASS | Automation remains **99%**; a third live event expands evidence without closing general-runtime scope. |
+
+## PAR-AUTO-14 — Contact Created Live Consumer and Receipt Recovery
+
+**Status: `REPOSITORY IMPLEMENTED`.** Contact Created receipts now have an event-safe live path and
+the durable receipt ledger has bounded scheduler recovery.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Contact Created live path | PASS | Apply tag, Remove tag and internal Notification execute through their existing tenant-scoped domain authorities. |
+| Event-safe Condition | PASS | `payload.source` and `payload.opt_in_status` are approved; a false Condition records downstream Tag and Notification skipped with no business effect. |
+| Conversation boundary | PASS | A Contact Created graph containing Create task fails before the preceding Tag; Handoff and Assignment are equally rejected because no Conversation context exists. |
+| Durable scheduler | PASS | The minute scanner row-locks received/stale processing receipts, leases new rows before dispatch, preserves stale leases for recovery, and emits stable task IDs to the existing worker. |
+| Delay ownership | PASS | A paused Delay receipt has a null processing lease, is excluded from scanning and remains owned by its scheduled continuation. |
+| Focused/wider backend | PASS | Runtime **26/26**; trigger/scheduler/runtime **35/35**; Automation plus Tasks, Tags and Notifications **175/175**. |
+| Complete frontend | PASS | Focused Automation **14/14**; complete frontend **40 files / 824 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI **211 paths** and production build PASS; `AutomationPage` is **40.93 kB / 10.39 kB gzip**. |
+| Canonical backend | FAIL | The unfiltered run preserved **1489 passes / 6 MySQL-only skips / 1 failure**. The sole failure was separately reproduced in **64.48s** and reaches unavailable Redis at `127.0.0.1:6379`; PAR-AUTO-14 did not cause it. |
+| Applicable backend | PASS | **1489 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **217.62s**. |
+| Completion | PASS | Automation remains **99%**; the second live event expands evidence without closing the remaining general-runtime scope. |
+
+## PAR-AUTO-13 — Durable Live Delay
+
+**Status: `REPOSITORY IMPLEMENTED`.** One bounded Delay now pauses and resumes an otherwise
+supported linear inbound live run from durable evidence.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Bounded live graph | PASS | One 60-second-to-30-day Delay may appear inside the existing Trigger → optional approved Condition → one-to-four distinct internal effects path. |
+| Durable pause/resume | PASS | The running Delay attempt records `resume_at`; the existing worker schedules the same receipt task, early delivery cannot advance, and due delivery completes the checkpoint before downstream execution. |
+| Replay safety | PASS | A tested Tag → Delay → Notification sequence applies the Tag once, creates one Delay attempt, withholds Notification before due, then delivers it once after resume. |
+| Conditional no-effect | PASS | A false Condition records Tag, Delay and Notification skipped, schedules no continuation and creates no business effect. |
+| Fail-closed boundary | PASS | Multiple delays, branches, repeated effects, Wait-for-event nodes, larger sequences and unsupported/external actions remain rejected. |
+| Focused/wider backend | PASS | Live runtime and scheduling **22/22**; Automation plus Tasks, Tags and Notifications **166/166**. |
+| Complete frontend | PASS | Focused Automation **13/13**; complete frontend **40 files / 823 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI **211 paths** and production build PASS; `AutomationPage` is **40.53 kB / 10.33 kB gzip**. |
+| Canonical backend | FAIL | **1485 passed / 6 MySQL-only skips / 1 failed** in **275.76s**. The sole failure is the recorded QR-08 test reaching unavailable Redis at `127.0.0.1:6379`; PAR-AUTO-13 did not cause it. |
+| Applicable backend | PASS | **1485 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **210.49s**. |
+| Completion | PASS | Automation advances **98% → 99%**. |
+
+## PAR-AUTO-12 — Bounded Sequential Effect Runtime
+
+**Status: `REPOSITORY IMPLEMENTED`.** Distinct supported internal effects can execute in one
+bounded linear inbound run with durable checkpoint resume.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Bounded live graph | PASS | Exact Trigger → optional approved Condition → one-to-four distinct supported effects executes in published edge order. |
+| Checkpoint/replay | PASS | Completed attempts are durable checkpoints. Simulated worker interruption resumes at the first incomplete effect without duplicate Tag, Task or Notification work. |
+| Conditional no-effect | PASS | A false Condition records all three sample effects skipped and creates no association, Task or Notification. |
+| Fail-closed boundary | PASS | Repeated effect kinds and branches are rejected before an effect; larger sequences, multiple conditions, waits/delays and unsupported/external nodes remain unsupported. |
+| Focused/combined backend | PASS | Sequential runtime **19/19**; Automation plus Tasks, Tags, Notifications and migrations **88/88**. |
+| Complete frontend | PASS | Focused Automation **12/12**; complete frontend **40 files / 822 tests**. |
+| Static/build | PASS | Static profile **6/6**, strict mypy **305 files**, OpenAPI **211 paths** and production build PASS; `AutomationPage` is **40.17 kB / 10.23 kB gzip**. |
+| Canonical backend | FAIL | **1482 passed / 6 MySQL-only skips / 1 failed** in **465.36s**. The sole failure is the recorded QR-08 test reaching unavailable Redis at `127.0.0.1:6379`; PAR-AUTO-12 did not cause it. |
+| Applicable backend | PASS | **1482 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **396.20s**. |
+| Completion | PASS | Automation advances **96% → 98%**. |
+
+## PAR-AUTO-11 — Live Internal Notification Executor
+
+**Status: `REPOSITORY IMPLEMENTED`.** The bounded internal Notification effect and its repository
+runtime, frontend and build gates are complete.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing NotificationService, Notification Center projection, Contact deep link and publisher User/RBAC authorities create the effect. No second store, route, permission, queue, external channel, provider action or customer send is added. |
+| Bounded live graph | PASS | Exact Trigger → Notification and Trigger → Condition → Notification paths are accepted beside the five proven effects; all other shapes still fail closed. |
+| Recipient/reference safety | PASS | The immutable publisher must remain active, same-tenant and effectively entitled to Notification Center `tasks:read`; the Contact must remain active inside the receipt tenant. Invalid references cannot create a delivery. |
+| Durable replay | PASS | Receipt/node dedup writes one `automation_attention` row. Simulated post-commit worker crash recovers as `already_delivered`; command mismatch fails closed. |
+| Conditional no-effect | PASS | A false privacy-safe Condition records Notification as skipped and writes zero deliveries. |
+| External-send boundary | PASS | The effect is internal only. It invokes no email, browser push, WhatsApp/customer message or provider operation. |
+| Migration | PASS | Additive `0046_automation_notifications` extends only the existing type constraint; SQLite upgrade/downgrade/re-upgrade passes and downgrade removes the derived type before restoring the legacy constraint. |
+| Focused backend | PASS | Live runtime **15/15**; runtime plus Notification Center/lifecycle/migration regression **23/23**. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; canonical JSON and generated TypeScript agree. Migration head is `0046` (**47 revisions**). |
+| Static quality | PASS | Repository static profile **6/6** passes with strict mypy across **305 files**; frontend ESLint/TypeScript and browser-test types pass. |
+| Canonical backend | FAIL | **1478 passed / 6 MySQL-only skips / 1 failed** in **427.06s**. The sole failure is the previously recorded QR-08 case attempting unavailable Redis at `127.0.0.1:6379`; PAR-AUTO-11 did not cause it. |
+| Applicable backend | PASS | **1478 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **367.87s**. |
+| Focused/full frontend | PASS | Focused Automation/Notification **14/14**; complete frontend **40 files / 821 tests**. |
+| Production build | PASS | TypeScript and Vite build pass; `AutomationPage` is **40.08 kB / 10.20 kB gzip**. |
+| Completion | PASS | Automation advances **94% → 96%**. |
+
+## PAR-AUTO-10 — Live Remove Tag Executor
+
+**Status: `REPOSITORY IMPLEMENTED`.** One real Remove tag effect is live in the automatic inbound
+runtime; the general chatbot/flow runtime is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing TagService, `contact_tags`, usage counter, Contact Timeline and tamper-evident Audit create the effect. There is no second tag store, new route, permission, queue, provider action, customer send or migration. |
+| Bounded live graph | PASS | Exact Trigger → Remove tag and Trigger → Condition → Remove tag paths are accepted beside Human handoff/Create task/Apply tag/Assignment. Every other graph shape still fails closed before an effect. |
+| Tenant/reference safety | PASS | The inbound Contact and immutable published Tag UUID are resolved as active records inside the receipt organization. Missing, deleted, malformed, nil or foreign references cannot mutate CRM data. |
+| Concurrency/idempotency | PASS | Contact and Tag rows are locked. A new removal changes one association and counter; already-absent and crash replay converge on a successful no-op. |
+| Durable evidence | PASS | Automatic removal writes one `tag_removed` ContactEvent and one `contact.untagged` system Audit. Replay produces no duplicate association, event, Audit or counter change. Existing user removal keeps its user attribution and not-attached error contract. |
+| Conditional no-effect | PASS | A false privacy-safe Condition records Remove tag as skipped, keeps the existing association and writes no removal Timeline/Audit effect. |
+| Operator UI | PASS | Remove tag is a distinct Live contract step with the existing CRM tag picker and explicit already-absent/replay guidance. Safe test mode remains simulated. |
+| Focused backend | PASS | Live runtime **13/13**; runtime plus existing Tag API/contact/bulk regression **45/45**. |
+| Complete frontend | PASS | **40 files / 821 tests** pass; focused Automation is **11/11**. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; canonical JSON, generated TypeScript and drift check agree. Migration remains `0045` (**46 revisions**). |
+| Static/build | PASS | Repository static profile **6/6** passes with strict mypy across **305 files**. Production build PASS; `AutomationPage` is **39.68 kB / 10.12 kB gzip**. |
+| Canonical backend | FAIL | **1476 passed / 6 MySQL-only skips / 1 failed** in **460.71s**. The sole failure is the previously recorded QR-08 case attempting unavailable Redis at `127.0.0.1:6379`; this slice does not hide or cause it. |
+| Applicable backend | PASS | **1476 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected** in **416.19s**. |
+| Authenticated visual/host evidence | PENDING – Host Machine Validation | Representative-data desktop/mobile, keyboard, screen-reader, target-host MySQL/Redis and authenticated browser acceptance remain unproven. |
+| Remaining PAR-AUTO scope | PENDING – Host Machine Validation | Multiple effects/general branching, waits/delays, other event consumers, notification/campaign/webhook/customer-message actions, capacity/skill routing and retry/DLQ/reconciliation UI remain future work. |
+
+## PAR-AUTO-09 — Live Assignment Executor
+
+**Status: `REPOSITORY IMPLEMENTED`.** One real Conversation Assignment effect is live in the
+automatic inbound runtime; the general chatbot/flow runtime is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing Conversation ownership/version, organization User, effective Inbox RBAC and tamper-evident Audit authorities create the effect. There is no second assignment store, new route, permission, queue, provider action, customer send or migration. |
+| Bounded live graph | PASS | Exact Trigger → Assignment and Trigger → Condition → Assignment paths are accepted beside Human handoff/Create task/Apply tag. Every other graph shape still fails closed before an effect. |
+| Specific-user safety | PASS | The immutable published User UUID is resolved inside the receipt organization and must remain active with effective `inbox:read` at execution. Missing, inactive, deleted, malformed, nil, foreign or ineligible references cannot mutate ownership. |
+| Deterministic round robin | PASS | Eligible users are stably ordered, and the one-based durable receipt ordinal inside that Automation flow selects the rotation member. One test proves consecutive receipts assign two separate Conversations to user one then user two without mutable cursor state. |
+| Ownership/concurrency | PASS | The tenant-scoped Conversation row is locked before the decision. Any existing manual, policy or automatic owner wins; the executor returns `already_assigned` and never steals or replaces ownership. |
+| Durable replay/audit | PASS | A new assignment increments the existing row version and commits with one `conversation.assigned` system Audit. Simulated post-effect worker crash recovers as `already_assigned` with no second mutation, version bump or Audit. |
+| Conditional no-effect | PASS | The existing false privacy-safe Condition records Assignment as skipped and produces zero ownership/Audit effect through the shared runtime branch. |
+| Operator UI | PASS | Assignment is marked Live contract; the builder offers Round robin and Specific user with the existing User source, preserves existing definitions, and explains eligibility/no-steal behavior. Safe test mode remains simulated. |
+| Focused backend | PASS | Live runtime **11/11**; combined Automation definition/runtime plus Inbox regression **45/45**. |
+| Complete frontend | PASS | **40 files / 820 tests** pass; focused Automation is **10/10**. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; canonical JSON, generated TypeScript and drift check agree. Migration remains `0045` (**46 revisions**). |
+| Static/build | PASS | Repository static profile **6/6** passes with strict mypy across **305 files**. Production build PASS; `AutomationPage` is **38.91 kB / 10.05 kB gzip**. |
+| Canonical backend | FAIL | **1474 passed / 6 MySQL-only skips / 1 failed**. The sole failure is the previously recorded QR-08 case attempting unavailable Redis at `127.0.0.1:6379`; this slice does not hide or cause it. |
+| Applicable backend | PASS | **1474 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected**. |
+| Authenticated visual/host evidence | PENDING – Host Machine Validation | Representative-data desktop/mobile, keyboard, screen-reader, target-host MySQL/Redis and authenticated browser acceptance remain unproven. |
+| Remaining PAR-AUTO scope | PENDING – Host Machine Validation | Remove tag, multiple effects/general branching, waits/delays, other event consumers, notification/campaign/webhook/customer-message actions, capacity/skill routing and retry/DLQ/reconciliation UI remain future work. |
+
+## PAR-AUTO-08 — Live Apply Tag Executor
+
+**Status: `REPOSITORY IMPLEMENTED`.** One real Apply tag effect is live in the automatic inbound
+runtime; the general chatbot/flow runtime is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing TagService, `contact_tags`, usage counter, Contact Timeline and tamper-evident Audit create the effect. There is no second tag store, new route, permission, queue, provider action, customer send or migration. |
+| Bounded live graph | PASS | Exact Trigger → Apply tag and Trigger → Condition → Apply tag paths are accepted beside Human handoff/Create task. Every other graph shape still fails closed before an effect. |
+| Tenant/reference safety | PASS | The inbound Contact and immutable published Tag UUID are resolved as active records inside the receipt organization. Missing, deleted, malformed, nil or foreign references cannot mutate CRM data. |
+| Concurrency/idempotency | PASS | Contact and Tag rows are locked; multi-tag writes lock Tags in stable id order. Concurrent/replayed attachment converges on one association and usage increment. Already-present completes as a successful no-op. |
+| Durable evidence | PASS | A new automated attachment has `tagged_by = null`, one `tag_added` ContactEvent and one `contact.tagged` system Audit row. Crash-style replay produces no duplicate association, event, Audit or counter change. |
+| Conditional no-effect | PASS | A false privacy-safe Condition records Apply tag as skipped and produces zero association, counter, Timeline or Tag Audit effects. |
+| Focused backend | PASS | Live runtime **9/9**; runtime plus existing Tag API and bulk-tag regression **32/32**. |
+| Complete frontend | PASS | **40 files / 819 tests** pass; focused Automation is **9/9** and asserts existing CRM picker serialization plus live/no-duplicate guidance. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; canonical JSON, generated TypeScript and drift check agree. Migration remains `0045` (**46 revisions**). |
+| Static/build | PASS | Repository static profile **6/6** passes with strict mypy across **305 files**. Production build PASS; `AutomationPage` is **37.93 kB / 9.84 kB gzip**. |
+| Canonical backend | FAIL | **1472 passed / 6 MySQL-only skips / 1 failed**. The sole failure is the previously recorded QR-08 case attempting unavailable Redis at `127.0.0.1:6379`; this slice does not hide or cause it. |
+| Applicable backend | PASS | **1472 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected**. |
+| Authenticated visual/host evidence | PENDING – Host Machine Validation | Representative-data desktop/mobile, keyboard, screen-reader, target-host MySQL/Redis and authenticated browser acceptance remain unproven. |
+| Remaining PAR-AUTO scope | PENDING – Host Machine Validation | Remove tag, multiple effects/general branching, waits/delays, other event consumers, assignment/notification/campaign/webhook/customer-message actions and retry/DLQ/reconciliation UI remain future work. |
+
+## PAR-AUTO-07 — Live Create Task Executor
+
+**Status: `REPOSITORY IMPLEMENTED`.** One real Create task effect is live in the automatic inbound
+runtime; the general chatbot/flow runtime is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Authority reuse | PASS | Existing Task, TaskEvent, Contact Timeline and tamper-evident Audit authorities create the work. There is no second task table, new route, permission, queue, provider action or customer send. |
+| Bounded live graph | PASS | Exact Trigger → Create task and Trigger → Condition → Create task paths are accepted alongside Human handoff. Every other shape still fails closed before an effect. |
+| Typed action | PASS | Published action owns a trimmed title, existing Task type, priority and due delay from 5 minutes through 365 days. Due time derives from immutable event occurrence, not worker execution time. |
+| Tenant/ownership safety | PASS | Public Contact/Conversation references resolve inside the receipt organization. The active same-tenant automation publisher is assignee; missing, inactive or deleted publisher/reference fails closed. |
+| Durable replay | PASS | Receipt UUID is Task idempotency key and a canonical command hash binds version/node/records/inputs/assignee. A simulated post-effect worker crash recovers the same Task and history; changed replay is rejected. |
+| Conditional no-effect | PASS | A false privacy-safe Condition records Create task as skipped and produces zero Task/TaskEvent/ContactEvent effects. Matching continues normally. |
+| Focused backend | PASS | Live runtime **7/7** and existing Task API regression **45/45** pass. |
+| Complete frontend | PASS | **40 files / 818 tests** pass; focused Automation is **8/8** and the new editor payload is asserted. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; canonical JSON, generated TypeScript and drift check agree. Migration remains `0045` (**46 revisions**). |
+| Static/build | PASS | Repository static profile **6/6** passes with strict mypy across **305 files**. Production build PASS; `AutomationPage` is **37.59 kB / 9.76 kB gzip**. |
+| Canonical backend | FAIL | **1470 passed / 6 MySQL-only skips / 1 failed**. The sole failure is the previously recorded QR-08 case attempting unavailable Redis at `127.0.0.1:6379`; this slice does not hide or cause it. |
+| Applicable backend | PASS | **1470 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected**. |
+| Authenticated visual/host evidence | PENDING – Host Machine Validation | Representative-data desktop/mobile, keyboard, screen-reader, target-host MySQL/Redis and authenticated browser acceptance remain unproven. |
+| Remaining PAR-AUTO scope | PENDING – Host Machine Validation | General branching, waits/delays, other event consumers, tag/notification/campaign/webhook/customer-message actions and retry/DLQ/reconciliation UI remain future work. |
+
+## PAR-AUTO-06 — Privacy-Safe Live Conditions
+
+**Status: `REPOSITORY IMPLEMENTED`.** One optional condition is live in the automatic inbound
+handoff path; general branching is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Bounded graph contract | PASS | Live consumption accepts only Trigger → Handoff or Trigger → Condition → Handoff with exact linear edges. Multiple conditions, branches, joins and every other effect still fail `unsupported_live_graph` before a business effect. |
+| Privacy-safe fields/operators | PASS | Live conditions allow only `event_type`, `source`, `payload.direction`, `payload.message_type` with `eq`, `ne`, `contains`, `exists`. A private `payload.contact_id` condition is explicitly proven fail-closed. Test mode retains its broader simulator. |
+| Matching decision | PASS | A matching message-type condition records Trigger/Condition/Handoff as succeeded, completes all three steps and reuses the existing idempotent Live Chat Requested effect. |
+| No-effect decision | PASS | A false condition records the condition result, marks Handoff `skipped`, completes the run/receipt successfully, leaves Conversation open and emits no handoff Business Event. Replaying the receipt creates no extra attempt/effect. |
+| Evidence privacy | PASS | Condition evidence stores only field, operator, presence and boolean match. It omits actual/expected values, message body, provider id, phone/name and credentials. |
+| Migration | PASS | Additive `0045_automation_live_conditions` (46 revisions) expands the existing attempt constraint with `skipped`; downgrade converts skipped rows to interrupted before restoring the legacy constraint. SQLite upgrade/downgrade/re-upgrade **5/5** passes. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; `skipped` regenerates into the attempt response union and drift check agrees. |
+| Operator UI | PASS | New conditions default to a live-safe message-type example, suggest the four supported fields, retain test-only authoring, explain fail-closed limits, hide value for `exists`, and distinguish skipped no-effect evidence. |
+| Focused regression | PASS | Conditional live runtime plus migration **10/10**; Automation frontend **8/8**. |
+| Complete frontend | PASS | **40 files / 818 tests**; ESLint and TypeScript pass. Production build PASS; AutomationPage **35.98 kB / 9.43 kB gzip**. |
+| Static quality | PASS | Static profile **6/6**; Ruff, strict mypy (**305 files**), OpenAPI drift, frontend lint/types and browser-test types pass. |
+| Canonical backend | FAIL | **1468 passed / 6 MySQL skips / 1 failed** in 481.50s. The only failure is the previously recorded QR-08 case reaching unavailable Redis at `127.0.0.1:6379`; no PAR-AUTO test failed. |
+| Applicable backend | PASS | **1468 passed / 6 MySQL-only skips / 1 known Redis-only deselection** in 414.02s. All PAR-AUTO tests pass; the skips report no MySQL at `localhost:3306`. |
+| Remaining scope | PENDING – Host Machine Validation | Multiple conditions/general branching, waits/delays, other live consumers, task/tag/notification/customer-message executors, retries/DLQ/reconciliation, target-host concurrency and authenticated browser/accessibility acceptance remain. |
+
+## PAR-AUTO-05 — Automatic Inbound Handoff Runtime
+
+**Status: `REPOSITORY IMPLEMENTED`.** Exactly one real automatic path is enabled:
+`message.received` Trigger → Human handoff. General chatbot execution is not claimed.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Atomic inbound fact | PASS | A newly inserted Meta or WAHA inbound Message records a connector-authored `message.received` Business Event and matching receipts in the same Message/Conversation transaction. Dispatch begins only after commit. |
+| Privacy | PASS | Event/run input contains public Message/Conversation/Contact ids, direction, type and source only. Tests prove message body and provider message id are absent; phone/name/credential/provider payload is never copied. |
+| Once-only receipt claim | PASS | Receipt row lock, UUID run/idempotency/task identity, one-to-one run link, `received → processing → processed|failed` states and five-minute lease converge duplicate workers. Completed/failed receipts are not redispatched. |
+| Immutable live execution | PASS | One `mode=live` run pins the receipt's immutable version and records Trigger/Handoff attempts. Only exact Trigger → Human handoff executes; every other shape fails `unsupported_live_graph` before a business effect. |
+| Handoff reuse/recovery | PASS | Existing deterministic handoff event, Conversation lock/state and Audit authority are reused. A retry after the effect can replay it and finish the same run without requeueing an intervened chat. Test mode remains side-effect-free. |
+| Migration | PASS | Additive `0044_automation_live_handoff_runtime` (45 revisions) expands run mode and receipt lineage/timestamps; SQLite upgrade/downgrade/re-upgrade **5/5** passes. MySQL-only validation is skipped because no server answered at `localhost:3306`. |
+| API/generated client | PASS | OpenAPI remains **211 paths**; live/test mode, receipt states and `processed_at` regenerate into TypeScript and drift check agrees. |
+| Operator UI | PASS | Automation shows one live/test Run history, step evidence and real receipt status with active/idle polling. Exact supported boundary is stated; other event types remain evidence-only. |
+| Focused backend | PASS | Final Automation/Inbox/handoff/receipt selection **40/40 passed**, including automatic live success, idempotent replay, duplicate redispatch suppression, privacy and unsupported fail-closed behavior. |
+| Complete frontend | PASS | **40 files / 817 tests**; Automation focused **7/7**; ESLint and TypeScript pass. |
+| Static quality/build | PASS | Static profile **6/6**; Ruff, strict mypy (**305 files**), OpenAPI drift, frontend lint/types and browser-test types pass. Production build PASS; AutomationPage **35.10 kB / 9.16 kB gzip**. |
+| Canonical backend | FAIL | **1465 passed / 6 MySQL skips / 1 failed**. The only failure is the previously recorded QR-08 test reaching the unavailable Redis result store at `127.0.0.1:6379`; no PAR-AUTO test failed. |
+| Applicable backend | PASS | **1465 passed / 6 MySQL-only skips / 1 known Redis-only deselection** in 417.00s. All PAR-AUTO tests pass; the skips report no MySQL at `localhost:3306`. |
+| Remaining scope | PENDING – Host Machine Validation | Conditions/branching, waits/delays, other live event types/executors, customer-message actions, retry/DLQ/reconciliation operations, target-host queue/lock contention and authenticated browser/accessibility acceptance remain. |
+
+## PAR-AUTO-04 — Governed Automation Human Handoff
+
+**Status: `REPOSITORY IMPLEMENTED`.** This is one real production action contract over a published
+immutable node; the general automation runtime remains test-only and side-effect-free.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Reuse boundary | PASS | Existing AutomationFlow/version, Conversation status/assignment, Audit and append-only Business Event authorities are composed. No second Inbox state machine, live test-run mutation path, queue or provider/customer-send authority. |
+| Typed authoring | PASS | `Human handoff` is an additive discriminated node with a trimmed 1–160-character immutable reason. Existing graph reachability/single-trigger/cycle checks apply; whitespace-only reason is rejected. |
+| Safe test boundary | PASS | `AutomationRuntimeService` remains side-effect-free. The handoff node produces only the existing simulated test output and cannot change a conversation or send a message from test mode. |
+| Permission and tenant boundary | PASS | Execution requires existing `automations:publish`; a Manager publisher can execute without `inbox:write`. Automation and active Conversation are independently scoped to the authenticated organization. |
+| Immutable execution | PASS | Body supplies only conversation/node identifiers; the reason is loaded from the clean active immutable version. Missing/wrong node fails `422`; unpublished, disabled or dirty new execution fails `409`. |
+| Conversation lifecycle | PASS | A row lock serializes the decision. Unassigned open/resolved/snoozed moves to existing `pending`; unassigned pending is preserved; assigned active chats return `already_intervened`; resolved historical ownership is cleared before requeue. |
+| Idempotency and replay | PASS | Deterministic Business Event identity binds tenant, automation/version/node, conversation and UUID key. First request is `201`; replay is `200`. Replay remains readable after draft drift and an old replay after Intervene cannot requeue or unassign the chat. |
+| Durable evidence/privacy | PASS | `conversation.handoff_requested` Business Event and `automation.handoff_requested` Audit evidence commit with any status/assignment mutation. Payload contains automation/version/node, bounded reason and outcome only—no customer message, phone/name, credential or provider value. |
+| Focused backend | PASS | Automation authoring/runtime/receipts plus Inbox lifecycle selection **76 passed**; definition/handoff selection **14 passed**. |
+| Complete frontend | PASS | **40 files / 817 tests** pass, including typed node authoring, Live contract presentation and unchanged safe-test guidance. |
+| API/generated client | PASS | OpenAPI **211 paths**; canonical JSON, generated TypeScript and drift check agree. Migration head remains `0043` (44 revisions). |
+| Static quality/build | PASS | Static gate **6/6 PASS**: Ruff, strict mypy (**304 files**), OpenAPI drift, frontend ESLint/types and browser-test types. Production build PASS; `AutomationPage` is **34.64 kB / 9.04 kB gzip**. |
+| Applicable backend suite | PASS | **1462 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected**. The skips report no MySQL at `localhost:3306`; the deselection is the already-recorded QR-08 Redis result-store case. |
+| Authenticated visual/device evidence | PENDING – Host Machine Validation | The available local/reference sessions remain stopped at sign-in. Authenticated representative-data desktop/mobile, keyboard, screen-reader and browser comparison is not claimed. |
+| Remaining PAR-AUTO scope | PENDING – Host Machine Validation | PAR-AUTO-05 has since delivered the exact automatic inbound handoff path. General graphs, conditions, waits/delays, other event/effect executors, retry/DLQ operations and recovery UI remain future product work. |
+
+## AiSensy-style navigation and Live Chat intervention follow-up
+
+**Status: `REPOSITORY VALIDATED`.** This is an original workflow-convergence slice, not a claim that
+AiSensy's private UI or chatbot runtime has been copied.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Named daily navigation | PASS | Dashboard, Live Chat, Chat History, Campaigns, Contacts, Automation and Analytics are immediately visible; the sidebar defaults expanded and retains an explicit compact preference. |
+| Manage structure | PASS | Templates and every existing permission-scoped advanced/additional route remain reachable under `Manage`; no route, permission or user feature is removed. |
+| Live Chat views | PASS | `Requested` maps to persisted `pending`, `Active` to persisted `open`, and `Intervened` to persisted `open` plus current-user assignment. No synthetic chatbot or handoff state is introduced. |
+| Executable intervention | PASS | `Intervene` row-locks a pending conversation, changes it to open, assigns the current agent and records existing assignment/status Audit actions. A winning retry is idempotent; a second agent receives `409 intervention_conflict` without ownership change. |
+| Owner-only resolution | PASS | Only the assigned intervening agent can resolve. A retry returns the same version, and the older generic status route cannot be used by another agent as a resolution bypass. |
+| Permissions and tenancy | PASS | Both action routes reuse `inbox:write`; organization is authentication-scoped and the existing org-owned conversation lookup is preserved. No permission code, new state or parallel authority. |
+| Focused regression | PASS | Intervention backend **24/24**; intervention plus OpenAPI/provider count regression **26/26**; intervention/thread frontend **37/37**. |
+| Complete frontend | PASS | **40 files / 816 tests**, ESLint, TypeScript and production build PASS; `InboxPage` is **39.75 kB / 10.88 kB gzip**. |
+| API and schema boundary | PASS | Migration head remains `0043` (44 revisions); two generated permission-scoped actions take OpenAPI **208 → 210 paths**. Canonical export, generated TypeScript and drift check agree. |
+| Static quality profile | PASS | Ruff, strict mypy (**302 files**), OpenAPI drift, frontend ESLint/types and browser-test types pass; the repository static gate is **6/6 PASS**. |
+| Applicable backend suite | PASS | **1457 passed / 6 MySQL-only skips / 1 known Redis-dependent test deselected**. The skips report that MySQL did not answer at `localhost:3306`; the deselection is the already-recorded QR-08 Redis result-store case. |
+| Authenticated visual comparison | PENDING – Host Machine Validation | The public AiSensy reference and local product both stop at their respective sign-in pages in the available browser sessions; authenticated representative-data comparison is not claimed. |
+| Remaining parity work | PENDING – Host Machine Validation | Automatic trigger consumption/general chatbot execution, SLA badges, target-host contention and authenticated responsive/accessibility/browser acceptance remain unproven. |
+
+## CORE-11C — Inactivity Auto-Resolve
+
+**Milestone status: `REPOSITORY IMPLEMENTED`.** CORE-11 remains `PARTIAL`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Reuse boundary | PASS | Existing reserved Inbox Operations setting, Conversation state/activity fields, Task links, Audit, Business Event, Celery Beat and `scheduler.tick` are extended. No second state machine, scheduler, queue or workflow engine. |
+| Typed persistence | PASS | `auto_resolve.enabled` defaults false; `inactive_after_hours` defaults 72 and validates 1–720 whole hours through the existing permission-scoped GET/PUT path. No migration or new path. |
+| Eligibility safety | PASS | Only active read `open`/`pending` conversations with both message and operational activity before cutoff qualify. Resolved, snoozed, unread, recent, message-less and open-Task conversations are excluded. |
+| Concurrency/idempotency | PASS | Candidate scans are bounded to 100 per organization; each row is locked and eligibility plus open-Task protection is rechecked. Repeated/overlapping scans converge with no duplicate mutation, Audit row or deterministic event. |
+| Inbound lifecycle | PASS | Only a newly inserted inbound at least as current as the latest conversation message reopens `resolved → open` in the inbound transaction. Broker duplicate and older replay tests remain resolved. |
+| Evidence | PASS | Every automatic resolution advances Conversation version, records system `conversation.status_changed` Audit metadata and one deterministic `conversation.auto_resolved` Business Event through existing automation projection. |
+| Scheduler ownership | PASS | A one-minute Beat entry invokes `app.crm.tasks.auto_resolve_inactive_conversations` on the existing P0 `scheduler.tick` queue; task registration and schedule uniqueness are regression-tested. |
+| API and generated client | PASS | OpenAPI remains **208 paths**; `openapi.json`, generated TypeScript and `export_openapi.py --check` agree. |
+| Focused backend | PASS | Settings, Conversation/inbound, auto-resolve and Beat smoke selection **48 passed**. |
+| Frontend regression | PASS | **39 files / 811 tests** pass; Settings alone is **101 tests**, including the bounded auto-resolve payload and protection guidance. |
+| Frontend quality/build | PASS | ESLint, TypeScript and Vite production build pass; no production dependency added. |
+| Static quality profile | PASS | Repository `static` profile **6/6 PASS**: backend Ruff, strict mypy (**302 files**), OpenAPI drift, frontend ESLint/types and browser-test types. |
+| Applicable backend suite | PASS | Final tree: **1453 passed / 6 MySQL-only skips / 1 Redis-dependent test deselected**. No migration changed; the skips report that MySQL did not answer at `localhost:3306`. |
+| Canonical unfiltered backend | FAIL | **1453 passed / 6 MySQL skips / 1 failed**. The sole failure is the previously recorded QR-08 webhook case attempting the unavailable Celery Redis result store at `127.0.0.1:6379`; CORE-11C neither caused nor hides it. |
+| Reference/originality boundary | PASS | Approved capture `0047` informed only grouping and explicit lifecycle enablement. No proprietary code, text, asset, branding, token, layout or reference artifact entered the tree. |
+| Local browser authentication boundary | PENDING – Host Machine Validation | The real local `/settings/application` route redirected to the platform sign-in screen with no application error. No credential was entered; authenticated timer visuals are not claimed. |
+| Production/scale commissioning | PENDING – Host Machine Validation | Target-host MySQL lock contention, live Celery Beat execution, authenticated accessibility/browser matrix and operator acceptance remain unproven. |
+| Remaining CORE-11 scope | PENDING – Host Machine Validation | Campaign preferences, SLA/pipeline, notification/security/audit settings, team presence/workload/login/permission audit and required/active attributes remain product work, not hidden CORE-11C acceptance steps. |
+
+## CORE-11B — Working Hours and Guarded Automatic Replies
+
+**Milestone status: `REPOSITORY IMPLEMENTED`.** CORE-11 remains `PARTIAL`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Reuse boundary | PASS | Existing Organization timezone, reserved Inbox Operations setting, Conversation/Message ledger, Business Event, Audit, task and channel-adapter authorities are extended. No second timezone, message store, scheduler, queue or automation engine. |
+| Typed persistence | PASS | The existing `inbox.operations.v1` JSON contract now validates exactly seven unique weekdays, `HH:MM` intervals, enabled-day presence, IANA organization timezone, dependency rules, trimmed non-empty enabled messages and 1,000-character bounds. Defaults remain disabled; no migration or new route. |
+| Overnight/timezone evaluation | PASS | Hours use only `Organization.timezone`; the evaluator checks current and previous local day so cross-midnight intervals remain open after midnight. Invalid runtime timezone fails closed. |
+| Reply decision safety | PASS | Off-hours precedes welcome and is limited to one per conversation/24 hours. Welcome requires a newly opened 24-hour inbound window. More-than-10-minute-old or more-than-5-minute-future replay is ledger-only; an exact opt-out keyword suppresses immediately. |
+| Atomicity and source idempotency | PASS | Conversation window evaluation is row-locked. Inbound Message, outbound accepted Message, Conversation changes, system Audit evidence and deterministic source-message/kind Business Event share one commit. Duplicate provider delivery recovers the same reply id. |
+| Delivery idempotency | PASS | Dispatch starts only after commit. Duplicate dispatches lock and refresh the durable outbound Message row; once the first provider call commits its provider id, later attempts return `already_sent`. WAHA's existing indeterminate-send/no-silent-retry rule is unchanged. |
+| API and generated client | PASS | OpenAPI remains **208 paths**; the existing Inbox Operations GET/PUT schema exposes working hours, automatic replies and read-only organization timezone. `openapi.json`, generated TypeScript and `export_openapi.py --check` agree. |
+| Focused backend | PASS | Settings plus conversation/inbound selection **40 passed**. Final send/Inbox/QR-08 regression after delivery locking is **73 passed / 1 known Redis-dependent case deselected**. |
+| Frontend regression | PASS | **39 files / 810 tests** pass, including schedule/message persistence and existing manual/automatic read behavior. |
+| Frontend quality/build | PASS | ESLint, TypeScript and Vite production build pass; no production dependency added. |
+| Static quality profile | PASS | Repository `static` profile **6/6 PASS**: backend Ruff, strict mypy (**302 files**), OpenAPI drift, frontend ESLint/types and browser-test types. |
+| Applicable backend suite | PASS | Final tree: **1450 passed / 6 MySQL-only skips / 1 Redis-dependent test deselected**. The skips state that no MySQL server answered at `localhost:3306`; no migration changed in this milestone. |
+| Canonical unfiltered backend | FAIL | The previously recorded unfiltered gate still has one environmental QR-08 case that connects to its configured Redis result store while `127.0.0.1:6379` is unavailable. CORE-11B did not hide or relabel it; the exact case is deselected in the applicable hermetic run until Redis-backed evidence exists. |
+| Reference/originality boundary | PASS | Approved capture `0047` informed grouping, explicit enablement and message-editing workflow only. No proprietary code, text, asset, branding, token, layout or reference artifact entered the tree. |
+| Local browser authentication boundary | PENDING – Host Machine Validation | The real local `/settings/application` route redirected to the platform sign-in screen. No credential was entered, and no connected alternate signed-in browser was available; authenticated schedule/reply visual evidence is not claimed. |
+| Production/scale commissioning | PENDING – Host Machine Validation | Target-host MySQL row-lock concurrency, Redis-backed canonical suite, provider send observation, operational message approval, accessibility/browser matrix and production commissioning remain unproven. |
+| Remaining CORE-11 scope | PENDING – Host Machine Validation | Auto-resolve, SLA/pipeline, notification/security/audit settings, team presence/workload/login/permission audit and required/active attributes remain product work, not hidden CORE-11B acceptance steps. |
+
+## CORE-11A — Validated Inbox Operations Policy
+
+**Milestone status: `REPOSITORY IMPLEMENTED`.** CORE-11 remains `PARTIAL`.
+`Host Validated: NO` · `Provider Validated: NO` · `Production Ready: NO`.
+
+| Validation item | Status | Latest evidence |
+|---|---|---|
+| Reuse boundary | PASS | Existing scoped Settings, User/RBAC, Conversation, Contact, Audit and Customer Timeline authorities are extended; no duplicate policy store, assignment field, consent record, queue or scheduler. |
+| Typed persistence | PASS | Reserved `inbox.operations.v1` stores the generated policy in the existing organization settings row. Generic PUT rejects the reserved key, preventing validation bypass. No migration. |
+| Permission and tenant boundary | PASS | Any authenticated user may read the non-secret effective policy; mutation requires `settings:manage`. All consumers derive organization from persisted/authenticated ownership. |
+| Assignment consumer | PASS | `least_open` runs once on new thread creation, considers only active same-organization users with effective `inbox:read`, excludes resolved workload, uses a stable tie break, and writes system Audit evidence. |
+| Consent consumer | PASS | Disabled by default. Exact normalized text only; non-text/partial/already-current messages are no-ops. A real change advances Contact version/timestamp plus Timeline and system Audit evidence inside the inbound transaction. |
+| Read-state consumer | PASS | Thread open waits for the effective policy before automatic clear. When disabled, unread remains and an accessible manual Mark read action uses the existing endpoint. Policy-read failure fails safe. |
+| API and generated client | PASS | OpenAPI **208 paths**; GET/PUT `/api/v1/settings/inbox-operations` generated into `openapi.json` and `schema.d.ts`; `export_openapi.py --check` passes. |
+| Focused backend | PASS | Settings plus conversation/inbound selection **33 passed**; normalization, overlap, permissions, reserved-key rejection, Audit, exact consent and eligible assignment covered. |
+| Frontend regression | PASS | **39 files / 809 tests** pass, including settings persistence and automatic/manual read policy tests. |
+| Frontend quality/build | PASS | ESLint, TypeScript and Vite production build pass; no production dependency added. |
+| Backend lint | PASS | Ruff over `app` and `tests` passes. |
+| Full backend suite | FAIL | The unfiltered run completed with **1441 passed / 6 MySQL skipped / 3 failed**. Two failures were CORE-11A's stale 207-path assertions; both were corrected and rerun **2/2 PASS**. The remaining pre-existing QR-08 webhook test attempted its configured Redis result store and failed because `127.0.0.1:6379` was unavailable. The current suite with exactly that environment-dependent case deselected is **1443 passed / 6 MySQL skipped / 1 deselected** in 408.54s. The canonical row remains FAIL until Redis-backed rerun evidence exists. |
+| Reference/originality boundary | PASS | Approved captures `0046`, `0047`, `0053`, `0055` informed hierarchy/state/density only. Billing/seat purchase and Ads/AI promotion in `0052` were rejected. No proprietary code, text, asset, branding, token, layout or reference artifact entered the tree. |
+| Authenticated visual/device evidence | PENDING – Host Machine Validation | The real local app reached its sign-in screen; no credential was entered. Authenticated representative-data desktop/mobile screenshots, keyboard-only, screen-reader and browser matrix remain unproven. |
+| Production/scale commissioning | PENDING – Host Machine Validation | Target-host MySQL concurrency/load, operational keyword approval, real team workload review and production commissioning remain unproven. |
+| Remaining CORE-11 scope | PENDING – Host Machine Validation | Working hours/messages, auto-resolve, SLA/pipeline, notification/security/audit settings, team presence/login/permission audit and required/active attributes remain product work, not hidden acceptance steps. |
 
 ## QR-09L — WAHA ACK Routing and LID Recipient Identity Remediation
 

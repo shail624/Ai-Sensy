@@ -45,6 +45,7 @@ import pymysql
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 from app.cli import bootstrap_owner
 from app.core.config import settings
@@ -146,6 +147,12 @@ def _alembic_config() -> Config:
     cfg = Config(str(_BACKEND_ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(_BACKEND_ROOT / "alembic"))
     return cfg
+
+
+def _current_migration_head() -> str:
+    heads = ScriptDirectory.from_config(_alembic_config()).get_heads()
+    assert len(heads) == 1, f"migration history must have exactly one head, found {heads!r}"
+    return heads[0]
 
 
 def _root_connection() -> pymysql.connections.Connection:
@@ -258,7 +265,7 @@ def test_fresh_mysql_database_upgrades_base_to_head(
 
     command.upgrade(cfg, "head")
 
-    assert _current_version(throwaway_database) == "0043_conversation_channel_endpoints"
+    assert _current_version(throwaway_database) == _current_migration_head()
     assert _version_column_type(throwaway_database) == "varchar(255)"
     asyncio.run(dispose_engine())
 
@@ -281,7 +288,7 @@ def test_mysql_database_at_0035_upgrades_to_head(
     # before 0035a_widen_version_table existed.
     command.upgrade(cfg, "head")
 
-    assert _current_version(throwaway_database) == "0043_conversation_channel_endpoints"
+    assert _current_version(throwaway_database) == _current_migration_head()
     assert _version_column_type(throwaway_database) == "varchar(255)"
     asyncio.run(dispose_engine())
 

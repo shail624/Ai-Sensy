@@ -184,9 +184,7 @@ async def test_runtime_and_pairing_flags_and_rbac_fail_closed(
 
     await _enable_flags(db_session, organization.id)
     _, row = await _create_session(db_session, organization.id, actor, providers)
-    unprivileged = (
-        await make_user(email="runtime-unprivileged@example.test", roles=())
-    ).user
+    unprivileged = (await make_user(email="runtime-unprivileged@example.test", roles=())).user
     manager = ProviderRuntimeManager(db_session, runtimes=runtimes)
     pairing = PairingManager(db_session, runtimes=runtimes)
 
@@ -206,9 +204,7 @@ async def test_runtime_and_pairing_flags_and_rbac_fail_closed(
             target_state=PairingState.PAIRING_REQUESTED,
         )
 
-    auth_only = (
-        await make_user(email="runtime-auth-only@example.test", roles=())
-    ).user
+    auth_only = (await make_user(email="runtime-auth-only@example.test", roles=())).user
     permission = (
         await db_session.scalars(
             select(Permission).where(Permission.code == "channels:authenticate")
@@ -263,10 +259,13 @@ async def test_runtime_claim_heartbeat_health_capabilities_restart_and_recovery(
     manager = ProviderRuntimeManager(db_session, runtimes=runtimes)
     now = utcnow()
 
-    assert [item.connector_type for item in await manager.discover_runtime_types(
-        organization_id=organization.id,
-        actor=actor,
-    )] == ["managed_runtime"]
+    assert [
+        item.connector_type
+        for item in await manager.discover_runtime_types(
+            organization_id=organization.id,
+            actor=actor,
+        )
+    ] == ["managed_runtime"]
 
     lease = await manager.claim_session(
         organization_id=organization.id,
@@ -517,9 +516,18 @@ async def test_pairing_lifecycle_is_runtime_owned_persisted_and_no_store(
     # QR-07 intentionally builds the first public surface over this pairing state machine
     # (`/channels/whatsapp-qr/*`, 6 routes) — the path count and `pairing_state` appearing are
     # therefore expected from this milestone on, not a regression. QR-08 adds one more
-    # (`POST /webhooks/waha`, 206 -> 207). What must still never appear is a raw secret shape: no
-    # QR bytes, no provider credential, no internal reason code.
-    assert len(create_app().openapi()["paths"]) == 207
+    # (`POST /webhooks/waha`, 206 -> 207), CORE-11A adds one validated inbox-operations settings
+    # route (207 -> 208), agent claim/resolution adds two routes (208 -> 210), and the governed live
+    # automation handoff adds one (210 -> 211), and PAR-DL-01 adds the permission-scoped Download
+    # Center history route (211 -> 212), PAR-REP-02 adds report schedules (212 -> 214), and
+    # PAR-REP-03 adds three domain Analytics resources (214 -> 217); PAR-REP-04 adds current Team
+    # workload and task productivity (217 -> 219); PAR-DL-02 adds transcript start/progress
+    # (219 -> 221), PAR-HIST-01 adds two shared-view paths (221 -> 223), and PAR-DL-03 adds
+    # campaign-results start/progress paths (223 -> 225). PAR-VIEW-01/02/03 add Reactivation,
+    # Contacts and Campaign saved-view paths (225 -> 231), and PAR-VIEW-04 adds the two KYC
+    # saved-view paths (231 -> 233). PAR-VIEW-05 adds Reports views (233 -> 235). Raw secret
+    # shapes must still never appear.
+    assert len(create_app().openapi()["paths"]) == 235
     assert "qr_payload" not in openapi
     assert "pairing_secret" not in openapi
     assert "pairing_reason_code" not in openapi
