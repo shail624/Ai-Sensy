@@ -466,6 +466,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/api-keys/{key_id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate an API key (new secret shown once)
+         * @description Replace a key's secret while keeping its name, scopes and audit history.
+         *
+         *     The previous secret stops authenticating immediately, so update the consumer first. Revoked
+         *     keys are not rotatable: reviving one would hand back a working secret for a credential
+         *     somebody deliberately retired.
+         */
+        post: operations["rotate_api_key_api_v1_api_keys__key_id__rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/api-keys/{key_id}": {
         parameters: {
             query?: never;
@@ -11652,6 +11676,37 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_api_key_api_v1_api_keys__key_id__rotate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

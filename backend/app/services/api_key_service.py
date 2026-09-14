@@ -85,6 +85,42 @@ class ApiKeyService:
         await self._session.commit()
         return CreatedApiKey(api_key=api_key, secret=secret)
 
+    async def rotate_key(
+        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID
+    ) -> CreatedApiKey:
+        """Issue a new secret for an existing key, keeping its identity.
+
+        Rotation exists because the alternative — revoke then create — discards the key's name,
+        scopes and audit history, and leaves a window with no working key at all. Here the record
+        survives, so integrations keep their configured permissions and the audit trail stays
+        attached to one identity.
+
+        The old secret stops working immediately: there is one hash per key. Callers must be able
+        to update the consumer before rotating, which is why this is a deliberate action rather
+        than something scheduled.
+        """
+        api_key = await self._keys.get_active_by_uuid(organization_id, public_id.bytes)
+        if api_key is None:
+            # A revoked or foreign key is not rotatable — reviving one would return a working
+            # secret for a credential somebody deliberately retired.
+            raise NotFoundError("API key not found.")
+        previous_prefix = api_key.key_prefix
+        secret, key_prefix = generate_api_key()
+        await self._keys.replace_secret(
+            api_key, key_prefix=key_prefix, key_hash=hash_token(secret)
+        )
+        await self._audit.record(
+            AuditAction.API_KEY_ROTATED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="api_key",
+            entity_id=api_key.id,
+            before={"key_prefix": previous_prefix},
+            after={"key_prefix": key_prefix},
+        )
+        await self._session.commit()
+        return CreatedApiKey(api_key=api_key, secret=secret)
+
     async def revoke_key(
         self, *, organization_id: int, actor: User, public_id: uuidlib.UUID
     ) -> None:

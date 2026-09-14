@@ -1,5 +1,37 @@
 # Implementation Tracker (canonical)
 
+## CORE-16 — API key rotation (2026-09-14)
+
+Adds `POST /api/v1/api-keys/{key_id}/rotate`, replacing a key's secret in place. The contract
+moves 236 -> 237 paths; no migration, no new permission (`apikeys:manage` already governs this
+family), no change to authentication.
+
+Why it exists: revoke-then-create discards the key's identity, name, scopes and audit history,
+so every consumer must be reconfigured with a new credential and the trail splits across two
+records. Rotation keeps the record and swaps only the secret.
+
+Trade recorded, not resolved: the existing admin UI composes planned rotation client-side as
+create-then-revoke, deliberately overlapping so no window exists in which neither key is valid.
+This endpoint makes the opposite trade — one atomic swap with no two-live-keys hazard, at the
+cost of cutting the old secret off immediately. That is the right shape for a *leaked* key, where
+instant cutover is the objective. The planned path is left unchanged; which rotation an operator
+should get, and whether both belong in the UI, is an open product decision. The stale comment
+asserting no rotate endpoint exists was corrected.
+
+A revoked key is not rotatable: reviving one would return a working secret for a credential
+somebody deliberately retired. Rotation is audited as `api_key.rotated` recording only the old and
+new prefixes — never either secret.
+
+PASS: full backend suite **1607 passed**, 6 MySQL tests skipped for want of a server; 6 new
+rotation tests covering identity retention, listing, revoked and unknown keys, audit content and
+permission enforcement. Frontend admin suite 42 passed; TypeScript, ESLint, Ruff and endpoint
+mypy pass. Two 236-path contract guards moved to 237.
+
+PENDING - Host Machine Validation: deployed MySQL, authenticated preview and E2E commissioning
+were not run. No module completion percentage is increased and no source-of-truth document
+changed.
+
+
 ## CORE-11 — inbox category counts (2026-09-14)
 
 Adds `GET /api/v1/conversations/counts`, returning active, requesting and intervened totals for

@@ -1424,6 +1424,55 @@
         ]
       }
     },
+    "/api/v1/api-keys/{key_id}/rotate": {
+      "post": {
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Rotate an API key (new secret shown once)",
+        "description": "Replace a key's secret while keeping its name, scopes and audit history.\n\nThe previous secret stops authenticating immediately, so update the consumer first. Revoked\nkeys are not rotatable: reviving one would hand back a working secret for a credential\nsomebody deliberately retired.",
+        "operationId": "rotate_api_key_api_v1_api_keys__key_id__rotate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/api-keys/{key_id}": {
       "delete": {
         "tags": [

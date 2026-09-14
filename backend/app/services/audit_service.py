@@ -44,6 +44,7 @@ class AuditAction:
     FEATURE_FLAG_UPDATED = "feature_flag.updated"
     PREFERENCES_UPDATED = "preferences.updated"
     API_KEY_CREATED = "api_key.created"
+    API_KEY_ROTATED = "api_key.rotated"
     API_KEY_REVOKED = "api_key.revoked"
     CONTACT_CREATED = "contact.created"
     CONTACT_UPDATED = "contact.updated"
