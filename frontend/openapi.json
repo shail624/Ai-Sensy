@@ -7875,6 +7875,61 @@
         }
       }
     },
+    "/api/v1/conversations/counts": {
+      "get": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Inbox category counts",
+        "description": "Totals for the three inbox categories, scoped by ``q`` alone.\n\nStatus, assignee and tag are deliberately not accepted: activating a category replaces them\nand keeps only the search, so counting with them applied would label the chip with a result\nthe click never produces. Intervened always resolves against the caller.\n\nDeclared before ``/conversations/{conversation_id}`` so ``counts`` is not read as an id.",
+        "operationId": "conversation_category_counts_api_v1_conversations_counts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationCategoryCounts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conversations/{conversation_id}": {
       "get": {
         "tags": [
@@ -21566,6 +21621,30 @@
         ],
         "title": "ConversationAssignRequest",
         "description": "Assign or reassign a conversation to a user (Doc 04 §18.1)."
+      },
+      "ConversationCategoryCounts": {
+        "properties": {
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "requesting": {
+            "type": "integer",
+            "title": "Requesting"
+          },
+          "intervened": {
+            "type": "integer",
+            "title": "Intervened"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active",
+          "requesting",
+          "intervened"
+        ],
+        "title": "ConversationCategoryCounts",
+        "description": "Totals behind the three inbox category chips.\n\nThe categories overlap by construction — requesting is a subset of active, and an intervened\nthread may also be open — so these are three independent totals and never a breakdown to sum."
       },
       "ConversationHistoryFilters": {
         "properties": {

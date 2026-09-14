@@ -10,7 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { Button, Field, Input, Select, TagChip } from "@/components/ui";
-import { useAssignableUsers } from "@/features/inbox/api";
+import { useAssignableUsers, useConversationCounts } from "@/features/inbox/api";
 import type { SavedInboxView } from "@/features/inbox/preferences";
 import type { InboxFilters, TagSummary } from "@/features/inbox/types";
 import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
@@ -58,15 +58,22 @@ export function ConversationFilters({
     return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
+  // Counted under the search alone — the only filter a chip carries across — so each badge equals
+  // the number of rows its own click produces. While the read is in flight the badge is omitted
+  // rather than shown as zero, which would read as an emptiness the inbox has not established.
+  const counts = useConversationCounts(filters.q);
+
   const quickInboxes = [
     {
       label: "Active",
       description: "All open chats",
+      count: counts.data?.active,
       next: { status: "open" } satisfies InboxFilters,
     },
     {
       label: "Requesting",
       description: "Open chats without an assigned agent",
+      count: counts.data?.requesting,
       next: { status: "open", assignee: "unassigned" } satisfies InboxFilters,
     },
     ...(currentUserId
@@ -74,6 +81,7 @@ export function ConversationFilters({
           {
             label: "Intervened",
             description: "Chats currently assigned to me",
+            count: counts.data?.intervened,
             next: { assignee: currentUserId } satisfies InboxFilters,
           },
         ]
@@ -167,6 +175,18 @@ export function ConversationFilters({
               }`}
             >
               {quickInbox.label}
+              {quickInbox.count === undefined ? null : (
+                <span
+                  aria-label={`${quickInbox.count} in ${quickInbox.label}`}
+                  className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                    active
+                      ? "bg-[var(--color-nav-text)] text-[var(--color-nav-active-bg)]"
+                      : "bg-[var(--color-nav-hover)] text-[var(--color-nav-text)]"
+                  }`}
+                >
+                  {quickInbox.count}
+                </span>
+              )}
             </button>
           );
         })}

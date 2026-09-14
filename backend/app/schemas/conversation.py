@@ -121,6 +121,18 @@ class ConversationsPage(BaseModel):
     page: Page
 
 
+class ConversationCategoryCounts(BaseModel):
+    """Totals behind the three inbox category chips.
+
+    The categories overlap by construction — requesting is a subset of active, and an intervened
+    thread may also be open — so these are three independent totals and never a breakdown to sum.
+    """
+
+    active: int
+    requesting: int
+    intervened: int
+
+
 class ConversationMessagesPage(BaseModel):
     """A page of a thread's message history (Doc 04 §18.1), newest first."""
 

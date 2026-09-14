@@ -1,5 +1,34 @@
 # Project State
 
+## CORE-11 — inbox category counts (2026-09-14)
+
+Adds `GET /api/v1/conversations/counts`, returning active, requesting and intervened totals for
+the signed-in viewer. The contract moves 235 -> 236 paths; no migration, no new permission, no
+change to any category's meaning.
+
+Scope decision recorded: the counts accept `q` and nothing else. Activating a chip replaces
+status, assignee and tag and carries only the search across, so a count computed with the current
+filters applied would advertise a list the click never produces — and a contradictory status such
+as `closed` would pin active and requesting to a permanent zero. The three totals overlap by
+construction (requesting is a subset of active) and are never summed.
+
+One aggregate over one scan rather than three round trips; `ix_conv_org_status` and
+`ix_conv_assignee` already cover the predicates. The inbox search predicate is now shared by the
+list page and the counts, so a badge cannot come to describe different fields than the list it
+labels. While the read is in flight the badge is omitted rather than shown as zero, which would
+assert an emptiness the inbox has not established.
+
+PASS: full backend suite **1601 passed**, 6 MySQL tests skipped for want of a server;
+6 new backend contract/semantics tests. Full frontend suite **894 passed / 50 files**; 3 new badge
+tests. TypeScript, ESLint, Ruff, endpoint mypy and the OpenAPI drift gate all pass. Two
+hard-coded 235-path contract guards were updated to 236 — they are deliberate guards and this
+path addition is the conscious act they exist to catch.
+
+PENDING - Host Machine Validation: deployed MySQL, authenticated populated preview, browser and
+E2E commissioning were not run. No module completion percentage is increased and no
+source-of-truth document changed.
+
+
 ## UI-REF-04 — Live Chat category semantics (2026-09-14, local)
 
 Restores the owner's category definitions: Active = open; Requesting = open and

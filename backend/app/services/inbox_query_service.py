@@ -93,6 +93,19 @@ class InboxQueryService:
         self._tags = TagRepository(session)
         self._conv_tags = ConversationTagRepository(session)
 
+    # --- Category counts -----------------------------------------------------
+    async def category_counts(
+        self, *, organization_id: int, viewer_id: int, q: str | None
+    ) -> tuple[int, int, int]:
+        """Active, requesting and intervened totals for the signed-in viewer.
+
+        Intervened resolves against ``viewer_id`` rather than a requested user, so the badge can
+        only ever describe the caller's own work.
+        """
+        return await self._conversations.category_counts(
+            organization_id, viewer_id=viewer_id, q=q
+        )
+
     # --- List ----------------------------------------------------------------
     async def list_conversations(
         self,

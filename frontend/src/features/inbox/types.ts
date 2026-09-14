@@ -3,6 +3,7 @@ import type { components } from "@/lib/api/schema";
 // Aliased from the generated OpenAPI schema — never hand-written.
 export type Conversation = components["schemas"]["ConversationResponse"];
 export type ConversationsPage = components["schemas"]["ConversationsPage"];
+export type ConversationCategoryCounts = components["schemas"]["ConversationCategoryCounts"];
 export type ConversationState = components["schemas"]["ConversationStateResponse"];
 export type Message = components["schemas"]["MessageResponse"];
 export type MessagesPage = components["schemas"]["ConversationMessagesPage"];

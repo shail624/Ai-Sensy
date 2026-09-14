@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.audit import AuditLog
 from app.models.contact import Contact
@@ -59,6 +60,67 @@ class ConversationRepository(BaseRepository[Conversation]):
             Conversation.deleted_at.is_(None),
         )
         return (await self.session.scalars(stmt)).first()
+
+    @staticmethod
+    def _customer_match(q: str) -> ColumnElement[bool]:
+        """Search the customer the thread is with — name or number — which is what "search the
+        inbox" means (Doc 05 B7); message-text search is the separate ``/messages/search``.
+
+        Shared by the list page and the category counts: a count computed over different fields
+        than the list it labels would describe a result the operator never sees.
+        """
+        like = f"%{q}%"
+        return or_(
+            Contact.full_name.like(like),
+            Contact.profile_name.like(like),
+            Contact.phone_e164.like(like),
+            Contact.wa_id.like(like),
+        )
+
+    async def category_counts(
+        self, organization_id: int, *, viewer_id: int, q: str | None = None
+    ) -> tuple[int, int, int]:
+        """Totals for the three inbox categories: active, requesting, intervened.
+
+        Scoped by ``q`` and nothing else, because activating a category *replaces* the status,
+        assignee and tag filters and carries only the search term across. A badge counted with
+        the current status or assignee applied would advertise a list the click never produces.
+
+        One aggregate over one scan, rather than three round trips: the inbox polls these, and
+        ``ix_conv_org_status`` and ``ix_conv_assignee`` already cover the predicates.
+        """
+        totals = select(
+            func.coalesce(
+                func.sum(case((Conversation.status == CONV_OPEN, 1), else_=0)), 0
+            ),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Conversation.status == CONV_OPEN,
+                                Conversation.assigned_user_id.is_(None),
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ),
+            func.coalesce(
+                func.sum(case((Conversation.assigned_user_id == viewer_id, 1), else_=0)), 0
+            ),
+        ).where(
+            Conversation.organization_id == organization_id,
+            Conversation.deleted_at.is_(None),
+        )
+        if q:
+            totals = totals.join(Contact, Contact.id == Conversation.contact_id).where(
+                self._customer_match(q)
+            )
+        active, requesting, intervened = (await self.session.execute(totals)).one()
+        return int(active), int(requesting), int(intervened)
 
     async def list_page(
         self,
@@ -150,18 +212,8 @@ class ConversationRepository(BaseRepository[Conversation]):
             )
             clauses.append(conversation_tags.c.tag_id == tag_id)
         if q:
-            # Search the customer the thread is with — name or number — which is what "search the
-            # inbox" means (Doc 05 B7); message-text search is the separate `/messages/search`.
-            like = f"%{q}%"
             stmt = stmt.join(Contact, Contact.id == Conversation.contact_id)
-            clauses.append(
-                or_(
-                    Contact.full_name.like(like),
-                    Contact.profile_name.like(like),
-                    Contact.phone_e164.like(like),
-                    Contact.wa_id.like(like),
-                )
-            )
+            clauses.append(self._customer_match(q))
         if cursor is not None:
             c_ts, c_id = cursor
             clauses.append(or_(sort_key < c_ts, and_(sort_key == c_ts, Conversation.id < c_id)))

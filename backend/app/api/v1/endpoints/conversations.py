@@ -31,6 +31,7 @@ from app.core.config import settings
 from app.core.exceptions import BadRequestError, ForbiddenError
 from app.models.user import User
 from app.schemas.conversation import (
+    ConversationCategoryCounts,
     ConversationMessagesPage,
     ConversationResponse,
     ConversationsPage,
@@ -267,6 +268,32 @@ async def list_conversations(
         next_cursor = encode_cursor(last.last_message_at or last.created_at, last.id)
     return ConversationsPage(
         data=data, page=Page(limit=page_limit, has_more=result.has_more, next_cursor=next_cursor)
+    )
+
+
+@router.get(
+    "/conversations/counts",
+    response_model=ConversationCategoryCounts,
+    summary="Inbox category counts",
+)
+async def conversation_category_counts(
+    session: SessionDep,
+    actor: InboxReader,
+    q: Annotated[str | None, Query()] = None,
+) -> ConversationCategoryCounts:
+    """Totals for the three inbox categories, scoped by ``q`` alone.
+
+    Status, assignee and tag are deliberately not accepted: activating a category replaces them
+    and keeps only the search, so counting with them applied would label the chip with a result
+    the click never produces. Intervened always resolves against the caller.
+
+    Declared before ``/conversations/{conversation_id}`` so ``counts`` is not read as an id.
+    """
+    active, requesting, intervened = await InboxQueryService(session).category_counts(
+        organization_id=actor.organization_id, viewer_id=actor.id, q=q
+    )
+    return ConversationCategoryCounts(
+        active=active, requesting=requesting, intervened=intervened
     )
 
 

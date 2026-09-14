@@ -11,6 +11,7 @@ import { unwrap } from "@/lib/api/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
 import type {
   Conversation,
+  ConversationCategoryCounts,
   ConversationsPage,
   ConversationState,
   ConversationStatus,
@@ -34,6 +35,9 @@ export const inboxKeys = {
   notes: (id: string) => ["inbox", "conversation", id, "notes"] as const,
   quickReplies: ["quick-replies"] as const,
   assignees: ["users", "assignable"] as const,
+  // Keyed on the search alone, because that is the only filter a chip carries across when it is
+  // activated. Keying on the whole filter set would cache a badge under a query it never describes.
+  counts: (q: string | undefined) => ["inbox", "counts", q ?? ""] as const,
 };
 
 /**
@@ -68,6 +72,24 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
     cursor: cursor || null,
     limit,
   };
+}
+
+/**
+ * Totals for the three category chips.
+ *
+ * Only the search term is sent. Activating a chip replaces status, assignee and tag, so a count
+ * computed with the current ones applied would advertise a list the click never produces — and a
+ * contradictory status would pin two of the three badges to a permanent zero.
+ */
+export function useConversationCounts(q: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: inboxKeys.counts(q),
+    queryFn: async (): Promise<ConversationCategoryCounts> =>
+      unwrap(await api.GET("/api/v1/conversations/counts", { params: { query: { q: q || null } } })),
+    placeholderData: keepPreviousData,
+    refetchInterval: POLL_INTERVAL_MS,
+    enabled,
+  });
 }
 
 export function useConversations(

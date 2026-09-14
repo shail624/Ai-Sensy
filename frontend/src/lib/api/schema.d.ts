@@ -2372,6 +2372,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbox category counts
+         * @description Totals for the three inbox categories, scoped by ``q`` alone.
+         *
+         *     Status, assignee and tag are deliberately not accepted: activating a category replaces them
+         *     and keeps only the search, so counting with them applied would label the chip with a result
+         *     the click never produces. Intervened always resolves against the caller.
+         *
+         *     Declared before ``/conversations/{conversation_id}`` so ``counts`` is not read as an id.
+         */
+        get: operations["conversation_category_counts_api_v1_conversations_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}": {
         parameters: {
             query?: never;
@@ -6044,6 +6070,21 @@ export interface components {
              * Format: uuid
              */
             assignee_id: string;
+        };
+        /**
+         * ConversationCategoryCounts
+         * @description Totals behind the three inbox category chips.
+         *
+         *     The categories overlap by construction — requesting is a subset of active, and an intervened
+         *     thread may also be open — so these are three independent totals and never a breakdown to sum.
+         */
+        ConversationCategoryCounts: {
+            /** Active */
+            active: number;
+            /** Requesting */
+            requesting: number;
+            /** Intervened */
+            intervened: number;
         };
         /**
          * ConversationHistoryFilters
@@ -15631,6 +15672,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conversation_category_counts_api_v1_conversations_counts_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationCategoryCounts"];
                 };
             };
             /** @description Validation Error */
