@@ -1,5 +1,60 @@
 # Changelog
 
+## GSHEET-01 — import contacts from a Google Sheet tab (2026-09-16)
+
+`POST /api/v1/contacts/import/google-sheet` reads one tab with a configured service account and
+stores it as a CSV upload. Contract 241 → 242 paths. No migration, no new permission: it requires
+`contacts:import`, the same permission as uploading a file, because it is the same act — choosing
+which rows become customers.
+
+**The sheet joins the existing import; it does not get its own.** The returned `upload_id` is the
+one `/contacts/import/inspect` and `/contacts/import` already take, so mapping, dedup strategy, the
+per-row error report, job progress, the timeline events and the audit trail are the machinery that
+was already there and already tested. A second import path would be a second set of rules to keep
+in step, and the one that drifted would be the one nobody was watching. This service parses
+nothing, validates no contact and writes no contact.
+
+Unlike CORE-22 there is no frozen design to follow: the scope document keeps Google Sheets under
+"Integrations — Limited" but Doc 03 and Doc 04 specify neither schema nor endpoint, so the design
+below is a decision, recorded as one.
+
+**No new dependency.** The whole protocol is a signed JWT exchanged for a bearer token and one
+`GET`, which PyJWT and httpx — both already here — do in about eighty lines. A client library for
+that would be more code to audit, not less, and every dependency on the ingest side of a
+customer-data path is one more thing to keep patched.
+
+**A service account, not an operator's Google login.** A personal account's password change, 2FA
+enrolment or departure would stop every sync, and the failure would look like an empty sheet rather
+than a broken credential. The key is read from `GOOGLE_SERVICE_ACCOUNT_JSON`, is never logged,
+never returned by any endpoint and never written to the database; what is persisted is the sheet's
+*content*, as an ordinary import. Two tests assert that a rejected credential and a malformed key
+do not quote themselves back into the message.
+
+Details that are the difference between working and nearly working:
+
+- **Ragged rows are padded.** Google omits trailing empty cells entirely rather than sending them
+  as blanks. Left ragged, a row that happened to end early would have fewer CSV columns than its
+  header, and every field mapped to the right of the gap would silently read the wrong column.
+- **`QUOTE_ALL` on the CSV.** A sheet holds free text; an unquoted cell containing a comma would
+  split into two columns and shift everything after it.
+- **A pasted link is accepted, not just an id.** The id sits in the middle of a long URL, and
+  asking an operator to extract it by eye is asking for a transcription error that surfaces later
+  as "sheet not found" — sending them to look at sharing settings instead of at what they pasted.
+  An unusable paste is refused locally with what to paste instead, rather than relayed to Google.
+- **The errors name the fix.** Not shared → the exact address to share with. Unknown id → where in
+  the URL the id lives. Wrong tab → the tab name, quoted.
+
+The wizard gains a second source beside the drop zone, and the journey after it is unchanged.
+
+PASS: backend **1,663 passed, 0 skipped**, including 11 new tests that exercise the real request
+building, real RS256 signing and real error mapping against a fake transport — only the network is
+replaced. Frontend **926 passed across 53 files** (was 918) with 8 new tests. Regenerated OpenAPI
+and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript and the production build clean.
+
+**Not yet usable in production:** the owner has to create the service account and share the sheet.
+`backend/.env.example` carries the three steps. Everything else is done and tested, so the
+integration works the moment that key exists.
+
 ## CORE-22 — webhook delivery and dead-letter visibility (2026-09-16)
 
 `GET /api/v1/webhooks/events` and `GET /api/v1/webhooks/dead-letter` expose the inbound webhook

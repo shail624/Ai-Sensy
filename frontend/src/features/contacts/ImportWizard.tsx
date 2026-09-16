@@ -1,12 +1,13 @@
 import { CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
-import { Badge, Button, Modal, Spinner } from "@/components/ui";
+import { Badge, Button, Input, Modal, Spinner } from "@/components/ui";
 import {
   importIsSettled,
   useContactImport,
   useInspectContactImport,
   useInvalidateContacts,
+  useStageGoogleSheet,
   useStartContactImport,
 } from "@/features/contacts/api";
 import {
@@ -19,6 +20,7 @@ import {
   REQUIRED_TARGET,
   SKIP,
   autoMap,
+  sheetIdFrom,
   formatBytes,
   headerValidationError,
   mappingIsValid,
@@ -61,6 +63,7 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
   const upload = useUploadMedia();
   const inspect = useInspectContactImport();
   const start = useStartContactImport();
+  const stageSheet = useStageGoogleSheet();
 
   const [step, setStep] = useState<Step>(0);
   const [file, setFile] = useState<File | null>(null);
@@ -72,6 +75,8 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
   const [fileError, setFileError] = useState<string | null>(null);
   const [importId, setImportId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [sheetId, setSheetId] = useState("");
+  const [sheetTab, setSheetTab] = useState("");
 
   const progress = useContactImport(importId);
   const settled = importIsSettled(progress.data);
@@ -143,6 +148,55 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
       setStep(1);
     } catch (error) {
       setFile(null);
+      setFormat(null);
+      setUploadId(null);
+      setFileError(apiErrorMessage(error));
+    }
+  }
+
+  /**
+   * The same journey as an uploaded workbook: stage, inspect, map.
+   *
+   * A pasted sheet URL is accepted as well as a bare id, because the id is the thing nobody has to
+   * hand — it lives in the middle of the address bar, and asking an operator to extract it is
+   * asking them to make a mistake.
+   */
+  async function acceptSheet(): Promise<void> {
+    setFileError(null);
+    setFile(null);
+    setFormat(null);
+    setPreview(null);
+    setUploadId(null);
+    setMapping({});
+    const id = sheetIdFrom(sheetId);
+    if (!id) {
+      setFileError("Paste the sheet's link, or the id from between '/d/' and the next '/'.");
+      return;
+    }
+    if (!sheetTab.trim()) {
+      setFileError("Name the tab to import, exactly as it appears at the bottom of the sheet.");
+      return;
+    }
+    setFormat("csv");
+    try {
+      const staged = await stageSheet.mutateAsync({ spreadsheetId: id, tab: sheetTab.trim() });
+      setUploadId(staged.upload_id);
+      const found = await inspect.mutateAsync({ uploadId: staged.upload_id, format: "csv" });
+      if (found.errors.length > 0) {
+        throw new Error(found.errors.map((error) => error.message).join(" "));
+      }
+      const parsed: FilePreview = {
+        headers: found.headers,
+        rows: found.sample_row.length > 0 ? [found.sample_row] : [],
+        rowCount: staged.rows,
+        truncated: false,
+        sheetName: sheetTab.trim(),
+        rowCountEstimated: false,
+      };
+      setPreview(parsed);
+      setMapping(autoMap(parsed.headers, definitions.data ?? []));
+      setStep(1);
+    } catch (error) {
       setFormat(null);
       setUploadId(null);
       setFileError(apiErrorMessage(error));
@@ -238,6 +292,35 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
             >
               {inspecting ? "Inspecting workbook…" : "Choose a file"}
             </Button>
+          </div>
+          <div className="rounded-xl border border-border bg-surface-2 p-4">
+            <p className="text-sm font-medium text-text-primary">Or pull from a Google Sheet</p>
+            <p className="mt-1 text-xs text-text-secondary">
+              Share the sheet with this platform&rsquo;s Google service account first, as Viewer. The tab
+              is read once, as it is now — no live link is kept.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[2fr_1fr_auto]">
+              <Input
+                aria-label="Google Sheet link or id"
+                placeholder="Paste the sheet link"
+                value={sheetId}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setSheetId(event.target.value)}
+              />
+              <Input
+                aria-label="Tab name"
+                placeholder="Tab name"
+                value={sheetTab}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setSheetTab(event.target.value)}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={stageSheet.isPending || inspecting}
+                onClick={() => void acceptSheet()}
+              >
+                {stageSheet.isPending ? "Reading sheet…" : "Read tab"}
+              </Button>
+            </div>
           </div>
           {fileError ? (
             <p role="alert" className="text-sm text-danger">

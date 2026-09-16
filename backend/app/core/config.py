@@ -187,6 +187,20 @@ class Settings(BaseSettings):
     #: unconfigured, which is the safe default for a deployment that has not assigned it.
     waha_organization_id: int | None = None
 
+    # ---- Google Sheets import (scope §21 "Integrations — Limited") --------
+    #: The service account's JSON key, as the file's own contents. **Secret**: it carries an RSA
+    #: private key, so it is never logged, never returned by any endpoint and never written to the
+    #: database — the sheet's *contents* are persisted as an ordinary import, the key never is.
+    #: Empty by default, and empty means the integration reports itself unconfigured rather than
+    #: failing mid-import. A service account is used rather than an operator's own Google login
+    #: because a personal account's password change or 2FA enrolment would silently stop every
+    #: scheduled sync.
+    google_service_account_json: str = ""
+    #: Read-only by intent: this integration imports *from* a sheet and never writes back, so the
+    #: narrower scope is the one to request. Widening it is an owner decision, not a config tweak.
+    google_sheets_scope: str = "https://www.googleapis.com/auth/spreadsheets.readonly"
+    google_sheets_timeout_seconds: float = 30.0
+
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
     # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not
     # enough, since a shared dev/staging box could still have ENVIRONMENT=development set by

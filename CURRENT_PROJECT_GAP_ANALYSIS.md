@@ -179,7 +179,10 @@ authorization safeguards remain preserved and must not be deleted or rewritten.
   delivery record and the dead-letter queue, tenant-scoped and without payloads. Event
   replay awaits a decision on a public id (Doc 04 §23 assumes one the partitioned
   `webhook_events` cannot carry as a plain unique key).
-- Google Sheets integration is not implemented.
+- Google Sheets: GSHEET-01 implements the import — a tab is read with a service account and
+  staged as an upload that the existing contact import consumes. What remains outside the
+  repository is the owner creating the service account and sharing the sheet; scheduled
+  re-sync and export back to a sheet remain unbuilt.
 
 ### Chat History
 

@@ -50,6 +50,8 @@ from app.schemas.contact import (
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
 from app.schemas.export_job import ExportCreateRequest, ExportProgressResponse
 from app.schemas.import_job import (
+    GoogleSheetStageRequest,
+    GoogleSheetStageResponse,
     ImportCreateRequest,
     ImportInspectRequest,
     ImportInspectResponse,
@@ -66,6 +68,7 @@ from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
 from app.services.contact_view_service import ContactViewService
 from app.services.export_service import ExportService
+from app.services.google_sheet_import_service import GoogleSheetImportService
 from app.services.import_service import ImportService
 from app.services.tag_service import TagService
 
@@ -427,6 +430,38 @@ async def contact_timeline(
 
 
 # --- Contact import (Doc 04 §14.1) — async only, always 202 -----------------
+@router.post(
+    "/contacts/import/google-sheet",
+    response_model=GoogleSheetStageResponse,
+    summary="Pull a Google Sheet tab in as an upload (imports nothing)",
+)
+async def stage_google_sheet(
+    payload: GoogleSheetStageRequest, session: SessionDep, actor: ContactsImportActor
+) -> GoogleSheetStageResponse:
+    """Fetch one tab with the configured service account and store it as a CSV upload.
+
+    Nothing about contacts happens here. The returned `upload_id` is the same one
+    `/contacts/import/inspect` and `/contacts/import` already take, so a sheet reaches contacts
+    through the one import pipeline — same mapping step, same dedup strategy, same per-row error
+    report, same audit trail. A second import path would be a second set of rules to keep in step,
+    and the one that drifted would be the one nobody was watching.
+
+    Requires `contacts:import`, the same permission as uploading a file, because it is the same
+    act: choosing which rows become customers.
+    """
+    staged = await GoogleSheetImportService(session).stage(
+        organization_id=actor.organization_id,
+        actor=actor,
+        spreadsheet_id=payload.spreadsheet_id,
+        tab=payload.tab,
+    )
+    return GoogleSheetStageResponse(
+        upload_id=uuidlib.UUID(staged.asset.public_id),
+        rows=staged.row_count,
+        columns=staged.column_count,
+    )
+
+
 @router.post(
     "/contacts/import/inspect",
     response_model=ImportInspectResponse,

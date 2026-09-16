@@ -734,6 +734,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contacts/import/google-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pull a Google Sheet tab in as an upload (imports nothing)
+         * @description Fetch one tab with the configured service account and store it as a CSV upload.
+         *
+         *     Nothing about contacts happens here. The returned `upload_id` is the same one
+         *     `/contacts/import/inspect` and `/contacts/import` already take, so a sheet reaches contacts
+         *     through the one import pipeline — same mapping step, same dedup strategy, same per-row error
+         *     report, same audit trail. A second import path would be a second set of rules to keep in step,
+         *     and the one that drifted would be the one nobody was watching.
+         *
+         *     Requires `contacts:import`, the same permission as uploading a file, because it is the same
+         *     act: choosing which rows become customers.
+         */
+        post: operations["stage_google_sheet_api_v1_contacts_import_google_sheet_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/contacts/import/inspect": {
         parameters: {
             query?: never;
@@ -6900,6 +6929,42 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * GoogleSheetStageRequest
+         * @description ``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet.
+         */
+        GoogleSheetStageRequest: {
+            /** Spreadsheet Id */
+            spreadsheet_id: string;
+            /** Tab */
+            tab: string;
+        };
+        /**
+         * GoogleSheetStageResponse
+         * @description The staged sheet, as an upload the normal import flow already understands.
+         *
+         *     ``upload_id`` is the same identifier ``/contacts/import/inspect`` and ``/contacts/import``
+         *     take, which is the point: a sheet reaches contacts through the one import pipeline, with the
+         *     same mapping step, dedup strategy, per-row error report and audit trail as a CSV. The row and
+         *     column counts are returned so the operator can tell at a glance whether they pulled the tab
+         *     they meant to.
+         */
+        GoogleSheetStageResponse: {
+            /**
+             * Type
+             * @default google_sheet_staged
+             */
+            type: string;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /** Rows */
+            rows: number;
+            /** Columns */
+            columns: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -12476,6 +12541,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactTimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stage_google_sheet_api_v1_contacts_import_google_sheet_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleSheetStageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleSheetStageResponse"];
                 };
             };
             /** @description Validation Error */

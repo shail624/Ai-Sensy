@@ -2458,6 +2458,53 @@
         }
       }
     },
+    "/api/v1/contacts/import/google-sheet": {
+      "post": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "Pull a Google Sheet tab in as an upload (imports nothing)",
+        "description": "Fetch one tab with the configured service account and store it as a CSV upload.\n\nNothing about contacts happens here. The returned `upload_id` is the same one\n`/contacts/import/inspect` and `/contacts/import` already take, so a sheet reaches contacts\nthrough the one import pipeline — same mapping step, same dedup strategy, same per-row error\nreport, same audit trail. A second import path would be a second set of rules to keep in step,\nand the one that drifted would be the one nobody was watching.\n\nRequires `contacts:import`, the same permission as uploading a file, because it is the same\nact: choosing which rows become customers.",
+        "operationId": "stage_google_sheet_api_v1_contacts_import_google_sheet_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSheetStageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleSheetStageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/contacts/import/inspect": {
       "post": {
         "tags": [
@@ -24168,6 +24215,59 @@
           "updated_at"
         ],
         "title": "FeatureFlagResponse"
+      },
+      "GoogleSheetStageRequest": {
+        "properties": {
+          "spreadsheet_id": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Spreadsheet Id"
+          },
+          "tab": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Tab"
+          }
+        },
+        "type": "object",
+        "required": [
+          "spreadsheet_id",
+          "tab"
+        ],
+        "title": "GoogleSheetStageRequest",
+        "description": "``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet."
+      },
+      "GoogleSheetStageResponse": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "google_sheet_staged"
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "columns": {
+            "type": "integer",
+            "title": "Columns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_id",
+          "rows",
+          "columns"
+        ],
+        "title": "GoogleSheetStageResponse",
+        "description": "The staged sheet, as an upload the normal import flow already understands.\n\n``upload_id`` is the same identifier ``/contacts/import/inspect`` and ``/contacts/import``\ntake, which is the point: a sheet reaches contacts through the one import pipeline, with the\nsame mapping step, dedup strategy, per-row error report and audit trail as a CSV. The row and\ncolumn counts are returned so the operator can tell at a glance whether they pulled the tab\nthey meant to."
       },
       "HTTPValidationError": {
         "properties": {

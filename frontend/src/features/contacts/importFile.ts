@@ -229,3 +229,23 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * The spreadsheet id out of whatever an operator pasted.
+ *
+ * Accepts the full address bar contents as well as a bare id, because the id is the one thing
+ * nobody has to hand: it sits in the middle of a long URL, and asking someone to extract it by eye
+ * is asking for a transcription error that surfaces later as "sheet not found".
+ *
+ * Returns `null` when there is nothing usable, so the caller can say what to paste instead of
+ * sending an empty id to Google and relaying its answer.
+ */
+export function sheetIdFrom(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const fromUrl = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/.exec(trimmed);
+  if (fromUrl) return fromUrl[1] ?? null;
+  // A bare id: Google's are long and use only these characters, so anything with a slash, space or
+  // punctuation is a mangled paste rather than an id we should send on.
+  return /^[a-zA-Z0-9-_]{20,}$/.test(trimmed) ? trimmed : null;
+}

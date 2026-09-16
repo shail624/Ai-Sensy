@@ -1,5 +1,60 @@
 # Project State
 
+## GSHEET-01 — import contacts from a Google Sheet tab (2026-09-16)
+
+`POST /api/v1/contacts/import/google-sheet` reads one tab with a configured service account and
+stores it as a CSV upload. Contract 241 → 242 paths. No migration, no new permission: it requires
+`contacts:import`, the same permission as uploading a file, because it is the same act — choosing
+which rows become customers.
+
+**The sheet joins the existing import; it does not get its own.** The returned `upload_id` is the
+one `/contacts/import/inspect` and `/contacts/import` already take, so mapping, dedup strategy, the
+per-row error report, job progress, the timeline events and the audit trail are the machinery that
+was already there and already tested. A second import path would be a second set of rules to keep
+in step, and the one that drifted would be the one nobody was watching. This service parses
+nothing, validates no contact and writes no contact.
+
+Unlike CORE-22 there is no frozen design to follow: the scope document keeps Google Sheets under
+"Integrations — Limited" but Doc 03 and Doc 04 specify neither schema nor endpoint, so the design
+below is a decision, recorded as one.
+
+**No new dependency.** The whole protocol is a signed JWT exchanged for a bearer token and one
+`GET`, which PyJWT and httpx — both already here — do in about eighty lines. A client library for
+that would be more code to audit, not less, and every dependency on the ingest side of a
+customer-data path is one more thing to keep patched.
+
+**A service account, not an operator's Google login.** A personal account's password change, 2FA
+enrolment or departure would stop every sync, and the failure would look like an empty sheet rather
+than a broken credential. The key is read from `GOOGLE_SERVICE_ACCOUNT_JSON`, is never logged,
+never returned by any endpoint and never written to the database; what is persisted is the sheet's
+*content*, as an ordinary import. Two tests assert that a rejected credential and a malformed key
+do not quote themselves back into the message.
+
+Details that are the difference between working and nearly working:
+
+- **Ragged rows are padded.** Google omits trailing empty cells entirely rather than sending them
+  as blanks. Left ragged, a row that happened to end early would have fewer CSV columns than its
+  header, and every field mapped to the right of the gap would silently read the wrong column.
+- **`QUOTE_ALL` on the CSV.** A sheet holds free text; an unquoted cell containing a comma would
+  split into two columns and shift everything after it.
+- **A pasted link is accepted, not just an id.** The id sits in the middle of a long URL, and
+  asking an operator to extract it by eye is asking for a transcription error that surfaces later
+  as "sheet not found" — sending them to look at sharing settings instead of at what they pasted.
+  An unusable paste is refused locally with what to paste instead, rather than relayed to Google.
+- **The errors name the fix.** Not shared → the exact address to share with. Unknown id → where in
+  the URL the id lives. Wrong tab → the tab name, quoted.
+
+The wizard gains a second source beside the drop zone, and the journey after it is unchanged.
+
+PASS: backend **1,663 passed, 0 skipped**, including 11 new tests that exercise the real request
+building, real RS256 signing and real error mapping against a fake transport — only the network is
+replaced. Frontend **926 passed across 53 files** (was 918) with 8 new tests. Regenerated OpenAPI
+and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript and the production build clean.
+
+**Not yet usable in production:** the owner has to create the service account and share the sheet.
+`backend/.env.example` carries the three steps. Everything else is done and tested, so the
+integration works the moment that key exists.
+
 ## CORE-22 — webhook delivery and dead-letter visibility (2026-09-16)
 
 `GET /api/v1/webhooks/events` and `GET /api/v1/webhooks/dead-letter` expose the inbound webhook
@@ -482,7 +537,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2396: simple unweighted average **77.3%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2451: simple unweighted average **79.1%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0062_segment_domain_predicates` (**63 linear revisions**) from separate unfinished segment work. UI-REF-01 adds no migration. Prior 0061 Reports-view evidence remains historical. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

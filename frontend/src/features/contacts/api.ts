@@ -235,6 +235,30 @@ export function useStartContactImport() {
   });
 }
 
+/**
+ * Pull a Google Sheet tab in as an upload.
+ *
+ * Returns the same `upload_id` a file upload does, so everything after this — inspect, mapping,
+ * dedup, start, progress — is the wizard's existing path unchanged. A sheet is a source of rows,
+ * not a second kind of import.
+ */
+export function useStageGoogleSheet() {
+  return useMutation({
+    mutationFn: async ({
+      spreadsheetId,
+      tab,
+    }: {
+      spreadsheetId: string;
+      tab: string;
+    }): Promise<{ upload_id: string; rows: number; columns: number }> =>
+      unwrap(
+        await api.POST("/api/v1/contacts/import/google-sheet", {
+          body: { spreadsheet_id: spreadsheetId, tab },
+        }),
+      ),
+  });
+}
+
 /** Poll an import until it stops moving. */
 export function useContactImport(importId: string | null) {
   return useQuery({
