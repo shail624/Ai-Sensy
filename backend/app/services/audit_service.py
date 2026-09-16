@@ -181,6 +181,7 @@ class AuditAction:
     TASK_DUE_NOTIFIED = "task.due_notified"
     NOTIFICATION_READ = "notification.read"
     NOTIFICATIONS_READ_ALL = "notification.read_all"
+    NOTIFICATION_SETTINGS_UPDATED = "notification.settings_updated"
     REACTIVATION_CASE_CREATED = "reactivation_case.created"
     REACTIVATION_CASE_UPDATED = "reactivation_case.updated"
     REACTIVATION_STAGE_TRANSITIONED = "reactivation_case.stage_transitioned"

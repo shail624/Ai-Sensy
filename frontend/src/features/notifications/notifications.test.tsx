@@ -15,6 +15,9 @@ const state = vi.hoisted(() => ({
   },
   markRead: vi.fn(),
   markAll: vi.fn(),
+  settings: { data: { muted_types: [] as string[] }, isPending: false, isError: false,
+    error: null as unknown, refetch: vi.fn() },
+  saveSettings: vi.fn(),
 }));
 
 vi.mock("@/features/notifications/api", () => ({
@@ -24,6 +27,13 @@ vi.mock("@/features/notifications/api", () => ({
   },
   useMarkNotificationRead: () => ({ mutate: state.markRead, isPending: false }),
   useMarkAllNotificationsRead: () => ({ mutate: state.markAll, isPending: false }),
+  useNotificationSettings: () => state.settings,
+  useUpdateNotificationSettings: () => ({
+    mutate: state.saveSettings,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
 }));
 
 vi.mock("@/features/admin/api", () => ({

@@ -1,5 +1,54 @@
 # Changelog
 
+## CORE-21 — per-user notification categories (2026-09-16)
+
+`GET` and `PUT /api/v1/notifications/settings` let each operator choose which of the six
+notification categories appear in their own Notification Center. Contract 238 → 239 paths. No
+migration: the value is a display choice, so it lives beside the other per-user preferences as the
+reserved `notification_settings` key rather than in a table of its own.
+
+**Muting hides, it never drops.** The obvious implementation — skip the `emit` — was rejected, and
+the reasons are worth recording because they are not visible from the happy path:
+
+- This is an operations tool. The categories are follow-up due, release date due, case assigned,
+  case status changed, automation attention, report ready. Every one of them is *work*. Dropping
+  the row would make that work invisible permanently, not quietly deferred.
+- The notification list has a team view. A lead with `tasks:assign` can read a teammate's queue.
+  Suppressing at emit would let an agent's personal tidying erase rows from their supervisor's
+  review — a setting that doubles as a way to hide from oversight.
+- Unmuting has to mean something. Because the rows were only filtered, turning a category back on
+  returns what was missed, still unread.
+
+So the mute is applied at read, and only when the reader is the recipient: `_muted_for_own_view`
+returns the empty set for a team view. Three call sites share one repository predicate
+(`_mute_clause`) — the page, the unread count and mark-all-read — for the reason CORE-11 shares
+`_customer_match`: a badge that counts what the list refuses to show teaches operators to stop
+believing the badge, and a mark-all-read that clears what was never shown consumes the evidence
+before anyone sees it.
+
+The key is reserved from `PUT /users/me/preferences`, exactly as `INBOX_OPERATIONS_KEY` already is
+from the organization settings endpoint. That endpoint takes a free-form dict, so without the guard
+a client could store a shape the typed endpoint would never accept, and the notification list would
+then be filtered by something no validator had seen. The read defends itself as well: a stored
+value that is not a list of known category names mutes nothing, which fails towards showing the
+operator too much rather than too little — a user setting outlives the code that wrote it.
+
+The UI asks "show me", not "mute": a checked box is a category you see. The stored value is the
+complement, because an absent setting has to mean "show everything". The panel says in plain words
+that hidden notifications are still recorded and the team lead still sees them, and it is offered
+only on the personal view — showing it while reading a teammate's queue would imply it changes what
+*they* see. A save in flight holds the just-toggled box rather than letting the server's older
+answer snap it back under the operator's finger.
+
+PASS: backend **1,641 passed, 0 skipped** (was 1,629), including 12 new tests covering the badge
+agreeing with the list, mark-all-read leaving muted rows unread, unmuting restoring them, the
+supervisor's view staying unfiltered, per-user isolation, unknown categories refused, the reserved
+key guarded and a corrupt stored value. Frontend **910 passed across 52 files** (was 901/51), with
+9 new tests. Regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy across 322 files,
+ESLint and TypeScript clean; production build clean. Verified live against MySQL 8: defaults,
+save, read-back, refusal of an unknown category, the reserved-key guard and unmute; the read sweep
+is 204 requests across 70 paths with no 5xx.
+
 ## MAINT-03 — an owner the CLI creates is an owner who can sign in (2026-09-16)
 
 `create-owner` accepted any string as an email. It lowercased it, wrote it to `users` as an Owner

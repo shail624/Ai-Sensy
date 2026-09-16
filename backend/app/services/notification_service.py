@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import builtins
 import uuid as uuidlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -16,12 +17,17 @@ from app.api.pagination import decode_cursor, encode_cursor
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.db.mixins import utcnow
 from app.models.contact import Contact
-from app.models.notification import Notification
+from app.models.notification import NOTIFICATION_TYPES, Notification
 from app.models.task import Task
 from app.models.user import User
 from app.models.vi_domain import ReactivationCase
 from app.repositories.notification import NotificationRepository
+from app.repositories.settings import SettingRepository
 from app.services.audit_service import AuditAction, AuditService
+
+#: Reserved user-setting key. Settings live beside the other per-user preferences rather than in a
+#: table of their own: this is a display choice, not domain state, and it needs no migration.
+NOTIFICATION_SETTINGS_KEY = "notification_settings"
 
 
 @dataclass(slots=True)
@@ -37,6 +43,7 @@ class NotificationService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._repo = NotificationRepository(session)
+        self._settings = SettingRepository(session)
         self._audit = AuditService(session)
 
     async def emit(
@@ -92,6 +99,7 @@ class NotificationService:
         rows, has_more = await self._repo.list_page(
             actor.organization_id,
             recipient.id,
+            muted_types=await self._muted_for_own_view(actor, recipient),
             notification_type=notification_type,
             status=status,
             date_from=date_from,
@@ -105,7 +113,9 @@ class NotificationService:
         return NotificationListResult(items, has_more, next_cursor)
 
     async def unread_count(self, actor: User) -> int:
-        return await self._repo.unread_count(actor.organization_id, actor.id)
+        return await self._repo.unread_count(
+            actor.organization_id, actor.id, muted_types=await self.muted_types(actor)
+        )
 
     async def mark_read(self, actor: User, public_id: uuidlib.UUID) -> dict[str, Any]:
         row = await self._repo.get_for_recipient(actor.organization_id, actor.id, public_id.bytes)
@@ -126,7 +136,9 @@ class NotificationService:
 
     async def mark_all_read(self, actor: User) -> int:
         now = utcnow()
-        count = await self._repo.mark_all_read(actor.organization_id, actor.id, now)
+        count = await self._repo.mark_all_read(
+            actor.organization_id, actor.id, now, muted_types=await self.muted_types(actor)
+        )
         if count:
             await self._audit.record(
                 AuditAction.NOTIFICATIONS_READ_ALL,
@@ -137,6 +149,53 @@ class NotificationService:
             )
         await self._session.commit()
         return count
+
+    # --- Per-user category settings -------------------------------------------------------
+    async def muted_types(self, user: User) -> tuple[str, ...]:
+        """The categories this user has chosen not to see, ignoring anything unrecognisable.
+
+        The value is a user setting, so it can be older than the code reading it: a category that
+        has since been renamed or removed would otherwise mute nothing under a name no longer in
+        ``NOTIFICATION_TYPES``, or worse, be carried forward as a filter nobody can clear from the
+        UI. Unknown names are dropped on read rather than trusted.
+        """
+        row = await self._settings.get_user_setting(user.id, NOTIFICATION_SETTINGS_KEY)
+        stored = row.value_json if row is not None else None
+        if not isinstance(stored, dict):
+            return ()
+        muted = stored.get("muted_types")
+        if not isinstance(muted, list):
+            return ()
+        return tuple(name for name in muted if name in NOTIFICATION_TYPES)
+
+    async def update_muted_types(self, actor: User, muted: Sequence[str]) -> tuple[str, ...]:
+        before = await self.muted_types(actor)
+        await self._settings.upsert_user(
+            user_id=actor.id,
+            organization_id=actor.organization_id,
+            key=NOTIFICATION_SETTINGS_KEY,
+            value={"muted_types": list(muted)},
+            value_type="json",
+        )
+        await self._audit.record(
+            AuditAction.NOTIFICATION_SETTINGS_UPDATED,
+            actor_user_id=actor.id,
+            organization_id=actor.organization_id,
+            entity_type="user",
+            entity_id=actor.id,
+            before={"muted_types": list(before)},
+            after={"muted_types": list(muted)},
+        )
+        await self._session.commit()
+        return await self.muted_types(actor)
+
+    async def _muted_for_own_view(self, actor: User, recipient: User) -> tuple[str, ...]:
+        """Muting hides a category from its owner's list, never from a supervisor's team view.
+
+        A personal tidying choice must not blind oversight: if an agent mutes ``case_assigned``,
+        the lead reviewing that agent's queue still has to see the cases assigned to them.
+        """
+        return await self.muted_types(actor) if recipient.id == actor.id else ()
 
     async def resolve_task(self, task: Task) -> int:
         return await self._repo.resolve_task(task.organization_id, task.id, utcnow())

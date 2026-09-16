@@ -177,7 +177,7 @@ paths against MySQL with no 5xx. Its Docker/security release rerun is pending. T
 preserved at **25/25**, including its disposable ten-service browser/performance/failure exercise.
 This certifies the repository and local production topology; it does not mean the entire approved
 feature roadmap is complete or that a target host has been commissioned. The canonical
-31-module table currently averages **77.1%** unweighted (recalculated median **87%**), with exact remaining work
+31-module table currently averages **77.1%** unweighted (recalculated median **88%**), with exact remaining work
 tracked in `MODULE_STATUS.md` and `ROADMAP.md`. FR-CON-04 Excel import inspection is preserved at
 `baseline/fr-con-04-release-ready`.
 

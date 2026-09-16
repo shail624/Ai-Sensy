@@ -10539,6 +10539,78 @@
         }
       }
     },
+    "/api/v1/notifications/settings": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Own notification settings",
+        "description": "The categories the signed-in user has chosen not to see.",
+        "operationId": "get_notification_settings_api_v1_notifications_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update own notification settings",
+        "description": "Mute or unmute categories for the signed-in user only.\n\nMuting hides a category from this user's own list, unread count and mark-all-read; it never\nstops the notification being recorded and never hides it from a supervisor's team view. The\nbody replaces the whole set, so unmuting is sending a shorter list rather than a second verb.",
+        "operationId": "update_notification_settings_api_v1_notifications_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/notifications/unread-count": {
       "get": {
         "tags": [
@@ -27259,6 +27331,28 @@
           "task"
         ],
         "title": "NotificationResponse"
+      },
+      "NotificationSettings": {
+        "properties": {
+          "muted_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "follow_up_due",
+                "release_date_due",
+                "case_assigned",
+                "case_status_changed",
+                "automation_attention",
+                "report_ready"
+              ]
+            },
+            "type": "array",
+            "title": "Muted Types"
+          }
+        },
+        "type": "object",
+        "title": "NotificationSettings",
+        "description": "Which categories the signed-in user has chosen not to see.\n\nMuting is a display choice, not a delivery one: the notification is still recorded, and a\nsupervisor's team view still shows it. Nothing an operator is accountable for disappears\nbecause they tidied their own list."
       },
       "NotificationsPage": {
         "properties": {

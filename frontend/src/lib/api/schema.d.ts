@@ -3008,6 +3008,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own notification settings
+         * @description The categories the signed-in user has chosen not to see.
+         */
+        get: operations["get_notification_settings_api_v1_notifications_settings_get"];
+        /**
+         * Update own notification settings
+         * @description Mute or unmute categories for the signed-in user only.
+         *
+         *     Muting hides a category from this user's own list, unread count and mark-all-read; it never
+         *     stops the notification being recorded and never hides it from a supervisor's team view. The
+         *     body replaces the whole set, so unmuting is sending a shorter list rather than a second verb.
+         */
+        put: operations["update_notification_settings_api_v1_notifications_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/unread-count": {
         parameters: {
             query?: never;
@@ -8074,6 +8102,18 @@ export interface components {
             task: components["schemas"]["EntityReference"] | null;
             /** Action Url */
             action_url?: string | null;
+        };
+        /**
+         * NotificationSettings
+         * @description Which categories the signed-in user has chosen not to see.
+         *
+         *     Muting is a display choice, not a delivery one: the notification is still recorded, and a
+         *     supervisor's team view still shows it. Nothing an operator is accountable for disappears
+         *     because they tidied their own list.
+         */
+        NotificationSettings: {
+            /** Muted Types */
+            muted_types?: ("follow_up_due" | "release_date_due" | "case_assigned" | "case_status_changed" | "automation_attention" | "report_ready")[];
         };
         /** NotificationsPage */
         NotificationsPage: {
@@ -17038,6 +17078,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notification_settings_api_v1_notifications_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+        };
+    };
+    update_notification_settings_api_v1_notifications_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
                 };
             };
             /** @description Validation Error */

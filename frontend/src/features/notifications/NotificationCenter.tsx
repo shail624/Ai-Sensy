@@ -4,6 +4,7 @@ import {
   CheckCheck,
   CircleAlert,
   RefreshCw,
+  SlidersHorizontal,
   TriangleAlert,
   UserRound,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from "@/features/notifications/api";
+import { NotificationSettingsPanel } from "@/features/notifications/NotificationSettingsPanel";
 import {
   NOTIFICATION_STATUSES,
   NOTIFICATION_TYPES,
@@ -62,6 +64,7 @@ export function NotificationCenter({
   const navigate = useNavigate();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [query, setQuery] = useState<NotificationListQuery>({ limit: 100 });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const notifications = useNotifications(query, open && canRead && online);
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
@@ -201,21 +204,38 @@ export function NotificationCenter({
                 Read-only team view
               </p>
             ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={markAll.isPending}
-                onClick={() => markAll.mutate(undefined)}
-                leftIcon={<CheckCheck aria-hidden className="h-3.5 w-3.5" />}
-                className="px-2 text-xs"
-              >
-                Mark all read
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={markAll.isPending}
+                  onClick={() => markAll.mutate(undefined)}
+                  leftIcon={<CheckCheck aria-hidden className="h-3.5 w-3.5" />}
+                  className="px-2 text-xs"
+                >
+                  Mark all read
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={settingsOpen}
+                  aria-label="Notification settings"
+                  onClick={() => setSettingsOpen((value) => !value)}
+                  className="px-2 text-xs"
+                >
+                  <SlidersHorizontal aria-hidden className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             )}
           </FilterBar>
         ) : null}
       </div>
+
+      {/* Personal view only: the setting belongs to whoever is signed in, so offering it while
+          reading a teammate's queue would suggest it changes what they see. */}
+      {canRead && !isTeamView ? <NotificationSettingsPanel open={settingsOpen} /> : null}
 
       <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
         {!online ? (

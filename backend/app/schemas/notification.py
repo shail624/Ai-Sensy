@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.api.pagination import Page
 
@@ -56,6 +56,23 @@ class NotificationsPage(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     unread: int
+
+
+class NotificationSettings(BaseModel):
+    """Which categories the signed-in user has chosen not to see.
+
+    Muting is a display choice, not a delivery one: the notification is still recorded, and a
+    supervisor's team view still shows it. Nothing an operator is accountable for disappears
+    because they tidied their own list.
+    """
+
+    muted_types: list[NotificationType] = Field(default_factory=list)
+
+    @field_validator("muted_types")
+    @classmethod
+    def _stable_set(cls, value: list[NotificationType]) -> list[NotificationType]:
+        """Deduplicated and ordered, so what a client reads back is what it sent."""
+        return sorted(set(value))
 
 
 class MarkAllReadResponse(BaseModel):

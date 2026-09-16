@@ -153,7 +153,8 @@ will be inferred without an approved source of truth.
 ### Notifications
 
 The durable server-backed Notification Center, unread/read state, team view, deep links, filtering,
-polling, mark-read actions and idempotent scheduled-report-ready deliveries are implemented. Remaining gaps are notification settings, final
+polling, mark-read actions and idempotent scheduled-report-ready deliveries are implemented. CORE-21 adds per-user
+categories, applied at read so a mute never drops the record or hides it from a supervisor. Remaining gaps are final
 page-specific visual/responsive acceptance, and only separately approved optional delivery channels;
 SSE, browser push, email, and internal WhatsApp are not implied.
 

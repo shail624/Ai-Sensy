@@ -1,9 +1,9 @@
 {
   "spec": "/home/user/Ai-Sensy/frontend/openapi.json",
-  "paths_swept": 69,
-  "requests_issued": 203,
+  "paths_swept": 70,
+  "requests_issued": 204,
   "status_counts": {
-    "200": 198,
+    "200": 199,
     "400": 3,
     "404": 2
   },
