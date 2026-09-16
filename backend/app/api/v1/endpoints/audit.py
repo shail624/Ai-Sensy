@@ -11,10 +11,10 @@ import uuid as uuidlib
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, decode_cursor, encode_cursor
 from app.core.exceptions import BadRequestError
 from app.models.user import User
 from app.schemas.audit import AuditLogPage, AuditLogResponse
@@ -36,12 +36,28 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 @router.get("/audit-logs", response_model=AuditLogPage, summary="Query the audit trail")
 async def list_audit_logs(
-    request: Request, session: SessionDep, actor: AuditReadActor
+    request: Request,
+    session: SessionDep,
+    actor: AuditReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
 ) -> AuditLogPage:
+    """The audit trail, newest first.
+
+    Pagination is declared, because Doc 04 section 6 fixes `limit` and `cursor` for every
+    collection and section 1 requires the API to be fully OpenAPI-describable — undeclared, they
+    are unreachable from the generated client, which is the only contract the frontend may use.
+
+    The `filter[field][op]` grammar of section 7.1 stays on the raw request deliberately: it spans
+    any field crossed with eleven operators, so there is no finite set of parameters to declare.
+    """
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
-    cursor = decode_cursor(raw_cursor) if raw_cursor else None
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
+    cursor = decode_cursor(cursor_param) if cursor_param else None
 
     service = AuditQueryService(session)
     actor_user_id: int | None = None

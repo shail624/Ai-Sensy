@@ -514,7 +514,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Query the audit trail */
+        /**
+         * Query the audit trail
+         * @description The audit trail, newest first.
+         *
+         *     Pagination is declared, because Doc 04 section 6 fixes `limit` and `cursor` for every
+         *     collection and section 1 requires the API to be fully OpenAPI-describable — undeclared, they
+         *     are unreachable from the generated client, which is the only contract the frontend may use.
+         *
+         *     The `filter[field][op]` grammar of section 7.1 stays on the raw request deliberately: it spans
+         *     any field crossed with eleven operators, so there is no finite set of parameters to declare.
+         */
         get: operations["list_audit_logs_api_v1_audit_logs_get"];
         put?: never;
         post?: never;
@@ -11756,7 +11766,12 @@ export interface operations {
     };
     list_audit_logs_api_v1_audit_logs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11770,6 +11785,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

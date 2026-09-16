@@ -1520,7 +1520,53 @@
           "Audit"
         ],
         "summary": "Query the audit trail",
+        "description": "The audit trail, newest first.\n\nPagination is declared, because Doc 04 section 6 fixes `limit` and `cursor` for every\ncollection and section 1 requires the API to be fully OpenAPI-describable — undeclared, they\nare unreachable from the generated client, which is the only contract the frontend may use.\n\nThe `filter[field][op]` grammar of section 7.1 stays on the raw request deliberately: it spans\nany field crossed with eleven operators, so there is no finite set of parameters to declare.",
         "operationId": "list_audit_logs_api_v1_audit_logs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1531,13 +1577,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contacts": {

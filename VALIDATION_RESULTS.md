@@ -1,5 +1,41 @@
 # Validation Results
 
+## CORE-18 — declare audit-log pagination (2026-09-16)
+
+`GET /api/v1/audit-logs` now declares `limit` and `cursor` as typed contract parameters instead of
+reading them off the raw request. Contract remains 237 paths; no migration, no new permission, no
+change to what the endpoint returns.
+
+Doc 04 section 6 fixes `limit` and `cursor` for every collection and section 1 requires the API to
+be fully OpenAPI-3.1-describable. Undeclared, they never reach the generated TypeScript client —
+the only contract the frontend is permitted to use — so paging the audit trail from the UI was
+impossible without hand-writing a query string, which repository rules forbid.
+
+The `filter[field][op]` grammar of section 7.1 deliberately stays on the raw request and is
+covered by its own test. It spans any field crossed with eleven operators, so there is no finite
+parameter set to declare; treating it as an oversight and "fixing" it would break the documented
+grammar. The distinction is recorded in the handler docstring so the next reader does not undo it.
+
+Behaviour change, recorded rather than slipped in: an out-of-range page size is now refused with
+422 instead of being silently clamped to the maximum. A client asking for 9999 rows has a defect,
+and quietly returning 200 hides it. No existing test depended on the clamping; the new bound is
+pinned by test.
+
+Systematic finding, not yet acted on: eight further collection endpoints read the same spec'd
+`limit`/`cursor` off the raw request — contacts, contact timeline, jobs, media, segment contacts,
+templates, users and phone numbers. Only six routes in the whole contract currently declare both.
+The same mechanical change applies to each, and the 422 decision above should be reviewed before
+it is applied eight more times.
+
+PASS: full backend suite **1609 passed**, 6 MySQL tests skipped for want of a server; 2 new tests
+covering the declared bounds and the filter grammar's continued absence from the generated query.
+Full frontend suite 901 passed; regenerated OpenAPI and TypeScript types; ESLint, Ruff and
+endpoint mypy pass.
+
+PENDING - Host Machine Validation: deployed MySQL and authenticated preview were not run. No
+module completion percentage is increased and no source-of-truth document changed.
+
+
 ## CORE-17 — server-owned workspace favourites (2026-09-16)
 
 Navigation favourites now persist per user through the existing `GET/PUT /users/me/preferences`

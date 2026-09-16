@@ -82,3 +82,40 @@ async def test_audit_permission_enforcement(client, make_user) -> None:
     headers = await _headers(client, "agent@vi.co")
     assert (await client.get("/api/v1/audit-logs", headers=headers)).status_code == 403
     assert (await client.get("/api/v1/audit-logs")).status_code == 401
+
+
+async def test_pagination_is_declared_and_bounded(client, make_user) -> None:
+    """`limit` and `cursor` are contract parameters, not raw-request reads.
+
+    Doc 04 section 6 fixes them for every collection and section 1 requires the API to be fully
+    OpenAPI-describable; undeclared, they cannot be reached from the generated client at all. The
+    bounds now come from the declaration, so an out-of-range page size is refused rather than
+    silently clamped — a client asking for 9999 rows has a bug, and quietly handing back 200 hides
+    it.
+    """
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    headers = await _headers(client, "owner@vi.co")
+
+    schema = (await client.get("/api/v1/openapi.json")).json()
+    declared = {q["name"] for q in schema["paths"]["/api/v1/audit-logs"]["get"]["parameters"]}
+    assert {"limit", "cursor"} <= declared
+
+    assert (await client.get("/api/v1/audit-logs?limit=1", headers=headers)).status_code == 200
+    assert (await client.get("/api/v1/audit-logs?limit=9999", headers=headers)).status_code == 422
+    assert (await client.get("/api/v1/audit-logs?limit=0", headers=headers)).status_code == 422
+
+
+async def test_the_filter_grammar_stays_on_the_raw_request(client, make_user) -> None:
+    """`filter[field][op]` spans any field crossed with eleven operators, so there is no finite
+    parameter set to declare. It must keep working, and must stay out of the generated query."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    headers = await _headers(client, "owner@vi.co")
+    await client.post("/api/v1/roles", headers=headers, json={"name": "auditable"})
+
+    filtered = await client.get("/api/v1/audit-logs?filter[action][eq]=role.created", headers=headers)
+
+    assert filtered.status_code == 200
+    assert [entry["action"] for entry in filtered.json()["data"]] == ["role.created"]
+    schema = (await client.get("/api/v1/openapi.json")).json()
+    declared = {q["name"] for q in schema["paths"]["/api/v1/audit-logs"]["get"]["parameters"]}
+    assert not any(name.startswith("filter[") for name in declared)
