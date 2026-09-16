@@ -1,5 +1,47 @@
 # Project State
 
+## VAL-01 — the suite runs against the database production uses (2026-09-16)
+
+The full backend suite now passes with **zero skips**: **1,623 passed**, where every previous run in
+this repository reported "6 MySQL-only skips". Those six were never a rounding error. They are the
+tests that prove the 63-revision migration chain against a *real* MySQL 8 rather than SQLite, and a
+test that never runs proves nothing — it simply stops asking.
+
+A MySQL 8.0.46 server was brought up and the whole chain applied to it from base: 93 tables and 76
+seeded permissions, upgrade and downgrade, with the owner bootstrap idempotent on rerun. The API
+was then booted against that database with Redis behind it and answered `/health`.
+
+Docker was never the requirement, only the convenience. `docker compose up -d` remains the easy
+route, but the tests need a server that speaks MySQL 8, not a container runtime. The skip message
+and module docstring now say so, and the README carries the four commands that get there from a
+plain package install. A skip that names only the route you do not have is a skip nobody clears.
+
+**`scripts/live_api_read_sweep.py`** is added as a gate, because the hermetic suite runs on SQLite
+and MySQL disagrees with SQLite exactly where it is most expensive to find out late:
+`ONLY_FULL_GROUP_BY` is on by default in MySQL 8 and absent in SQLite, the date and JSON function
+sets differ, and `FILTER (WHERE ...)` has no MySQL equivalent. A query that is wrong for MySQL
+therefore passes every test and fails the first time an operator opens the page. The sweep asks a
+running server, on its real database, for every read the contract declares: **203 requests across
+69 parameterless GET paths, zero 5xx**. It fails only on a 5xx or a transport error — a 400 refusing
+an unbounded date range is the endpoint working, not a defect.
+
+It also reports what it could *not* reach. Three analytics paths require a parameter whose accepted
+values the contract does not enumerate (`breakdown`'s `dimension`, `series` and `trends`' `metrics`),
+so they are listed under `not_exercised` rather than counted as answered: their 422 proves
+validation works, not that the query underneath is sound, and calling that a pass would be the
+false comfort this gate exists to remove. All three were then exercised by hand — `breakdown` over
+`error_code` and `message_type`, `series` at day, week and month, `trends` — and all returned 200
+against MySQL. The remaining 400s are correct domain rules ("no metrics of dimension
+'assigned_user_id' were requested"; "an 'hour' range may span at most 7 days").
+
+No product code changed. This milestone alters a test docstring, a skip message, the README, and
+adds one script plus its evidence. It does not raise any module percentage: proving what was
+already built is not building more, and the completion table has always said so.
+
+PASS: backend **1,623 passed, 0 skipped** (was 1,617 passed / 6 skipped); live-MySQL file 12/12;
+frontend 901 passed across 51 files; production build clean; Bandit 0 high / 0 medium / 34 low,
+unchanged; Ruff and mypy clean on the new script.
+
 ## CORE-20 — a user's sign-in history (2026-09-16)
 
 `GET /api/v1/users/{user_id}/login-history` returns one user's successful sign-ins, rejected

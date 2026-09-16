@@ -108,6 +108,36 @@ provider-neutral quality, security, image, and deployed-stack gates.
 - Backend lint and type gate: `cd backend && ruff check app tests scripts && mypy app`
 - Frontend: `cd frontend && npm test`
 
+### Running the live-MySQL tests
+
+`backend/tests/test_migrations_mysql.py` proves the migration chain against a *real* MySQL 8 rather
+than SQLite, and skips cleanly when no server answers. Docker is the convenience, not the
+requirement — any MySQL 8 works, including one installed directly:
+
+```bash
+apt-get install -y mysql-server                 # or: docker compose up -d
+mysqld --user=mysql --bind-address=127.0.0.1 &
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'root'"
+cd backend && DB_HOST=127.0.0.1 MYSQL_ROOT_PASSWORD=root pytest
+```
+
+With a server reachable the full backend suite runs with **zero skips**. Without one it still
+passes; the skipped tests simply do not run, which is why they are easy to leave unproven.
+
+### Sweeping the read surface against a real database
+
+The hermetic suite runs on SQLite, so a query that is only wrong for MySQL passes every test and
+fails the first time an operator opens the page. `scripts/live_api_read_sweep.py` closes that gap by
+asking a running server for every read the contract declares:
+
+```bash
+python scripts/live_api_read_sweep.py --base-url http://127.0.0.1:8000 \
+    --email <owner> --password <password> --output output/evidence/live-api-read-sweep.json
+```
+
+It fails only on a 5xx or a transport error, and reports separately any path it could not exercise
+because the contract does not enumerate that parameter's accepted values.
+
 The provider-neutral Module 11 gate is the automation entry point for local and CI execution:
 
 ```bash
@@ -138,15 +168,16 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 `v1.0.0-rc1` contains the production deployment topology and the implemented frontend/backend
 workflows across the principal product areas. PAR-AUTO-22 remains the last complete `release`
 quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
-dependency/image/SBOM/runtime gates. The exact current PAR-VIEW-05 source tree passes focused
-Report saved-view/API/migration contracts 12/12, 1579 backend tests with 6 MySQL-only skips and zero
-failures in 413.35s, 875 frontend tests, static 6/6 and strict mypy across 322 files plus the synchronized
-235-path contract and production build; its Docker/security release rerun is
-pending. The prior cumulative `deployed` proof remains
+dependency/image/SBOM/runtime gates. The current source tree passes **1,623 backend tests with zero
+skips** — VAL-01 stood up a real MySQL 8 and cleared the six live-migration tests that every prior
+run reported as skipped — plus 901 frontend tests across 51 files, the synchronized 238-path
+contract, production build, and a live read sweep of 203 requests over 69 contract-declared GET
+paths against MySQL with no 5xx. Its Docker/security release rerun is pending. The prior cumulative
+`deployed` proof remains
 preserved at **25/25**, including its disposable ten-service browser/performance/failure exercise.
 This certifies the repository and local production topology; it does not mean the entire approved
 feature roadmap is complete or that a target host has been commissioned. The canonical
-31-module table currently averages **77.0%** unweighted (recalculated median **88%**), with exact remaining work
+31-module table currently averages **77.1%** unweighted (recalculated median **87%**), with exact remaining work
 tracked in `MODULE_STATUS.md` and `ROADMAP.md`. FR-CON-04 Excel import inspection is preserved at
 `baseline/fr-con-04-release-ready`.
 

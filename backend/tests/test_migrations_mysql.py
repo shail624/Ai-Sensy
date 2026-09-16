@@ -4,8 +4,9 @@ The hermetic default suite runs entirely against SQLite and never depends on thi
 ``tests/conftest.py``'s own stated discipline: "external services are never contacted from
 tests"). The tests decorated with ``@_live_mysql_required`` are the deliberate, clearly-scoped
 exception: they prove the repair for ``0035a_widen_version_table`` against a *real* MySQL 8
-server, using the repository's own approved local infrastructure (``docker compose up -d`` from
-the repository root).
+server — the repository's own ``docker compose up -d``, or any MySQL 8 that ``DB_HOST``,
+``DB_PORT`` and ``MYSQL_ROOT_PASSWORD`` point at. Docker is the convenience, not the requirement;
+what these tests need is a server that speaks MySQL 8, because that is what production runs.
 
 Reachability is classified into three states, not two:
 
@@ -137,8 +138,9 @@ _MYSQL_STATE, _MYSQL_STATE_MESSAGE = _probe_mysql_state()
 _live_mysql_required = pytest.mark.skipif(
     _MYSQL_STATE == "unreachable",
     reason=(
-        f"{_MYSQL_STATE_MESSAGE} — run `docker compose up -d` from the repository root; "
-        "the hermetic suite does not depend on this"
+        f"{_MYSQL_STATE_MESSAGE} — run `docker compose up -d` from the repository root, or point "
+        "DB_HOST/DB_PORT/MYSQL_ROOT_PASSWORD at any MySQL 8 server; the hermetic suite does not "
+        "depend on this"
     ),
 )
 
