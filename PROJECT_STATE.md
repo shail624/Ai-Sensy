@@ -1,5 +1,42 @@
 # Project State
 
+## CORE-17 — server-owned workspace favourites (2026-09-16)
+
+Navigation favourites now persist per user through the existing `GET/PUT /users/me/preferences`
+contract, under a namespaced `workspace_favorites` key. No new path, no migration, no new
+permission: the preferences document already stores a free object. Contract remains 237 paths.
+
+Favourites were browser-local, so an agent who starred Templates or a Contacts view lost them on
+another machine or after clearing site data. Both consumers — the templates list and the command
+palette — read the same store, so this fixes them together.
+
+Recents deliberately stay local. They record what was opened *on this device*; syncing them would
+let a phone reorder a desktop's list, and the value of the list is that it is local.
+
+The browser copy of favourites is kept as a cache, not a second source of truth: it renders
+immediately on a cold load and stands in when the read fails, so a network problem degrades the
+list to what this device last saw rather than to empty — the one outcome that would look to the
+operator like their favourites had been deleted. Absent and empty are treated as different
+answers: an empty stored list means "starred nothing" and is never overwritten from a stale
+device, while a first read with the key absent adopts whatever this browser holds, so nobody loses
+favourites they set before these became server-owned.
+
+Two defects were found and fixed during implementation. Cache alignment raced the optimistic
+write: a toggle wrote through the cache, then the still-stale server read reverted it, so the star
+flipped back under the cursor until the refetch landed. Alignment is now suppressed while a save
+is in flight. Separately, the first write of this file emitted NUL bytes in place of two spaces
+inside a string separator; TypeScript and the tests accepted it, but the file was classified as
+binary and was invisible to grep and diff. The comparison no longer needs a separator at all.
+
+PASS: full frontend suite **901 passed / 51 files**, 7 new tests covering server precedence,
+first-read seeding, the empty-versus-absent distinction, read-failure fallback, toggle
+persistence and removal, and recents staying local. TypeScript, ESLint clean.
+
+No backend file, contract or migration changed, so the 1607-test backend result from CORE-16
+stands unaltered. PENDING - Host Machine Validation: authenticated multi-device preview was not
+run. No module completion percentage is increased and no source-of-truth document changed.
+
+
 ## CORE-16 — API key rotation (2026-09-14)
 
 Adds `POST /api/v1/api-keys/{key_id}/rotate`, replacing a key's secret in place. The contract
