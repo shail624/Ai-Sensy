@@ -1,5 +1,41 @@
 # Changelog
 
+## MAINT-03 — an owner the CLI creates is an owner who can sign in (2026-09-16)
+
+`create-owner` accepted any string as an email. It lowercased it, wrote it to `users` as an Owner
+superuser, printed "Owner created" and exited 0. `LoginRequest.email` is an `EmailStr`, so the
+address was then refused at the sign-in boundary — the account was unusable from the moment it
+existed, and the only symptom arrived later as a 422 that never said the address was the problem.
+
+Reproduced end to end before the fix, against a real MySQL 8: `create-owner --email
+'this is not an email'` succeeded, and the row landed in `users` verbatim. `ghost@vi.test` did the
+same. Neither could ever sign in.
+
+This matters more than its size suggests. `create-owner` is the first command run against a new
+deployment, usually once, often by whoever is least able to debug it, and a typo there produces a
+superuser nobody can use with no signal that anything went wrong.
+
+`validate_sign_in_email` now sits in `app/core/security.py` beside `validate_password_policy`, and
+for the same stated reason: one rule, applied at both boundaries. It validates through the very
+`EmailStr` adapter `LoginRequest` uses, so the two cannot drift — a future change to the schema's
+address rule moves the CLI with it. It returns the normalised address, so `bootstrap_owner` no
+longer repeats the trimming and lowercasing itself. A refusal exits 2 and names the reason, so a
+deployment script stops rather than continuing against an owner that will never work.
+
+The gap analysis recorded this as "the owner-bootstrap CLI currently accepts reserved `.test`
+email addresses". It was wider than that: there was no validation at all, and `.test` was simply
+the example someone happened to try.
+
+Six tests added: five addresses that could never sign in (a plain typo, reserved `.test` and
+`.invalid`, `localhost`, a truncated address), each asserting that nothing was written before the
+refusal, and one stating the property directly rather than by example — an address
+`bootstrap_owner` accepts is an address `LoginRequest` accepts. No existing test changed; every
+address the suite already bootstrapped with passes the new rule.
+
+PASS: full backend suite **1,629 passed, 0 skipped**; bootstrap/dev-fixture/live-MySQL/auth/security
+files 63 passed; strict mypy across 322 files; Ruff clean. No migration, no contract change, no new
+permission; the contract stays at 238 paths.
+
 ## VAL-01 — the suite runs against the database production uses (2026-09-16)
 
 The full backend suite now passes with **zero skips**: **1,623 passed**, where every previous run in

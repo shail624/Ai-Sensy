@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
-from app.core.security import hash_password, validate_password_policy
+from app.core.security import hash_password, validate_password_policy, validate_sign_in_email
 from app.crm.seeding import sync_default_pipeline
 from app.db.session import dispose_engine, get_sessionmaker
 from app.dev_fixtures import (
@@ -61,7 +61,7 @@ async def bootstrap_owner(
 ) -> BootstrapResult:
     """Ensure the org, preset roles, and Owner superuser exist. Idempotent."""
     validate_password_policy(password)
-    normalized_email = email.strip().lower()
+    normalized_email = validate_sign_in_email(email)
 
     async with session_factory() as session:
         org_repo = OrganizationRepository(session)
@@ -158,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
             result = asyncio.run(
                 _run_create_owner(args.email, args.name, password)
             )
-        except ValueError as exc:  # password policy violation
+        except ValueError as exc:  # unusable email, or a password policy violation
             print(f"error: {exc}", file=sys.stderr)
             return 2
         if result.owner_created:

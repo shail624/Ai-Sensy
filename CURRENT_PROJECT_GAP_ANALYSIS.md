@@ -211,9 +211,10 @@ production-scale commissioning plus future facts added by separately approved so
 
 ### Lower-severity maintenance findings
 
-- The owner-bootstrap CLI currently accepts reserved `.test` email addresses that the login request
-  schema rejects. This does not affect valid production addresses or tenant isolation, but the two
-  validation boundaries should be aligned in a later maintenance milestone.
+- **Closed by MAINT-03.** The owner-bootstrap CLI accepted any string as an email -- not only
+  reserved `.test` addresses -- and wrote it to `users` as an Owner superuser that the login
+  schema then refused. `validate_sign_in_email` now applies the schema's own rule at both
+  boundaries, and a refusal exits 2 instead of reporting success.
 
 ### Download Center
 
