@@ -1,5 +1,66 @@
 # Changelog
 
+## CORE-22 — webhook delivery and dead-letter visibility (2026-09-16)
+
+`GET /api/v1/webhooks/events` and `GET /api/v1/webhooks/dead-letter` expose the inbound webhook
+record to operators, both gated on `webhooks:manage` per Doc 04 §23 and tenant-scoped. Contract
+239 → 241 paths. No migration.
+
+The ingest path has always written every delivery to `webhook_events` and parked every
+unprocessable one in `webhook_dead_letter` after its retries were exhausted. Nothing read either.
+The operations screen said so in as many words — *"the repository has no webhook-event query
+endpoint"* — so the parking was real but the human it was parked for was never told. That is the
+failure this closes: not a missing record, a missing reader.
+
+**Ownership lives in the route, not the row.** Neither table carries an `organization_id`.
+`webhook_events` is written on the ack path, before anything is interpreted, and is range-
+partitioned with no foreign keys. A delivery belongs to whoever owns the route it arrived on, and
+there are two of those: Meta routes by `phone_number_id`, WAHA by `channel_endpoint_id` (QR-08).
+Both are matched, because an operator shown half their traffic would read the quiet half as
+silence — the exact wrong conclusion when diagnosing a stalled stream. A dead letter inherits its
+source event's owner; one whose source has already aged out (90 days against the dead letter's
+180, §23.1) can no longer be attributed and is shown to nobody, since showing it to everybody
+would be a tenant leak dressed as helpfulness.
+
+**No payloads.** `payload_json` is the provider's raw body — customer numbers and message text.
+Returning it here would put a second copy of the conversation behind a different permission than
+the Inbox's `inbox:read`, quietly widening who can read customers' messages for the sake of a
+health screen. What the view answers instead is the operational question: are deliveries arriving,
+did their signatures verify, and are they reaching `processed`. A test asserts the payload never
+appears in the response body.
+
+The routes live in a new `webhook_ops.py` rather than in `webhooks.py`. That module's whole
+contract is "everything here is public and unauthenticated, gated only by the provider's
+signature", and being able to read that invariant off the file is worth more than co-location.
+
+The UI replaces the placeholder that documented the gap. `/operations/webhooks` is reachable with
+`waba:read` while the tables need `webhooks:manage`, so the tables are gated rather than the page:
+hiding everything would tell a legitimate reader the screen was broken. Parked events are counted
+where someone scanning the page will see it, and an empty delivery log reads differently from a
+failed query, because those call for opposite actions — check the channel, or check the platform.
+
+**Found while building, reported not worked around:** Doc 04 §23 specifies
+`POST /webhooks/events/{uuid}/replay`, but `webhook_events` has no public UUID and cannot easily be
+given a unique one. Proven against the live MySQL 8, not inferred: `ALTER TABLE ... ADD UNIQUE KEY
+(uuid)` is refused with *ERROR 1503 — a UNIQUE INDEX must include all columns in the table's
+partitioning function*, because the table is `RANGE COLUMNS(created_at)` partitioned. A non-unique
+index is accepted, and so is `UNIQUE (uuid, created_at)`. Event replay therefore needs an explicit
+decision and is left for its own milestone; dead-letter replay and discard are unaffected, since
+that table already carries a UUID. This is the kind of finding only a real MySQL surfaces, which
+is what VAL-01 bought.
+
+A stale comment in `features/operations/api.ts` is corrected in passing: it claimed `GET /jobs`
+declares no query parameters, which CORE-19 made untrue. The hook's behaviour is unchanged — it
+still asks for the default page — but the reason is now "doesn't", not "can't".
+
+PASS: backend **1,652 passed, 0 skipped**, including 11 new tests covering both routing paths,
+cross-tenant isolation on each table, the unattributable dead letter, status filtering, declared
+bounded pagination, the permission gate and the payload never appearing. Frontend **918 passed
+across 53 files** with 8 new tests. Regenerated OpenAPI and TypeScript with no drift; Ruff, strict
+mypy, ESLint, TypeScript and the production build clean. Verified live against MySQL 8 with seeded
+rows in the partitioned table: both deliveries returned newest first, the status filter narrowed to
+the failed one, the dead letter carried its error, and the payload did not appear.
+
 ## CORE-21 — per-user notification categories (2026-09-16)
 
 `GET` and `PUT /api/v1/notifications/settings` let each operator choose which of the six

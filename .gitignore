@@ -85,3 +85,6 @@ docker/data/
 # pnpm's content-addressable cache. It is rebuilt by `pnpm install`, references nothing in the
 # app, and 389 of its files were committed by a `git add -A` that predated this rule.
 .pnpm-store/
+
+# Redis snapshot written by a locally started redis-server.
+dump.rdb

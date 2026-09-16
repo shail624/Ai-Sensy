@@ -6121,6 +6121,196 @@
         }
       }
     },
+    "/api/v1/webhooks/events": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List received webhook events",
+        "description": "Inbound deliveries for this organization, newest first.\n\nThe health view for the ingest path: whether deliveries are arriving, whether their signatures\nverified, and whether they reached `processed` or stalled at `received`. Payload bodies are not\nreturned — message content belongs to the Inbox, behind `inbox:read`, not to a second copy on\nan operations screen.",
+        "operationId": "list_webhook_events_api_v1_webhooks_events_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by delivery status: received, processed, failed, duplicate.",
+              "title": "Status"
+            },
+            "description": "Filter by delivery status: received, processed, failed, duplicate."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookEventsPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/dead-letter": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List the dead-letter queue",
+        "description": "Events that could not be processed, with the error that stopped each one.\n\nAn event reaches this queue after its retries are exhausted (Doc 04 §23.1: capped exponential\nbackoff, at most five attempts, then parked as `pending` for a human). Until now nothing\nexposed the queue, so the parking was real but the human was never told — which is the whole\nfailure mode this closes.",
+        "operationId": "list_webhook_dead_letters_api_v1_webhooks_dead_letter_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by entry status: pending, replayed, discarded.",
+              "title": "Status"
+            },
+            "description": "Filter by entry status: pending, replayed, discarded."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeadLetterPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/messages/send": {
       "post": {
         "tags": [
@@ -34491,6 +34681,170 @@
           "webhook_id"
         ],
         "title": "WebhookConfig"
+      },
+      "WebhookDeadLetterPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WebhookDeadLetterResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "title": "WebhookDeadLetterPage"
+      },
+      "WebhookDeadLetterResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "error_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Detail"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "replayed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replayed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "error_detail",
+          "attempts",
+          "status",
+          "created_at",
+          "replayed_at"
+        ],
+        "title": "WebhookDeadLetterResponse",
+        "description": "An event that could not be processed, and why.\n\n``error_detail`` is the one field here worth the surface: without it an operator can see that\nsomething failed but not what to do about it, which is the difference between a dashboard and\na diagnosis. The payload stays out for the same reason as above."
+      },
+      "WebhookEventResponse": {
+        "properties": {
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id",
+            "description": "The provider's own id for the event, for cross-referencing their logs."
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "signature_ok": {
+            "type": "boolean",
+            "title": "Signature Ok"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "object_type",
+          "status",
+          "attempts",
+          "signature_ok",
+          "created_at",
+          "processed_at"
+        ],
+        "title": "WebhookEventResponse",
+        "description": "One inbound delivery, as an operator needs to see it.\n\nDeliberately without ``payload_json``. The payload is the provider's raw body -- customer\nphone numbers and message text -- and the Inbox is where that content belongs, behind\n``inbox:read``. Reproducing it here would create a second, differently-permissioned copy of\nthe conversation for the sake of a health screen. What this answers instead is the operational\nquestion: are deliveries arriving, are their signatures valid, and are they being processed."
+      },
+      "WebhookEventsPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WebhookEventResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "title": "WebhookEventsPage"
       },
       "WebhookNode": {
         "properties": {

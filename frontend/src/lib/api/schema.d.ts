@@ -1780,6 +1780,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List received webhook events
+         * @description Inbound deliveries for this organization, newest first.
+         *
+         *     The health view for the ingest path: whether deliveries are arriving, whether their signatures
+         *     verified, and whether they reached `processed` or stalled at `received`. Payload bodies are not
+         *     returned — message content belongs to the Inbox, behind `inbox:read`, not to a second copy on
+         *     an operations screen.
+         */
+        get: operations["list_webhook_events_api_v1_webhooks_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/dead-letter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the dead-letter queue
+         * @description Events that could not be processed, with the error that stopped each one.
+         *
+         *     An event reaches this queue after its retries are exhausted (Doc 04 §23.1: capped exponential
+         *     backoff, at most five attempts, then parked as `pending` for a human). Until now nothing
+         *     exposed the queue, so the parking was real but the human was never told — which is the whole
+         *     failure mode this closes.
+         */
+        get: operations["list_webhook_dead_letters_api_v1_webhooks_dead_letter_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/messages/send": {
         parameters: {
             query?: never;
@@ -10600,6 +10650,78 @@ export interface components {
              */
             webhook_id: string;
         };
+        /** WebhookDeadLetterPage */
+        WebhookDeadLetterPage: {
+            /** Data */
+            data: components["schemas"]["WebhookDeadLetterResponse"][];
+            page: components["schemas"]["Page"];
+        };
+        /**
+         * WebhookDeadLetterResponse
+         * @description An event that could not be processed, and why.
+         *
+         *     ``error_detail`` is the one field here worth the surface: without it an operator can see that
+         *     something failed but not what to do about it, which is the difference between a dashboard and
+         *     a diagnosis. The payload stays out for the same reason as above.
+         */
+        WebhookDeadLetterResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Error Detail */
+            error_detail: string | null;
+            /** Attempts */
+            attempts: number;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Replayed At */
+            replayed_at: string | null;
+        };
+        /**
+         * WebhookEventResponse
+         * @description One inbound delivery, as an operator needs to see it.
+         *
+         *     Deliberately without ``payload_json``. The payload is the provider's raw body -- customer
+         *     phone numbers and message text -- and the Inbox is where that content belongs, behind
+         *     ``inbox:read``. Reproducing it here would create a second, differently-permissioned copy of
+         *     the conversation for the sake of a health screen. What this answers instead is the operational
+         *     question: are deliveries arriving, are their signatures valid, and are they being processed.
+         */
+        WebhookEventResponse: {
+            /**
+             * Event Id
+             * @description The provider's own id for the event, for cross-referencing their logs.
+             */
+            event_id: string | null;
+            /** Object Type */
+            object_type: string | null;
+            /** Status */
+            status: string;
+            /** Attempts */
+            attempts: number;
+            /** Signature Ok */
+            signature_ok: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Processed At */
+            processed_at: string | null;
+        };
+        /** WebhookEventsPage */
+        WebhookEventsPage: {
+            /** Data */
+            data: components["schemas"]["WebhookEventResponse"][];
+            page: components["schemas"]["Page"];
+        };
         /** WebhookNode */
         WebhookNode: {
             /** Id */
@@ -14652,6 +14774,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WebhookAckResponse"];
+                };
+            };
+        };
+    };
+    list_webhook_events_api_v1_webhooks_events_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by delivery status: received, processed, failed, duplicate. */
+                status?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookEventsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_webhook_dead_letters_api_v1_webhooks_dead_letter_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entry status: pending, replayed, discarded. */
+                status?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

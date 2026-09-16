@@ -39,6 +39,7 @@ from app.api.v1.endpoints import (
     users,
     vi_domain,
     waba,
+    webhook_ops,
     webhooks,
     whatsapp_qr,
 )
@@ -77,6 +78,9 @@ api_router.include_router(downloads.router, tags=["Downloads"])
 api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])
 # Module 4 — inbound webhooks (Doc 04 §23; Doc 06 §11). Public + signature-gated, not authenticated.
 api_router.include_router(webhooks.router, tags=["Webhooks"])
+# Module 4 — webhook operations reads (Doc 04 §23). Authenticated and `webhooks:manage`-gated,
+# deliberately a separate module so the public file above stays wholly public.
+api_router.include_router(webhook_ops.router, tags=["Webhooks"])
 # Module 4 — outbound send + message reads (Doc 04 §18.2).
 api_router.include_router(messages.router, tags=["Messaging"])
 # QR-07 — WhatsApp Scan/Connect over the WAHA adapter (QR-01..06) and the existing M13-03/04/05

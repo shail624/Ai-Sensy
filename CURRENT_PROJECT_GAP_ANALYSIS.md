@@ -175,7 +175,10 @@ authorization safeguards remain preserved and must not be deleted or rewritten.
 
 ### Integrations
 
-- Webhook infrastructure exists.
+- Webhook infrastructure exists. CORE-22 adds the operator reads over it: the inbound
+  delivery record and the dead-letter queue, tenant-scoped and without payloads. Event
+  replay awaits a decision on a public id (Doc 04 §23 assumes one the partitioned
+  `webhook_events` cannot carry as a plain unique key).
 - Google Sheets integration is not implemented.
 
 ### Chat History
