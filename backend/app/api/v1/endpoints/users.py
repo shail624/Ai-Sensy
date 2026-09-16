@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, decode_cursor, encode_cursor
 from app.models.user import User
+from app.schemas.audit import AuditLogPage, AuditLogResponse
 from app.schemas.user import (
     PreferencesResponse,
     PreferencesUpdateRequest,
@@ -26,6 +27,7 @@ from app.schemas.user import (
     UsersPage,
     UserUpdateRequest,
 )
+from app.services.audit_query_service import AuditQueryService
 from app.services.settings_service import SettingsService
 from app.services.team_workload_service import TeamWorkloadService
 from app.services.user_service import UserService
@@ -152,6 +154,57 @@ async def team_workload(
         timezone_name=timezone or actor.timezone,
     )
     return TeamWorkloadResponse.from_snapshot(snapshot)
+
+
+@router.get(
+    "/users/{user_id}/login-history",
+    response_model=AuditLogPage,
+    summary="A user's sign-in history",
+)
+async def user_login_history(
+    user_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: UsersReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
+) -> AuditLogPage:
+    """Successful sign-ins, rejected passwords and lockouts for one user, newest first.
+
+    The audit trail already records all three with their source address, so this reads that rather
+    than keeping a second copy of the same truth. Failures and lockouts are included deliberately:
+    a list of successes answers "when did they last sign in", but only the failures answer "is
+    somebody trying to get in", which is the question worth asking.
+
+    Gated on `users:read` — the same permission as viewing the user — and scoped to the caller's
+    organization, so one tenant cannot read another's sign-in activity.
+    """
+    user, _ = await UserService(session).get_user(actor.organization_id, user_id)
+    service = AuditQueryService(session)
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
+    result = await service.login_history(
+        actor.organization_id,
+        user_id=user.id,
+        limit=limit,
+        cursor=decode_cursor(cursor_param) if cursor_param else None,
+    )
+    next_cursor = (
+        encode_cursor(result.entries[-1].created_at, result.entries[-1].id)
+        if result.has_more and result.entries
+        else None
+    )
+    return AuditLogPage(
+        data=[
+            AuditLogResponse.from_entry(entry, result.actor_uuids.get(entry.actor_user_id or -1))
+            for entry in result.entries
+        ],
+        page=Page(
+            limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total
+        ),
+    )
 
 
 @router.get("/users/{user_id}", response_model=UserResponse, summary="Get a user")

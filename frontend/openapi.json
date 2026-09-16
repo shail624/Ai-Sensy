@@ -570,6 +570,93 @@
         }
       }
     },
+    "/api/v1/users/{user_id}/login-history": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "A user's sign-in history",
+        "description": "Successful sign-ins, rejected passwords and lockouts for one user, newest first.\n\nThe audit trail already records all three with their source address, so this reads that rather\nthan keeping a second copy of the same truth. Failures and lockouts are included deliberately:\na list of successes answers \"when did they last sign in\", but only the failures answer \"is\nsomebody trying to get in\", which is the question worth asking.\n\nGated on `users:read` — the same permission as viewing the user — and scoped to the caller's\norganization, so one tenant cannot read another's sign-in activity.",
+        "operationId": "user_login_history_api_v1_users__user_id__login_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{user_id}": {
       "get": {
         "tags": [

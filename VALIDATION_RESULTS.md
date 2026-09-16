@@ -1,5 +1,38 @@
 # Validation Results
 
+## CORE-20 — a user's sign-in history (2026-09-16)
+
+`GET /api/v1/users/{user_id}/login-history` returns one user's successful sign-ins, rejected
+passwords and lockouts, newest first, each with its time and source address. Contract 237 → 238
+paths. No migration, no new permission, no change to what any existing endpoint returns.
+
+It reads the audit trail rather than keeping a second copy. The login path already writes all three
+outcomes there with their source address; a parallel table would be a second version of the same
+truth, and two versions of one truth drift.
+
+Returning all three together is the point. A list of successes answers "when did they last sign
+in". Only the failures answer "is somebody trying to get in" — so a history that quietly dropped
+them would look healthiest exactly during an attack.
+
+Gated on `users:read`, the same permission as viewing the user, and scoped to the caller's
+organization, so no tenant can read another's sign-in activity. An unknown user is a 404 before any
+audit row is read. `limit` and `cursor` are declared per Doc 04 §6, so the page is reachable from
+the generated TypeScript client, and an out-of-range page size is refused rather than clamped —
+the CORE-18/19 rule, applied here from the start.
+
+The audit repository gained one filter, `actions` (a set), kept distinct from the existing `action`
+(exactly one) rather than overloading it. Nothing else on the audit read path changed.
+
+This closes "login history" under Team Management. Audit Timeline's "device/login" item is half
+closed: the login evidence is now addressable per user, but the entries carry the source address,
+not a device identity, so that half of the item stands.
+
+PASS: full backend suite **1617 passed**, 6 MySQL tests skipped for want of a server — including 8
+new tests here covering the outcome shown, failures included, time and address present, other
+users excluded, unrelated actions excluded, declared bounded pagination, unknown user 404 and the
+permission gate. Full frontend suite 901 passed. Regenerated OpenAPI and TypeScript types with no
+drift; Ruff, endpoint mypy and TypeScript clean.
+
 ## CORE-19 — declare pagination across the remaining collections (2026-09-16)
 
 Six more handlers now declare their spec'd query parameters instead of reading them off the raw

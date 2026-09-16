@@ -242,6 +242,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{user_id}/login-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A user's sign-in history
+         * @description Successful sign-ins, rejected passwords and lockouts for one user, newest first.
+         *
+         *     The audit trail already records all three with their source address, so this reads that rather
+         *     than keeping a second copy of the same truth. Failures and lockouts are included deliberately:
+         *     a list of successes answers "when did they last sign in", but only the failures answer "is
+         *     somebody trying to get in", which is the question worth asking.
+         *
+         *     Gated on `users:read` — the same permission as viewing the user — and scoped to the caller's
+         *     organization, so one tenant cannot read another's sign-in activity.
+         */
+        get: operations["user_login_history_api_v1_users__user_id__login_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{user_id}": {
         parameters: {
             query?: never;
@@ -11112,6 +11140,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamWorkloadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    user_login_history_api_v1_users__user_id__login_history_get: {
+        parameters: {
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPage"];
                 };
             };
             /** @description Validation Error */
