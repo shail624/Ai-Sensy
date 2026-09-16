@@ -110,8 +110,8 @@ Last synchronized: `2026-09-13`.
   owner browser journey, Redis-down `503` readiness, zero synthetic-secret/PII leaks, and a
   **5.764ms p95** canary against a **300ms** budget.
 - **Completion accounting:** this validation does not inflate feature percentages. Across the 31
-  canonical module rows below, the simple unweighted average is **77.0%** and the recalculated
-  median is **88%**.
+  canonical module rows below, the simple unweighted average is **77.1%** and the recalculated
+  median is **87%**.
   Automation/API are **99%**, Inbox/Contacts **98%**, Reactivation/Tags **96%**, KYC is **90%**,
   while
   Google Sheets, WhatsApp Scan, remaining Download Center artifact families, Executive Reports,
