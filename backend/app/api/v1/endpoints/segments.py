@@ -10,10 +10,10 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, decode_cursor, encode_cursor
 from app.models.user import User
 from app.schemas.contact import ContactResponse
 from app.schemas.segment import (
@@ -109,18 +109,25 @@ async def delete_segment(
 )
 async def preview_segment(
     segment_id: uuidlib.UUID,
-    request: Request,
     session: SessionDep,
     actor: SegmentsReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
 ) -> SegmentContactsPage:
-    params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
+    """A page of the contacts a segment currently matches.
+
+    Pagination is declared per Doc 04 §6, so it is reachable from the generated client.
+    """
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
     result = await SegmentService(session).preview(
         organization_id=actor.organization_id,
         public_id=segment_id,
         limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        cursor=decode_cursor(cursor_param) if cursor_param else None,
     )
     next_cursor = (
         encode_cursor(result.contacts[-1].created_at, result.contacts[-1].id)

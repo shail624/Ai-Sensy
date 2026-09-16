@@ -187,7 +187,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List users */
+        /**
+         * List users
+         * @description The organization's users.
+         *
+         *     Pagination and search are declared (Doc 04 §6, §7.3); the `filter[field][op]` grammar of §7.1
+         *     stays on the raw request because it spans any field crossed with eleven operators.
+         */
         get: operations["list_users_api_v1_users_get"];
         put?: never;
         /** Create a user */
@@ -541,7 +547,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List/search/filter contacts */
+        /**
+         * List/search/filter contacts
+         * @description Contacts, with search, sort and pagination declared per Doc 04 §6 and §7.2-7.3.
+         *
+         *     The `filter[field][op]` grammar of §7.1 stays on the raw request: it spans any field crossed
+         *     with eleven operators, so there is no finite set of parameters to declare.
+         */
         get: operations["list_contacts_api_v1_contacts_get"];
         put?: never;
         /** Create a contact */
@@ -681,7 +693,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Contact activity timeline */
+        /**
+         * Contact activity timeline
+         * @description A contact's event history, newest first, with declared pagination (Doc 04 §6).
+         */
         get: operations["contact_timeline_api_v1_contacts__contact_id__timeline_get"];
         put?: never;
         post?: never;
@@ -1241,7 +1256,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Preview matching contacts (paginated) */
+        /**
+         * Preview matching contacts (paginated)
+         * @description A page of the contacts a segment currently matches.
+         *
+         *     Pagination is declared per Doc 04 §6, so it is reachable from the generated client.
+         */
         get: operations["preview_segment_api_v1_segments__segment_id__contacts_get"];
         put?: never;
         post?: never;
@@ -1347,7 +1367,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List background jobs */
+        /**
+         * List background jobs
+         * @description Background jobs, newest first.
+         *
+         *     Pagination is declared (Doc 04 §6); the `filter[field][op]` grammar of §7.1 stays on the raw
+         *     request because it spans any field crossed with eleven operators.
+         */
         get: operations["list_jobs_api_v1_jobs_get"];
         put?: never;
         post?: never;
@@ -1432,7 +1458,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the media library */
+        /**
+         * List the media library
+         * @description The media library.
+         *
+         *     Declaring `limit` also removes a latent 500: the previous `int(...)` on the raw value raised
+         *     on anything non-numeric, so `?limit=abc` was a server error rather than a rejected request.
+         */
         get: operations["list_media_api_v1_media_get"];
         put?: never;
         post?: never;
@@ -10942,7 +10974,14 @@ export interface operations {
     };
     list_users_api_v1_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+                /** @description Match a user's name or email. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10956,6 +10995,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -11800,7 +11848,16 @@ export interface operations {
     };
     list_contacts_api_v1_contacts_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+                /** @description Sort key; prefix with '-' to reverse. */
+                sort?: string | null;
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11814,6 +11871,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12163,7 +12229,12 @@ export interface operations {
     };
     contact_timeline_api_v1_contacts__contact_id__timeline_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 contact_id: string;
@@ -13405,7 +13476,12 @@ export interface operations {
     };
     preview_segment_api_v1_segments__segment_id__contacts_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 segment_id: string;
@@ -13714,7 +13790,12 @@ export interface operations {
     };
     list_jobs_api_v1_jobs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13728,6 +13809,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -13849,7 +13939,12 @@ export interface operations {
     };
     list_media_api_v1_media_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Match an asset's filename. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13863,6 +13958,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

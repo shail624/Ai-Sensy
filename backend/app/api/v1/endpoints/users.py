@@ -15,7 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, decode_cursor, encode_cursor
 from app.models.user import User
 from app.schemas.user import (
     PreferencesResponse,
@@ -47,18 +47,33 @@ def _bool_param(value: str | None) -> bool | None:
 
 
 @router.get("/users", response_model=UsersPage, summary="List users")
-async def list_users(request: Request, session: SessionDep, actor: UsersReadActor) -> UsersPage:
+async def list_users(
+    request: Request,
+    session: SessionDep,
+    actor: UsersReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
+    q: Annotated[str | None, Query(description="Match a user's name or email.")] = None,
+) -> UsersPage:
+    """The organization's users.
+
+    Pagination and search are declared (Doc 04 §6, §7.3); the `filter[field][op]` grammar of §7.1
+    stays on the raw request because it spans any field crossed with eleven operators.
+    """
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
-    cursor = decode_cursor(raw_cursor) if raw_cursor else None
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
+    cursor = decode_cursor(cursor_param) if cursor_param else None
     result = await UserService(session).list_users(
         actor.organization_id,
         limit=limit,
         cursor=cursor,
         is_active=_bool_param(params.get("filter[is_active][bool]")),
         role_name=params.get("filter[role][eq]"),
-        q=params.get("q"),
+        q=q,
     )
     data = [
         UserResponse.from_user(user, result.roles_by_user[user.id]) for user in result.users

@@ -311,7 +311,71 @@
           "Users"
         ],
         "summary": "List users",
+        "description": "The organization's users.\n\nPagination and search are declared (Doc 04 §6, §7.3); the `filter[field][op]` grammar of §7.1\nstays on the raw request because it spans any field crossed with eleven operators.",
         "operationId": "list_users_api_v1_users_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match a user's name or email.",
+              "title": "Q"
+            },
+            "description": "Match a user's name or email."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -322,13 +386,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -336,15 +405,20 @@
         ],
         "summary": "Create a user",
         "operationId": "create_user_api_v1_users_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -367,12 +441,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/users/me/preferences": {
@@ -1597,7 +1666,89 @@
           "Contacts"
         ],
         "summary": "List/search/filter contacts",
+        "description": "Contacts, with search, sort and pagination declared per Doc 04 §6 and §7.2-7.3.\n\nThe `filter[field][op]` grammar of §7.1 stays on the raw request: it spans any field crossed\nwith eleven operators, so there is no finite set of parameters to declare.",
         "operationId": "list_contacts_api_v1_contacts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort key; prefix with '-' to reverse.",
+              "title": "Sort"
+            },
+            "description": "Sort key; prefix with '-' to reverse."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match a contact's name or number.",
+              "title": "Q"
+            },
+            "description": "Match a contact's name or number."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1608,13 +1759,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
@@ -1622,15 +1778,20 @@
         ],
         "summary": "Create a contact",
         "operationId": "create_contact_api_v1_contacts_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ContactCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1653,12 +1814,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/contacts/views": {
@@ -2134,6 +2290,7 @@
           "Contacts"
         ],
         "summary": "Contact activity timeline",
+        "description": "A contact's event history, newest first, with declared pagination (Doc 04 §6).",
         "operationId": "contact_timeline_api_v1_contacts__contact_id__timeline_get",
         "security": [
           {
@@ -2150,6 +2307,44 @@
               "format": "uuid",
               "title": "Contact Id"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
           }
         ],
         "responses": {
@@ -4135,6 +4330,7 @@
           "Segments"
         ],
         "summary": "Preview matching contacts (paginated)",
+        "description": "A page of the contacts a segment currently matches.\n\nPagination is declared per Doc 04 §6, so it is reachable from the generated client.",
         "operationId": "preview_segment_api_v1_segments__segment_id__contacts_get",
         "security": [
           {
@@ -4151,6 +4347,44 @@
               "format": "uuid",
               "title": "Segment Id"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
           }
         ],
         "responses": {
@@ -4603,7 +4837,53 @@
           "Queue"
         ],
         "summary": "List background jobs",
+        "description": "Background jobs, newest first.\n\nPagination is declared (Doc 04 §6); the `filter[field][op]` grammar of §7.1 stays on the raw\nrequest because it spans any field crossed with eleven operators.",
         "operationId": "list_jobs_api_v1_jobs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4614,13 +4894,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/jobs/{job_id}": {
@@ -4797,7 +5082,53 @@
           "Media"
         ],
         "summary": "List the media library",
+        "description": "The media library.\n\nDeclaring `limit` also removes a latent 500: the previous `int(...)` on the raw value raised\non anything non-numeric, so `?limit=abc` was a server error rather than a rejected request.",
         "operationId": "list_media_api_v1_media_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match an asset's filename.",
+              "title": "Q"
+            },
+            "description": "Match an asset's filename."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4808,13 +5139,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/media/{media_id}": {

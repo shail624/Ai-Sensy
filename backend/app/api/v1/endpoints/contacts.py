@@ -14,11 +14,18 @@ import uuid as uuidlib
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from starlette.datastructures import QueryParams
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import (
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+    Page,
+    clamp_limit,
+    decode_cursor,
+    encode_cursor,
+)
 from app.core.config import settings
 from app.core.exceptions import BadRequestError
 from app.models.job_records import BulkJob
@@ -118,21 +125,37 @@ def _opt_in_filter(params: QueryParams) -> list[str] | None:
 
 @router.get("/contacts", response_model=ContactsPage, summary="List/search/filter contacts")
 async def list_contacts(
-    request: Request, session: SessionDep, actor: ContactsReadActor
+    request: Request,
+    session: SessionDep,
+    actor: ContactsReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
+    sort_param: Annotated[
+        str | None, Query(alias="sort", description="Sort key; prefix with '-' to reverse.")
+    ] = None,
+    q: Annotated[str | None, Query(description="Match a contact's name or number.")] = None,
 ) -> ContactsPage:
+    """Contacts, with search, sort and pagination declared per Doc 04 §6 and §7.2-7.3.
+
+    The `filter[field][op]` grammar of §7.1 stays on the raw request: it spans any field crossed
+    with eleven operators, so there is no finite set of parameters to declare.
+    """
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    sort = params.get("sort") or "-created_at"
-    raw_cursor = params.get("cursor")
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
+    sort = sort_param or "-created_at"
     sort_name, _ = ContactRepository.parse_sort(sort)
-    cursor = _decode_cursor(raw_cursor, sort_name) if raw_cursor else None
+    cursor = _decode_cursor(cursor_param, sort_name) if cursor_param else None
 
     result = await ContactService(session).list_contacts(
         actor.organization_id,
         limit=limit,
         sort=sort,
         cursor=cursor,
-        q=params.get("q"),
+        q=q,
         opt_in_status=_opt_in_filter(params),
         source=params.get("filter[source][eq]"),
         is_active_on_wa=_bool_param(params.get("filter[is_active_on_wa][bool]")),
@@ -377,15 +400,21 @@ async def contact_timeline(
     request: Request,
     session: SessionDep,
     actor: ContactsReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
 ) -> ContactTimelinePage:
+    """A contact's event history, newest first, with declared pagination (Doc 04 §6)."""
     contact = await ContactService(session).get_contact(actor.organization_id, contact_id)
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
     events, has_more, total = await ContactEventService(session).list_for_contact(
         contact.id,
         limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        cursor=decode_cursor(cursor_param) if cursor_param else None,
         event_type=params.get("filter[event_type][eq]"),
     )
     next_cursor = (

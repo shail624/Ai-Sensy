@@ -1,5 +1,38 @@
 # Implementation Tracker (canonical)
 
+## CORE-19 — declare pagination across the remaining collections (2026-09-16)
+
+Six more handlers now declare their spec'd query parameters instead of reading them off the raw
+request: contacts, the contact timeline, users, jobs, media and the segment contact preview.
+Contract remains 237 paths; no migration, no new permission, no change to what any endpoint
+returns. Routes declaring `limit` rise from 6 to 35.
+
+This completes the pattern begun in CORE-18. Doc 04 section 6 fixes `limit` and `cursor` for every
+collection and section 1 requires the API to be fully OpenAPI-describable; undeclared, those
+parameters never reach the generated TypeScript client, which is the only contract the frontend
+may use. `q` and `sort` are declared with them where a handler supports them (sections 7.2-7.3).
+
+The `filter[field][op]` grammar of section 7.1 stays on the raw request in every one of these
+handlers, and each says so in its docstring. It spans any field crossed with eleven operators, so
+there is no finite parameter set to declare; a later reader "completing" the job by declaring it
+would break the documented grammar.
+
+Two defects fixed as a side effect. The media list parsed its limit with a bare `int()` on the raw
+value, so `?limit=abc` raised and returned 500 rather than a rejected request; the declaration
+makes it a 422. And as in CORE-18, out-of-range page sizes are now refused rather than silently
+clamped — a client asking for 9999 rows has a defect, and quietly returning 200 hides it.
+
+Not changed: phone-numbers and templates read only `filter[...]` and a legacy alias, so they have
+no plain parameters to declare. Every collection that has them now declares them.
+
+PASS: full backend suite **1609 passed**, 6 MySQL tests skipped for want of a server; 198 focused
+contact/user/job/media/segment/audit tests pass. Full frontend suite 901 passed; regenerated
+OpenAPI and TypeScript types with no drift; Ruff, endpoint mypy, ESLint and TypeScript clean.
+
+PENDING - Host Machine Validation: deployed MySQL and authenticated preview were not run. No
+module completion percentage is increased and no source-of-truth document changed.
+
+
 ## CORE-18 — declare audit-log pagination (2026-09-16)
 
 `GET /api/v1/audit-logs` now declares `limit` and `cursor` as typed contract parameters instead of

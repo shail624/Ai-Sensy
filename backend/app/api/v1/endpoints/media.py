@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from fastapi.responses import Response
 
 from app.api.deps import SessionDep, require_permissions
@@ -94,14 +94,25 @@ async def upload_media(
 
 @router.get("/media", response_model=MediaListResponse, summary="List the media library")
 async def list_media(
-    request: Request, session: SessionDep, actor: MediaReadActor
+    request: Request,
+    session: SessionDep,
+    actor: MediaReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=200, description="Page size (default 50).")
+    ] = None,
+    q: Annotated[str | None, Query(description="Match an asset's filename.")] = None,
 ) -> MediaListResponse:
+    """The media library.
+
+    Declaring `limit` also removes a latent 500: the previous `int(...)` on the raw value raised
+    on anything non-numeric, so `?limit=abc` was a server error rather than a rejected request.
+    """
     params = request.query_params
     assets, total = await MediaService(session).list_media(
         actor.organization_id,
         media_type=params.get("filter[media_type][eq]"),
-        q=params.get("q"),
-        limit=min(int(params.get("limit") or 50), 200),
+        q=q,
+        limit=limit_param if limit_param is not None else 50,
     )
     return MediaListResponse(data=[MediaResponse.from_asset(a) for a in assets], total=total)
 

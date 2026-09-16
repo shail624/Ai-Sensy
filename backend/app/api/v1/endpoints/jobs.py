@@ -10,10 +10,10 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, decode_cursor, encode_cursor
 from app.core.redis import get_redis_client
 from app.models.user import User
 from app.queue.celery_app import celery_app
@@ -36,13 +36,27 @@ SystemManageActor = Annotated[User, Depends(require_permissions("system:manage")
 
 
 @router.get("/jobs", response_model=JobsPage, summary="List background jobs")
-async def list_jobs(request: Request, session: SessionDep, actor: SystemReadActor) -> JobsPage:
+async def list_jobs(
+    request: Request,
+    session: SessionDep,
+    actor: SystemReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
+) -> JobsPage:
+    """Background jobs, newest first.
+
+    Pagination is declared (Doc 04 §6); the `filter[field][op]` grammar of §7.1 stays on the raw
+    request because it spans any field crossed with eleven operators.
+    """
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
     jobs, has_more, total = await JobService(session).list_jobs(
         limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        cursor=decode_cursor(cursor_param) if cursor_param else None,
         status=params.get("filter[status][eq]"),
         task_name=params.get("filter[task_name][eq]"),
         queue=params.get("filter[queue][eq]"),
