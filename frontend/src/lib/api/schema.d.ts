@@ -1876,9 +1876,10 @@ export interface paths {
          *     rather than queueing a second pass. An operator who clicks twice — or a request the browser
          *     retried — must not double-apply an event whose whole point was that it applies once.
          *
-         *     Refused once the source event has passed its 90-day retention (§23.1). The payload stays here
-         *     for inspection, but the row the processor works from is gone, and recreating one would make a
-         *     second event out of the same delivery.
+         *     Answers `404` once the source event has passed its 90-day retention (§23.1), because by then
+         *     the entry is not visible to anyone: ownership is read through the source event, so an entry
+         *     whose event has aged out has dropped out of the listing too. The same answer the list gives,
+         *     rather than a `409` describing a row the operator was never shown.
          */
         post: operations["replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post"];
         delete?: never;
@@ -2009,8 +2010,9 @@ export interface paths {
          *     reported as untested rather than folded into either side, because the difference between "we
          *     know they are not there" and "we have never asked" changes what an operator does next.
          *
-         *     Counts are returned beside the page and computed from the same predicates, so the tallies and
-         *     the rows can never describe different sets.
+         *     The tallies live at `/scan/reachability/counts`, not here. They are computed from the same
+         *     predicates as this page, so the two can never describe different sets, but they cost what
+         *     reading every recipient row costs and a page should not wait behind them.
          */
         get: operations["list_reachability_api_v1_scan_reachability_get"];
         put?: never;
@@ -2209,6 +2211,12 @@ export interface paths {
          *     customer and no campaign. A template nobody has sent is listed with zeros rather than omitted,
          *     because an unused template is either new or quietly broken and its absence from the list is the
          *     thing most worth seeing.
+         *
+         *     Counts what was sent, not what was planned. A campaign materialises its entire roster the
+         *     moment it is created, while it is still a draft, so an unfinished draft puts rows in the ledger
+         *     for sends nobody has authorised. Those are not campaigns here, not recipients, and do not make
+         *     the template look recently used — a template delivering to everyone must not read as a failure
+         *     because a colleague is midway through drafting a large campaign with it.
          *
          *     Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
          */
@@ -10577,9 +10585,15 @@ export interface components {
             category: string;
             /** Status */
             status: string;
-            /** Campaigns */
+            /**
+             * Campaigns
+             * @description Campaigns that were actually dispatched; a draft using the template is not one.
+             */
             campaigns: number;
-            /** Recipients */
+            /**
+             * Recipients
+             * @description Recipients a send was attempted for — not the size of the roster. A campaign materialises its whole roster while it is still a draft, and those rows were never tried.
+             */
             recipients: number;
             /** Delivered */
             delivered: number;
@@ -10590,7 +10604,10 @@ export interface components {
              * @description Delivered as a share of attempted; null when the template has never been sent.
              */
             delivery_rate: number | null;
-            /** Last Used At */
+            /**
+             * Last Used At
+             * @description When the template was last sent, not when a campaign using it was drafted.
+             */
             last_used_at: string | null;
         };
         /** TemplateVersionEntry */

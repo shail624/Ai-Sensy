@@ -139,6 +139,12 @@ async def template_usage(session: SessionDep, actor: TemplateReader) -> Template
     because an unused template is either new or quietly broken and its absence from the list is the
     thing most worth seeing.
 
+    Counts what was sent, not what was planned. A campaign materialises its entire roster the
+    moment it is created, while it is still a draft, so an unfinished draft puts rows in the ledger
+    for sends nobody has authorised. Those are not campaigns here, not recipients, and do not make
+    the template look recently used — a template delivering to everyone must not read as a failure
+    because a colleague is midway through drafting a large campaign with it.
+
     Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
     """
     usage = await TemplateUsageRepository(session).list_usage(actor.organization_id)

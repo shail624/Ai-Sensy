@@ -476,3 +476,68 @@ async def test_acting_on_the_queue_requires_the_webhooks_permission(
     )
 
     assert denied.status_code == 403
+
+
+# --- Regressions found by reading the shipped diff back ------------------------------------------
+async def test_a_broker_that_refuses_the_task_leaves_the_entry_replayable(
+    client, db_session, organization, make_user, monkeypatch
+) -> None:
+    """The failure this queue exists to prevent, arriving through the queue's own replay button.
+
+    Marking the entry first and queueing second looked harmless -- it is the order every other
+    dispatch in this repository uses. It is not harmless here, because the mark is what makes
+    replay idempotent: a broker that refused the task after the commit left the entry reading
+    "replayed" with nothing queued, and the second press returned that same row unchanged. The
+    event was then lost in the one store whose whole purpose is that nothing is lost.
+    """
+    from app.channels import tasks as channel_tasks
+
+    def refuse(args=None, **kwargs):
+        raise OSError("broker unreachable")
+
+    monkeypatch.setattr(channel_tasks.process_webhook_event, "apply_async", refuse)
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+    headers = await _headers(client, "ops@vi.co")
+
+    with pytest.raises(OSError):
+        await _replay(client, headers, entry.public_id)
+
+    # Still pending, so the queue still shows it and the operator can press again.
+    listed = (await client.get(DLQ_URL, headers=headers)).json()["data"]
+    assert [row["status"] for row in listed] == ["pending"]
+
+    queued: list[int] = []
+    monkeypatch.setattr(
+        channel_tasks.process_webhook_event,
+        "apply_async",
+        lambda args=None, **kwargs: queued.append(args[0]),
+    )
+    retried = await _replay(client, headers, entry.public_id)
+
+    assert retried.status_code == 200
+    assert retried.json()["status"] == "replayed"
+    assert queued == [source.id]
+
+
+@pytest.mark.parametrize(
+    ("url", "status"), [(EVENTS_URL, "faild"), (DLQ_URL, "pendding"), (EVENTS_URL, "anything")]
+)
+async def test_a_misspelled_status_filter_is_refused_not_answered_with_silence(
+    client, make_user, url: str, status: str
+) -> None:
+    """An empty list here reads as "no failures", which is the conclusion this screen prevents.
+
+    Every other status filter in this API is constrained (see ``CAMPAIGN_STATUS_PATTERN``); these
+    two were free text, so a typo matched no row and came back `200` with `data: []`.
+    """
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+
+    response = await client.get(
+        url, headers=await _headers(client, "ops@vi.co"), params={"status": status}
+    )
+
+    assert response.status_code == 422

@@ -1,5 +1,111 @@
 # Project State
 
+## FIX-01 — reading last night's own diff back, adversarially (2026-09-17)
+
+Nine defects in code shipped earlier the same night, found by re-reading the diff rather than by
+running the suite again — the suite passed on every one of them. Backend **1,694 → 1,712
+tests**, with each of the eighteen new ones run against the code it describes first, to see it fail,
+before it was allowed to pass. No contract paths added; six contract *descriptions* corrected.
+
+**A Google Sheet import could not report that it was not configured.** `GoogleSheetImportService`
+built its client one line above the `try` that handles the client's own errors, so
+`GoogleSheetsNotConfigured` — the exception carrying "set `GOOGLE_SERVICE_ACCOUNT_JSON`, then share
+the sheet with that address" — was raised past its own handler and arrived as a **500**. This is
+the first thing every new installation hits, including this one, which is still waiting on a key:
+the one path guaranteed to be taken was the one path that answered with a stack trace instead of
+the instructions.
+
+**A tab called `Prepaid/Postpaid` asked Google the wrong question.** The URL was built with
+`httpx.URL(path=tab).path`, which returns the *decoded* path, so a slash in a tab name survived
+into the URL as a path separator and addressed a different Sheets endpoint. Google answered 400 and
+the operator was told to check that the tab name matched exactly — which it did. A tab containing
+`?` or `#` was worse: `httpx.InvalidURL` is not a `GoogleSheetsError`, so it escaped the module's
+error mapping entirely as another 500. Both are now one percent-encoded path segment, with the
+cases parameterised in a test. A reply that is not JSON at all — a proxy or captive portal
+answering in place of Google — now names the proxy instead of raising a decoder error.
+
+**A refused broker lost a dead-lettered event permanently.** Replay marked the entry `replayed`,
+committed, and *then* queued the task, which is the order every other dispatch in this repository
+uses and is wrong in this one place. The mark is what makes replay idempotent, so a broker that
+refused the task after the commit left the entry reading "replayed" with nothing queued — and the
+second press, the one that would have fixed it, returned that same row unchanged. The event was
+lost in the one store whose entire purpose is that nothing is lost. Queueing first makes both
+failures recoverable: a refused dispatch changes nothing and says so, and a failed commit costs one
+redundant pass through a processor that already settles by event id (FR-WA-07).
+
+**`/templates/usage` was dividing every template's success by somebody's unfinished work.** A
+campaign materialises its whole roster the moment it is created, while it is still a draft, so a
+5,000-person draft puts 5,000 never-attempted `pending` rows in the ledger under that template. All
+five thousand were being counted as recipients. A template that delivered to 900 of 900 people read
+as **15%**, the draft was invisible on the screen, and the obvious response to 15% is to retire a
+template that is working perfectly. The same draft also counted as a campaign and set
+`last_used_at` to today, so a template nobody had ever sent could read as "used this morning". The
+denominator is now recipients a send was actually attempted for (`RECIPIENT_ATTEMPTED`, named
+beside the statuses it groups), campaigns are ones that were actually dispatched, and `last_used_at`
+comes from `campaigns.started_at`. The code now matches what its own docstring always claimed:
+"delivered as a share of **attempted**".
+
+The fixtures had been quietly describing an impossible campaign — never dispatched, yet with
+delivered recipients — so `_campaign` now says whether it was sent, and defaults to yes.
+
+**Two contract descriptions described behaviour the code does not have.** `POST
+/webhooks/dead-letter/{id}/replay` told integrators it "refuses" an event past its 90-day
+retention; it answers `404`, deliberately, because the entry is invisible by then — a client coded
+against the published contract would have been waiting for a 409 that never comes. `GET
+/scan/reachability` still said "counts are returned beside the page" after PERF-02 moved them to
+their own endpoint; the schema beside that sentence has only `data` and `page`. FastAPI publishes
+docstrings as the contract, so these were not stale comments — they were a lie in the machine-
+readable artefact the frontend types are generated from.
+
+**A misspelled status filter answered `200` with an empty list.** `/webhooks/events?status=faild`
+matched nothing and returned success. On this screen an empty list reads as "no failures", which is
+the single conclusion the screen exists to stop an operator reaching by accident. Every other
+status filter in this API is constrained; these two were free text. They now answer `422` naming
+the accepted values. `spreadsheet_id` is constrained the same way, so a half-pasted URL is a named
+field error rather than Google's "no sheet with that id".
+
+**The reachability search did not find what the Contacts search finds.** Same-looking box over the
+same people, written without the `strip` and the `lower` `ContactRepository` has always had. A name
+pasted with a trailing space — the ordinary result of copying a cell — found the customer on one
+screen and an empty list on the other, with nothing on either saying why. The shorter field list
+stays: Contacts also matches `email`, this screen shows none and promises none.
+
+### Corrected: the 300ms claim was true at 20,000 rows and is not true at 200,000
+
+VAL-04 timed 72 reads against 20,000 campaign recipients and recorded **nothing over the 300ms
+budget**. That measurement stands *at that volume*. PERF-02 then seeded 200,000 recipients and
+optimised the unfiltered page, but never re-timed the **verdict-filtered** one. Re-timed now,
+warm, at 200,000:
+
+| read | ms |
+|---|---|
+| `/scan/reachability` (no filter) | **8** |
+| `/scan/reachability?q=…` | 32 |
+| `/scan/reachability?verdict=reachable` | **300** |
+| `/scan/reachability?verdict=unknown` | **347** |
+| `/scan/reachability/counts` | 319 |
+| `/templates/usage` | 267 |
+
+Three of the six are at or over the 300ms budget. Every other read the sweep touches is under 32ms.
+
+So clicking a verdict tile costs what the tallies cost, and the earlier "0 over budget" line did
+not cover it. `EXPLAIN` says why, and says an index cannot help: the filter is on an aggregate, so
+MySQL materialises all 221,369 recipient rows into a temporary table before it can apply it. The
+one cheap idea — pruning rows that carry no receipt before the `GROUP BY`, which is semantically
+free because such a row cannot change any verdict — measured **304.9ms → 298.3ms**, inside the
+noise, and was dropped. That is the second time on this screen that an obvious optimisation
+measured as nothing, which is the argument for measuring rather than reasoning about it. A real fix
+means materialising the verdict per contact: a new table, a refresh path off the delivery receipts,
+and a new class of staleness bug. That is a data-model decision, not an overnight one, and it is
+the owner's to make.
+
+No module percentage moves. Nine fixes and one correction to a claim; nothing new was built.
+
+PASS: backend **1,712 passed, 0 skipped** against live MySQL 8 (535.9s); frontend **951
+passed across 56 files**; live read sweep **210 requests over 73 contract-declared GET
+paths, 0 5xx**; regenerated OpenAPI (247 paths, unchanged) and TypeScript with no drift; Ruff,
+strict mypy (331 files), ESLint, TypeScript and the production build clean.
+
 ## PERF-02 — the reachability page at real volume (2026-09-17)
 
 Measured against a real MySQL 8 seeded to **200,000 campaign recipients** over 20,000 contacts, the

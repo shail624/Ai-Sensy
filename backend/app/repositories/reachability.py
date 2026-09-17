@@ -151,12 +151,24 @@ class ReachabilityRepository:
             Contact.deleted_at.is_(None),
         ]
         if q:
-            like = f"%{q}%"
+            # Normalised the way ``ContactRepository`` normalises it -- the same ``strip`` and
+            # the same ``lower``. This box sits on a table of contacts and looks identical to the
+            # one on the Contacts screen, so the same text typed into each has to find the same
+            # people; a name pasted with a trailing space, the ordinary result of copying a cell,
+            # found the customer on one screen and an empty list on the other, and nothing on
+            # either screen said why.
+            #
+            # The field list is deliberately shorter: Contacts also matches ``email``, this screen
+            # does not, because it shows neither email nor any promise of one -- its label is
+            # "Search by name or number" and matching a hidden column would return rows whose
+            # reason for matching is not on the page.
+            text = q.strip()
+            like = f"%{text.lower()}%"
             clauses.append(
                 or_(
-                    Contact.full_name.like(like),
-                    Contact.phone_e164.like(like),
-                    Contact.wa_id.like(like),
+                    func.lower(Contact.full_name).like(like),
+                    Contact.phone_e164.like(f"%{text}%"),
+                    Contact.wa_id.like(f"%{text}%"),
                 )
             )
         return clauses

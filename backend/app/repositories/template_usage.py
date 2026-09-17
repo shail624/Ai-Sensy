@@ -10,6 +10,13 @@ is a template question, and answering it does not require naming a single custom
 A template nobody has sent is reported with zeros rather than omitted. Its absence from a list is
 the thing an operator most needs to see: an unused template is either new or quietly broken, and
 dropping it would make the list flatter to read and less useful to act on.
+
+Only campaigns that were actually dispatched count, and only recipients a send was actually
+attempted for. A campaign materialises its entire roster at creation, while it is still a draft, so
+the ledger carries rows for sends nobody has authorised yet; counting those made a template that
+delivers to everyone read as a failure because a colleague was midway through drafting a large
+campaign with it. The screen answers "which template works", and the obvious response to a bad
+number here is to retire a template.
 """
 
 from __future__ import annotations
@@ -20,17 +27,27 @@ from datetime import datetime
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.campaign import RECIPIENT_FAILED, Campaign, CampaignRecipient
+from app.models.campaign import (
+    RECIPIENT_ATTEMPTED,
+    RECIPIENT_FAILED,
+    Campaign,
+    CampaignRecipient,
+)
 from app.models.template import MessageTemplate
 
 
 @dataclass(slots=True)
 class TemplateUsage:
     template: MessageTemplate
+    #: Campaigns that were actually dispatched, never ones still sitting as drafts.
     campaigns: int
+    #: Recipients a send was actually attempted for -- not the size of the roster. A campaign
+    #: materialises its whole roster at creation, so an undispatched draft's rows sit in the ledger
+    #: having never been tried; see ``RECIPIENT_ATTEMPTED``.
     recipients: int
     delivered: int
     failed: int
+    #: When the template was last *sent*, not when somebody last drafted a campaign with it.
     last_used_at: datetime | None
 
     @property
@@ -66,14 +83,20 @@ class TemplateUsageRepository:
             else_=0,
         )
         failed = case((CampaignRecipient.status == RECIPIENT_FAILED, 1), else_=0)
+        attempted = case((CampaignRecipient.status.in_(RECIPIENT_ATTEMPTED), 1), else_=0)
+        # A campaign counts once it has been dispatched, never while it is a draft. ``CASE`` rather
+        # than a ``WHERE`` so a template whose only campaigns are drafts still appears in the list
+        # with zeros, which is the state an operator most needs to see.
+        dispatched = case((Campaign.started_at.is_not(None), Campaign.id))
         usage = (
             select(
                 Campaign.template_id.label("template_id"),
-                func.count(func.distinct(Campaign.id)).label("campaigns"),
-                func.count(CampaignRecipient.id).label("recipients"),
+                func.count(func.distinct(dispatched)).label("campaigns"),
+                func.coalesce(func.sum(attempted), 0).label("recipients"),
                 func.coalesce(func.sum(delivered), 0).label("delivered"),
                 func.coalesce(func.sum(failed), 0).label("failed"),
-                func.max(Campaign.created_at).label("last_used_at"),
+                # When the template was last *sent*, not when somebody last opened a draft with it.
+                func.max(Campaign.started_at).label("last_used_at"),
             )
             .outerjoin(CampaignRecipient, CampaignRecipient.campaign_id == Campaign.id)
             .where(Campaign.organization_id == organization_id)

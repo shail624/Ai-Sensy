@@ -122,6 +122,17 @@ RECIPIENT_STATUSES = (
     RECIPIENT_SKIPPED,
     RECIPIENT_CANCELLED,
 )
+#: Rows where a send was actually handed to the channel — the only honest denominator for a
+#: delivery rate. A campaign materialises its whole roster the moment it is created, while it is
+#: still a draft (``CampaignService.create``), so ``pending`` rows exist for sends nobody has
+#: authorised yet; ``skipped`` and ``cancelled`` are deliberate non-sends. Counting any of them as
+#: an attempt divides a template's success by the size of somebody's unfinished work.
+RECIPIENT_ATTEMPTED = (
+    RECIPIENT_SENT,
+    RECIPIENT_DELIVERED,
+    RECIPIENT_READ,
+    RECIPIENT_FAILED,
+)
 
 
 class Campaign(

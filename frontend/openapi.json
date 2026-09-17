@@ -6189,7 +6189,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "pattern": "^(received|processed|failed|duplicate)$"
                 },
                 {
                   "type": "null"
@@ -6284,7 +6285,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "pattern": "^(pending|replayed|discarded)$"
                 },
                 {
                   "type": "null"
@@ -6364,7 +6366,7 @@
           "Webhooks"
         ],
         "summary": "Replay a dead-lettered event",
-        "description": "Put a parked event back through processing.\n\nIdempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged\nrather than queueing a second pass. An operator who clicks twice — or a request the browser\nretried — must not double-apply an event whose whole point was that it applies once.\n\nRefused once the source event has passed its 90-day retention (§23.1). The payload stays here\nfor inspection, but the row the processor works from is gone, and recreating one would make a\nsecond event out of the same delivery.",
+        "description": "Put a parked event back through processing.\n\nIdempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged\nrather than queueing a second pass. An operator who clicks twice — or a request the browser\nretried — must not double-apply an event whose whole point was that it applies once.\n\nAnswers `404` once the source event has passed its 90-day retention (§23.1), because by then\nthe entry is not visible to anyone: ownership is read through the source event, so an entry\nwhose event has aged out has dropped out of the listing too. The same answer the list gives,\nrather than a `409` describing a row the operator was never shown.",
         "operationId": "replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post",
         "security": [
           {
@@ -6664,7 +6666,7 @@
           "WhatsApp Scan"
         ],
         "summary": "Which contacts WhatsApp has reached, refused, or never been asked about",
-        "description": "Every contact, with what WhatsApp has told us about their number.\n\nA delivery receipt proves the number is reachable; error 131026 is Meta calling it not a\nWhatsApp user. Nothing else counts — a paused template or a closed 24-hour window is a fact\nabout our configuration, not about the customer, and treating those as \"not on WhatsApp\" would\ncondemn reachable people for our own mistakes.\n\n`unknown` is a real answer: a contact no campaign has ever included has not been tested. It is\nreported as untested rather than folded into either side, because the difference between \"we\nknow they are not there\" and \"we have never asked\" changes what an operator does next.\n\nCounts are returned beside the page and computed from the same predicates, so the tallies and\nthe rows can never describe different sets.",
+        "description": "Every contact, with what WhatsApp has told us about their number.\n\nA delivery receipt proves the number is reachable; error 131026 is Meta calling it not a\nWhatsApp user. Nothing else counts — a paused template or a closed 24-hour window is a fact\nabout our configuration, not about the customer, and treating those as \"not on WhatsApp\" would\ncondemn reachable people for our own mistakes.\n\n`unknown` is a real answer: a contact no campaign has ever included has not been tested. It is\nreported as untested rather than folded into either side, because the difference between \"we\nknow they are not there\" and \"we have never asked\" changes what an operator does next.\n\nThe tallies live at `/scan/reachability/counts`, not here. They are computed from the same\npredicates as this page, so the two can never describe different sets, but they cost what\nreading every recipient row costs and a page should not wait behind them.",
         "operationId": "list_reachability_api_v1_scan_reachability_get",
         "security": [
           {
@@ -7117,7 +7119,7 @@
           "Templates"
         ],
         "summary": "How each template has actually performed",
-        "description": "Campaigns sent, people reached, delivered, failed and when each template was last used.\n\nTemplates are chosen by name today, which means they are chosen by memory. Every one of these\nnumbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.\n\nAggregates only: \"which template works\" is a template question, and answering it names no\ncustomer and no campaign. A template nobody has sent is listed with zeros rather than omitted,\nbecause an unused template is either new or quietly broken and its absence from the list is the\nthing most worth seeing.\n\nDeclared before `/templates/{template_id}` so \"usage\" is not read as an identifier.",
+        "description": "Campaigns sent, people reached, delivered, failed and when each template was last used.\n\nTemplates are chosen by name today, which means they are chosen by memory. Every one of these\nnumbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.\n\nAggregates only: \"which template works\" is a template question, and answering it names no\ncustomer and no campaign. A template nobody has sent is listed with zeros rather than omitted,\nbecause an unused template is either new or quietly broken and its absence from the list is the\nthing most worth seeing.\n\nCounts what was sent, not what was planned. A campaign materialises its entire roster the\nmoment it is created, while it is still a draft, so an unfinished draft puts rows in the ledger\nfor sends nobody has authorised. Those are not campaigns here, not recipients, and do not make\nthe template look recently used — a template delivering to everyone must not read as a failure\nbecause a colleague is midway through drafting a large campaign with it.\n\nDeclared before `/templates/{template_id}` so \"usage\" is not read as an identifier.",
         "operationId": "template_usage_api_v1_templates_usage_get",
         "responses": {
           "200": {
@@ -24522,6 +24524,7 @@
             "type": "string",
             "maxLength": 120,
             "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
             "title": "Spreadsheet Id"
           },
           "tab": {
@@ -34202,11 +34205,13 @@
           },
           "campaigns": {
             "type": "integer",
-            "title": "Campaigns"
+            "title": "Campaigns",
+            "description": "Campaigns that were actually dispatched; a draft using the template is not one."
           },
           "recipients": {
             "type": "integer",
-            "title": "Recipients"
+            "title": "Recipients",
+            "description": "Recipients a send was attempted for — not the size of the roster. A campaign materialises its whole roster while it is still a draft, and those rows were never tried."
           },
           "delivered": {
             "type": "integer",
@@ -34238,7 +34243,8 @@
                 "type": "null"
               }
             ],
-            "title": "Last Used At"
+            "title": "Last Used At",
+            "description": "When the template was last sent, not when a campaign using it was drafted."
           }
         },
         "type": "object",

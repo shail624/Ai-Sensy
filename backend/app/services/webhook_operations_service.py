@@ -124,6 +124,20 @@ class WebhookOperationsService:
             # that fails a long way from the mistake.
             raise ConflictError("That entry no longer has a source event to replay.")
 
+        # Queued *before* the entry is marked, which is the opposite of this repository's usual
+        # commit-then-dispatch order and is deliberate here. Everywhere else a failed dispatch
+        # leaves a job an operator can see is stuck and press again. Here the marking is what makes
+        # replay idempotent, so a broker that refused the task after the commit left the entry
+        # reading "replayed" with nothing queued -- and the second press, the one that would have
+        # fixed it, returned that same row unchanged. The event was then lost in the one queue
+        # whose entire purpose is that nothing is lost.
+        #
+        # Reversed, the two failures are both recoverable: a refused dispatch changes nothing and
+        # says so, and a failed commit leaves the entry pending after the task already ran, which
+        # costs one redundant pass. ``process_webhook_event`` settles by event id and skips an
+        # event already applied (FR-WA-07), so at-least-once here is exactly what it expects.
+        dispatch(source_event_id)
+
         entry.status = WHDL_REPLAYED
         entry.replayed_at = utcnow()
         await self._audit.record(
@@ -135,7 +149,6 @@ class WebhookOperationsService:
             after={"source_event_id": entry.source_event_id},
         )
         await self._session.commit()
-        dispatch(source_event_id)
         return entry
 
     async def discard(

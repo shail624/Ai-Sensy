@@ -62,7 +62,16 @@ async def _template(db_session, organization_id: int, waba_id: int, name: str) -
     return template
 
 
-async def _campaign(db_session, organization_id, number_id, template_id, name, created_at=None):
+async def _campaign(
+    db_session, organization_id, number_id, template_id, name, created_at=None, *, sent=True
+):
+    """A dispatched campaign by default; pass ``sent=False`` for one still sitting as a draft.
+
+    The default is the dispatched one because that is what every test here means by "a campaign
+    that used this template". A draft materialises an identical roster, so a fixture that left
+    ``started_at`` unset was quietly describing an impossible campaign -- one never dispatched,
+    whose recipients had nonetheless been delivered.
+    """
     campaign = Campaign(
         organization_id=organization_id,
         name=name,
@@ -72,6 +81,9 @@ async def _campaign(db_session, organization_id, number_id, template_id, name, c
     )
     if created_at is not None:
         campaign.created_at = created_at
+    if sent:
+        campaign.status = "completed"
+        campaign.started_at = created_at if created_at is not None else utcnow()
     db_session.add(campaign)
     await db_session.flush()
     return campaign
@@ -251,3 +263,69 @@ async def test_reading_usage_requires_template_read_permission(client, make_user
     denied = await client.get(URL, headers=await _headers(client, "nobody@vi.co"))
 
     assert denied.status_code == 403
+
+
+# --- Regressions found by reading the shipped diff back ------------------------------------------
+async def test_an_unsent_draft_does_not_dilute_a_working_template(
+    client, db_session, organization, make_user
+) -> None:
+    """A campaign materialises its whole roster the moment it is created, while still a draft.
+
+    So a 5,000-person draft that has never been sent puts 5,000 `pending` rows in the ledger under
+    this template, and counting them as recipients divides the delivery rate by the size of
+    somebody's unfinished work. The screen exists to answer "which template works"; a template
+    delivering 100% would read here as 29% because a colleague is mid-draft, and the obvious
+    response to that number is to retire a template that is working.
+    """
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    waba, number = await _waba_and_number(db_session, organization.id, "A")
+    template = await _template(db_session, organization.id, waba.id, "reactivation_offer")
+
+    sent = await _campaign(db_session, organization.id, number.id, template.id, "Sent batch")
+    for index in range(2):
+        contact = await _contact(db_session, organization.id, f"01{index}1")
+        db_session.add(
+            CampaignRecipient(
+                campaign_id=sent.id,
+                contact_id=contact.id,
+                status="delivered",
+                delivered_at=utcnow(),
+            )
+        )
+
+    draft = await _campaign(
+        db_session, organization.id, number.id, template.id, "Not sent yet", sent=False
+    )
+    for index in range(5):
+        contact = await _contact(db_session, organization.id, f"02{index}1")
+        db_session.add(
+            CampaignRecipient(campaign_id=draft.id, contact_id=contact.id, status="pending")
+        )
+    await db_session.commit()
+
+    row = (await _rows(client, await _headers(client, "ops@vi.co")))[0]
+
+    assert row["recipients"] == 2, "a pending row was never attempted"
+    assert row["delivered"] == 2
+    assert row["delivery_rate"] == 1.0
+    assert row["campaigns"] == 1, "a draft is not a use of the template"
+
+
+async def test_drafting_a_campaign_does_not_make_a_template_look_recently_used(
+    client, db_session, organization, make_user
+) -> None:
+    """`last_used_at` answers "when did we last send this", not "when did somebody open it"."""
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    waba, number = await _waba_and_number(db_session, organization.id, "A")
+    template = await _template(db_session, organization.id, waba.id, "dormant_winback")
+    await _campaign(
+        db_session, organization.id, number.id, template.id, "Drafted today", sent=False
+    )
+    await db_session.commit()
+
+    row = (await _rows(client, await _headers(client, "ops@vi.co")))[0]
+
+    assert row["last_used_at"] is None
+    assert row["campaigns"] == 0
+    assert row["recipients"] == 0
+    assert row["delivery_rate"] is None

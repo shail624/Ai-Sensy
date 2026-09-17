@@ -124,14 +124,24 @@ class TemplateUsageResponse(BaseModel):
     language: str
     category: str
     status: str
-    campaigns: int
-    recipients: int
+    campaigns: int = Field(
+        description="Campaigns that were actually dispatched; a draft using the template is not one."
+    )
+    recipients: int = Field(
+        description=(
+            "Recipients a send was attempted for — not the size of the roster. A campaign "
+            "materialises its whole roster while it is still a draft, and those rows were never "
+            "tried."
+        )
+    )
     delivered: int
     failed: int
     delivery_rate: float | None = Field(
         description="Delivered as a share of attempted; null when the template has never been sent."
     )
-    last_used_at: datetime | None
+    last_used_at: datetime | None = Field(
+        description="When the template was last sent, not when a campaign using it was drafted."
+    )
 
     @classmethod
     def from_usage(cls, usage: TemplateUsage) -> TemplateUsageResponse:

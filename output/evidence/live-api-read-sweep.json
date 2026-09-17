@@ -1,9 +1,9 @@
 {
   "spec": "/home/user/Ai-Sensy/frontend/openapi.json",
-  "paths_swept": 72,
-  "requests_issued": 209,
+  "paths_swept": 73,
+  "requests_issued": 210,
   "status_counts": {
-    "200": 204,
+    "200": 205,
     "400": 3,
     "404": 2
   },
@@ -13,16 +13,16 @@
     "/api/v1/analytics/trends"
   ],
   "slowest_ms": {
-    "/api/v1/scan/reachability": 126.0,
-    "/api/v1/templates/usage": 37.3,
-    "/api/v1/contacts": 27.9,
-    "/api/v1/analytics/comparison": 18.3,
-    "/api/v1/users": 18.2,
-    "/api/v1/analytics/summary": 12.3,
-    "/api/v1/analytics/executive": 11.2,
-    "/api/v1/analytics/kpis": 10.6,
-    "/api/v1/reactivation-pipeline": 10.5,
-    "/api/v1/roles": 9.5
+    "/api/v1/scan/reachability": 419.3,
+    "/api/v1/activation-records": 358.1,
+    "/api/v1/scan/reachability/counts": 343.3,
+    "/api/v1/templates/usage": 301.3,
+    "/api/v1/contacts": 31.8,
+    "/api/v1/analytics/comparison": 27.9,
+    "/api/v1/campaigns": 25.7,
+    "/api/v1/users": 24.8,
+    "/api/v1/reactivation-pipeline": 13.9,
+    "/api/v1/analytics/kpis": 11.7
   },
   "failures": [],
   "passed": true

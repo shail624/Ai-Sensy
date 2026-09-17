@@ -63,8 +63,13 @@ class GoogleSheetImportService:
         Returns the stored asset, whose public id is the ``upload_id`` the existing inspect and
         start endpoints take. Nothing about contacts happens here.
         """
-        client = GoogleSheetsClient(transport=transport)
         try:
+            # Constructed inside the try, not above it: the constructor reads the key from settings
+            # and raises ``GoogleSheetsNotConfigured`` when there is none. Built outside, that
+            # raise skipped the handler below and reached the operator as a 500 -- on the one path
+            # every new installation takes first, where the message it replaced is the instruction
+            # for how to finish setting the feature up.
+            client = GoogleSheetsClient(transport=transport)
             rows = await client.fetch_rows(spreadsheet_id, tab)
         except GoogleSheetsNotConfigured as exc:
             raise ValidationError(

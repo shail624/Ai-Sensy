@@ -62,8 +62,9 @@ async def list_reachability(
     reported as untested rather than folded into either side, because the difference between "we
     know they are not there" and "we have never asked" changes what an operator does next.
 
-    Counts are returned beside the page and computed from the same predicates, so the tallies and
-    the rows can never describe different sets.
+    The tallies live at `/scan/reachability/counts`, not here. They are computed from the same
+    predicates as this page, so the two can never describe different sets, but they cost what
+    reading every recipient row costs and a page should not wait behind them.
     """
     repo = ReachabilityRepository(session)
     limit = limit_param if limit_param is not None else DEFAULT_LIMIT

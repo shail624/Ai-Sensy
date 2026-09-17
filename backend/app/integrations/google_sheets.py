@@ -21,6 +21,7 @@ import json
 import time
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 import jwt
@@ -32,6 +33,23 @@ SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets"
 JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 #: Google rejects an assertion whose lifetime exceeds an hour; a short one limits replay value.
 _ASSERTION_LIFETIME_SECONDS = 600
+
+
+def _segment(value: str) -> str:
+    """One URL path segment, with every reserved character encoded.
+
+    Written out rather than left to httpx because the obvious shortcut is wrong in two ways that
+    only show up on real sheet names. ``httpx.URL(path=tab).path`` returns the *decoded* path, so a
+    tab called ``Prepaid/Postpaid`` -- an ordinary name here -- kept its slash and addressed a
+    different Sheets endpoint, and the operator was told their tab name was misspelled when it was
+    not. A tab containing ``?`` or ``#`` raised ``httpx.InvalidURL``, which is not a
+    :class:`GoogleSheetsError`, so it escaped this module's error mapping as a 500.
+
+    ``safe=""`` is the point: ``/``, ``?`` and ``#`` are exactly the characters that must not
+    survive into the URL as themselves. Google decodes the segment before reading it as a range, so
+    an encoded ``!`` in ``Sheet1!A1:C10`` is still a range.
+    """
+    return quote(value, safe="")
 
 
 class GoogleSheetsError(Exception):
@@ -80,6 +98,23 @@ class ServiceAccount:
         return cls(client_email=email, private_key=key)
 
 
+def _body(response: httpx.Response) -> dict[str, Any]:
+    """Google's JSON, or one operator message instead of a decoder traceback.
+
+    A proxy, a captive portal or an outage page answers with HTML and a 200, and ``response.json()``
+    then raises a ``JSONDecodeError`` -- not a :class:`GoogleSheetsError` -- which reaches the
+    operator as a 500 with nothing to act on.
+    """
+    try:
+        parsed: Any = response.json()
+    except ValueError as exc:
+        raise GoogleSheetsError(
+            "Google's reply was not JSON. Something between this server and Google is answering "
+            "instead of Google -- check the outbound proxy or firewall."
+        ) from exc
+    return parsed if isinstance(parsed, dict) else {}
+
+
 class GoogleSheetsClient:
     """Fetches one tab's cell values. Read-only by construction and by requested scope."""
 
@@ -125,7 +160,7 @@ class GoogleSheetsClient:
                 "Google refused the service account's credentials. Check that the key is current "
                 "and that the Sheets API is enabled for its project."
             )
-        token = response.json().get("access_token")
+        token = _body(response).get("access_token")
         if not isinstance(token, str):
             raise GoogleSheetsError("Google's token response did not contain an access token.")
         return token
@@ -145,7 +180,7 @@ class GoogleSheetsClient:
         ) as client:
             token = await self._token(client)
             response = await client.get(
-                f"{SHEETS_BASE}/{spreadsheet_id}/values/{httpx.URL(path=tab).path.lstrip('/')}",
+                f"{SHEETS_BASE}/{_segment(spreadsheet_id)}/values/{_segment(tab)}",
                 headers={"Authorization": f"Bearer {token}"},
             )
 
@@ -169,7 +204,7 @@ class GoogleSheetsClient:
                 f"Google returned an unexpected {response.status_code} for that sheet."
             )
 
-        values: Any = response.json().get("values", [])
+        values: Any = _body(response).get("values", [])
         if not isinstance(values, list):
             raise GoogleSheetsError("Google's response did not contain a grid of values.")
         rows = [[str(cell) for cell in row] for row in values if isinstance(row, list)]

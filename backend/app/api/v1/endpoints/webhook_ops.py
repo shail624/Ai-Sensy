@@ -34,17 +34,24 @@ router = APIRouter(prefix="/webhooks")
 
 WebhookOperator = Annotated[User, Depends(require_permissions("webhooks:manage"))]
 
+#: Constrained rather than free text, the way every other status filter in this API is (see
+#: ``CAMPAIGN_STATUS_PATTERN``). Unconstrained, a misspelled status matched no row and the endpoint
+#: answered `200` with an empty list -- an operator reads that as "no failures", which is the one
+#: conclusion this screen exists to prevent them drawing by accident. A `422` naming the accepted
+#: values says what actually happened.
+DEAD_LETTER_STATUSES = (WHDL_PENDING, WHDL_REPLAYED, WHDL_DISCARDED)
 EventStatus = Annotated[
     str | None,
-    Query(description=f"Filter by delivery status: {', '.join(WH_STATUSES)}."),
+    Query(
+        pattern=f"^({'|'.join(WH_STATUSES)})$",
+        description=f"Filter by delivery status: {', '.join(WH_STATUSES)}.",
+    ),
 ]
 DeadLetterStatus = Annotated[
     str | None,
     Query(
-        description=(
-            "Filter by entry status: "
-            f"{', '.join((WHDL_PENDING, WHDL_REPLAYED, WHDL_DISCARDED))}."
-        )
+        pattern=f"^({'|'.join(DEAD_LETTER_STATUSES)})$",
+        description=f"Filter by entry status: {', '.join(DEAD_LETTER_STATUSES)}.",
     ),
 ]
 LimitParam = Annotated[
@@ -141,9 +148,10 @@ async def replay_dead_letter(
     rather than queueing a second pass. An operator who clicks twice — or a request the browser
     retried — must not double-apply an event whose whole point was that it applies once.
 
-    Refused once the source event has passed its 90-day retention (§23.1). The payload stays here
-    for inspection, but the row the processor works from is gone, and recreating one would make a
-    second event out of the same delivery.
+    Answers `404` once the source event has passed its 90-day retention (§23.1), because by then
+    the entry is not visible to anyone: ownership is read through the source event, so an entry
+    whose event has aged out has dropped out of the listing too. The same answer the list gives,
+    rather than a `409` describing a row the operator was never shown.
     """
     from app.channels.tasks import process_webhook_event
 

@@ -92,9 +92,18 @@ class ImportProgressResponse(BaseModel):
 class GoogleSheetStageRequest(BaseModel):
     """``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet."""
 
+    #: Google's own id alphabet. Constrained here because this string is interpolated into the
+    #: Sheets URL: a mangled paste that still contains a slash would address a different endpoint
+    #: and come back as "no sheet with that id was found", which sends the operator to check the
+    #: sheet instead of their clipboard. Named as a field error, it says which box is wrong.
     spreadsheet_id: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_-]+$"
+        ),
     ]
+    #: Deliberately unconstrained beyond a length: a tab may be called anything a person can type,
+    #: including spaces, slashes and other scripts. Correct URL encoding is the reader's job.
     tab: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
 

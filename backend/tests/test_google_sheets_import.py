@@ -231,3 +231,96 @@ async def test_staging_requires_the_import_permission(client, make_user) -> None
     )
 
     assert denied.status_code == 403
+
+
+# --- Regressions found by reading the shipped diff back ------------------------------------------
+def recording_transport(seen: list[str], *, body: object = None, raw: str | None = None):
+    """A transport that remembers the sheet URL it was asked for."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "ya29.fake"})
+        seen.append(str(request.url))
+        if raw is not None:
+            return httpx.Response(200, text=raw, headers={"Content-Type": "text/html"})
+        return httpx.Response(200, json={"values": body if body is not None else [["a"]]})
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.parametrize(
+    ("tab", "encoded"),
+    [
+        ("Leads", "Leads"),
+        ("My Tab", "My%20Tab"),
+        # An ordinary name on a telecom sheet, and the one that used to address a different
+        # endpoint entirely: the slash survived into the URL as a path separator.
+        ("Prepaid/Postpaid", "Prepaid%2FPostpaid"),
+        # These two used to raise httpx.InvalidURL -- not a GoogleSheetsError, so it escaped this
+        # module's error mapping and reached the operator as a 500.
+        ("Churn?90d", "Churn%3F90d"),
+        ("Notes#1", "Notes%231"),
+    ],
+)
+async def test_a_tab_name_is_one_encoded_url_segment(
+    monkeypatch, service_account_json, tab, encoded
+) -> None:
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    seen: list[str] = []
+
+    rows = await GoogleSheetsClient(transport=recording_transport(seen)).fetch_rows("sheet-id", tab)
+
+    assert rows == [["a"]]
+    assert seen == [f"https://sheets.googleapis.com/v4/spreadsheets/sheet-id/values/{encoded}"]
+
+
+async def test_a_reply_that_is_not_json_is_an_operator_message_not_a_traceback(
+    monkeypatch, service_account_json
+) -> None:
+    """A proxy or captive portal answers 200 with HTML, and json() raises a decode error."""
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    seen: list[str] = []
+    client = GoogleSheetsClient(transport=recording_transport(seen, raw="<html>blocked</html>"))
+
+    with pytest.raises(GoogleSheetsError) as raised:
+        await client.fetch_rows("sheet-id", "Leads")
+
+    assert "proxy" in str(raised.value)
+
+
+async def test_an_unconfigured_key_is_an_instruction_not_a_server_error(
+    client, make_user, monkeypatch
+) -> None:
+    """The path every new installation takes first.
+
+    The service built its client above the try block, so the "here is how to configure it" message
+    was raised past its own handler and arrived as a 500 with nothing for the operator to act on.
+    """
+    monkeypatch.setattr(settings, "google_service_account_json", "")
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+
+    refused = await client.post(
+        STAGE_URL,
+        headers=await _headers(client, "ops@vi.co"),
+        json={"spreadsheet_id": "sheet-id", "tab": "Leads"},
+    )
+
+    assert refused.status_code == 422
+    assert "GOOGLE_SERVICE_ACCOUNT_JSON" in refused.text
+
+
+async def test_a_mangled_sheet_id_names_the_field_rather_than_asking_google(
+    client, make_user, monkeypatch, service_account_json
+) -> None:
+    """A half-pasted URL is a clipboard problem, and saying so beats relaying Google's 404."""
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+
+    refused = await client.post(
+        STAGE_URL,
+        headers=await _headers(client, "ops@vi.co"),
+        json={"spreadsheet_id": "spreadsheets/d/1lLjGMP1rQQ", "tab": "Leads"},
+    )
+
+    assert refused.status_code == 422
+    assert "spreadsheet_id" in refused.text

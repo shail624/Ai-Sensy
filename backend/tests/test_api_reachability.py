@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from app.db.mixins import utcnow
 from app.models.campaign import Campaign, CampaignRecipient
 from app.models.contact import Contact
@@ -359,3 +361,28 @@ async def test_reading_requires_both_contact_and_campaign_permission(
     denied = await client.get(URL, headers=await _headers(client, "nobody@vi.co"))
 
     assert denied.status_code == 403
+
+
+# --- Regressions found by reading the shipped diff back ------------------------------------------
+@pytest.mark.parametrize("typed", ["Customer 0012", " Customer 0012 ", "customer 0012", "CUSTOMER 0012"])
+async def test_the_search_finds_what_the_contacts_screen_finds(
+    client, db_session, organization, make_user, typed: str
+) -> None:
+    """Same box, same table of people, so the same text has to find the same rows.
+
+    This search was written without the ``strip`` and the ``lower`` that ``ContactRepository`` has
+    used all along. A name pasted with a trailing space -- the ordinary result of copying a cell --
+    found the customer on Contacts and nothing here, and neither screen said why.
+    """
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    await _contact(db_session, organization.id, "0012")
+    await _contact(db_session, organization.id, "9999")
+    await db_session.commit()
+    headers = await _headers(client, "ops@vi.co")
+
+    rows = await _rows(client, headers, q=typed)
+
+    assert [row["full_name"] for row in rows] == ["Customer 0012"]
+    # And the tallies count the same one, not the whole account.
+    counts = (await client.get(f"{URL}/counts", headers=headers, params={"q": typed})).json()
+    assert counts == {"reachable": 0, "unreachable": 0, "unknown": 1}
