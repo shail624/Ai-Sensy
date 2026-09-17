@@ -5,6 +5,8 @@ import { ReachabilityPanel } from "@/features/scan/ReachabilityPanel";
 
 const state = vi.hoisted(() => ({
   asked: [] as { verdict: string; q: string }[],
+  countsAsked: [] as string[],
+  counts: { data: undefined as unknown, isPending: false },
   result: {
     data: undefined as unknown,
     isPending: false,
@@ -19,10 +21,14 @@ vi.mock("@/features/scan/api", () => ({
     state.asked.push({ verdict, q });
     return state.result;
   },
+  useReachabilityCounts: (q: string) => {
+    state.countsAsked.push(q);
+    return state.counts;
+  },
 }));
 
-function page(rows: unknown[], counts = { reachable: 1, unreachable: 1, unknown: 1 }, hasMore = false) {
-  return { data: rows, counts, page: { limit: 50, has_more: hasMore, next_cursor: null, total: 3 } };
+function page(rows: unknown[], hasMore = false) {
+  return { data: rows, page: { limit: 50, has_more: hasMore, next_cursor: null } };
 }
 
 const reached = {
@@ -36,6 +42,8 @@ const reached = {
 
 beforeEach(() => {
   state.asked = [];
+  state.countsAsked = [];
+  state.counts = { data: { reachable: 1, unreachable: 1, unknown: 1 }, isPending: false };
   state.result = {
     data: page([reached]),
     isPending: false,
@@ -47,7 +55,7 @@ beforeEach(() => {
 
 describe("ReachabilityPanel", () => {
   it("tallies the three verdicts", () => {
-    state.result.data = page([reached], { reachable: 120, unreachable: 7, unknown: 4300 });
+    state.counts.data = { reachable: 120, unreachable: 7, unknown: 4300 };
 
     render(<ReachabilityPanel />);
 
@@ -98,7 +106,8 @@ describe("ReachabilityPanel", () => {
   });
 
   it("tells an empty account what produces reachability", () => {
-    state.result.data = page([], { reachable: 0, unreachable: 0, unknown: 0 });
+    state.result.data = page([]);
+    state.counts.data = { reachable: 0, unreachable: 0, unknown: 0 };
 
     render(<ReachabilityPanel />);
 
@@ -106,7 +115,7 @@ describe("ReachabilityPanel", () => {
   });
 
   it("says to narrow the filter when a filter is what emptied the list", () => {
-    state.result.data = page([], { reachable: 0, unreachable: 0, unknown: 0 });
+    state.result.data = page([]);
     render(<ReachabilityPanel />);
 
     fireEvent.change(screen.getByLabelText("Search by name or number"), {
@@ -131,10 +140,31 @@ describe("ReachabilityPanel", () => {
   });
 
   it("admits when it is showing only the first page", () => {
-    state.result.data = page([reached], { reachable: 900, unreachable: 1, unknown: 1 }, true);
+    state.result.data = page([reached], true);
 
     render(<ReachabilityPanel />);
 
     expect(screen.getByText(/Showing the first/i)).toBeInTheDocument();
+  });
+
+  it("shows a dash for the tallies while they are still being counted", () => {
+    // They are a separate, slower request on purpose -- 9ms for the page against 425ms for the
+    // tallies at 200k recipients. A zero here would be read as "none", which is a different claim.
+    state.counts = { data: undefined, isPending: true };
+
+    render(<ReachabilityPanel />);
+
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("counts the same population the list is showing", () => {
+    render(<ReachabilityPanel />);
+
+    fireEvent.change(screen.getByLabelText("Search by name or number"), {
+      target: { value: "99900" },
+    });
+
+    expect(state.countsAsked.at(-1)).toBe("99900");
+    expect(state.asked.at(-1)?.q).toBe("99900");
   });
 });

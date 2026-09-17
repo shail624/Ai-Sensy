@@ -6776,6 +6776,63 @@
         }
       }
     },
+    "/api/v1/scan/reachability/counts": {
+      "get": {
+        "tags": [
+          "WhatsApp Scan"
+        ],
+        "summary": "How many contacts are in each reachability state",
+        "description": "The tallies, separately from the rows, because they cost differently.\n\nA page is fifty contacts and costs what fifty contacts cost. \"How many are in each state\" is a\nquestion about every contact the organization has, and no index makes that cheaper — every\nrecipient row must be read to decide one contact's verdict. Measured at 200,000 recipients: the\npage takes 9ms and the tallies 425ms.\n\nReturned together, the fast answer waited for the slow one and the whole screen took half a\nsecond. Split, the list appears immediately and the tallies fill in. Same numbers, same\npredicates as the list — they cannot describe different sets — and nothing is approximated to\nmake it quicker.",
+        "operationId": "reachability_counts_api_v1_scan_reachability_counts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match a contact's name or number.",
+              "title": "Q"
+            },
+            "description": "Match a contact's name or number."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReachabilityCounts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels/whatsapp-qr/session": {
       "get": {
         "tags": [
@@ -28708,9 +28765,6 @@
             "type": "array",
             "title": "Data"
           },
-          "counts": {
-            "$ref": "#/components/schemas/ReachabilityCounts"
-          },
           "page": {
             "$ref": "#/components/schemas/Page"
           }
@@ -28718,10 +28772,10 @@
         "type": "object",
         "required": [
           "data",
-          "counts",
           "page"
         ],
-        "title": "ReachabilityPage"
+        "title": "ReachabilityPage",
+        "description": "The rows only.\n\nThe tallies live at ``/scan/reachability/counts`` because they cost differently: a page costs\nwhat a page costs, while counting every contact's state reads the whole recipient ledger. Kept\ntogether, the fast answer waited for the slow one."
       },
       "ReachabilityResponse": {
         "properties": {

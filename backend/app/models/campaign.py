@@ -263,6 +263,10 @@ class CampaignRecipient(IntPKMixin, Base):
             "id",
         ),
         Index("ix_crecip_status_created", "status", "created_at"),
+        # Every other index here leads with campaign_id, because every query until SCAN-01
+        # started from a campaign. Reachability asks the opposite -- what happened to this
+        # contact across every campaign -- and without this the page scanned the ledger.
+        Index("ix_crecip_contact", "contact_id"),
         Index("ix_crecip_wamid", "wamid"),
         Index("ix_crecip_batch", "batch_id"),
         MYSQL_TABLE_ARGS,

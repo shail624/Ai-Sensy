@@ -1,5 +1,50 @@
 # Changelog
 
+## PERF-02 — the reachability page at real volume (2026-09-17)
+
+Measured against a real MySQL 8 seeded to **200,000 campaign recipients** over 20,000 contacts, the
+reachability list falls from **799ms to 70ms**. Contract 246 → 247 paths; one migration,
+`0063_reachability_contact_index`.
+
+PERF-01 fixed this screen at 20,000 rows. Ten times the data showed the fix was only half of one:
+the page had stopped aggregating the whole ledger, but it still had to *find* fifty contacts inside
+it, and every index on `campaign_recipients` leads with `campaign_id` because every query before
+SCAN-01 started from a campaign. Reachability asks the opposite question — what happened to this
+contact, across every campaign — and nothing answered it.
+
+**The index that did nothing now does everything.** The same
+`campaign_recipients(contact_id)` index was tried during PERF-01 and dropped because it changed
+nothing: at that point the query still aggregated every row, and no index avoids reading rows you
+have asked for. After PERF-01 made the read selective it is worth 41.6ms → 9.1ms. The index and the
+query shape are worth something together and nothing apart, which is a good argument for measuring
+twice rather than assuming a result carries forward.
+
+**The tallies moved to their own endpoint.** `GET /scan/reachability/counts` exists because the two
+questions cost differently and only one of them can be made cheap. A page reads fifty contacts.
+"How many contacts are in each state" reads every recipient row the organization has, to decide one
+contact's verdict — 425ms at this volume, and no index helps. Returned together, the fast answer
+waited for the slow one and the screen took four fifths of a second. Split, the list appears at once
+and the tiles fill in behind it. Nothing is approximated and both use the same predicates, so they
+cannot describe different sets; a test asserts the search reaches both.
+
+**Measured and left alone: `/templates/usage` at 327ms.** It aggregates the same ledger grouped by
+template, so it grows the same way. It is reported rather than rewritten because the honest trigger
+is volume, not today: the owner's live account runs 22 campaigns of roughly a thousand recipients,
+so around 22,000 rows — about 35ms. It becomes a problem somewhere past 100,000. The cheaper source
+is the denormalized `campaigns.delivered_count`/`read_count`/`failed_count`, recomputed from the
+roster by `refresh_progress` rather than incremented, so it is authoritative. Switching to it is a
+change of data source and deserves a test proving the two agree before it ships, not a 3am rewrite.
+
+The suite caught the one thing this milestone could have broken quietly:
+`tests/test_migrations.py` pins the expected head revision, so adding `0063` failed two assertions
+until they were updated. That tripwire exists for the same reason the OpenAPI path count does — a
+migration should not be able to appear without somebody noticing — and it did its job.
+
+PASS: backend **1,694 passed, 0 skipped** (14 in the reachability file, three of them new);
+frontend **951 passed across 56 files**; migration applied, downgraded and re-applied against live
+MySQL 8; regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript
+and the production build clean.
+
 ## VAL-04 — the same mistake, looked for everywhere else (2026-09-17)
 
 Every one of the 72 parameterless reads timed against a seeded account of 20,000 contacts and

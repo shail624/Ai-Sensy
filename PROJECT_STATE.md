@@ -1,5 +1,50 @@
 # Project State
 
+## PERF-02 — the reachability page at real volume (2026-09-17)
+
+Measured against a real MySQL 8 seeded to **200,000 campaign recipients** over 20,000 contacts, the
+reachability list falls from **799ms to 70ms**. Contract 246 → 247 paths; one migration,
+`0063_reachability_contact_index`.
+
+PERF-01 fixed this screen at 20,000 rows. Ten times the data showed the fix was only half of one:
+the page had stopped aggregating the whole ledger, but it still had to *find* fifty contacts inside
+it, and every index on `campaign_recipients` leads with `campaign_id` because every query before
+SCAN-01 started from a campaign. Reachability asks the opposite question — what happened to this
+contact, across every campaign — and nothing answered it.
+
+**The index that did nothing now does everything.** The same
+`campaign_recipients(contact_id)` index was tried during PERF-01 and dropped because it changed
+nothing: at that point the query still aggregated every row, and no index avoids reading rows you
+have asked for. After PERF-01 made the read selective it is worth 41.6ms → 9.1ms. The index and the
+query shape are worth something together and nothing apart, which is a good argument for measuring
+twice rather than assuming a result carries forward.
+
+**The tallies moved to their own endpoint.** `GET /scan/reachability/counts` exists because the two
+questions cost differently and only one of them can be made cheap. A page reads fifty contacts.
+"How many contacts are in each state" reads every recipient row the organization has, to decide one
+contact's verdict — 425ms at this volume, and no index helps. Returned together, the fast answer
+waited for the slow one and the screen took four fifths of a second. Split, the list appears at once
+and the tiles fill in behind it. Nothing is approximated and both use the same predicates, so they
+cannot describe different sets; a test asserts the search reaches both.
+
+**Measured and left alone: `/templates/usage` at 327ms.** It aggregates the same ledger grouped by
+template, so it grows the same way. It is reported rather than rewritten because the honest trigger
+is volume, not today: the owner's live account runs 22 campaigns of roughly a thousand recipients,
+so around 22,000 rows — about 35ms. It becomes a problem somewhere past 100,000. The cheaper source
+is the denormalized `campaigns.delivered_count`/`read_count`/`failed_count`, recomputed from the
+roster by `refresh_progress` rather than incremented, so it is authoritative. Switching to it is a
+change of data source and deserves a test proving the two agree before it ships, not a 3am rewrite.
+
+The suite caught the one thing this milestone could have broken quietly:
+`tests/test_migrations.py` pins the expected head revision, so adding `0063` failed two assertions
+until they were updated. That tripwire exists for the same reason the OpenAPI path count does — a
+migration should not be able to appear without somebody noticing — and it did its job.
+
+PASS: backend **1,694 passed, 0 skipped** (14 in the reachability file, three of them new);
+frontend **951 passed across 56 files**; migration applied, downgraded and re-applied against live
+MySQL 8; regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript
+and the production build clean.
+
 ## VAL-04 — the same mistake, looked for everywhere else (2026-09-17)
 
 Every one of the 72 parameterless reads timed against a seeded account of 20,000 contacts and
@@ -822,7 +867,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
 | Full-scope completion | The 31 canonical rows sum to 2507: simple unweighted average **80.9%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
-| Migration head | `0062_segment_domain_predicates` (**63 linear revisions**) from separate unfinished segment work. UI-REF-01 adds no migration. Prior 0061 Reports-view evidence remains historical. |
+| Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
 | Backend evidence (QR-09B release gate) | **1397 passed, 0 skipped** · Ruff PASS · strict mypy PASS (300 files) · Bandit PASS · `pip-audit` no known vulnerabilities · full release gate **21/21 PASS**, including certified WAHA runtime health, Compose/release contracts, image contracts and scans |

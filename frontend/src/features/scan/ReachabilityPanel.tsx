@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Badge, type BadgeTone, Card, CardHeader, EmptyState, ErrorState, Input, Skeleton } from "@/components/ui";
-import { useReachability } from "@/features/scan/api";
+import { useReachability, useReachabilityCounts } from "@/features/scan/api";
 import { VERDICT_HINTS, VERDICT_LABELS, type Verdict } from "@/features/scan/types";
 import { apiErrorMessage } from "@/lib/api/errors";
 
@@ -33,8 +33,11 @@ export function ReachabilityPanel(): JSX.Element {
   const [verdict, setVerdict] = useState<Verdict | "">("");
   const [search, setSearch] = useState("");
   const reachability = useReachability(verdict, search);
+  // Asked separately because it costs differently — see `useReachabilityCounts`. The tiles show a
+  // dash until it lands rather than holding up the list behind it.
+  const tallies = useReachabilityCounts(search);
 
-  const counts = reachability.data?.counts;
+  const counts = tallies.data;
   const rows = reachability.data?.data ?? [];
 
   return (

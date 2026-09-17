@@ -2021,6 +2021,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scan/reachability/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many contacts are in each reachability state
+         * @description The tallies, separately from the rows, because they cost differently.
+         *
+         *     A page is fifty contacts and costs what fifty contacts cost. "How many are in each state" is a
+         *     question about every contact the organization has, and no index makes that cheaper — every
+         *     recipient row must be read to decide one contact's verdict. Measured at 200,000 recipients: the
+         *     page takes 9ms and the tallies 425ms.
+         *
+         *     Returned together, the fast answer waited for the slow one and the whole screen took half a
+         *     second. Split, the list appears immediately and the tallies fill in. Same numbers, same
+         *     predicates as the list — they cannot describe different sets — and nothing is approximated to
+         *     make it quicker.
+         */
+        get: operations["reachability_counts_api_v1_scan_reachability_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/channels/whatsapp-qr/session": {
         parameters: {
             query?: never;
@@ -8635,11 +8665,17 @@ export interface components {
             /** Unknown */
             unknown: number;
         };
-        /** ReachabilityPage */
+        /**
+         * ReachabilityPage
+         * @description The rows only.
+         *
+         *     The tallies live at ``/scan/reachability/counts`` because they cost differently: a page costs
+         *     what a page costs, while counting every contact's state reads the whole recipient ledger. Kept
+         *     together, the fast answer waited for the slow one.
+         */
         ReachabilityPage: {
             /** Data */
             data: components["schemas"]["ReachabilityResponse"][];
-            counts: components["schemas"]["ReachabilityCounts"];
             page: components["schemas"]["Page"];
         };
         /**
@@ -15374,6 +15410,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReachabilityPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reachability_counts_api_v1_scan_reachability_counts_get: {
+        parameters: {
+            query?: {
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReachabilityCounts"];
                 };
             };
             /** @description Validation Error */

@@ -53,6 +53,12 @@ class ReachabilityCounts(BaseModel):
 
 
 class ReachabilityPage(BaseModel):
+    """The rows only.
+
+    The tallies live at ``/scan/reachability/counts`` because they cost differently: a page costs
+    what a page costs, while counting every contact's state reads the whole recipient ledger. Kept
+    together, the fast answer waited for the slow one.
+    """
+
     data: list[ReachabilityResponse]
-    counts: ReachabilityCounts
     page: Page
