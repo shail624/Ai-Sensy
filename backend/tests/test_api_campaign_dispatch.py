@@ -770,3 +770,59 @@ async def test_a_video_file_is_refused_for_an_image_header(
 
     assert refused.status_code == 422
     assert "image" in refused.text and "video" in refused.text
+
+
+# --- CAM-DRIFT-01: the template changed after the campaign was built ------------------------------
+async def test_a_template_that_gained_a_variable_stops_the_campaign_not_each_recipient(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Dispatch already re-checks the template's *status*; its *shape* can change too.
+
+    `_apply_definition` rewrites `components_json`, `variable_count` and `has_media_header`, and
+    the template sync calls it — so a campaign built against a two-variable template can be
+    dispatched against a three-variable one. The stored map is then short, and every recipient
+    fails separately with a count mismatch. One refusal naming the template is the same
+    information, before the sending window is spent.
+    """
+    headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
+
+    # Meta re-approves the template with an extra body variable, as a sync would apply it.
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = [
+            {"type": "header", "format": "text", "text": "Order {{1}}"},
+            {"type": "body", "text": "Hi {{1}}, your order {{2}} is {{3}}. Ref {{4}}."},
+        ]
+        await session.commit()
+
+    dispatched = await client.post(
+        f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers
+    )
+
+    assert dispatched.status_code == 409, dispatched.text
+    assert "changed" in dispatched.text.lower() or "variable" in dispatched.text.lower()
+
+    # And nothing was queued: refusing the campaign means refusing all of it.
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(CampaignRecipient))).all())
+    assert {row.status for row in rows} == {"pending"}
+
+
+async def test_a_template_that_gained_a_media_header_stops_the_campaign(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Same door, the other field: a header that became an image needs a file the campaign has not
+    been given, and the campaign has no way to acquire one at dispatch."""
+    headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
+
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = MEDIA_TEMPLATE
+        template.has_media_header = True
+        await session.commit()
+
+    dispatched = await client.post(
+        f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers
+    )
+
+    assert dispatched.status_code == 409, dispatched.text

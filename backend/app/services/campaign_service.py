@@ -43,10 +43,9 @@ from app.services.audience_service import AudienceService
 from app.services.audit_service import AuditAction, AuditService
 from app.services.phone_number_service import PhoneNumberService
 from app.services.template_validation import (
-    expected_button_variables,
-    expected_variables,
     header_media_format,
     render,
+    variable_map_gaps,
 )
 
 logger = get_logger(__name__)
@@ -416,29 +415,24 @@ class CampaignService:
     def _validate_map(template: MessageTemplate, variable_map: dict[str, Any]) -> None:
         """The map must fill exactly the placeholders the template declares (FR-CAM-01)."""
         components = template.components_json or []
-        header_vars, body_vars = expected_variables(components)
-        # Buttons counted separately because Meta counts them separately: a URL button carries its
-        # variable inside the link and is addressed by button index, not by the body's numbering.
-        button_vars = expected_button_variables(components)
-        for label, expected in (
-            ("header", header_vars),
-            ("body", body_vars),
-            ("buttons", button_vars),
-        ):
-            mappings = variable_map.get(label) or []
-            if len(mappings) != expected:
-                raise CampaignInvalid(
-                    f"Template {template.name!r} needs {expected} {label} variable mapping(s); "
-                    f"{len(mappings)} supplied.",
-                    errors=[
-                        {
-                            "field": f"variable_map.{label}",
-                            "code": "count_mismatch",
-                            "message": f"expected {expected}, got {len(mappings)}",
-                        }
-                    ],
-                )
-            for index, mapping in enumerate(mappings):
+        # Counts come from the shared comparison so create and dispatch cannot disagree about
+        # whether a map fills its template. Buttons are counted separately there because Meta
+        # counts them separately: a URL button carries its variable inside the link and is
+        # addressed by button index, not by the body's numbering.
+        for label, expected, supplied in variable_map_gaps(components, variable_map):
+            raise CampaignInvalid(
+                f"Template {template.name!r} needs {expected} {label} variable mapping(s); "
+                f"{supplied} supplied.",
+                errors=[
+                    {
+                        "field": f"variable_map.{label}",
+                        "code": "count_mismatch",
+                        "message": f"expected {expected}, got {supplied}",
+                    }
+                ],
+            )
+        for label in ("header", "body", "buttons"):
+            for index, mapping in enumerate(variable_map.get(label) or []):
                 CampaignService._validate_mapping(f"variable_map.{label}.{index}", mapping)
 
     @staticmethod

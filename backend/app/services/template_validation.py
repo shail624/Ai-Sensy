@@ -302,6 +302,52 @@ def expected_button_variables(components: list[dict[str, Any]]) -> int:
     return sum(1 for row in button_targets(components) if row["takes_value"])
 
 
+def variable_map_gaps(
+    components: list[dict[str, Any]], variable_map: dict[str, Any]
+) -> list[tuple[str, int, int]]:
+    """Every part of a campaign's map that no longer fills the template, as (part, wanted, got).
+
+    Shared by the two moments it matters, which are not the same moment. At create time a gap is
+    the operator's own mapping being wrong. At dispatch time it is the *template* having moved
+    underneath a map that was right when it was written -- ``_apply_definition`` rewrites
+    ``components_json`` and the Meta sync calls it, so a campaign built against a two-variable
+    template can be dispatched against a three-variable one.
+
+    One implementation because the two answers have to agree: a campaign the create path called
+    complete must not be one the dispatch path calls short, or the operator is told their campaign
+    is fine right up until it is refused.
+    """
+    header_vars, body_vars = expected_variables(components)
+    gaps = []
+    for label, wanted in (
+        ("header", header_vars),
+        ("body", body_vars),
+        ("buttons", expected_button_variables(components)),
+    ):
+        got = len(variable_map.get(label) or [])
+        if got != wanted:
+            gaps.append((label, wanted, got))
+    return gaps
+
+
+def header_media_gap(
+    components: list[dict[str, Any]], variable_map: dict[str, Any]
+) -> str | None:
+    """Why the map's media header does not match the template's, phrased for a human.
+
+    ``None`` when they agree. The kind is not compared here -- that needs the asset, which needs a
+    database -- only whether a file is required, forbidden, or correctly present.
+    """
+    reference = variable_map.get("header_media") or {}
+    supplied = bool(reference.get("media_asset_id")) if isinstance(reference, dict) else False
+    wanted = header_media_format(components)
+    if wanted and not supplied:
+        return f"its header now carries {wanted} and the campaign has no file for it"
+    if not wanted and supplied:
+        return "its header is text now and takes no file"
+    return None
+
+
 def render(
     components: list[dict[str, Any]],
     *,

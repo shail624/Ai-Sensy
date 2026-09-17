@@ -1,5 +1,46 @@
 # Changelog
 
+## CAM-DRIFT-01 — the template moved after the campaign was built (2026-09-17)
+
+The same total-campaign failure as the last two milestones, arriving through a third door: not
+missing code, but **time**. A campaign mapped against a two-variable template can be dispatched
+against a three-variable one, because `_apply_definition` rewrites `components_json`,
+`variable_count` and `has_media_header` — and the Meta template sync calls it. The stored map is
+then short, and every recipient fails separately for a count mismatch. Backend 1,721 → **1,723**;
+no contract change.
+
+The existing code already accepted the premise. Dispatch re-checks the template's *status*, with a
+comment saying why: *"Meta may have paused the template since."* Exactly so — and it may have
+rewritten it since, which was not checked.
+
+**One refusal instead of one per recipient.** A campaign whose map no longer fits is now refused at
+dispatch with a message naming what changed — `body now needs 4, the campaign maps 3` — and the
+roster is left untouched at `pending`, so remapping and dispatching again is the whole remedy.
+Unchecked, the campaign burned through its roster producing thousands of identical errors and the
+operator read the reason after the sending window was spent.
+
+**The comparison has one implementation, used at both moments.** `variable_map_gaps` and
+`header_media_gap` live in `template_validation`, and create-time validation now calls the same
+function dispatch does. Two copies would eventually disagree, and the way that failure presents is
+the worst possible one: a campaign the create path calls complete and the dispatch path calls
+short, with the operator told it is fine right up until it is refused.
+
+The media-header check deliberately stops short of comparing the file's *kind* here, because that
+needs the asset and therefore a database round trip. Create time compares it, where the file is
+actually being chosen.
+
+With this, the four ways a campaign reaches Meta — direct dispatch, scheduled, retried, and the
+single-message send — were each traced to confirm they share the fixed path. Scheduling fires
+`dispatch_campaign`, retry re-enters `send_recipient`, and only two places in the codebase build a
+template spec at all. The seam is closed, not sampled.
+
+No module percentage moves: this is a failure mode closed, not a capability added.
+
+PASS: backend **1,723 passed, 0 skipped** against live MySQL 8 (568.2s); frontend **964 passed
+across 57 files**; OpenAPI unchanged at 247 paths; Ruff, strict mypy (331 files), ESLint,
+TypeScript and the production build clean. Both new tests were run against the code they describe
+first, to see them fail.
+
 ## CAM-MEDIA-01 — a campaign could not attach the image its template asks for (2026-09-17)
 
 The same shape as CAM-BTN-01, one field over, found by looking for it deliberately. A template

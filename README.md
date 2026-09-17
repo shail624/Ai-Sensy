@@ -171,7 +171,7 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 `v1.0.0-rc1` contains the production deployment topology and the implemented frontend/backend
 workflows across the principal product areas. PAR-AUTO-22 remains the last complete `release`
 quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
-dependency/image/SBOM/runtime gates. The current source tree passes **1,721 backend tests with zero
+dependency/image/SBOM/runtime gates. The current source tree passes **1,723 backend tests with zero
 skips** — VAL-01 stood up a real MySQL 8 and cleared the six live-migration tests that every prior
 run reported as skipped — plus 964 frontend tests across 57 files, the synchronized 247-path
 contract, production build, and a live read sweep of 210 requests over 73 contract-declared GET

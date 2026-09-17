@@ -58,7 +58,12 @@ from app.services.audit_service import AuditAction, AuditService
 from app.services.campaign_batch_service import CampaignBatchService
 from app.services.campaign_retry_service import CampaignRetryService
 from app.services.send_service import SendService
-from app.services.template_validation import button_targets, header_media_format
+from app.services.template_validation import (
+    button_targets,
+    header_media_format,
+    header_media_gap,
+    variable_map_gaps,
+)
 
 logger = get_logger(__name__)
 
@@ -198,9 +203,39 @@ class CampaignDispatchService:
             raise CampaignNotDispatchable(
                 f"Template is {template.status if template else 'missing'} and cannot be sent."
             )
+        self._check_template_still_fits(campaign, template)
         number = await self._numbers.get_by_id(campaign.phone_number_id)
         if number is None or number.deleted_at is not None:
             raise CampaignNotDispatchable("The sending number is no longer connected.")
+
+
+    @staticmethod
+    def _check_template_still_fits(campaign: Campaign, template: MessageTemplate) -> None:
+        """The template's *shape* can move between create and dispatch, not only its status.
+
+        The status re-check above already accepts that premise — Meta may pause a template after a
+        campaign is built. The same is true of its definition: ``_apply_definition`` rewrites
+        ``components_json``, ``variable_count`` and ``has_media_header``, and the template sync
+        calls it, so a campaign mapped against two variables can arrive here facing three.
+
+        Unchecked, that is not one failure but one per recipient: each send is rejected separately
+        for a count mismatch, the campaign burns through its roster producing identical errors, and
+        the operator reads the reason thousands of times after the window is spent. Refusing the
+        campaign says the same thing once, while there is still time to remap it.
+        """
+        components = template.components_json or []
+        variable_map = campaign.variable_map_json or {}
+        gaps = variable_map_gaps(components, variable_map)
+        media = header_media_gap(components, variable_map)
+        if not gaps and media is None:
+            return
+        reasons = [f"{label} now needs {wanted}, the campaign maps {got}" for label, wanted, got in gaps]
+        if media is not None:
+            reasons.append(media)
+        raise CampaignNotDispatchable(
+            f"Template {template.name!r} changed after this campaign was built: "
+            f"{'; '.join(reasons)}. Edit the campaign to remap it, then dispatch again."
+        )
 
     # --- Orchestration (campaigns.control) ----------------------------------
     async def plan(self, campaign_pk: int) -> dict[str, Any]:
