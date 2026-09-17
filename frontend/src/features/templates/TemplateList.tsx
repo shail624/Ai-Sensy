@@ -6,6 +6,7 @@ import {
   apiErrorMessage,
   useHasPermission,
   useSyncTemplates,
+  useTemplateUsage,
   useTemplates,
 } from "@/features/templates/api";
 import { TemplateFilters } from "@/features/templates/TemplateFilters";
@@ -73,6 +74,13 @@ export function TemplateList(): JSX.Element {
 
   const templates = useTemplates();
   const sync = useSyncTemplates();
+  // Loaded beside the list rather than inside it: the registry renders fine without send
+  // history, and a slower aggregate should not hold up the screen someone opens to write.
+  const usage = useTemplateUsage();
+  const usageById = useMemo(
+    () => new Map((usage.data ?? []).map((row) => [row.template_id, row])),
+    [usage.data],
+  );
 
   const rows = useMemo(() => templates.data ?? [], [templates.data]);
   const page = useMemo(() => selectTemplatePage(rows, query), [rows, query]);
@@ -169,6 +177,7 @@ export function TemplateList(): JSX.Element {
             templates={page.rows}
             favoritePaths={workspace.favorites}
             onToggleFavorite={workspace.toggleFavorite}
+            usage={usage.isSuccess ? usageById : undefined}
           />
 
           <nav

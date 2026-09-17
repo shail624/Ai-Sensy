@@ -1,5 +1,45 @@
 # Project State
 
+## TMPL-01 — how each template has actually performed (2026-09-17)
+
+`GET /api/v1/templates/usage` reports, per template, how many campaigns used it, how many people it
+reached, how many arrived, how many failed, and when it was last sent. Contract 243 → 244 paths.
+No migration, no new permission.
+
+Templates are chosen by name today, which means they are chosen by memory. Every one of these
+numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template, so
+the question "which of these actually works" had no answer anywhere in the product.
+
+**Correction to the ledger.** Templates' pending list named "category server sync" as a gap. It is
+not: `POST /templates/sync` exists, `useSyncTemplates` is wired to a permission-gated *Sync from
+Meta* button on the list, and the approval-status filter is there too. That is the third time this
+audit has found the trackers behind the code (after CORE-09 and the GROW-03 segment predicates).
+The row now describes what is actually missing.
+
+Two decisions:
+
+- **A template nobody has sent is listed, with no rate rather than zero.** Zero reads as
+  "everything failed" when the truth is that nothing was tried, and those call for opposite actions
+  — fix it, or try it. The API returns `null` and the column says "Never sent". Dropping unused
+  templates entirely would have hidden the ones most worth noticing: an unused template is either
+  new or quietly broken.
+- **Aggregates only.** "Which template works" is a template question; answering it names no
+  customer and no campaign, so the endpoint sits behind `templates:read` alone rather than also
+  requiring campaign access. SCAN-01 needed both because its rows were per contact; these are not.
+
+The history loads beside the list rather than inside it, so a slower aggregate never holds up the
+screen an operator opens to write a template. While it loads the columns show a dash, not a zero.
+
+Ordering puts the most recently used first and never-used last, with an explicit `CASE` rather than
+a dialect's default null ordering — MySQL and SQLite disagree about that, and the list would have
+been sorted differently in production than in the tests.
+
+PASS: backend **1,683 passed, 0 skipped** with 8 new tests, including one that exists only to keep
+`/templates/usage` declared before `/templates/{template_id}` — the other way round, "usage" parses
+as an identifier and the screen 404s. Frontend **946 passed across 56 files** (was 943/55) with 3
+new tests. Regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript
+and the production build clean.
+
 ## SCAN-01 — WhatsApp reachability, from evidence we already hold (2026-09-17)
 
 `GET /api/v1/scan/reachability` reports, for every contact, whether WhatsApp has reached that
@@ -650,7 +690,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2494: simple unweighted average **80.5%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2502: simple unweighted average **80.7%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0062_segment_domain_predicates` (**63 linear revisions**) from separate unfinished segment work. UI-REF-01 adds no migration. Prior 0061 Reports-view evidence remains historical. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

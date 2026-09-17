@@ -6956,6 +6956,33 @@
         ]
       }
     },
+    "/api/v1/templates/usage": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "How each template has actually performed",
+        "description": "Campaigns sent, people reached, delivered, failed and when each template was last used.\n\nTemplates are chosen by name today, which means they are chosen by memory. Every one of these\nnumbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.\n\nAggregates only: \"which template works\" is a template question, and answering it names no\ncustomer and no campaign. A template nobody has sent is listed with zeros rather than omitted,\nbecause an unused template is either new or quietly broken and its absence from the list is the\nthing most worth seeing.\n\nDeclared before `/templates/{template_id}` so \"usage\" is not read as an identifier.",
+        "operationId": "template_usage_api_v1_templates_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateUsageListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/templates/{template_id}": {
       "get": {
         "tags": [
@@ -33981,6 +34008,103 @@
         },
         "type": "object",
         "title": "TemplateUpdateRequest"
+      },
+      "TemplateUsageListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateUsageResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "TemplateUsageListResponse"
+      },
+      "TemplateUsageResponse": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "campaigns": {
+            "type": "integer",
+            "title": "Campaigns"
+          },
+          "recipients": {
+            "type": "integer",
+            "title": "Recipients"
+          },
+          "delivered": {
+            "type": "integer",
+            "title": "Delivered"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "delivery_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Rate",
+            "description": "Delivered as a share of attempted; null when the template has never been sent."
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "language",
+          "category",
+          "status",
+          "campaigns",
+          "recipients",
+          "delivered",
+          "failed",
+          "delivery_rate",
+          "last_used_at"
+        ],
+        "title": "TemplateUsageResponse",
+        "description": "One template's send history.\n\n``delivery_rate`` is ``None`` rather than ``0`` for a template nobody has sent: zero reads as\n\"everything failed\" when the truth is that nothing was tried, and the two call for opposite\nactions — fix it, or try it."
       },
       "TemplateVersionEntry": {
         "properties": {

@@ -20,6 +20,7 @@ from app.channels.errors import ChannelError
 from app.core.config import settings
 from app.models.template import MessageTemplate
 from app.models.user import User
+from app.repositories.template_usage import TemplateUsageRepository
 from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.schemas.template import (
     TemplateCreateRequest,
@@ -27,6 +28,8 @@ from app.schemas.template import (
     TemplatePreviewResponse,
     TemplateResponse,
     TemplateUpdateRequest,
+    TemplateUsageListResponse,
+    TemplateUsageResponse,
     TemplateVersionEntry,
     TemplateVersionsResponse,
 )
@@ -117,6 +120,30 @@ async def sync_templates(
             status="queued",
             poll_url=f"{settings.api_v1_prefix}/jobs/{job_id}",
         )
+    )
+
+
+@router.get(
+    "/templates/usage",
+    response_model=TemplateUsageListResponse,
+    summary="How each template has actually performed",
+)
+async def template_usage(session: SessionDep, actor: TemplateReader) -> TemplateUsageListResponse:
+    """Campaigns sent, people reached, delivered, failed and when each template was last used.
+
+    Templates are chosen by name today, which means they are chosen by memory. Every one of these
+    numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.
+
+    Aggregates only: "which template works" is a template question, and answering it names no
+    customer and no campaign. A template nobody has sent is listed with zeros rather than omitted,
+    because an unused template is either new or quietly broken and its absence from the list is the
+    thing most worth seeing.
+
+    Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
+    """
+    usage = await TemplateUsageRepository(session).list_usage(actor.organization_id)
+    return TemplateUsageListResponse(
+        data=[TemplateUsageResponse.from_usage(row) for row in usage]
     )
 
 

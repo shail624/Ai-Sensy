@@ -216,7 +216,7 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
     # adds governed campaign-results export start/progress paths (223 -> 225). PAR-VIEW-01/02/03
     # add Reactivation, Contacts and Campaign saved-view paths (225 -> 231), and PAR-VIEW-04 adds
     # the KYC saved-view paths (231 -> 233), and PAR-VIEW-05 adds Reports views (233 -> 235).
-    assert len(schema["paths"]) == 243
+    assert len(schema["paths"]) == 244
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

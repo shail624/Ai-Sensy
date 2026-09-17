@@ -527,7 +527,7 @@ async def test_pairing_lifecycle_is_runtime_owned_persisted_and_no_store(
     # Contacts and Campaign saved-view paths (225 -> 231), and PAR-VIEW-04 adds the two KYC
     # saved-view paths (231 -> 233). PAR-VIEW-05 adds Reports views (233 -> 235). Raw secret
     # shapes must still never appear.
-    assert len(create_app().openapi()["paths"]) == 243
+    assert len(create_app().openapi()["paths"]) == 244
     assert "qr_payload" not in openapi
     assert "pairing_secret" not in openapi
     assert "pairing_reason_code" not in openapi

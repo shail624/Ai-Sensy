@@ -8,6 +8,7 @@ import type {
   TemplateCreateRequest,
   TemplatePreview,
   TemplateUpdateRequest,
+  TemplateUsage,
   TemplateVersion,
   Waba,
 } from "@/features/templates/types";
@@ -23,6 +24,7 @@ export const templateKeys = {
   preview: (id: string) => ["templates", "preview", id] as const,
   versions: (id: string) => ["templates", "versions", id] as const,
   wabas: () => ["templates", "wabas"] as const,
+  usage: ["templates", "usage"] as const,
 };
 
 /**
@@ -166,4 +168,20 @@ export function useSyncTemplates() {
   return useTemplateMutation(
     async (): Promise<JobAccepted> => unwrap(await api.POST("/api/v1/templates/sync")),
   );
+}
+
+/**
+ * How each template has actually performed.
+ *
+ * Aggregates only, so this is a template read rather than a campaign one. Kept out of
+ * `useTemplates` because the list renders fine without it and a slower query should not hold up
+ * the screen an operator opens to write a template.
+ */
+export function useTemplateUsage(enabled = true) {
+  return useQuery({
+    queryKey: templateKeys.usage,
+    queryFn: async (): Promise<TemplateUsage[]> =>
+      unwrap(await api.GET("/api/v1/templates/usage")).data,
+    enabled,
+  });
 }

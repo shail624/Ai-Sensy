@@ -1,5 +1,45 @@
 # Changelog
 
+## TMPL-01 — how each template has actually performed (2026-09-17)
+
+`GET /api/v1/templates/usage` reports, per template, how many campaigns used it, how many people it
+reached, how many arrived, how many failed, and when it was last sent. Contract 243 → 244 paths.
+No migration, no new permission.
+
+Templates are chosen by name today, which means they are chosen by memory. Every one of these
+numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template, so
+the question "which of these actually works" had no answer anywhere in the product.
+
+**Correction to the ledger.** Templates' pending list named "category server sync" as a gap. It is
+not: `POST /templates/sync` exists, `useSyncTemplates` is wired to a permission-gated *Sync from
+Meta* button on the list, and the approval-status filter is there too. That is the third time this
+audit has found the trackers behind the code (after CORE-09 and the GROW-03 segment predicates).
+The row now describes what is actually missing.
+
+Two decisions:
+
+- **A template nobody has sent is listed, with no rate rather than zero.** Zero reads as
+  "everything failed" when the truth is that nothing was tried, and those call for opposite actions
+  — fix it, or try it. The API returns `null` and the column says "Never sent". Dropping unused
+  templates entirely would have hidden the ones most worth noticing: an unused template is either
+  new or quietly broken.
+- **Aggregates only.** "Which template works" is a template question; answering it names no
+  customer and no campaign, so the endpoint sits behind `templates:read` alone rather than also
+  requiring campaign access. SCAN-01 needed both because its rows were per contact; these are not.
+
+The history loads beside the list rather than inside it, so a slower aggregate never holds up the
+screen an operator opens to write a template. While it loads the columns show a dash, not a zero.
+
+Ordering puts the most recently used first and never-used last, with an explicit `CASE` rather than
+a dialect's default null ordering — MySQL and SQLite disagree about that, and the list would have
+been sorted differently in production than in the tests.
+
+PASS: backend **1,683 passed, 0 skipped** with 8 new tests, including one that exists only to keep
+`/templates/usage` declared before `/templates/{template_id}` — the other way round, "usage" parses
+as an identifier and the screen 404s. Frontend **946 passed across 56 files** (was 943/55) with 3
+new tests. Regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript
+and the production build clean.
+
 ## SCAN-01 — WhatsApp reachability, from evidence we already hold (2026-09-17)
 
 `GET /api/v1/scan/reachability` reports, for every contact, whether WhatsApp has reached that

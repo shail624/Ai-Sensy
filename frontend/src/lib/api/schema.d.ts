@@ -2108,6 +2108,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/templates/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How each template has actually performed
+         * @description Campaigns sent, people reached, delivered, failed and when each template was last used.
+         *
+         *     Templates are chosen by name today, which means they are chosen by memory. Every one of these
+         *     numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.
+         *
+         *     Aggregates only: "which template works" is a template question, and answering it names no
+         *     customer and no campaign. A template nobody has sent is listed with zeros rather than omitted,
+         *     because an unused template is either new or quietly broken and its absence from the list is the
+         *     thing most worth seeing.
+         *
+         *     Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
+         */
+        get: operations["template_usage_api_v1_templates_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates/{template_id}": {
         parameters: {
             query?: never;
@@ -10431,6 +10461,49 @@ export interface components {
             /** Row Version */
             row_version?: number | null;
         };
+        /** TemplateUsageListResponse */
+        TemplateUsageListResponse: {
+            /** Data */
+            data: components["schemas"]["TemplateUsageResponse"][];
+        };
+        /**
+         * TemplateUsageResponse
+         * @description One template's send history.
+         *
+         *     ``delivery_rate`` is ``None`` rather than ``0`` for a template nobody has sent: zero reads as
+         *     "everything failed" when the truth is that nothing was tried, and the two call for opposite
+         *     actions — fix it, or try it.
+         */
+        TemplateUsageResponse: {
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /** Name */
+            name: string;
+            /** Language */
+            language: string;
+            /** Category */
+            category: string;
+            /** Status */
+            status: string;
+            /** Campaigns */
+            campaigns: number;
+            /** Recipients */
+            recipients: number;
+            /** Delivered */
+            delivered: number;
+            /** Failed */
+            failed: number;
+            /**
+             * Delivery Rate
+             * @description Delivered as a share of attempted; null when the template has never been sent.
+             */
+            delivery_rate: number | null;
+            /** Last Used At */
+            last_used_at: string | null;
+        };
         /** TemplateVersionEntry */
         TemplateVersionEntry: {
             /** Version No */
@@ -15402,6 +15475,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobAcceptedResponse"];
+                };
+            };
+        };
+    };
+    template_usage_api_v1_templates_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateUsageListResponse"];
                 };
             };
         };

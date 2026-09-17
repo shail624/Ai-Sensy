@@ -92,3 +92,5 @@ export const DEFAULT_LIST_QUERY: TemplateListQuery = {
   sort: "-created_at",
   page: 1,
 };
+
+export type TemplateUsage = components["schemas"]["TemplateUsageResponse"];

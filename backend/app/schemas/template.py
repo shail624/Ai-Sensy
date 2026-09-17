@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.models.template import MessageTemplate, TemplateVersion
+from app.repositories.template_usage import TemplateUsage
 
 CategoryName = Literal["marketing", "utility", "authentication"]
 
@@ -108,3 +109,46 @@ class TemplateVersionEntry(BaseModel):
 
 class TemplateVersionsResponse(BaseModel):
     data: list[TemplateVersionEntry]
+
+
+class TemplateUsageResponse(BaseModel):
+    """One template's send history.
+
+    ``delivery_rate`` is ``None`` rather than ``0`` for a template nobody has sent: zero reads as
+    "everything failed" when the truth is that nothing was tried, and the two call for opposite
+    actions — fix it, or try it.
+    """
+
+    template_id: uuidlib.UUID
+    name: str
+    language: str
+    category: str
+    status: str
+    campaigns: int
+    recipients: int
+    delivered: int
+    failed: int
+    delivery_rate: float | None = Field(
+        description="Delivered as a share of attempted; null when the template has never been sent."
+    )
+    last_used_at: datetime | None
+
+    @classmethod
+    def from_usage(cls, usage: TemplateUsage) -> TemplateUsageResponse:
+        return cls(
+            template_id=uuidlib.UUID(usage.template.public_id),
+            name=usage.template.name,
+            language=usage.template.language,
+            category=usage.template.category,
+            status=usage.template.status,
+            campaigns=usage.campaigns,
+            recipients=usage.recipients,
+            delivered=usage.delivered,
+            failed=usage.failed,
+            delivery_rate=usage.delivery_rate,
+            last_used_at=usage.last_used_at,
+        )
+
+
+class TemplateUsageListResponse(BaseModel):
+    data: list[TemplateUsageResponse]
