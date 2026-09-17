@@ -115,6 +115,15 @@ class WebhookOperationsService:
         if entry.status == WHDL_DISCARDED:
             raise ConflictError("That entry was discarded and cannot be replayed.")
 
+        source_event_id = entry.source_event_id
+        if source_event_id is None:
+            # Unreachable through :meth:`_owned`: the ownership clause matches on
+            # ``source_event_id IN (...)``, and ``NULL IN (...)`` is never true, so an entry
+            # without a source is invisible. Kept as a guard rather than an ``assert`` because
+            # asserts vanish under ``python -O`` -- and dispatching ``None`` would queue a task
+            # that fails a long way from the mistake.
+            raise ConflictError("That entry no longer has a source event to replay.")
+
         entry.status = WHDL_REPLAYED
         entry.replayed_at = utcnow()
         await self._audit.record(
@@ -126,8 +135,7 @@ class WebhookOperationsService:
             after={"source_event_id": entry.source_event_id},
         )
         await self._session.commit()
-        assert entry.source_event_id is not None  # proved by the ownership clause
-        dispatch(entry.source_event_id)
+        dispatch(source_event_id)
         return entry
 
     async def discard(

@@ -1,5 +1,50 @@
 # Final Product Implementation Roadmap
 
+## PERF-01 — a page should cost what a page costs (2026-09-17)
+
+`GET /scan/reachability` fell from **228ms to 125ms** at 20,000 contacts, and the query behind its
+page from **42ms to 15ms**. No behaviour changed: the same twelve tests pass and the tallies still
+read 6,667 / 6,667 / 6,666 against a deliberately seeded one-in-three split.
+
+SCAN-01 shipped last night measured only against an account with almost no data, where it looked
+instant. It was not. The page joined a whole-ledger aggregate — every campaign recipient the
+organization has ever had — to the fifty rows it was about to show, so the cost of rendering one
+screen grew with the size of the account rather than the size of the page. On this account that was
+already seven times the cost of the ordinary contact list; on the owner's real volume it would have
+passed the 300ms budget and kept going.
+
+**The first fix was wrong, and measuring is what caught it.** The obvious cause looked like a
+missing index on `campaign_recipients(contact_id)`, since the aggregate groups by it. The index was
+added by hand against the live MySQL 8 and re-measured: 42.6ms and 73.5ms, unchanged to within
+noise. The scan is inherent — every row must be read to compute a per-contact maximum — and no
+index avoids reading. The index was dropped rather than migrated, and an hour of writing a
+migration for it was not spent.
+
+The structural fix is to stop asking the question. The page now runs two queries in order: an
+indexed read of fifty contacts, then an aggregate restricted to exactly those fifty contact ids.
+Filtering by verdict keeps the join, because deciding which contacts qualify needs the evidence
+before a page exists — that is a deliberate exception, and it is the path an operator reaches for
+second.
+
+**A known limit, stated rather than hidden.** The tallies still cost ~72ms and still scan
+everything, because "how many contacts are in each state" is a question about the whole set. At ten
+times this volume that is roughly 700ms. Making it cheaper means caching or narrowing what the
+screen promises, and both are choices about what the product should say — not something to decide
+at 2am without the owner.
+
+Two smaller repairs in the same pass, both found by Bandit on the night's new code:
+
+- An `assert` in the dead-letter replay path (CORE-23) is now an explicit guard. Asserts vanish
+  under `python -O`, and dispatching a `None` event id would have queued a task that failed a long
+  way from the mistake.
+- The contact predicates shared by the page, the verdict filter and the tallies are written once.
+  Three copies of "which contacts this screen is about" is how the tallies end up describing a
+  different set from the rows.
+
+PASS: backend **1,692 passed, 0 skipped**; Bandit **0 high, 0 medium** with one fewer low; Ruff and
+strict mypy clean. Endpoint measured before and after against real MySQL 8 with a seeded 20,000-row
+ledger.
+
 ## VAL-03 — the performance gate, finally on the database it will run (2026-09-17)
 
 `scripts/performance_canary.py` against the live MySQL-backed API: **p95 4.8ms across 40 reads**,
