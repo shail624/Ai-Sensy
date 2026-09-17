@@ -11,6 +11,8 @@ export const AUDIENCE_PRESET_IDS = [
   "completed_customers",
   "new_contacts",
   "whatsapp_active",
+  "whatsapp_reachable",
+  "whatsapp_unreachable",
 ] as const;
 
 export type AudiencePresetId = (typeof AUDIENCE_PRESET_IDS)[number];
@@ -103,8 +105,22 @@ export const AUDIENCE_PRESETS: AudiencePreset[] = [
     id: "whatsapp_active",
     label: "WhatsApp active",
     shortLabel: "WhatsApp active",
-    description: "Contacts currently marked active on WhatsApp.",
+    description: "Contacts who have written to us, so we know they are live on WhatsApp.",
     window: "Current status",
+  },
+  {
+    id: "whatsapp_reachable",
+    label: "Reachable on WhatsApp",
+    shortLabel: "Reachable",
+    description: "Meta delivered a campaign message to them — a wider set than those who replied.",
+    window: "Delivery evidence",
+  },
+  {
+    id: "whatsapp_unreachable",
+    label: "Not on WhatsApp",
+    shortLabel: "Not on WhatsApp",
+    description: "Meta refused these numbers. Exclude them and stop paying for the same refusal.",
+    window: "Delivery evidence",
   },
 ];
 
@@ -229,9 +245,31 @@ export function createAudiencePresetSeed(id: AudiencePresetId, now = new Date())
     };
   }
 
+  if (id === "whatsapp_reachable") {
+    return {
+      name: "Reachable on WhatsApp",
+      description:
+        "Meta delivered a campaign message to them. Read from delivery receipts — nothing is " +
+        "sent to find out.",
+      match_type: "all",
+      rules: [rule("scan", "reachability", "eq", "reachable")],
+    };
+  }
+
+  if (id === "whatsapp_unreachable") {
+    return {
+      name: "Not on WhatsApp",
+      description:
+        "Meta refused these numbers as not WhatsApp users (error 131026). Excluding them stops " +
+        "paying for the same refusal every campaign.",
+      match_type: "all",
+      rules: [rule("scan", "reachability", "eq", "unreachable")],
+    };
+  }
+
   return {
     name: "WhatsApp active contacts",
-    description: "Contacts currently marked active on WhatsApp.",
+    description: "Contacts who have written to us, so we know they are live on WhatsApp.",
     match_type: "all",
     rules: [rule("contact", "is_active_on_wa", "eq", true)],
   };

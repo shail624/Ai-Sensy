@@ -1,5 +1,63 @@
 # Project State
 
+## SEG-01 — the reachability audiences, and a recommendation of mine that was wrong (2026-09-17)
+
+Two quick-start audiences built on SCAN-02's rule, and a correction to advice I gave the owner an
+hour earlier. Frontend 969 → **971**; no backend change, no migration, contract unchanged.
+
+### The correction, first
+
+Asked what "shared saved filters" meant for Segments, I offered the owner two readings and, when
+they asked which was right, told them **neither** — and that the real gap was that *"Segments is the
+one workspace left out; your team cannot make an eleventh recipe."*
+
+**That was wrong, and I had not checked it before saying so.** Reading the code afterwards:
+
+- `Segment` has **no visibility column**. It is scoped by `organization_id` with a unique name per
+  org, so **every segment is already visible to the whole team**. There is no private/shared
+  distinction to add, because nothing is private.
+- **Duplicate already exists.** `SegmentActions` opens the editor prefilled from any existing
+  segment, and has all along.
+
+So the team *can* make an eleventh recipe: build a segment, name it, and anyone can start from it.
+The library of shared recipes is the segment list. What I described as a missing feature was a
+feature that shipped before I arrived.
+
+This is the second time today that checking beat building — SCAN-03 found the export already
+worked. The pattern is worth naming: a gap named in a tracker is a claim about the past, and it
+ages. Both times, the honest move was to read the code before writing any.
+
+### What was actually worth doing
+
+`whatsapp_active` seeds from `contact.is_active_on_wa`, which is set **only when a customer writes
+to us**. That misses every customer Meta delivered to who simply did not reply — which, for a
+reactivation list, is most of them. It is the narrowest possible reading of "on WhatsApp".
+
+Two audiences now sit beside it, seeded from the scan rule:
+
+- **Reachable on WhatsApp** — Meta delivered a campaign message to them. A wider and more useful
+  set than "they replied".
+- **Not on WhatsApp** — Meta refused the number (131026). Excluding it stops paying for the same
+  refusal every campaign, which is the money case SCAN-02 opened and this makes one click.
+
+`whatsapp_active` stays, with its description corrected to say what it actually means rather than
+"currently marked active", which explained nothing.
+
+A test pinned the gallery at ten links and failed, correctly. It now counts `AUDIENCE_PRESETS`
+instead of a literal: the assertion worth making is that every preset is reachable, not how many
+there happen to be this month.
+
+**Still genuinely missing, and not built here:** the quick-start gallery shows the built-in
+audiences only. A team that has built its own segments does not see them there, and has to know to
+find them in the list and press Duplicate. That is a discoverability gap worth closing, and it is
+much smaller than what I told the owner it was.
+
+No module percentage moves.
+
+PASS: frontend **971 passed across 57 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at **1,733 passed, 0 skipped** against live MySQL 8 (this milestone touches no
+backend file).
+
 ## SCAN-03 — the export was already built, and now it is reachable from the screen (2026-09-17)
 
 Scope §13's last applicable item, delivered by **not** building it. Backend 1,732 → **1,733**,

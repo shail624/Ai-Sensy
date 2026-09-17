@@ -16,6 +16,7 @@ import { SegmentDetail } from "@/features/segments/SegmentDetail";
 import { SegmentEditor } from "@/features/segments/SegmentEditor";
 import { SegmentList } from "@/features/segments/SegmentList";
 import {
+  AUDIENCE_PRESETS,
   audiencePresetIdForSegment,
   createAudiencePresetSeed,
 } from "@/features/segments/audiencePresets";
@@ -232,7 +233,9 @@ describe("audience presets", () => {
   it("offers each quick-start audience through the normal new-segment route", () => {
     withProviders(<AudiencePresetGallery />);
 
-    expect(screen.getAllByRole("link")).toHaveLength(10);
+    // Counted from the list rather than pinned to a number: the assertion that matters is that
+    // every preset is reachable, not how many there happen to be this month.
+    expect(screen.getAllByRole("link")).toHaveLength(AUDIENCE_PRESETS.length);
     expect(screen.getByRole("link", { name: /Recently engaged/ })).toHaveAttribute(
       "href",
       "/segments/new",
@@ -241,6 +244,26 @@ describe("audience presets", () => {
     expect(screen.getByRole("link", { name: /Eligible for reactivation/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /KYC in progress/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Activation in progress/ })).toBeInTheDocument();
+  });
+
+  it("offers the reachability audiences the Scan screen produces", () => {
+    // The money pair: who a campaign can actually reach, and who it should stop paying to try.
+    withProviders(<AudiencePresetGallery />);
+
+    expect(screen.getByRole("link", { name: /Reachable on WhatsApp/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Not on WhatsApp/ })).toBeInTheDocument();
+  });
+
+  it("seeds them from the scan rule, not the weaker inbound-only signal", () => {
+    // `is_active_on_wa` is set only when a customer writes to us, so it misses everyone Meta
+    // delivered to who simply did not reply. The scan rule reads the delivery receipts.
+    const when = new Date("2026-07-30T12:34:56.789Z");
+    expect(createAudiencePresetSeed("whatsapp_reachable", when).rules).toEqual([
+      { group_index: 0, field_source: "scan", field_key: "reachability", operator: "eq", value: "reachable" },
+    ]);
+    expect(createAudiencePresetSeed("whatsapp_unreachable", when).rules).toEqual([
+      { group_index: 0, field_source: "scan", field_key: "reachability", operator: "eq", value: "unreachable" },
+    ]);
   });
 
   it("builds governed domain presets as ordinary server-owned rules", () => {

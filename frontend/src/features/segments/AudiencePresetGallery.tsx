@@ -24,6 +24,8 @@ const ICONS = {
   completed_customers: Activity,
   new_contacts: UserRoundPlus,
   whatsapp_active: Activity,
+  whatsapp_reachable: MessageCircleMore,
+  whatsapp_unreachable: MessageCircleMore,
 } satisfies Record<AudiencePresetId, typeof Activity>;
 
 /** Compact entry points into the normal segment editor; no audience is created implicitly. */

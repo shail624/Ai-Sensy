@@ -173,7 +173,7 @@ workflows across the principal product areas. PAR-AUTO-22 remains the last compl
 quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
 dependency/image/SBOM/runtime gates. The current source tree passes **1,733 backend tests with zero
 skips** — VAL-01 stood up a real MySQL 8 and cleared the six live-migration tests that every prior
-run reported as skipped — plus 969 frontend tests across 57 files, the synchronized 247-path
+run reported as skipped — plus 971 frontend tests across 57 files, the synchronized 247-path
 contract, production build, and a live read sweep of 210 requests over 73 contract-declared GET
 paths against MySQL with no 5xx. Read latency at 200,000 campaign recipients is in FIX-01: the
 ordinary reads are all under 32ms, and three aggregate reads (`/scan/reachability` filtered by
