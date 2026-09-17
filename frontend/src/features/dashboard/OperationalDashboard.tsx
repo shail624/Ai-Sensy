@@ -30,6 +30,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { useAnalyticsComparison } from "@/features/analytics/api";
+import { ChannelHealthStrip } from "@/features/dashboard/ChannelHealthStrip";
 import { FreshnessIndicator } from "@/features/analytics/FreshnessIndicator";
 import type { AnalyticsFilterState } from "@/features/analytics/types";
 import { useCampaigns } from "@/features/campaigns/api";
@@ -342,6 +343,7 @@ export function OperationalDashboard(): JSX.Element {
   const canTemplates = useHasPermission("templates:read");
   const canTasks = useHasPermission("tasks:read");
   const canAnalytics = useHasPermission("analytics:read");
+  const canChannels = useHasPermission("waba:read");
 
   const pipeline = useReactivationPipeline({ limit: 200 }, canReactivation);
   const kyc = useKycOperations({ limit: 200 }, canKyc);
@@ -384,13 +386,17 @@ export function OperationalDashboard(): JSX.Element {
     if (canAnalytics) void comparison.refetch();
   }
 
-  const visibleSources = [canReactivation, canKyc, canCampaigns, canInbox, canTemplates, canTasks, canAnalytics].filter(Boolean).length;
+  const visibleSources = [canReactivation, canKyc, canCampaigns, canInbox, canTemplates, canTasks, canAnalytics, canChannels].filter(Boolean).length;
   if (visibleSources === 0) {
     return <EmptyState icon={<Activity className="h-7 w-7" />} title="No operational dashboard sources are available" description="Your current role has no read permission for the Dashboard’s operational queues." />;
   }
 
   return (
     <div className="space-y-5">
+      {/* First, because sending capacity is a precondition for most of the work below it: a number
+          Meta flagged overnight used to stay invisible here until a campaign failed. */}
+      {canChannels ? <ChannelHealthStrip /> : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border bg-surface-2 px-3 py-2.5">
         <p className="text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Decision scope:</strong> real authorized records from the current tenant. Conversation waiting time is derived from unread age and is not presented as a configured SLA.</p>
         <Button variant="secondary" size="sm" leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />} onClick={refreshAll}>Refresh dashboard</Button>

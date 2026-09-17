@@ -1,5 +1,49 @@
 # Project State
 
+## DASH-01 — WhatsApp sending status on the operations desk (2026-09-17)
+
+The dashboard now opens with whether WhatsApp will accept sends: each connected number, its
+standing, what its messaging tier permits, and when those figures were last checked. No backend
+change, no migration, no contract change — `GET /phone-numbers` already returned
+`quality_rating`, `messaging_tier`, `throughput_level`, `mps_limit`, `status` and `last_synced_at`.
+Every field was stored, synced and reachable, and none of it was on the screen an operator opens
+first.
+
+That was the defect. A number Meta flagged overnight stayed invisible until a campaign failed,
+because seeing it required navigating to Channels — a screen nobody visits on a good day. Sending
+capacity is a precondition for most of the work below it on this page, which is why the strip sits
+above the attention queue rather than in a settings screen.
+
+Three decisions worth recording:
+
+- **Worst first.** The numbers are ordered by severity — disconnected, then RED, then YELLOW — so
+  on an account with several numbers the healthy ones cannot push the broken one off the end of
+  the row. The one case the strip exists for is the one that would have been truncated.
+- **It says when it last looked.** These values are what the last sync wrote, not a live call to
+  Meta. A green badge with no timestamp reads as "fine now" when it may mean "fine on Tuesday",
+  and a strip that is trusted while stale is worse than no strip. "Never checked" is stated
+  plainly rather than rendered as healthy.
+- **A failed lookup is not healthy silence.** If the channel service cannot be reached the strip
+  says so and offers a retry, because an empty row and a broken query look identical otherwise and
+  call for opposite actions.
+
+`TIER_10K` is rendered as "10,000 customers / 24h". The enum name hides the only part an operator
+needs before scheduling tomorrow's send.
+
+**Not included: a remaining-quota count.** The reference product shows messages left in the rolling
+24-hour window; this platform stores the tier cap but nothing counts sends against a rolling
+window, and "today's count" is a different number that would be wrong near midnight. An
+approximation on a status strip is worse than an omission, because it would be believed. Building
+it properly means a real rolling-window count, which is its own milestone.
+
+Gated on `waba:read`, the same permission as the Channels screen it links to.
+
+PASS: frontend **934 passed across 54 files** (was 926/53), including 8 new tests covering the tier
+rendering, the staleness label, "never checked", a RED number, a disconnected number outranking any
+quality rating, worst-first ordering, the no-numbers case and a failed lookup. Backend unchanged at
+**1,663 passed, 0 skipped**; contract unchanged at 242 paths. ESLint, TypeScript and the production
+build clean.
+
 ## VAL-02 — a zero-skip run should not depend on remembering (2026-09-17)
 
 `scripts/local_services.sh` starts MySQL 8 and Redis if they are not already running, and says so.
@@ -556,7 +600,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2451: simple unweighted average **79.1%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2454: simple unweighted average **79.2%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0062_segment_domain_predicates` (**63 linear revisions**) from separate unfinished segment work. UI-REF-01 adds no migration. Prior 0061 Reports-view evidence remains historical. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
