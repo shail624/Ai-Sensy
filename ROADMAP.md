@@ -1,5 +1,29 @@
 # Final Product Implementation Roadmap
 
+## VAL-03 — the performance gate, finally on the database it will run (2026-09-17)
+
+`scripts/performance_canary.py` against the live MySQL-backed API: **p95 4.8ms across 40 reads**,
+budget 300ms. The read sweep alongside it: **209 requests across 72 contract-declared GET paths,
+zero 5xx**.
+
+The canary has existed since REL-CERT-01 but every recorded run was against a disposable Docker
+stack, which no longer starts in this environment. Running it against the MySQL server VAL-01 stood
+up puts a number on the one thing an operator notices before any feature: whether the product feels
+instant. It does, by a factor of sixty, on an account with a working data set rather than an empty
+one.
+
+Both evidence files are committed under `output/evidence/`, beside the existing preview and report
+artifacts.
+
+This is a measurement, not a feature: no module percentage moves. The figure is honest about its
+own limits — a single-node container with a warm cache and a modest row count is not a production
+host, and it says nothing about concurrency. What it does rule out is the failure that would have
+been embarrassing to find later: a query that is merely *correct* on MySQL while being unusably
+slow on it.
+
+PASS: canary p95 **4.8ms** / 300ms budget; read sweep **209/209** answered with no 5xx; backend
+**1,692 passed, 0 skipped**; frontend **949 passed across 56 files**.
+
 ## CORE-23 — deciding what happens to a parked webhook (2026-09-17)
 
 `POST /api/v1/webhooks/dead-letter/{id}/replay` and `.../discard` complete Doc 04 §23 for the
