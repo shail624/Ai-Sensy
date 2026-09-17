@@ -1,5 +1,6 @@
 import type { ButtonDraft, HeaderFormat } from "@/features/templates/components";
 import { BUTTON_TYPE_LABELS, HEADER_FORMAT_LABELS } from "@/features/templates/components";
+import type { RenderedButton } from "@/features/templates/types";
 
 /** Glyphs stand in for the media a header will carry; the file itself is bound at send time. */
 const MEDIA_GLYPH: Record<string, string> = {
@@ -8,6 +9,34 @@ const MEDIA_GLYPH: Record<string, string> = {
   document: "📄",
   location: "📍",
 };
+
+/**
+ * One button as the bubble needs it: a label and the thing a tap acts on.
+ *
+ * Both callers reduce to this rather than the bubble learning two shapes. The editor holds a draft
+ * being typed and has no server render; the detail page holds the server's rendered buttons, whose
+ * targets have had their variables substituted. What a bubble draws is the same either way.
+ */
+export interface PreviewButton {
+  type: string;
+  text: string;
+  /** Where a tap goes — empty for a quick reply, whose tap sends the label back instead. */
+  target: string;
+}
+
+/** A draft button, as the editor holds it while somebody is still typing it. */
+export function fromDraft(button: ButtonDraft): PreviewButton {
+  return {
+    type: button.type,
+    text: button.text,
+    target: button.url || button.phone_number || "",
+  };
+}
+
+/** A button the server rendered, with its variables already substituted into the destination. */
+export function fromRendered(button: RenderedButton): PreviewButton {
+  return { type: button.type, text: button.text, target: button.target };
+}
 
 interface MediaHeaderProps {
   format: HeaderFormat;
@@ -40,7 +69,7 @@ interface Props {
   footer: string;
   /** A media kind when the header carries a file, `null` for a text header or none at all. */
   mediaFormat: HeaderFormat | null;
-  buttons: ButtonDraft[];
+  buttons: PreviewButton[];
 }
 
 /**
@@ -49,6 +78,11 @@ interface Props {
  * Text arrives already rendered — from the server's preview endpoint on the detail page, or from
  * the draft being typed in the editor. Unsupplied variables stay visible as `{{n}}` because that is
  * what the renderer does on purpose: a preview must not invent a value.
+ *
+ * Each button shows its destination under the label. WhatsApp itself does not, but WhatsApp is not
+ * the audience here: a label is readable from the template list, while a link is readable nowhere,
+ * and a URL button carries its variable inside that link. Hiding it to look more like the real
+ * thing would hide the one thing this screen exists to let somebody check.
  */
 export function TemplateBubble({
   header,
@@ -77,9 +111,16 @@ export function TemplateBubble({
             {buttons.map((button, index) => (
               <div
                 key={`${button.type}-${index}`}
-                className="rounded-md border border-border px-2 py-1 text-center text-xs text-accent"
+                className="rounded-md border border-border px-2 py-1 text-center"
               >
-                {button.text || BUTTON_TYPE_LABELS[button.type]}
+                <span className="block text-xs text-accent">
+                  {button.text || BUTTON_TYPE_LABELS[button.type as ButtonDraft["type"]]}
+                </span>
+                {button.target ? (
+                  <span className="mt-0.5 block break-all font-mono text-[10px] leading-tight text-text-disabled">
+                    {button.target}
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>

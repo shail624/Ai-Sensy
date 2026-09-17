@@ -83,10 +83,50 @@ class TemplateListResponse(BaseModel):
     data: list[TemplateResponse]
 
 
+class PreviewExpects(BaseModel):
+    """How many sample values each part of this template takes.
+
+    Returned so the screen can offer exactly that many boxes. Counting placeholders in the browser
+    would mean a second implementation of the numbering rules, and the one that drifted would be
+    the one nobody compared against a send.
+    """
+
+    header: int
+    body: int
+    buttons: int
+
+
+class RenderedButton(BaseModel):
+    """One button as the customer will meet it.
+
+    ``target`` is what a tap acts on — the link opened, the number dialled, the code copied — and
+    is empty for a quick reply, whose tap sends the label back instead. It is returned separately
+    from ``text`` because a wrong label is obvious on any screen and a wrong destination is
+    invisible on all of them until a customer taps it.
+    """
+
+    index: int
+    type: str
+    text: str
+    target: str
+    takes_value: bool = Field(
+        description="Whether this button's destination carries a variable the send supplies."
+    )
+
+
 class TemplatePreviewResponse(BaseModel):
+    """The template as one customer will receive it (FR-TPL-08).
+
+    Buttons are rendered alongside the text. A URL button carries its variable inside the link, so
+    a preview that stopped at the message body could not show a mis-mapped link at all — and the
+    send that follows goes to every customer at once.
+    """
+
     header: str
     body: str
     footer: str
+    buttons: list[RenderedButton] = Field(default_factory=list)
+    expects: PreviewExpects
 
 
 class TemplateVersionEntry(BaseModel):

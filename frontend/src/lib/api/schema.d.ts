@@ -2259,8 +2259,20 @@ export interface paths {
          * Render with sample variables
          * @description Pure render (FR-TPL-08): nothing is stored and nothing is sent.
          *
-         *     Sample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this
-         *     a `GET` — it is a projection of the template, not a change to it.
+         *     Sample values ride the query string (`?body=Priya&body=%231234&button=TXN9931`) because Doc 04
+         *     §15 makes this a `GET` — it is a projection of the template, not a change to it.
+         *
+         *     They are declared as parameters rather than read off the raw request. Read raw they worked, but
+         *     they were absent from the published contract, so the generated client could not send them and
+         *     no screen ever did: the endpoint had a sample-value feature that nothing could reach.
+         *
+         *     Buttons are rendered with the text, and their destinations with them. A URL button carries its
+         *     variable inside the link — `https://vi.in/pay/{{1}}` — which appears on no other screen, so a
+         *     variable mapped to the wrong column is invisible right up until a customer taps it. By then the
+         *     same link has gone to everyone in the campaign.
+         *
+         *     `expects` says how many values each part takes, so a caller can offer exactly that many boxes
+         *     without re-implementing Meta's numbering rules in a second place.
          */
         get: operations["preview_template_api_v1_templates__template_id__preview_get"];
         put?: never;
@@ -8570,6 +8582,22 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * PreviewExpects
+         * @description How many sample values each part of this template takes.
+         *
+         *     Returned so the screen can offer exactly that many boxes. Counting placeholders in the browser
+         *     would mean a second implementation of the numbering rules, and the one that drifted would be
+         *     the one nobody compared against a send.
+         */
+        PreviewExpects: {
+            /** Header */
+            header: number;
+            /** Body */
+            body: number;
+            /** Buttons */
+            buttons: number;
+        };
         /** QueueHealthResponse */
         QueueHealthResponse: {
             /** Name */
@@ -9167,6 +9195,30 @@ export interface components {
              */
             kind: "remove_tag";
             config: components["schemas"]["RemoveTagConfig"];
+        };
+        /**
+         * RenderedButton
+         * @description One button as the customer will meet it.
+         *
+         *     ``target`` is what a tap acts on — the link opened, the number dialled, the code copied — and
+         *     is empty for a quick reply, whose tap sends the label back instead. It is returned separately
+         *     from ``text`` because a wrong label is obvious on any screen and a wrong destination is
+         *     invisible on all of them until a customer taps it.
+         */
+        RenderedButton: {
+            /** Index */
+            index: number;
+            /** Type */
+            type: string;
+            /** Text */
+            text: string;
+            /** Target */
+            target: string;
+            /**
+             * Takes Value
+             * @description Whether this button's destination carries a variable the send supplies.
+             */
+            takes_value: boolean;
         };
         /**
          * ReportExportRequest
@@ -10485,7 +10537,14 @@ export interface components {
             buttons?: components["schemas"]["TemplateButtonPayload"][];
             header_media?: components["schemas"]["TemplateHeaderMedia"] | null;
         };
-        /** TemplatePreviewResponse */
+        /**
+         * TemplatePreviewResponse
+         * @description The template as one customer will receive it (FR-TPL-08).
+         *
+         *     Buttons are rendered alongside the text. A URL button carries its variable inside the link, so
+         *     a preview that stopped at the message body could not show a mis-mapped link at all — and the
+         *     send that follows goes to every customer at once.
+         */
         TemplatePreviewResponse: {
             /** Header */
             header: string;
@@ -10493,6 +10552,9 @@ export interface components {
             body: string;
             /** Footer */
             footer: string;
+            /** Buttons */
+            buttons?: components["schemas"]["RenderedButton"][];
+            expects: components["schemas"]["PreviewExpects"];
         };
         /** TemplateResponse */
         TemplateResponse: {
@@ -15796,7 +15858,14 @@ export interface operations {
     };
     preview_template_api_v1_templates__template_id__preview_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Sample values for the header's variables, in order. */
+                header?: string[] | null;
+                /** @description Sample values for the body's variables, in order. */
+                body?: string[] | null;
+                /** @description Sample values for the buttons that take one, in button order. */
+                button?: string[] | null;
+            };
             header?: never;
             path: {
                 template_id: string;

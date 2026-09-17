@@ -7289,7 +7289,7 @@
           "Templates"
         ],
         "summary": "Render with sample variables",
-        "description": "Pure render (FR-TPL-08): nothing is stored and nothing is sent.\n\nSample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this\na `GET` — it is a projection of the template, not a change to it.",
+        "description": "Pure render (FR-TPL-08): nothing is stored and nothing is sent.\n\nSample values ride the query string (`?body=Priya&body=%231234&button=TXN9931`) because Doc 04\n§15 makes this a `GET` — it is a projection of the template, not a change to it.\n\nThey are declared as parameters rather than read off the raw request. Read raw they worked, but\nthey were absent from the published contract, so the generated client could not send them and\nno screen ever did: the endpoint had a sample-value feature that nothing could reach.\n\nButtons are rendered with the text, and their destinations with them. A URL button carries its\nvariable inside the link — `https://vi.in/pay/{{1}}` — which appears on no other screen, so a\nvariable mapped to the wrong column is invisible right up until a customer taps it. By then the\nsame link has gone to everyone in the campaign.\n\n`expects` says how many values each part takes, so a caller can offer exactly that many boxes\nwithout re-implementing Meta's numbering rules in a second place.",
         "operationId": "preview_template_api_v1_templates__template_id__preview_get",
         "security": [
           {
@@ -7306,6 +7306,69 @@
               "format": "uuid",
               "title": "Template Id"
             }
+          },
+          {
+            "name": "header",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sample values for the header's variables, in order.",
+              "title": "Header"
+            },
+            "description": "Sample values for the header's variables, in order."
+          },
+          {
+            "name": "body",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sample values for the body's variables, in order.",
+              "title": "Body"
+            },
+            "description": "Sample values for the body's variables, in order."
+          },
+          {
+            "name": "button",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sample values for the buttons that take one, in button order.",
+              "title": "Button"
+            },
+            "description": "Sample values for the buttons that take one, in button order."
           }
         ],
         "responses": {
@@ -28514,6 +28577,30 @@
         ],
         "title": "PreferencesUpdateRequest"
       },
+      "PreviewExpects": {
+        "properties": {
+          "header": {
+            "type": "integer",
+            "title": "Header"
+          },
+          "body": {
+            "type": "integer",
+            "title": "Body"
+          },
+          "buttons": {
+            "type": "integer",
+            "title": "Buttons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "header",
+          "body",
+          "buttons"
+        ],
+        "title": "PreviewExpects",
+        "description": "How many sample values each part of this template takes.\n\nReturned so the screen can offer exactly that many boxes. Counting placeholders in the browser\nwould mean a second implementation of the numbering rules, and the one that drifted would be\nthe one nobody compared against a send."
+      },
       "QueueHealthResponse": {
         "properties": {
           "name": {
@@ -30327,6 +30414,41 @@
           "config"
         ],
         "title": "RemoveTagNode"
+      },
+      "RenderedButton": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "takes_value": {
+            "type": "boolean",
+            "title": "Takes Value",
+            "description": "Whether this button's destination carries a variable the send supplies."
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "type",
+          "text",
+          "target",
+          "takes_value"
+        ],
+        "title": "RenderedButton",
+        "description": "One button as the customer will meet it.\n\n``target`` is what a tap acts on — the link opened, the number dialled, the code copied — and\nis empty for a quick reply, whose tap sends the label back instead. It is returned separately\nfrom ``text`` because a wrong label is obvious on any screen and a wrong destination is\ninvisible on all of them until a customer taps it."
       },
       "ReportExportRequest": {
         "properties": {
@@ -33980,15 +34102,27 @@
           "footer": {
             "type": "string",
             "title": "Footer"
+          },
+          "buttons": {
+            "items": {
+              "$ref": "#/components/schemas/RenderedButton"
+            },
+            "type": "array",
+            "title": "Buttons"
+          },
+          "expects": {
+            "$ref": "#/components/schemas/PreviewExpects"
           }
         },
         "type": "object",
         "required": [
           "header",
           "body",
-          "footer"
+          "footer",
+          "expects"
         ],
-        "title": "TemplatePreviewResponse"
+        "title": "TemplatePreviewResponse",
+        "description": "The template as one customer will receive it (FR-TPL-08).\n\nButtons are rendered alongside the text. A URL button carries its variable inside the link, so\na preview that stopped at the message body could not show a mis-mapped link at all — and the\nsend that follows goes to every customer at once."
       },
       "TemplateResponse": {
         "properties": {

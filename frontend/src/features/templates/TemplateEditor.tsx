@@ -23,7 +23,7 @@ import {
   MAX_HEADER_CHARS,
   MEDIA_FORMATS,
 } from "@/features/templates/components";
-import { TemplateBubble } from "@/features/templates/TemplateBubble";
+import { TemplateBubble, fromDraft } from "@/features/templates/TemplateBubble";
 import { toCreateRequest, toUpdateRequest, validateDraft } from "@/features/templates/templateForm";
 import type { FieldErrors } from "@/features/templates/templateForm";
 import { VariableInspector } from "@/features/templates/VariableInspector";
@@ -406,7 +406,7 @@ export function TemplateEditor({ template, initialDraft }: Props): JSX.Element {
             body={draft.body_text}
             footer={draft.footer_text}
             mediaFormat={mediaFormat}
-            buttons={draft.buttons}
+            buttons={draft.buttons.map(fromDraft)}
           />
         </Section>
 

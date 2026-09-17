@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { DefinitionRow, ErrorState, Section, Spinner } from "@/components/ui";
+import { DefinitionRow, ErrorState, Input, Section, Spinner } from "@/components/ui";
 import {
   apiErrorMessage,
   useTemplate,
@@ -22,10 +22,10 @@ import {
   SendableMarker,
   TemplateStatusChip,
 } from "@/features/templates/TemplateBadges";
-import { TemplateBubble } from "@/features/templates/TemplateBubble";
+import { TemplateBubble, fromRendered } from "@/features/templates/TemplateBubble";
 import { TemplateVersionHistory } from "@/features/templates/TemplateVersionHistory";
 import { VariableInspector } from "@/features/templates/VariableInspector";
-import type { Template } from "@/features/templates/types";
+import type { PreviewValues, Template } from "@/features/templates/types";
 import { STATUS_EXPLANATIONS } from "@/features/templates/types";
 import { formatAge, formatDateTime } from "@/lib/format";
 
@@ -129,14 +129,69 @@ export function TemplateDetail({ templateId }: { templateId: string }): JSX.Elem
   );
 }
 
+/** One labelled box per variable the template takes, or nothing when it takes none. */
+function SampleValueInputs({
+  label,
+  count,
+  values,
+  onChange,
+}: {
+  label: string;
+  count: number;
+  values: string[];
+  onChange: (index: number, value: string) => void;
+}): JSX.Element | null {
+  if (count === 0) return null;
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-text-secondary">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {Array.from({ length: count }, (_, index) => (
+          <Input
+            key={index}
+            aria-label={`${label} value ${index + 1}`}
+            placeholder={`{{${index + 1}}}`}
+            className="w-32"
+            value={values[index] ?? ""}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onChange(index, event.target.value)
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
- * The message as WhatsApp will show it, rendered by the server (FR-TPL-08).
+ * The message as one customer will receive it, rendered by the server (FR-TPL-08).
  *
- * The render is a pure projection — nothing stored, nothing sent — and unsupplied variables stay
- * visible as `{{n}}` on purpose: a preview must not invent a value.
+ * The render is a pure projection — nothing stored, nothing sent — and a variable nobody supplied
+ * stays visible as `{{n}}` on purpose: a preview must not invent a value.
+ *
+ * The boxes are the point. Until now this screen rendered with no values at all, so it showed the
+ * template rather than a message, which the template list already showed. What an operator needs
+ * before a campaign is the other thing: type one customer's values in and read the sentence they
+ * will actually receive, link included, while it is still cheap to be wrong.
+ *
+ * How many boxes appear comes from the server's `expects`, not from counting `{{n}}` here. Meta
+ * numbers variables per component with its own rules, and a second implementation of them in the
+ * browser would be one nobody compares against a send.
  */
 function TemplatePreviewSection({ template }: { template: Template }): JSX.Element {
-  const preview = useTemplatePreview(template.id);
+  const [values, setValues] = useState<PreviewValues>({ header: [], body: [], buttons: [] });
+  const preview = useTemplatePreview(template.id, values);
+  const expects = preview.data?.expects;
+  const total = (expects?.header ?? 0) + (expects?.body ?? 0) + (expects?.buttons ?? 0);
+
+  function set(part: keyof PreviewValues) {
+    return (index: number, value: string) =>
+      setValues((current: PreviewValues) => {
+        const next = [...current[part]];
+        next[index] = value;
+        return { ...current, [part]: next };
+      });
+  }
 
   return (
     <Section title="Preview">
@@ -149,16 +204,42 @@ function TemplatePreviewSection({ template }: { template: Template }): JSX.Eleme
         />
       ) : (
         <>
+          {total > 0 ? (
+            <div className="mb-3 space-y-3 rounded-lg border border-border bg-surface-2 p-3">
+              <p className="text-xs text-text-secondary">
+                Try one customer&apos;s values. Nothing is saved and nothing is sent.
+              </p>
+              <SampleValueInputs
+                label="Header"
+                count={expects?.header ?? 0}
+                values={values.header}
+                onChange={set("header")}
+              />
+              <SampleValueInputs
+                label="Body"
+                count={expects?.body ?? 0}
+                values={values.body}
+                onChange={set("body")}
+              />
+              <SampleValueInputs
+                label="Button link"
+                count={expects?.buttons ?? 0}
+                values={values.buttons}
+                onChange={set("buttons")}
+              />
+            </div>
+          ) : null}
+
           <TemplateBubble
             header={preview.data?.header ?? ""}
             body={preview.data?.body ?? ""}
             footer={preview.data?.footer ?? ""}
             mediaFormat={mediaHeaderFormat(template)}
-            buttons={templateButtons(template)}
+            buttons={(preview.data?.buttons ?? []).map(fromRendered)}
           />
           <p className="mt-2 text-xs text-text-disabled">
-            Variables are shown as written. Each recipient&apos;s values are bound when a campaign
-            maps them.
+            A variable left blank stays as {"{{n}}"} — a preview never invents a value. Each
+            recipient&apos;s real values are bound when a campaign maps them.
           </p>
         </>
       )}

@@ -251,12 +251,78 @@ def expected_variables(components: list[dict[str, Any]]) -> tuple[int, int]:
     return header_vars, len(set(placeholders(body.get("text"))))
 
 
-def render(components: list[dict[str, Any]], *, header: list[str], body: list[str]) -> dict[str, str]:
-    """Substitute values into the text components (FR-TPL-08 preview)."""
+def button_targets(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each button with the text a tap actually acts on, and whether that text takes a value.
+
+    ``text`` is the label; ``target`` is the destination — a URL, a phone number, the code a
+    copy-code button copies — and for a quick reply there is none, because the tap sends the label
+    back. The distinction is the whole point of showing buttons in a preview: an operator can read
+    a label off the template list, but a wrong *destination* is invisible until a customer taps it.
+    """
+    component = component_of(components, COMPONENT_BUTTONS) or {}
+    rows: list[dict[str, Any]] = []
+    for index, button in enumerate(component.get("buttons") or []):
+        kind = str(button.get("type") or "").lower()
+        target = button.get("url") or button.get("phone_number") or button.get("example") or ""
+        rows.append(
+            {
+                "index": index,
+                "type": kind,
+                "text": str(button.get("text") or ""),
+                "target": str(target),
+                # A fixed button is settled at approval time; a variable one is only decided by the
+                # send, which is exactly the part a preview has to be able to show.
+                "takes_value": kind in VARIABLE_BUTTONS and bool(placeholders(str(target))),
+            }
+        )
+    return rows
+
+
+def expected_button_variables(components: list[dict[str, Any]]) -> int:
+    """How many values the buttons take between them.
+
+    Separate from :func:`expected_variables` rather than folded into it: that function's two-tuple
+    is what every send is validated against, and widening it would change the meaning of a check
+    that is correct as it stands. Meta counts button variables per button, not with the body's.
+    """
+    return sum(1 for row in button_targets(components) if row["takes_value"])
+
+
+def render(
+    components: list[dict[str, Any]],
+    *,
+    header: list[str],
+    body: list[str],
+    buttons: list[str] | None = None,
+) -> dict[str, Any]:
+    """Substitute values into the template (FR-TPL-08 preview).
+
+    Buttons are rendered too, because a preview that stops at the message text cannot answer the
+    question an operator opens it to ask. A URL button carries its variable *in the link*
+    (``https://vi.in/offer/{{1}}``), and that link is never shown on any screen — so a mis-mapped
+    variable sends thousands of customers to a broken page, and nothing before the send would have
+    revealed it.
+
+    ``buttons`` supplies the value for each button that takes one, in the order those buttons
+    appear. Buttons with fixed destinations consume nothing.
+    """
+    values = list(buttons or [])
+    rendered: list[dict[str, Any]] = []
+    for row in button_targets(components):
+        # Only a variable-carrying button consumes a value, so a fixed button between two variable
+        # ones does not shift the rest -- the operator's second value belongs to the second link.
+        supplied = [values.pop(0)] if row["takes_value"] and values else []
+        rendered.append(
+            {
+                **row,
+                "target": _substitute(row["target"], supplied) if row["target"] else "",
+            }
+        )
     return {
         "header": _substitute((component_of(components, COMPONENT_HEADER) or {}).get("text"), header),
         "body": _substitute((component_of(components, COMPONENT_BODY) or {}).get("text"), body),
         "footer": (component_of(components, COMPONENT_FOOTER) or {}).get("text") or "",
+        "buttons": rendered,
     }
 
 

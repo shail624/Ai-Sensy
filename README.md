@@ -171,9 +171,9 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 `v1.0.0-rc1` contains the production deployment topology and the implemented frontend/backend
 workflows across the principal product areas. PAR-AUTO-22 remains the last complete `release`
 quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
-dependency/image/SBOM/runtime gates. The current source tree passes **1,712 backend tests with zero
+dependency/image/SBOM/runtime gates. The current source tree passes **1,716 backend tests with zero
 skips** — VAL-01 stood up a real MySQL 8 and cleared the six live-migration tests that every prior
-run reported as skipped — plus 951 frontend tests across 56 files, the synchronized 247-path
+run reported as skipped — plus 958 frontend tests across 57 files, the synchronized 247-path
 contract, production build, and a live read sweep of 210 requests over 73 contract-declared GET
 paths against MySQL with no 5xx. Read latency at 200,000 campaign recipients is in FIX-01: the
 ordinary reads are all under 32ms, and three aggregate reads (`/scan/reachability` filtered by
@@ -182,7 +182,7 @@ budget and recorded rather than hidden. Its Docker/security release rerun is pen
 at **25/25**, including its disposable ten-service browser/performance/failure exercise.
 This certifies the repository and local production topology; it does not mean the entire approved
 feature roadmap is complete or that a target host has been commissioned. The canonical
-31-module table currently averages **80.9%** unweighted (recalculated median **88%**), with exact remaining work
+31-module table currently averages **81.0%** unweighted (recalculated median **88%**), with exact remaining work
 tracked in `MODULE_STATUS.md` and `ROADMAP.md`. FR-CON-04 Excel import inspection is preserved at
 `baseline/fr-con-04-release-ready`.
 

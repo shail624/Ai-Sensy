@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.v1.endpoints.waba import ChannelUnavailableError
@@ -209,22 +209,43 @@ async def delete_template(
 )
 async def preview_template(
     template_id: uuidlib.UUID,
-    request: Request,
     session: SessionDep,
     actor: TemplateReader,
+    header: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the header's variables, in order."),
+    ] = None,
+    body: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the body's variables, in order."),
+    ] = None,
+    button: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the buttons that take one, in button order."),
+    ] = None,
 ) -> TemplatePreviewResponse:
     """Pure render (FR-TPL-08): nothing is stored and nothing is sent.
 
-    Sample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this
-    a `GET` — it is a projection of the template, not a change to it.
+    Sample values ride the query string (`?body=Priya&body=%231234&button=TXN9931`) because Doc 04
+    §15 makes this a `GET` — it is a projection of the template, not a change to it.
+
+    They are declared as parameters rather than read off the raw request. Read raw they worked, but
+    they were absent from the published contract, so the generated client could not send them and
+    no screen ever did: the endpoint had a sample-value feature that nothing could reach.
+
+    Buttons are rendered with the text, and their destinations with them. A URL button carries its
+    variable inside the link — `https://vi.in/pay/{{1}}` — which appears on no other screen, so a
+    variable mapped to the wrong column is invisible right up until a customer taps it. By then the
+    same link has gone to everyone in the campaign.
+
+    `expects` says how many values each part takes, so a caller can offer exactly that many boxes
+    without re-implementing Meta's numbering rules in a second place.
     """
     service = TemplateService(session)
     template = await service.get_template(actor.organization_id, template_id)
     return TemplatePreviewResponse(
         **await service.preview(
-            template,
-            header=request.query_params.getlist("header"),
-            body=request.query_params.getlist("body"),
+            template, header=header or [], body=body or [], buttons=button or []
         )
     )
 

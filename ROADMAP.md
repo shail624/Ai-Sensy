@@ -1,5 +1,58 @@
 # Final Product Implementation Roadmap
 
+## TMPL-02 — a preview that shows what the customer will actually get (2026-09-17)
+
+The template preview rendered every variable as `{{1}}` and never showed a button's destination, so
+the one question it exists to answer — *what will Priya receive?* — could not be asked on any
+screen. Backend 1,712 → 1,716 tests, frontend 951 → 958. Contract stays at 247 paths;
+`/templates/{id}/preview` gains three declared parameters and two response fields.
+
+**The sample-value feature existed and nothing could reach it.** The endpoint read `?body=Priya`
+off the raw request, which works but puts nothing in the published contract — and Doc 14 §2 says
+the frontend's API types come from that contract and are never hand-written. So the generated
+client had no way to send a value, the screen sent none, and every preview since the feature
+shipped showed the template rather than a message. The template list already showed that. The
+parameters are now declared, which is what makes them usable.
+
+**A link button's destination appeared on no screen at all.** A URL button carries its variable
+*inside the link* — `https://vi.co/pay/{{1}}` — and the send path has always supported that
+(`TemplateButtonValue`, index and all). The preview rendered header, body and footer and stopped.
+The detail page's Buttons table showed the raw URL with the placeholder still in it, which is the
+template, not the message. So a variable mapped to the wrong column produced a broken link that
+nothing before the send would reveal, and a campaign sends the same link to everybody at once.
+`render()` now renders buttons too, and the bubble prints each destination under its label.
+
+WhatsApp itself does not print the link under the button. That is the right call for WhatsApp and
+the wrong one here: a label is readable from the template list, a link is readable nowhere, and
+looking more like the real thing would hide the only thing this screen is for.
+
+**A fixed button between two variable ones does not shift the values.** Values are consumed only by
+buttons whose destination actually carries a placeholder, so the operator's second value belongs to
+the second *link*, not to the second button. A phone button sitting between them takes nothing. A
+test pins it, because the off-by-one version would look right on every template with one button.
+
+**Blank boxes are not sent.** An empty value would substitute an empty string and render a
+plausible URL pointing somewhere wrong. Left out, the placeholder stays visible — "a preview must
+not invent a value", which was already the renderer's rule and is now also the screen's.
+
+**How many boxes to draw comes from the server.** The response carries `expects`: header, body and
+button variable counts. Counting `{{n}}` in the browser would be a second implementation of Meta's
+per-component numbering rules, and the copy that drifted would be the one never compared against a
+send. `expected_button_variables` is a new function rather than a wider `expected_variables`,
+because that function's two-tuple is what every send is validated against and it is correct as it
+stands.
+
+`TemplateBubble` now takes one button shape and both callers reduce to it — the editor from the
+draft being typed, the detail page from the server's render — rather than the component learning
+two.
+
+Templates 88% → 91%. The module's remaining gap is the explicit AI placeholder.
+
+PASS: backend **1,716 passed, 0 skipped** against live MySQL 8 (531.1s); frontend **958 passed
+across 57 files**; regenerated OpenAPI (247 paths) and TypeScript with no drift; Ruff, strict mypy
+(331 files), ESLint, TypeScript and the production build clean. Each of the nine new tests was
+run against the code it describes first, to see it fail.
+
 ## FIX-01 — reading last night's own diff back, adversarially (2026-09-17)
 
 Nine defects in code shipped earlier the same night, found by re-reading the diff rather than by
