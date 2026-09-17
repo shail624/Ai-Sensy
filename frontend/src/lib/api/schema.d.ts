@@ -1936,6 +1936,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scan/reachability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which contacts WhatsApp has reached, refused, or never been asked about
+         * @description Every contact, with what WhatsApp has told us about their number.
+         *
+         *     A delivery receipt proves the number is reachable; error 131026 is Meta calling it not a
+         *     WhatsApp user. Nothing else counts — a paused template or a closed 24-hour window is a fact
+         *     about our configuration, not about the customer, and treating those as "not on WhatsApp" would
+         *     condemn reachable people for our own mistakes.
+         *
+         *     `unknown` is a real answer: a contact no campaign has ever included has not been tested. It is
+         *     reported as untested rather than folded into either side, because the difference between "we
+         *     know they are not there" and "we have never asked" changes what an operator does next.
+         *
+         *     Counts are returned beside the page and computed from the same predicates, so the tallies and
+         *     the rows can never describe different sets.
+         */
+        get: operations["list_reachability_api_v1_scan_reachability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/channels/whatsapp-qr/session": {
         parameters: {
             query?: never;
@@ -8511,6 +8543,57 @@ export interface components {
             /** Body */
             body?: string | null;
         };
+        /** ReachabilityCounts */
+        ReachabilityCounts: {
+            /** Reachable */
+            reachable: number;
+            /** Unreachable */
+            unreachable: number;
+            /** Unknown */
+            unknown: number;
+        };
+        /** ReachabilityPage */
+        ReachabilityPage: {
+            /** Data */
+            data: components["schemas"]["ReachabilityResponse"][];
+            counts: components["schemas"]["ReachabilityCounts"];
+            page: components["schemas"]["Page"];
+        };
+        /**
+         * ReachabilityResponse
+         * @description One contact, with the evidence behind its verdict rather than only the verdict.
+         *
+         *     Both timestamps are returned because which is *current* is the whole question: a number can be
+         *     deactivated after having been reachable, and an operator looking at a surprising row needs to
+         *     see that the delivery was in March and the refusal was last week. A bare label would have to be
+         *     taken on trust.
+         */
+        ReachabilityResponse: {
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Full Name */
+            full_name: string | null;
+            /** Phone E164 */
+            phone_e164: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "reachable" | "unreachable" | "unknown";
+            /**
+             * Last Delivered At
+             * @description When WhatsApp last confirmed a message reached this number.
+             */
+            last_delivered_at: string | null;
+            /**
+             * Last Undeliverable At
+             * @description When WhatsApp last refused this number as not a WhatsApp user (error 131026).
+             */
+            last_undeliverable_at: string | null;
+        };
         /** ReactivationCaseListResponse */
         ReactivationCaseListResponse: {
             /** Data */
@@ -15065,6 +15148,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatusHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reachability_api_v1_scan_reachability_get: {
+        parameters: {
+            query?: {
+                /** @description Filter to one verdict: reachable, unreachable, unknown. */
+                verdict?: ("reachable" | "unreachable" | "unknown") | null;
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReachabilityPage"];
                 };
             };
             /** @description Validation Error */

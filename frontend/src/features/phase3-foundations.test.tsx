@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -77,7 +78,15 @@ describe("Phase 3 reactivation and automation foundations", () => {
     const whatsapp = navItems.find((item) => item.path === "/channels");
     expect(scan?.permission).toBe("contacts:read");
     expect(scan?.path).not.toBe(whatsapp?.path);
-    render(<MemoryRouter><ScanWorkspace /></MemoryRouter>);
+    // SCAN-01 gave the workspace a live reachability panel, so it now needs a query client.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <ScanWorkspace />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
     expect(screen.getByText("Architecture boundary enforced")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Upload scan batch" })).toBeDisabled();
   });

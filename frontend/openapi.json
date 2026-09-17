@@ -6560,6 +6560,124 @@
         }
       }
     },
+    "/api/v1/scan/reachability": {
+      "get": {
+        "tags": [
+          "WhatsApp Scan"
+        ],
+        "summary": "Which contacts WhatsApp has reached, refused, or never been asked about",
+        "description": "Every contact, with what WhatsApp has told us about their number.\n\nA delivery receipt proves the number is reachable; error 131026 is Meta calling it not a\nWhatsApp user. Nothing else counts — a paused template or a closed 24-hour window is a fact\nabout our configuration, not about the customer, and treating those as \"not on WhatsApp\" would\ncondemn reachable people for our own mistakes.\n\n`unknown` is a real answer: a contact no campaign has ever included has not been tested. It is\nreported as untested rather than folded into either side, because the difference between \"we\nknow they are not there\" and \"we have never asked\" changes what an operator does next.\n\nCounts are returned beside the page and computed from the same predicates, so the tallies and\nthe rows can never describe different sets.",
+        "operationId": "list_reachability_api_v1_scan_reachability_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "verdict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "reachable",
+                    "unreachable",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one verdict: reachable, unreachable, unknown.",
+              "title": "Verdict"
+            },
+            "description": "Filter to one verdict: reachable, unreachable, unknown."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match a contact's name or number.",
+              "title": "Q"
+            },
+            "description": "Match a contact's name or number."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 200,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size (default 50).",
+              "title": "Limit"
+            },
+            "description": "Page size (default 50)."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque token from a prior next_cursor.",
+              "title": "Cursor"
+            },
+            "description": "Opaque token from a prior next_cursor."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReachabilityPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/channels/whatsapp-qr/session": {
       "get": {
         "tags": [
@@ -28432,6 +28550,130 @@
         "type": "object",
         "title": "QuickReplyUpdateRequest",
         "description": "Edit a quick reply (Doc 04 §18.2). Every field optional — only those present change."
+      },
+      "ReachabilityCounts": {
+        "properties": {
+          "reachable": {
+            "type": "integer",
+            "title": "Reachable"
+          },
+          "unreachable": {
+            "type": "integer",
+            "title": "Unreachable"
+          },
+          "unknown": {
+            "type": "integer",
+            "title": "Unknown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reachable",
+          "unreachable",
+          "unknown"
+        ],
+        "title": "ReachabilityCounts"
+      },
+      "ReachabilityPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ReachabilityResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ReachabilityCounts"
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "counts",
+          "page"
+        ],
+        "title": "ReachabilityPage"
+      },
+      "ReachabilityResponse": {
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Contact Id"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "phone_e164": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone E164"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "unreachable",
+              "unknown"
+            ],
+            "title": "Verdict"
+          },
+          "last_delivered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Delivered At",
+            "description": "When WhatsApp last confirmed a message reached this number."
+          },
+          "last_undeliverable_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Undeliverable At",
+            "description": "When WhatsApp last refused this number as not a WhatsApp user (error 131026)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact_id",
+          "full_name",
+          "phone_e164",
+          "verdict",
+          "last_delivered_at",
+          "last_undeliverable_at"
+        ],
+        "title": "ReachabilityResponse",
+        "description": "One contact, with the evidence behind its verdict rather than only the verdict.\n\nBoth timestamps are returned because which is *current* is the whole question: a number can be\ndeactivated after having been reachable, and an operator looking at a surprising row needs to\nsee that the delivery was in March and the refusal was last week. A bare label would have to be\ntaken on trust."
       },
       "ReactivationCaseListResponse": {
         "properties": {

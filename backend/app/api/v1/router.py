@@ -30,6 +30,7 @@ from app.api.v1.endpoints import (
     notifications,
     organization,
     quick_replies,
+    reachability,
     roles,
     segments,
     settings,
@@ -83,6 +84,10 @@ api_router.include_router(webhooks.router, tags=["Webhooks"])
 api_router.include_router(webhook_ops.router, tags=["Webhooks"])
 # Module 4 — outbound send + message reads (Doc 04 §18.2).
 api_router.include_router(messages.router, tags=["Messaging"])
+# SCAN-01 — WhatsApp reachability derived from campaign delivery evidence (scope §13). No
+# provider lookup exists and unofficial enumeration is excluded, so the answer comes from what
+# Meta already told us about messages we actually sent.
+api_router.include_router(reachability.router, tags=["WhatsApp Scan"])
 # QR-07 — WhatsApp Scan/Connect over the WAHA adapter (QR-01..06) and the existing M13-03/04/05
 # session/pairing control plane. Single-organization scope (ADR-0021); no secret ever crosses
 # this boundary and no QR byte is ever persisted.

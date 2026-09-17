@@ -1,5 +1,55 @@
 # Project State
 
+## SCAN-01 — WhatsApp reachability, from evidence we already hold (2026-09-17)
+
+`GET /api/v1/scan/reachability` reports, for every contact, whether WhatsApp has reached that
+number, refused it, or never been asked. Contract 242 → 243 paths. No migration, no new permission,
+nothing sent, no provider called.
+
+Scope §13 asks for a WhatsApp Scan module and, in the same breath, excludes the only technique that
+answers it directly: *"Only compliant and authorised methods are allowed. Unofficial WhatsApp Web
+bulk enumeration is excluded."* Meta's Cloud API has no lookup either — the on-premise `/contacts`
+check did not survive the move — so a direct scan of numbers nobody has messaged remains genuinely
+blocked on an approved provider, and the workspace now says exactly that instead of implying the
+whole module is unavailable.
+
+What is **not** blocked is the question underneath it. Every campaign already produces delivery
+receipts, and they are unusually good evidence: a delivery is proof the number is reachable, and
+error `131026` — "undeliverable / not a WhatsApp user", already classified in
+`app/channels/meta/errors.py` — is Meta stating the opposite in its own words. Neither is inferred
+and neither costs an extra send. That covers ten of the eleven items §13 lists; only
+"business-account result" needs something this evidence cannot supply.
+
+Three decisions carry the feature:
+
+- **Only `131026` counts.** A paused template, a closed 24-hour window, a throttle — these are facts
+  about our configuration, not about the customer's number. Counting them would mark reachable
+  people unreachable on the strength of our own mistakes, and they would then be excluded from the
+  very campaigns meant to win them back. A test asserts four such codes all leave the verdict
+  `unknown`.
+- **The more recent fact wins.** "Ever delivered" would call a disconnected number reachable
+  forever; "ever refused" would condemn one that has since come back. Both timestamps are stored,
+  returned and shown, so the verdict is derived from recency and an operator surprised by a row can
+  see the March delivery and the September refusal that produced it.
+- **`unknown` is an answer.** A contact no campaign has included has not been tested, and folding
+  those into either side would invent a result. "We have never asked" and "we know they are not
+  there" call for opposite next actions — a campaign, or a cleanup.
+
+`campaign_recipients` carries no `organization_id`; it is monthly-partitioned with no foreign keys,
+so ownership is read through the campaign each row belongs to, the way CORE-22 reads a webhook's
+owner through the route it arrived on. A test proves another tenant's send cannot decide our
+verdict. Reads require `contacts:read` **and** `campaigns:read` together: the rows are contacts, but
+every verdict is a campaign outcome, and a reader barred from campaign results should not receive a
+summary of them one customer at a time.
+
+The verdict's SQL form sits beside its Python form in the same class, because the filter and the
+badge have to agree — computing one in each place is how a list ends up disagreeing with its own
+rows. Counts come from the same predicates in a single scan.
+
+PASS: backend **1,675 passed, 0 skipped**, including 12 new tests. Frontend **943 passed across 55
+files** (was 934/54) with 9 new tests. Regenerated OpenAPI and TypeScript with no drift; Ruff,
+strict mypy, ESLint, TypeScript and the production build clean.
+
 ## DASH-01 — WhatsApp sending status on the operations desk (2026-09-17)
 
 The dashboard now opens with whether WhatsApp will accept sends: each connected number, its
@@ -600,7 +650,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2454: simple unweighted average **79.2%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2494: simple unweighted average **80.5%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0062_segment_domain_predicates` (**63 linear revisions**) from separate unfinished segment work. UI-REF-01 adds no migration. Prior 0061 Reports-view evidence remains historical. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

@@ -2,6 +2,7 @@ import { ArrowRight, BarChart3, CheckCircle2, Clock3, CopyCheck, FileUp, Refresh
 import { Link } from "react-router-dom";
 
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
+import { ReachabilityPanel } from "@/features/scan/ReachabilityPanel";
 
 const STEPS = ["Upload numbers", "Batch manager", "Scan queue", "Processing", "Active", "Inactive", "Business accounts", "Statistics", "Export", "Create segment", "Launch campaign"];
 
@@ -14,7 +15,11 @@ export function ScanWorkspace(): JSX.Element {
 
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Capability icon={CopyCheck} title="Duplicate detection" text="Will normalize and compare within the scan batch before queueing." /><Capability icon={RefreshCw} title="Retry and comparison" text="Will preserve attempts and compare batches through a scan-owned retry ledger." /><Capability icon={Clock3} title="Progress and history" text="Will expose real queued, processing, complete, and failed counts from its worker." /><Capability icon={BarChart3} title="Analytics and export" text="Will publish scan dimensions before segment or campaign hand-off is enabled." /></div>
 
-    <Card className="p-6" padding={false}><EmptyState icon={<ScanSearch className="h-7 w-7" />} title="No scan contract connected" description="Batch history and statistics appear only after an independently reviewed API, storage policy, worker registration, permission set, and security assessment are delivered." action={<div className="flex flex-wrap justify-center gap-2"><Button disabled title="No scan upload endpoint exists">Upload scan batch</Button><Button variant="secondary" disabled title="No verified scan result exists">Export results</Button></div>} /></Card>
+    {/* SCAN-01. The direct batch scan above still has no contract; this is the part that can be
+        answered compliantly today, from delivery receipts the platform already holds. */}
+    <ReachabilityPanel />
+
+    <Card className="p-6" padding={false}><EmptyState icon={<ScanSearch className="h-7 w-7" />} title="Direct number scan still needs a contract" description="Reachability above comes from campaigns already sent. A batch scan of numbers never messaged would need an approved provider: Meta&rsquo;s Cloud API has no such lookup, and unofficial WhatsApp Web enumeration is excluded by this platform&rsquo;s own scope." action={<div className="flex flex-wrap justify-center gap-2"><Button disabled title="No scan upload endpoint exists">Upload scan batch</Button><Button variant="secondary" disabled title="No verified scan result exists">Export results</Button></div>} /></Card>
   </div>;
 }
 
