@@ -1,5 +1,55 @@
 # Validation Results
 
+## VAL-05 — the journey nothing tested, and a sweep for the last milestone's bug class (2026-09-17)
+
+Two pieces of verification, no product change. Backend 1,726 → **1,727**.
+
+### The test that would have caught all four campaign bugs
+
+Every fix this session had its own test, and each one passed while the campaign as a whole was
+still broken — because nothing exercised the pieces *together*. A real Vi reactivation offer is not
+"a template with a button" or "a template with an image". It is one message carrying an offer
+picture, the customer's name, and a link only they can use, and until today it could not be sent at
+all.
+
+`test_campaign_journey.py` drives exactly that, once: preview the template with sample values,
+upload the offer image, map two body variables and the button link to contact fields, dispatch,
+assert all three components reach Meta in a single message with the right parameters, then have the
+customer write back and read the reply off the campaign.
+
+Its claim was checked rather than asserted. Restoring this morning's `campaign_service`,
+`campaign_dispatch_service`, `message_service` and `campaign` schema, the test fails at
+`recipient.status == RECIPIENT_SENT` — the campaign is **accepted**, then every recipient dies,
+which is the exact pattern the four fixes were about.
+
+### The sweep: was `replied_count` the only one?
+
+CAM-REPLY-01 found a column that was declared, returned by the API and printed on screen, and that
+nothing ever wrote. That find was luck. So every mapped column in the schema was checked for a
+writer outside the model layer, and each candidate read by hand.
+
+**No second instance.** The codebase is disciplined about this, and the contrast is the useful
+part:
+
+- `actual_cost` is never written, **and says so**: *"``actual_cost`` must be the
+  provider-authoritative charge, and pricing it from our own card would produce a second estimate
+  wearing the word 'actual'."* `pricing_model`, `is_billable` and `messages.cost_*` are refused on
+  the same grounds, and `prev_hash` is marked a later hardening.
+- The analytics rollup counters and `value_string` **are** written, through a string-keyed
+  increments dict and a type map that a naive search cannot see.
+- `campaigns.send_rate_mps` is genuinely unused, but it is in no schema and on no screen, so it
+  claims nothing. Dead schema, not a false statement.
+
+Which is exactly what separated `replied_count`: it was not an unwritten field, it was an unwritten
+field **being displayed as a measurement**. `actual_cost` is a gap somebody documented; "Replies: 0
+(0% of delivered)" was an answer.
+
+No module percentage moves.
+
+PASS: backend **1,727 passed, 0 skipped** against live MySQL 8; frontend **964 passed across 57
+files**; OpenAPI unchanged at 247 paths; Ruff, strict mypy (331 files), ESLint, TypeScript and the
+production build clean.
+
 ## CAM-REPLY-01 — the number every campaign screen printed and nothing measured (2026-09-17)
 
 `campaigns.replied_count` has been on the model, in the API response and printed on every campaign
