@@ -1,5 +1,42 @@
 # Final Product Implementation Roadmap
 
+## SEG-02 — the team's own audiences, offered where somebody would look for them (2026-09-17)
+
+The discoverability gap SEG-01 named, closed. Frontend 971 → **977** across **58 files**; no
+backend change, no migration, contract unchanged.
+
+Every segment is already visible to the whole organization — there is no private/shared
+distinction on the model — and any of them could always be copied from the list's Duplicate action.
+What was missing was smaller and more human than the feature I had wrongly told the owner was
+absent: somebody building their first audience **never saw them**. The quick-start gallery offered
+ten built-in recipes and nothing the team itself had written, so a colleague's work was
+discoverable only if you already knew to scroll to the list and press Duplicate.
+
+The gallery now shows **Start from your team's audiences** beneath the built-in row, carrying the
+same `duplicateOf` state the Duplicate action uses. An entry point, not a second copy path.
+
+Four small decisions, each with a reason:
+
+- **The four most recent, not all of them.** Fifty audiences would bury the built-in recipes under
+  a wall of the team's own history, and the rest are one link away in the list this page already
+  renders.
+- **Nothing at all when the team has built none.** A heading over an empty row reads as something
+  broken rather than something unused.
+- **The condition count when a segment has no description.** "3 conditions" is a weaker label than
+  a sentence somebody wrote, and a better one than blank space.
+- **Read from the cache, not a second request.** `useSegments` is already resolved for the list on
+  this same page.
+
+Two of the six new tests pass against the old gallery, which is correct and worth saying: they are
+the negative cases — no audiences, and no permission — and the old code satisfied both by having no
+feature at all. The other four fail without it.
+
+Segments 78% → **82%**. Canonical average 82.4% → **82.5%**.
+
+PASS: frontend **977 passed across 58 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at **1,733 passed, 0 skipped** against live MySQL 8 (this milestone touches no
+backend file).
+
 ## SEG-01 — the reachability audiences, and a recommendation of mine that was wrong (2026-09-17)
 
 Two quick-start audiences built on SCAN-02's rule, and a correction to advice I gave the owner an

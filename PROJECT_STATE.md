@@ -1,5 +1,42 @@
 # Project State
 
+## SEG-02 — the team's own audiences, offered where somebody would look for them (2026-09-17)
+
+The discoverability gap SEG-01 named, closed. Frontend 971 → **977** across **58 files**; no
+backend change, no migration, contract unchanged.
+
+Every segment is already visible to the whole organization — there is no private/shared
+distinction on the model — and any of them could always be copied from the list's Duplicate action.
+What was missing was smaller and more human than the feature I had wrongly told the owner was
+absent: somebody building their first audience **never saw them**. The quick-start gallery offered
+ten built-in recipes and nothing the team itself had written, so a colleague's work was
+discoverable only if you already knew to scroll to the list and press Duplicate.
+
+The gallery now shows **Start from your team's audiences** beneath the built-in row, carrying the
+same `duplicateOf` state the Duplicate action uses. An entry point, not a second copy path.
+
+Four small decisions, each with a reason:
+
+- **The four most recent, not all of them.** Fifty audiences would bury the built-in recipes under
+  a wall of the team's own history, and the rest are one link away in the list this page already
+  renders.
+- **Nothing at all when the team has built none.** A heading over an empty row reads as something
+  broken rather than something unused.
+- **The condition count when a segment has no description.** "3 conditions" is a weaker label than
+  a sentence somebody wrote, and a better one than blank space.
+- **Read from the cache, not a second request.** `useSegments` is already resolved for the list on
+  this same page.
+
+Two of the six new tests pass against the old gallery, which is correct and worth saying: they are
+the negative cases — no audiences, and no permission — and the old code satisfied both by having no
+feature at all. The other four fail without it.
+
+Segments 78% → **82%**. Canonical average 82.4% → **82.5%**.
+
+PASS: frontend **977 passed across 58 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at **1,733 passed, 0 skipped** against live MySQL 8 (this milestone touches no
+backend file).
+
 ## SEG-01 — the reachability audiences, and a recommendation of mine that was wrong (2026-09-17)
 
 Two quick-start audiences built on SCAN-02's rule, and a correction to advice I gave the owner an
@@ -1420,7 +1457,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2553: simple unweighted average **82.4%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2557: simple unweighted average **82.5%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |
