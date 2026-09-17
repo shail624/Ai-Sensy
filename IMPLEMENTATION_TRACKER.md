@@ -1,5 +1,44 @@
 # Implementation Tracker (canonical)
 
+## CORE-23 — deciding what happens to a parked webhook (2026-09-17)
+
+`POST /api/v1/webhooks/dead-letter/{id}/replay` and `.../discard` complete Doc 04 §23 for the
+dead-letter queue. Contract 244 → 246 paths. No migration, no new permission — both take
+`webhooks:manage`, as §23 specifies.
+
+CORE-22 made the queue visible. Visible is not enough: the queue exists so that a human decides,
+and a screen that shows an operator the error without a way to act on it leaves them exactly where
+they started. Replay puts the event back through `process_webhook_event`; discard closes it
+without processing. Both are audited.
+
+**Replay is idempotent, as §23 requires.** Replaying an entry already marked replayed returns it
+unchanged rather than queueing a second pass. An operator who clicks twice, or a request the
+browser retried, must not double-apply an event whose entire purpose was to apply once. The two
+terminal states refuse each other in both directions: a discarded entry cannot be replayed, and a
+replayed one cannot be discarded — the event was applied, and recording it as discarded afterwards
+would leave the queue claiming nothing happened when something did.
+
+**A finding in this milestone's own first draft.** §23.1 keeps `webhook_events` 90 days against the
+dead letter's 180 and says "only events still within retention are replayable", so the service was
+written with an explicit retention check returning 409. The test for it failed with 404 — and the
+404 was right. Ownership is read through the source event, so once that row ages out the entry
+belongs to no organization: it leaves the listing and is unreachable by id. The retention branch
+could never execute. It was removed rather than left as code that documents a case it never sees,
+and a 409 would in any event have had to describe a row the operator was never shown. The test now
+asserts the real behaviour and that the listing agrees with it.
+
+The two client hooks are written out separately instead of sharing a path template. The generated
+client types each path, and the one thing worth keeping is that these calls are checked against the
+contract; a shared helper would have had to cast that away. Both buttons lock while either is in
+flight — replay is idempotent on the server, but a second click that appears to work and does
+nothing teaches an operator to distrust the button.
+
+PASS: backend **1,692 passed, 0 skipped** with 9 new tests, covering the queued replay, the
+idempotent second replay, both terminal-state refusals, an aged-out source, cross-tenant refusal
+and the permission gate. Frontend **949 passed across 56 files** (was 946) with 3 new tests.
+Regenerated OpenAPI and TypeScript with no drift; Ruff, strict mypy, ESLint, TypeScript and the
+production build clean.
+
 ## TMPL-01 — how each template has actually performed (2026-09-17)
 
 `GET /api/v1/templates/usage` reports, per template, how many campaigns used it, how many people it

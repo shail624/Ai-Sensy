@@ -13,6 +13,7 @@ same operator who would act on the answer.
 
 from __future__ import annotations
 
+import uuid as uuidlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -124,3 +125,53 @@ async def list_webhook_dead_letters(
             limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total
         ),
     )
+
+
+@router.post(
+    "/dead-letter/{entry_id}/replay",
+    response_model=WebhookDeadLetterResponse,
+    summary="Replay a dead-lettered event",
+)
+async def replay_dead_letter(
+    entry_id: uuidlib.UUID, session: SessionDep, actor: WebhookOperator
+) -> WebhookDeadLetterResponse:
+    """Put a parked event back through processing.
+
+    Idempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged
+    rather than queueing a second pass. An operator who clicks twice — or a request the browser
+    retried — must not double-apply an event whose whole point was that it applies once.
+
+    Refused once the source event has passed its 90-day retention (§23.1). The payload stays here
+    for inspection, but the row the processor works from is gone, and recreating one would make a
+    second event out of the same delivery.
+    """
+    from app.channels.tasks import process_webhook_event
+
+    entry = await WebhookOperationsService(session).replay(
+        actor.organization_id,
+        entry_id,
+        actor_user_id=actor.id,
+        dispatch=lambda event_pk: process_webhook_event.apply_async(args=[event_pk]),
+    )
+    return WebhookDeadLetterResponse.from_entry(entry)
+
+
+@router.post(
+    "/dead-letter/{entry_id}/discard",
+    response_model=WebhookDeadLetterResponse,
+    summary="Discard a dead-lettered event",
+)
+async def discard_dead_letter(
+    entry_id: uuidlib.UUID, session: SessionDep, actor: WebhookOperator
+) -> WebhookDeadLetterResponse:
+    """Close a parked event without processing it.
+
+    The queue exists so somebody decides; discarding is that decision written down, and it is
+    audited like any other. Discarding an already-replayed entry is refused — the event was
+    applied, and recording it as discarded afterwards would leave the queue claiming nothing
+    happened when something did.
+    """
+    entry = await WebhookOperationsService(session).discard(
+        actor.organization_id, entry_id, actor_user_id=actor.id
+    )
+    return WebhookDeadLetterResponse.from_entry(entry)

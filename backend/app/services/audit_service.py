@@ -112,6 +112,8 @@ class AuditAction:
     CHANNEL_MEDIA_REFERENCE_UPDATED = "channel_media_reference.updated"
     WEBHOOK_VERIFIED = "webhook.verified"
     WEBHOOK_DEAD_LETTERED = "webhook.dead_lettered"
+    WEBHOOK_DEAD_LETTER_REPLAYED = "webhook.dead_letter_replayed"
+    WEBHOOK_DEAD_LETTER_DISCARDED = "webhook.dead_letter_discarded"
     MESSAGE_SENT = "message.sent"
     TEMPLATE_CREATED = "template.created"
     TEMPLATE_UPDATED = "template.updated"

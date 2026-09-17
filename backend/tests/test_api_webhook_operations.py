@@ -292,3 +292,187 @@ async def test_reading_requires_the_webhooks_permission(client, make_user, url: 
     denied = await client.get(url, headers=await _headers(client, "nobody@vi.co"))
 
     assert denied.status_code == 403
+
+
+# --- Replay and discard (Doc 04 §23) ------------------------------------------------------------
+async def _dead_letter(db_session, source_event_id: int | None, **kwargs) -> WebhookDeadLetter:
+    entry = WebhookDeadLetter(
+        source_event_id=source_event_id,
+        payload_json={"redacted": True},
+        error_detail="contact lookup timed out",
+        attempts=5,
+        status=kwargs.pop("status", "pending"),
+        **kwargs,
+    )
+    db_session.add(entry)
+    await db_session.flush()
+    return entry
+
+
+async def _replay(client, headers, entry_id: str):
+    return await client.post(f"{DLQ_URL}/{entry_id}/replay", headers=headers)
+
+
+async def _discard(client, headers, entry_id: str):
+    return await client.post(f"{DLQ_URL}/{entry_id}/discard", headers=headers)
+
+
+async def test_replaying_queues_the_original_event_again(
+    client, db_session, organization, make_user, monkeypatch
+) -> None:
+    queued: list[int] = []
+    from app.channels import tasks as channel_tasks
+
+    monkeypatch.setattr(
+        channel_tasks.process_webhook_event,
+        "apply_async",
+        lambda args=None, **kwargs: queued.append(args[0]),
+    )
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+
+    replayed = await _replay(client, await _headers(client, "ops@vi.co"), entry.public_id)
+
+    assert replayed.status_code == 200
+    assert replayed.json()["status"] == "replayed"
+    assert replayed.json()["replayed_at"] is not None
+    assert queued == [source.id]
+
+
+async def test_replaying_twice_does_not_apply_the_event_twice(
+    client, db_session, organization, make_user, monkeypatch
+) -> None:
+    """Idempotent per Doc 04 section 23.
+
+    An operator who clicks twice, or a request the browser retried, must not double-apply an event
+    whose entire purpose was to be applied once.
+    """
+    queued: list[int] = []
+    from app.channels import tasks as channel_tasks
+
+    monkeypatch.setattr(
+        channel_tasks.process_webhook_event,
+        "apply_async",
+        lambda args=None, **kwargs: queued.append(args[0]),
+    )
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+    headers = await _headers(client, "ops@vi.co")
+
+    first = await _replay(client, headers, entry.public_id)
+    second = await _replay(client, headers, entry.public_id)
+
+    assert first.status_code == second.status_code == 200
+    assert second.json()["status"] == "replayed"
+    assert queued == [source.id]  # queued once, not twice
+
+
+async def test_an_event_past_its_retention_is_not_replayable_by_anyone(
+    client, db_session, organization, make_user
+) -> None:
+    """`webhook_events` is kept 90 days, dead letters 180 (Doc 04 section 23.1).
+
+    "Only events still within retention are replayable" needs no explicit check: ownership is read
+    through the source event, so once it ages out the entry belongs to nobody — it leaves the
+    listing and answers 404 here. A 409 saying "too old" would have to describe a row the operator
+    was never shown.
+    """
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+    await db_session.delete(source)  # the source aged out
+    await db_session.commit()
+    headers = await _headers(client, "ops@vi.co")
+
+    assert (await _replay(client, headers, entry.public_id)).status_code == 404
+    assert (await _discard(client, headers, entry.public_id)).status_code == 404
+    # And it is gone from the listing too, so the two surfaces agree.
+    assert (await client.get(DLQ_URL, headers=headers)).json()["data"] == []
+
+
+async def test_discarding_closes_an_entry_without_processing_it(
+    client, db_session, organization, make_user
+) -> None:
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+
+    discarded = await _discard(client, await _headers(client, "ops@vi.co"), entry.public_id)
+
+    assert discarded.status_code == 200
+    assert discarded.json()["status"] == "discarded"
+    assert discarded.json()["replayed_at"] is None
+
+
+async def test_a_replayed_entry_cannot_then_be_discarded(
+    client, db_session, organization, make_user
+) -> None:
+    """The event was applied; recording it as discarded would leave the queue claiming otherwise."""
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id, status="replayed")
+    await db_session.commit()
+
+    refused = await _discard(client, await _headers(client, "ops@vi.co"), entry.public_id)
+
+    assert refused.status_code == 409
+
+
+async def test_a_discarded_entry_cannot_then_be_replayed(
+    client, db_session, organization, make_user
+) -> None:
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id, status="discarded")
+    await db_session.commit()
+
+    refused = await _replay(client, await _headers(client, "ops@vi.co"), entry.public_id)
+
+    assert refused.status_code == 409
+
+
+async def test_another_organizations_entry_cannot_be_replayed_or_discarded(
+    client, db_session, organization, make_user
+) -> None:
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    other = Organization(name="Other Telco", slug="other-telco")
+    db_session.add(other)
+    await db_session.flush()
+    theirs = await _number(db_session, other.id, "B")
+    their_event = await _event(db_session, phone_number_id=theirs.id, event_id="t", status="failed")
+    entry = await _dead_letter(db_session, their_event.id)
+    await db_session.commit()
+    headers = await _headers(client, "ops@vi.co")
+
+    assert (await _replay(client, headers, entry.public_id)).status_code == 404
+    assert (await _discard(client, headers, entry.public_id)).status_code == 404
+
+
+@pytest.mark.parametrize("action", ["replay", "discard"])
+async def test_acting_on_the_queue_requires_the_webhooks_permission(
+    client, db_session, organization, make_user, action: str
+) -> None:
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    await make_user(email="nobody@vi.co", password=PASSWORD)
+    number = await _number(db_session, organization.id, "A")
+    source = await _event(db_session, phone_number_id=number.id, event_id="e1", status="failed")
+    entry = await _dead_letter(db_session, source.id)
+    await db_session.commit()
+
+    denied = await client.post(
+        f"{DLQ_URL}/{entry.public_id}/{action}", headers=await _headers(client, "nobody@vi.co")
+    )
+
+    assert denied.status_code == 403

@@ -179,3 +179,21 @@ class WebhookDeadLetterRepository(BaseRepository[WebhookDeadLetter]):
             clauses.append(WebhookDeadLetter.status == status)
         stmt = select(func.count()).select_from(WebhookDeadLetter).where(*clauses)
         return int(await self.session.scalar(stmt) or 0)
+
+    async def get_for_organization(
+        self, organization_id: int, public_id: bytes
+    ) -> WebhookDeadLetter | None:
+        """One dead letter this organization owns, or nothing.
+
+        Ownership is the source event's, exactly as the listing reads it, so an entry whose source
+        has aged out is invisible here too — and therefore not replayable or discardable by anyone,
+        which is the correct answer for a row nobody can be shown to own.
+        """
+        return (
+            await self.session.scalars(
+                select(WebhookDeadLetter).where(
+                    WebhookDeadLetter.uuid == public_id,
+                    _organization_clause(organization_id),
+                )
+            )
+        ).first()

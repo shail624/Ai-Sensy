@@ -6358,6 +6358,104 @@
         }
       }
     },
+    "/api/v1/webhooks/dead-letter/{entry_id}/replay": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Replay a dead-lettered event",
+        "description": "Put a parked event back through processing.\n\nIdempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged\nrather than queueing a second pass. An operator who clicks twice — or a request the browser\nretried — must not double-apply an event whose whole point was that it applies once.\n\nRefused once the source event has passed its 90-day retention (§23.1). The payload stays here\nfor inspection, but the row the processor works from is gone, and recreating one would make a\nsecond event out of the same delivery.",
+        "operationId": "replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeadLetterResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/dead-letter/{entry_id}/discard": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Discard a dead-lettered event",
+        "description": "Close a parked event without processing it.\n\nThe queue exists so somebody decides; discarding is that decision written down, and it is\naudited like any other. Discarding an already-replayed entry is refused — the event was\napplied, and recording it as discarded afterwards would leave the queue claiming nothing\nhappened when something did.",
+        "operationId": "discard_dead_letter_api_v1_webhooks_dead_letter__entry_id__discard_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeadLetterResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/messages/send": {
       "post": {
         "tags": [

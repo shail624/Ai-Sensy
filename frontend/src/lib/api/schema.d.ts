@@ -1859,6 +1859,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/dead-letter/{entry_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay a dead-lettered event
+         * @description Put a parked event back through processing.
+         *
+         *     Idempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged
+         *     rather than queueing a second pass. An operator who clicks twice — or a request the browser
+         *     retried — must not double-apply an event whose whole point was that it applies once.
+         *
+         *     Refused once the source event has passed its 90-day retention (§23.1). The payload stays here
+         *     for inspection, but the row the processor works from is gone, and recreating one would make a
+         *     second event out of the same delivery.
+         */
+        post: operations["replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/dead-letter/{entry_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard a dead-lettered event
+         * @description Close a parked event without processing it.
+         *
+         *     The queue exists so somebody decides; discarding is that decision written down, and it is
+         *     audited like any other. Discarding an already-replayed entry is refused — the event was
+         *     applied, and recording it as discarded afterwards would leave the queue claiming nothing
+         *     happened when something did.
+         */
+        post: operations["discard_dead_letter_api_v1_webhooks_dead_letter__entry_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/messages/send": {
         parameters: {
             query?: never;
@@ -15091,6 +15144,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WebhookDeadLetterPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_dead_letter_api_v1_webhooks_dead_letter__entry_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterResponse"];
                 };
             };
             /** @description Validation Error */

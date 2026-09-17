@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,12 +20,16 @@ const state = vi.hoisted(() => ({
     error: null as unknown,
     refetch: vi.fn(),
   },
+  replay: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
+  discard: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
 }));
 
 vi.mock("@/features/operations/api", () => ({
   useHasPermission: () => state.canOperate,
   useWebhookEvents: () => state.events,
   useWebhookDeadLetters: () => state.deadLetters,
+  useReplayDeadLetter: () => state.replay,
+  useDiscardDeadLetter: () => state.discard,
 }));
 
 vi.mock("@/features/channels/api", () => ({
@@ -36,6 +40,15 @@ vi.mock("@/features/channels/api", () => ({
 function page<T>(rows: T[], total: number) {
   return { data: rows, page: { limit: 50, has_more: false, next_cursor: null, total } };
 }
+
+const parked = {
+  id: "11111111-1111-4111-8111-111111111111",
+  error_detail: "contact lookup timed out",
+  attempts: 5,
+  status: "pending",
+  created_at: "2026-09-16T08:00:00Z",
+  replayed_at: null,
+};
 
 const delivery = {
   event_id: "wamid.ABC",
@@ -59,6 +72,8 @@ beforeEach(() => {
   state.canOperate = true;
   state.events = { data: page([delivery], 1), isPending: false, isError: false, error: null, refetch: vi.fn() };
   state.deadLetters = { data: page([], 0), isPending: false, isError: false, error: null, refetch: vi.fn() };
+  state.replay = { mutate: vi.fn(), isPending: false, isError: false, error: null };
+  state.discard = { mutate: vi.fn(), isPending: false, isError: false, error: null };
 });
 
 describe("WebhooksPanel", () => {
@@ -149,5 +164,44 @@ describe("WebhooksPanel", () => {
 
     expect(screen.getByText("Parked for a human")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("offers a parked event both decisions the queue exists to force", () => {
+    // The queue's purpose is that somebody decides. Showing the error without a way to act on it
+    // leaves the operator exactly where they started.
+    state.deadLetters.data = page([parked], 1);
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(state.replay.mutate).toHaveBeenCalledWith(parked.id);
+    expect(state.discard.mutate).toHaveBeenCalledWith(parked.id);
+  });
+
+  it("locks both buttons while one of them is in flight", () => {
+    // Replay is idempotent on the server, but a second click that appears to work and does nothing
+    // teaches an operator to distrust the button.
+    state.deadLetters.data = page([parked], 1);
+    state.replay.isPending = true;
+
+    renderPanel();
+
+    expect(screen.getByRole("button", { name: "Try again" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+  });
+
+  it("surfaces a refused replay instead of leaving the row looking handled", () => {
+    state.deadLetters.data = page([parked], 1);
+    state.replay = {
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      error: new Error("That entry was discarded and cannot be replayed."),
+    };
+
+    renderPanel();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/cannot be replayed/i);
   });
 });

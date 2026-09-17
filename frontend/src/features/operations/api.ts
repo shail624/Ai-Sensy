@@ -157,3 +157,42 @@ export function useWebhookDeadLetters(status = "", enabled = true) {
     refetchIntervalInBackground: false,
   });
 }
+
+/**
+ * Put a parked event back through processing, or close it without doing so.
+ *
+ * Written out twice rather than shared behind a path template: the generated client types each
+ * path separately, and the one thing worth keeping here is that these calls are checked against
+ * the contract. A shared helper would have to cast that away.
+ *
+ * Both invalidate the whole operations key, because replaying changes the delivery list as well as
+ * the queue — a screen showing the entry gone while the delivery it produced was still missing
+ * would be worse than not refreshing at all.
+ */
+function useOperationsMutation<T>(mutationFn: (value: T) => Promise<unknown>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => void client.invalidateQueries({ queryKey: operationsKeys.all }),
+  });
+}
+
+export function useReplayDeadLetter() {
+  return useOperationsMutation(async (entryId: string) =>
+    unwrap(
+      await api.POST("/api/v1/webhooks/dead-letter/{entry_id}/replay", {
+        params: { path: { entry_id: entryId } },
+      }),
+    ),
+  );
+}
+
+export function useDiscardDeadLetter() {
+  return useOperationsMutation(async (entryId: string) =>
+    unwrap(
+      await api.POST("/api/v1/webhooks/dead-letter/{entry_id}/discard", {
+        params: { path: { entry_id: entryId } },
+      }),
+    ),
+  );
+}

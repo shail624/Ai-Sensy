@@ -2,9 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, Braces, FileClock, RadioTower, ServerCog, Webhook } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Badge, type BadgeTone, Card, CardHeader, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { Badge, type BadgeTone, Button, Card, CardHeader, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { useNumbers, useWabas } from "@/features/channels/api";
-import { useHasPermission, useWebhookDeadLetters, useWebhookEvents } from "@/features/operations/api";
+import {
+  useDiscardDeadLetter,
+  useHasPermission,
+  useReplayDeadLetter,
+  useWebhookDeadLetters,
+  useWebhookEvents,
+} from "@/features/operations/api";
 import { api } from "@/lib/api/client";
 import { apiErrorMessage, unwrap } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
@@ -89,6 +95,8 @@ export function WebhooksPanel(): JSX.Element {
   const canOperate = useHasPermission("webhooks:manage");
   const events = useWebhookEvents("", canOperate);
   const deadLetters = useWebhookDeadLetters("pending", canOperate);
+  const replay = useReplayDeadLetter();
+  const discard = useDiscardDeadLetter();
 
   if (wabas.isLoading || numbers.isLoading) return <Skeleton className="h-52 rounded-2xl" />;
   if (wabas.isError || numbers.isError) return <ErrorState message={apiErrorMessage(wabas.error ?? numbers.error)} />;
@@ -159,6 +167,7 @@ export function WebhooksPanel(): JSX.Element {
             ) : deadLetters.isError ? (
               <div className="mt-4"><ErrorState message={apiErrorMessage(deadLetters.error)} onRetry={() => void deadLetters.refetch()} /></div>
             ) : deadLetters.data && deadLetters.data.data.length > 0 ? (
+              <>
               <ul className="mt-4 space-y-2">
                 {deadLetters.data.data.map((entry) => (
                   <li key={entry.id} className="rounded-xl border border-border bg-surface-subtle p-3">
@@ -167,9 +176,35 @@ export function WebhooksPanel(): JSX.Element {
                       <Badge tone="neutral">{entry.attempts} attempts</Badge>
                     </div>
                     <p className="mt-1 text-sm text-text-primary">{entry.error_detail ?? "No error was recorded."}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={replay.isPending || discard.isPending}
+                        onClick={() => replay.mutate(entry.id)}
+                      >
+                        Try again
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={replay.isPending || discard.isPending}
+                        onClick={() => discard.mutate(entry.id)}
+                      >
+                        Discard
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
+              {replay.isError || discard.isError ? (
+                <p role="alert" className="mt-3 text-xs text-danger">
+                  {apiErrorMessage(replay.error ?? discard.error)}
+                </p>
+              ) : null}
+              </>
             ) : (
               <div className="mt-4"><EmptyState title="Nothing is parked" description="Every event that arrived was processed or recognised as a duplicate." /></div>
             )}
