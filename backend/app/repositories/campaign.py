@@ -46,6 +46,27 @@ class CampaignRepository(BaseRepository[Campaign]):
         return (await self.session.scalars(stmt)).first()
 
 
+    async def refresh_replied(self, campaign_id: int) -> None:
+        """Re-derive ``replied_count`` from the roster, the way every sibling counter is derived.
+
+        Recomputed rather than incremented for the reason ``refresh_progress`` gives: an increment
+        that replays or races produces a counter nobody can reconcile, and the roster is the
+        authority anyway.
+        """
+        campaign = await self.get_by_id(campaign_id)
+        if campaign is None:
+            return
+        stmt = (
+            select(func.count())
+            .select_from(CampaignRecipient)
+            .where(
+                CampaignRecipient.campaign_id == campaign_id,
+                CampaignRecipient.replied_at.is_not(None),
+            )
+        )
+        campaign.replied_count = int(await self.session.scalar(stmt) or 0)
+        await self.session.flush()
+
 class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
     model = CampaignRecipient
 
@@ -271,6 +292,49 @@ class CampaignRecipientRepository(BaseRepository[CampaignRecipient]):
         )
         return {c.id: c for c in (await self.session.scalars(stmt)).all()}
 
+
+    async def mark_replied(self, contact_id: int, when: datetime) -> int | None:
+        """Note that a contact wrote back, against the campaign that last reached them.
+
+        Attribution is the campaign whose message they most recently *received* -- not merely one
+        they were rostered into -- because a reply answers something that arrived. Nothing is
+        invented here: the send already stamped ``sent_at`` on that row.
+
+        Only the first reply counts. A customer sending five messages is one customer who replied,
+        and a counter that moved on each of them would be measuring their typing rather than the
+        campaign's reach.
+
+        Returns the campaign id whose counter is now stale, or ``None`` when this contact was in no
+        campaign, which is the ordinary case for an inbound message.
+        """
+        stmt = (
+            select(CampaignRecipient)
+            .where(
+                CampaignRecipient.contact_id == contact_id,
+                CampaignRecipient.sent_at.is_not(None),
+                CampaignRecipient.replied_at.is_(None),
+            )
+            .order_by(CampaignRecipient.sent_at.desc())
+            .limit(1)
+        )
+        row = (await self.session.scalars(stmt)).first()
+        if row is None:
+            return None
+        row.replied_at = when
+        await self.session.flush()
+        return row.campaign_id
+
+    async def replied_count(self, campaign_id: int) -> int:
+        """How many of this campaign's recipients wrote back."""
+        stmt = (
+            select(func.count())
+            .select_from(CampaignRecipient)
+            .where(
+                CampaignRecipient.campaign_id == campaign_id,
+                CampaignRecipient.replied_at.is_not(None),
+            )
+        )
+        return int(await self.session.scalar(stmt) or 0)
 
 class CampaignBatchRepository(BaseRepository[CampaignBatch]):
     model = CampaignBatch

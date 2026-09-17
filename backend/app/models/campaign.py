@@ -301,6 +301,10 @@ class CampaignRecipient(IntPKMixin, Base):
     delivered_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    #: When this contact first wrote back after the campaign reached them. The reply itself lives
+    #: in the message ledger; this is the roster's note that it happened, so ``replied_count`` can
+    #: be derived like every other counter instead of being incremented from an event.
+    replied_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid

@@ -42,6 +42,10 @@ from app.models.message import (
     MessageStatusHistory,
     advances,
 )
+from app.repositories.campaign import (
+    CampaignRecipientRepository,
+    CampaignRepository,
+)
 from app.repositories.channel_connection import (
     ChannelConnectionRepository,
     ChannelEndpointRepository,
@@ -96,6 +100,8 @@ class MessageService:
         self._contacts = ContactRepository(session)
         self._events = WebhookEventRepository(session)
         self._conversations = ConversationService(session)
+        self._recipients = CampaignRecipientRepository(session)
+        self._campaigns = CampaignRepository(session)
         self._operations = InboxOperationsService(session)
         self._business_events = BusinessEventService(session)
         self._send = SendService(session)
@@ -118,6 +124,32 @@ class MessageService:
         return conversation.public_id if conversation else ""
 
     # --- Inbound (Doc 06 §2.3 ``inbound.process``) --------------------------
+    async def _note_campaign_reply(self, contact: Contact, occurred_at: datetime) -> None:
+        """Mark that this contact answered the campaign that last reached them.
+
+        ``campaigns.replied_count`` has been on the model, in the API and on the campaign screen
+        since the schema was written, and nothing ever wrote it -- so every campaign reported
+        "Replies: 0 (0% of delivered)" for its whole life, on the one number a reactivation
+        campaign exists to produce.
+
+        Recorded here rather than counted later because the alternative is a self-join across the
+        message ledger on every progress refresh, and that refresh runs after every send. One
+        indexed lookup per *inbound* message is the cheaper side of that trade by a wide margin:
+        inbound volume is a fraction of outbound, and ``ix_crecip_contact`` already exists.
+
+        Deliberately not fatal. A reply is recorded in the ledger whatever happens here, and losing
+        an inbound customer message because a counter could not be updated would be the wrong way
+        round.
+        """
+        try:
+            campaign_id = await self._recipients.mark_replied(contact.id, occurred_at)
+            if campaign_id is not None:
+                await self._campaigns.refresh_replied(campaign_id)
+        except Exception:  # noqa: BLE001 - a counter must never cost an inbound message
+            logger.warning(
+                "campaign_reply_not_recorded", extra={"contact": contact.id}, exc_info=True
+            )
+
     async def apply_inbound(self, event_pk: int) -> dict[str, Any]:
         """Turn a persisted inbound event into contact + thread + ledger row (FR-WA-06).
 
@@ -200,6 +232,7 @@ class MessageService:
             preview=ConversationService.preview_of(message.message_type, message.content),
             occurred_at=occurred_at,
         )
+        await self._note_campaign_reply(contact, occurred_at)
         _, automation_receipts = await self._business_events.record_message_received(
             message=stored,
             conversation=conversation,
@@ -346,6 +379,7 @@ class MessageService:
             preview=ConversationService.preview_of(message.message_type, message.content),
             occurred_at=occurred_at,
         )
+        await self._note_campaign_reply(contact, occurred_at)
         _, automation_receipts = await self._business_events.record_message_received(
             message=stored,
             conversation=conversation,

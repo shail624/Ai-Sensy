@@ -1,5 +1,56 @@
 # Project State
 
+## CAM-REPLY-01 — the number every campaign screen printed and nothing measured (2026-09-17)
+
+`campaigns.replied_count` has been on the model, in the API response and printed on every campaign
+screen as **"Replies: N (X% of delivered)"** since the schema was written. Nothing ever wrote it.
+Every campaign has reported **zero replies for its whole life** — a confident, specific number,
+never measured, on the one metric a *reactivation* campaign exists to produce. Backend 1,723 →
+**1,726**; one migration, `0064_recipient_replied_at`; contract unchanged at 247 paths.
+
+Worse than a blank. A blank invites a question; "0 (0% of delivered)" answers one. An operator
+comparing two templates by reply rate saw 0% for both and could only conclude that neither worked.
+
+**Nothing could have recomputed it, either.** `refresh_progress` derives every other counter from
+the roster — deliberately, because "an increment that replays or races produces a counter nobody
+can reconcile" — and the roster had no reply to derive from. So the fact is recorded where the rest
+of a recipient's history already lives, and the counter joins its siblings in being derived.
+
+**The attribution rule invents nothing.** A reply is counted against the campaign whose message
+that contact most recently *received* — not one they were merely rostered into — because the send
+already stamped `sent_at` on exactly that row. And only the first reply counts: a customer sending
+five messages is one customer who replied, and a counter that moved on each would be measuring
+their typing rather than the campaign's reach.
+
+**Recorded on the way in, not counted on the way out.** The alternative is a self-join across the
+message ledger on every progress refresh, and that refresh runs after every send — at 200,000
+recipients that is the same mistake PERF-01 and PERF-02 were about. One indexed lookup per
+*inbound* message is the cheaper side by a wide margin: inbound volume is a fraction of outbound,
+and `ix_crecip_contact` already exists from PERF-02.
+
+**A counter must never cost an inbound message.** The hook is wrapped: a reply is in the ledger
+whatever happens, and losing a customer's message because a statistic could not be updated would
+be exactly the wrong way round. A failure logs and the message lands.
+
+The column is nullable and unindexed on purpose. Counting is always scoped to one campaign, which
+`uq_crecip_campaign_contact` already leads with, so a second index would be paid for on every
+insert into a 200,000-row ledger to serve a query that is already selective. The table is
+range-partitioned, so a *unique* key would have had to include `created_at` — nothing here needs
+one.
+
+Migration applied, downgraded and re-applied against the live MySQL 8 carrying 200,000 recipient
+rows; the rows survived the round trip. `tests/test_migrations.py` pins the head revision and was
+updated with it — the same tripwire that caught PERF-02.
+
+Campaigns 97% → 98%, Analytics 82% → 83%. The canonical 31-module average moves 81.0% → **81.1%**.
+
+PASS: backend **1,726 passed, 0 skipped** against live MySQL 8 (557.1s); frontend **964 passed
+across 57 files** (no frontend change — the number it already printed is simply true now); OpenAPI
+unchanged at 247 paths; Ruff, strict mypy (331 files), ESLint, TypeScript and the production build
+clean. All three new tests were run against the code they describe first; two failed, and the third
+— "a stranger's message counts nothing" — passed before the fix, which is correct, because nothing
+counted anything.
+
 ## CAM-DRIFT-01 — the template moved after the campaign was built (2026-09-17)
 
 The same total-campaign failure as the last two milestones, arriving through a third door: not
@@ -1163,7 +1214,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2513: simple unweighted average **81.0%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2515: simple unweighted average **81.1%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

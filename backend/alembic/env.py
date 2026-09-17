@@ -15,12 +15,11 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.core.config import settings
-from app.db.base import Base
-
 # Import the model registry so every table registers on ``Base.metadata`` for
 # autogenerate (Doc 03 Identity & Access domain, added in Module 1 Step 2).
 from app import models  # noqa: F401,E402
+from app.core.config import settings
+from app.db.base import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.sqlalchemy_database_uri)
