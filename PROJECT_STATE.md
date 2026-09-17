@@ -1,5 +1,43 @@
 # Project State
 
+## SRCH-01 — the palette can find the records this platform is about (2026-09-17)
+
+`Ctrl+K` searched contacts, campaigns, templates, numbers, users, tasks, media and conversations.
+It could not find a **segment**, a **tag**, or a **reactivation case** — which for a reactivation
+platform means it could not find the record the whole business turns on. Frontend 977 → **982**
+across **59 files**; no backend change, no migration, contract unchanged.
+
+Three sources added, each gated on the permission that owns it and asked for **before** the request
+rather than filtered out of the answer:
+
+- **Segments** (`segments:read`) — by name, described by its own description or its condition count.
+- **Tags** (`contacts:read`) — with the contact count, because a tag nobody uses looks identical to
+  one on half the roster without it.
+- **Reactivation cases** (`reactivation:read`) — by the customer on them, through
+  `/reactivation-pipeline`, the one Vi-domain list with a real `q` of its own.
+
+**KYC cases, SIM orders and activation records are not indexed, and that is not an omission.** All
+three are addressed per contact or per case — `/kyc-cases?contact_id=…`, `/sim-orders?case_id=…` —
+so there is nothing to search globally without an endpoint that does not exist. Inventing one to
+fill a palette would be building the feature in the wrong order, and the reactivation case already
+carries the customer these records hang off.
+
+**A staleness fix, found by writing the test.** The placeholder read *"Search contacts, campaigns,
+templates, numbers, tasks…"* — five sources, when the palette reached eight even before this. A
+promise printed on the control ages exactly the way a contract description does, which this
+repository has now been caught by three times in one day. It names what it searches.
+
+One thing checked and deliberately **not** changed: the input looked like it had no accessible name,
+and it has one — an `sr-only` label reading "Search the workspace". The test was corrected instead
+of the component. Working code does not move to suit a test.
+
+Global Search 85% → **92%**.
+
+PASS: frontend **982 passed across 59 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at 1,735 passed, 0 skipped. Four of the five new tests fail against the old
+palette; the fifth — "asks for nothing the signed-in user may not read" — passes on both, because
+code that never made the request satisfies it trivially.
+
 ## DL-01 — a scan export you can tell apart in the Download Center (2026-09-17)
 
 `MODULE_STATUS` asked the Download Center to "add compliant Scan-result sources". It already has
@@ -1483,7 +1521,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2557: simple unweighted average **82.5%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2566: simple unweighted average **82.8%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

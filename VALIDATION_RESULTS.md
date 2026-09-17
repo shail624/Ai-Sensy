@@ -1,5 +1,43 @@
 # Validation Results
 
+## SRCH-01 — the palette can find the records this platform is about (2026-09-17)
+
+`Ctrl+K` searched contacts, campaigns, templates, numbers, users, tasks, media and conversations.
+It could not find a **segment**, a **tag**, or a **reactivation case** — which for a reactivation
+platform means it could not find the record the whole business turns on. Frontend 977 → **982**
+across **59 files**; no backend change, no migration, contract unchanged.
+
+Three sources added, each gated on the permission that owns it and asked for **before** the request
+rather than filtered out of the answer:
+
+- **Segments** (`segments:read`) — by name, described by its own description or its condition count.
+- **Tags** (`contacts:read`) — with the contact count, because a tag nobody uses looks identical to
+  one on half the roster without it.
+- **Reactivation cases** (`reactivation:read`) — by the customer on them, through
+  `/reactivation-pipeline`, the one Vi-domain list with a real `q` of its own.
+
+**KYC cases, SIM orders and activation records are not indexed, and that is not an omission.** All
+three are addressed per contact or per case — `/kyc-cases?contact_id=…`, `/sim-orders?case_id=…` —
+so there is nothing to search globally without an endpoint that does not exist. Inventing one to
+fill a palette would be building the feature in the wrong order, and the reactivation case already
+carries the customer these records hang off.
+
+**A staleness fix, found by writing the test.** The placeholder read *"Search contacts, campaigns,
+templates, numbers, tasks…"* — five sources, when the palette reached eight even before this. A
+promise printed on the control ages exactly the way a contract description does, which this
+repository has now been caught by three times in one day. It names what it searches.
+
+One thing checked and deliberately **not** changed: the input looked like it had no accessible name,
+and it has one — an `sr-only` label reading "Search the workspace". The test was corrected instead
+of the component. Working code does not move to suit a test.
+
+Global Search 85% → **92%**.
+
+PASS: frontend **982 passed across 59 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at 1,735 passed, 0 skipped. Four of the five new tests fail against the old
+palette; the fifth — "asks for nothing the signed-in user may not read" — passes on both, because
+code that never made the request satisfies it trivially.
+
 ## DL-01 — a scan export you can tell apart in the Download Center (2026-09-17)
 
 `MODULE_STATUS` asked the Download Center to "add compliant Scan-result sources". It already has
