@@ -80,6 +80,7 @@ describe("Reactivation operational hierarchy", () => {
   });
 
   it("shows only connected sections permitted by the existing RBAC authority", () => {
+    // Neither sim:read nor activation:read, so neither fulfilment link may appear.
     mocks.permissions.value = ["reactivation:read", "documents:read"];
     renderRoute("/reactivation/pipeline");
     expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
@@ -90,12 +91,21 @@ describe("Reactivation operational hierarchy", () => {
     expect(screen.queryByRole("link", { name: "Activation" })).not.toBeInTheDocument();
   });
 
-  it("redirects historical operational links into factual filtered CRM views", () => {
+  it("opens the fulfilment queues rather than a filtered case list", () => {
+    // These two links used to redirect to the pipeline filtered by stage, which showed *cases* at
+    // the SIM stage and not the orders themselves -- no serial, no address, no dispatch state. The
+    // scope document said no standalone fulfilment workspace would be built; the owner asked for
+    // one (SIM-01), and these links now reach it.
     renderRoute("/reactivation/sim-orders");
-    expect(screen.getByText("Pipeline workspace")).toBeInTheDocument();
-    expect(screen.getByTestId("location")).toHaveTextContent(
-      "/reactivation/pipeline?stage=sim_required&view=list",
-    );
+    expect(screen.getByText("Fulfilment queues")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/reactivation/sim-orders");
+  });
+
+  it("reaches the same queues from the activation link", () => {
+    // One component for both: "what is waiting on us" is one question, and two screens would make
+    // an operator check twice to answer it once.
+    renderRoute("/reactivation/activation");
+    expect(screen.getByText("Fulfilment queues")).toBeInTheDocument();
   });
 
   it("redirects bulk eligibility to the existing governed import workflow", () => {

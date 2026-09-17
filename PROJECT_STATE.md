@@ -1,5 +1,51 @@
 # Project State
 
+## SIM-01 — the fulfilment queues the scope document said would not be built (2026-09-17)
+
+**Owner decision, recorded.** `MODULE_STATUS` carried, for SIM Orders, *"No standalone heavy UI is
+planned; future exceptional operations require an explicit owner instruction"*, and for Activation
+the same sentence about an Activation Queue. The owner has now given that instruction. This is that
+work, and the scope reversal is recorded here rather than left to be inferred from a diff.
+
+Frontend 983 → **993** across **60 files**; no backend change, no migration, contract unchanged.
+
+**The APIs have been complete since CORE-02.** Lifecycle, transitions, optimistic concurrency,
+idempotency, RBAC, audit and events — all of it, for both domains, with nothing to call them. The
+two nav links resolved to the reactivation pipeline filtered by stage, which shows *cases* at the
+SIM stage: no serial, no delivery address, no service area, no dispatch state. "What is waiting on
+us today" had no answer anywhere in the product, which is the one question a queue exists for.
+
+**Both domains, one screen.** SIM delivery and activation are two halves of the same question, and
+splitting them across two pages would make an operator check twice to answer it once. The `sim` and
+`activation` sections both render it; each half is gated on its own permission, so a reader with
+only `sim:read` sees only that queue.
+
+Four decisions worth stating:
+
+- **Boards by status, not flat lists.** The work moves left to right and a backlog should be
+  visible without counting rows, so every column carries its count.
+- **Settled work is folded away.** A queue that keeps showing delivered orders stops being a list
+  of what to do and becomes a list of what happened. One button brings it back.
+- **The row version travels from the row the operator looked at.** Two people working one queue is
+  the normal case, and the second must be *told* the order moved rather than silently overwrite the
+  first. The server can only tell them if it is given the version they saw.
+- **Only the moves that make sense are offered.** `SIM_NEXT` and `ACTIVATION_NEXT` never widen what
+  the API allows — the server remains the authority — they only stop somebody being offered
+  "requested" on an order already on a van.
+
+Search is by **serial, address or area**. An operator holds a serial off a physical SIM or an
+address off a phone call; nobody holds a UUID.
+
+**Three existing tests failed and were corrected, not deleted.** They pinned the old decision —
+that these links redirect, and that `Connected` is exactly `pipeline, kyc, documents, reports`.
+Those assertions were true when written and are now false, which is what a good pin does when a
+decision is reversed on purpose.
+
+SIM Orders 35% → **75%**. Activation 35% → **75%**. Canonical average 82.8% → **85.4%**.
+
+PASS: frontend **993 passed across 60 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at 1,735 passed, 0 skipped against live MySQL 8.
+
 ## SRCH-01 — the palette can find the records this platform is about (2026-09-17)
 
 `Ctrl+K` searched contacts, campaigns, templates, numbers, users, tasks, media and conversations.
@@ -1521,7 +1567,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2566: simple unweighted average **82.8%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2646: simple unweighted average **85.4%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

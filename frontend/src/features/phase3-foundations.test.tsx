@@ -65,7 +65,7 @@ describe("Phase 3 reactivation and automation foundations", () => {
     expect(REACTIVATION_SECTIONS.map((section) => section.key)).toEqual([
       "eligible", "bulk", "interested", "pipeline", "kyc", "documents", "sim", "activation", "completed", "reports",
     ]);
-    expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "kyc", "documents", "reports"]);
+    expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual(["pipeline", "kyc", "documents", "sim", "activation", "reports"]);
     expect(REACTIVATION_STAGE_BLUEPRINT).toEqual([
       "New Lead", "Lead Confirmed", "Documents Pending", "Documents Received",
       "KYC / Verification", "SIM Required", "Activation Pending", "Completed", "Not Required",

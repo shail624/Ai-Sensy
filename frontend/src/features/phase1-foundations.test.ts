@@ -99,8 +99,10 @@ describe("Phase 1 foundation boundaries", () => {
 
   it("labels reactivation foundations honestly while connecting reusable modules", () => {
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Foundation").length).toBeGreaterThan(0);
+    // SIM and activation joined the connected set with SIM-01: both had complete APIs since
+    // CORE-02 and no screen, so the links resolved to a filtered case list rather than the orders.
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual([
-      "pipeline", "kyc", "documents", "reports",
+      "pipeline", "kyc", "documents", "sim", "activation", "reports",
     ]);
   });
 });

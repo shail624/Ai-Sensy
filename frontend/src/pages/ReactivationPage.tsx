@@ -2,6 +2,7 @@ import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
 import { Badge } from "@/components/ui";
+import { FulfilmentQueues } from "@/features/fulfilment";
 import { KycOperationsWorkspace } from "@/features/kyc";
 import {
   DocumentCenter,
@@ -15,8 +16,6 @@ const LEGACY_REACTIVATION_REDIRECTS: Record<string, string> = {
   "/reactivation/eligible": "/reactivation/pipeline?view=list",
   "/reactivation/bulk-eligibility": "/contacts?import=1",
   "/reactivation/interested": "/reactivation/pipeline?stage=lead_confirmed&view=list",
-  "/reactivation/sim-orders": "/reactivation/pipeline?stage=sim_required&view=list",
-  "/reactivation/activation": "/reactivation/pipeline?stage=activation_pending&view=list",
   "/reactivation/completed": "/reactivation/pipeline?stage=completed&view=list",
 };
 
@@ -25,11 +24,15 @@ export function ReactivationPage(): JSX.Element {
   const canReadKyc = useHasPermission("kyc:read");
   const canReadDocuments = useHasPermission("documents:read");
   const canReadReports = useHasPermission("analytics:read");
+  const canReadSim = useHasPermission("sim:read");
+  const canReadActivation = useHasPermission("activation:read");
   const visibleSections = REACTIVATION_SECTIONS.filter((section) => {
     if (section.phase !== "Connected") return false;
     if (section.key === "kyc") return canReadKyc;
     if (section.key === "documents") return canReadDocuments;
     if (section.key === "reports") return canReadReports;
+    if (section.key === "sim") return canReadSim;
+    if (section.key === "activation") return canReadActivation;
     return true;
   });
   const active = visibleSections.find((section) => location.pathname.startsWith(section.path));
@@ -102,6 +105,10 @@ export function ReactivationWorkspace(): JSX.Element {
   const section = REACTIVATION_SECTIONS.find((item) => location.pathname.startsWith(item.path));
   if (section?.key === "pipeline") return <ReactivationPipelineBoard />;
   if (section?.key === "kyc") return <KycOperationsWorkspace />;
+  // Both render the same component: SIM delivery and activation are two halves of one fulfilment
+  // question -- "what is waiting on us" -- and splitting them across two screens would make an
+  // operator check twice to answer it once.
+  if (section?.key === "sim" || section?.key === "activation") return <FulfilmentQueues />;
   if (section?.key === "documents") return <DocumentCenter />;
   if (section?.key === "reports") return <ReactivationReports />;
 

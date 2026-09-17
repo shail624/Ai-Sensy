@@ -1,5 +1,51 @@
 # Final Product Implementation Roadmap
 
+## SIM-01 — the fulfilment queues the scope document said would not be built (2026-09-17)
+
+**Owner decision, recorded.** `MODULE_STATUS` carried, for SIM Orders, *"No standalone heavy UI is
+planned; future exceptional operations require an explicit owner instruction"*, and for Activation
+the same sentence about an Activation Queue. The owner has now given that instruction. This is that
+work, and the scope reversal is recorded here rather than left to be inferred from a diff.
+
+Frontend 983 → **993** across **60 files**; no backend change, no migration, contract unchanged.
+
+**The APIs have been complete since CORE-02.** Lifecycle, transitions, optimistic concurrency,
+idempotency, RBAC, audit and events — all of it, for both domains, with nothing to call them. The
+two nav links resolved to the reactivation pipeline filtered by stage, which shows *cases* at the
+SIM stage: no serial, no delivery address, no service area, no dispatch state. "What is waiting on
+us today" had no answer anywhere in the product, which is the one question a queue exists for.
+
+**Both domains, one screen.** SIM delivery and activation are two halves of the same question, and
+splitting them across two pages would make an operator check twice to answer it once. The `sim` and
+`activation` sections both render it; each half is gated on its own permission, so a reader with
+only `sim:read` sees only that queue.
+
+Four decisions worth stating:
+
+- **Boards by status, not flat lists.** The work moves left to right and a backlog should be
+  visible without counting rows, so every column carries its count.
+- **Settled work is folded away.** A queue that keeps showing delivered orders stops being a list
+  of what to do and becomes a list of what happened. One button brings it back.
+- **The row version travels from the row the operator looked at.** Two people working one queue is
+  the normal case, and the second must be *told* the order moved rather than silently overwrite the
+  first. The server can only tell them if it is given the version they saw.
+- **Only the moves that make sense are offered.** `SIM_NEXT` and `ACTIVATION_NEXT` never widen what
+  the API allows — the server remains the authority — they only stop somebody being offered
+  "requested" on an order already on a van.
+
+Search is by **serial, address or area**. An operator holds a serial off a physical SIM or an
+address off a phone call; nobody holds a UUID.
+
+**Three existing tests failed and were corrected, not deleted.** They pinned the old decision —
+that these links redirect, and that `Connected` is exactly `pipeline, kyc, documents, reports`.
+Those assertions were true when written and are now false, which is what a good pin does when a
+decision is reversed on purpose.
+
+SIM Orders 35% → **75%**. Activation 35% → **75%**. Canonical average 82.8% → **85.4%**.
+
+PASS: frontend **993 passed across 60 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at 1,735 passed, 0 skipped against live MySQL 8.
+
 ## SRCH-01 — the palette can find the records this platform is about (2026-09-17)
 
 `Ctrl+K` searched contacts, campaigns, templates, numbers, users, tasks, media and conversations.
