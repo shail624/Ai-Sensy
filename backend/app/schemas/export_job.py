@@ -95,6 +95,14 @@ class ExportProgressResponse(BaseModel):
         )
 
 
+#: The words the Scan screen uses, so a file named here is recognisable as the list it came from.
+_SCAN_EXPORT_NAMES = {
+    "reachable": "On WhatsApp — contacts export",
+    "unreachable": "Not on WhatsApp — contacts export",
+    "unknown": "Never messaged — contacts export",
+}
+
+
 class DownloadItemResponse(BaseModel):
     """One permission-filtered artifact in the user's Download Center."""
 
@@ -109,6 +117,28 @@ class DownloadItemResponse(BaseModel):
     expires_at: datetime | None
     created_at: datetime
     completed_at: datetime | None
+
+    @staticmethod
+    def _contacts_name(job: ExportJob) -> str:
+        """What a contacts export was *of*, when its filter says so plainly.
+
+        Every contacts export was called "Contacts export", so an operator who exported the
+        reachability list and then the full roster saw two identical rows and had to open both to
+        tell them apart. A scan export is not a separate entity -- it is a contacts export with a
+        reachability rule (SCAN-03) -- so the name is read back off the rule rather than tracked
+        as a second kind of job.
+
+        Only the single-rule case is named. A filter combining reachability with three other
+        conditions is not "the unreachable list", and inventing a title for it would be worse than
+        the generic one.
+        """
+        rules = (job.filters_json or {}).get("rules") or []
+        if len(rules) != 1:
+            return "Contacts export"
+        rule = rules[0] if isinstance(rules[0], dict) else {}
+        if rule.get("field_source") != "scan" or rule.get("operator") != "eq":
+            return "Contacts export"
+        return _SCAN_EXPORT_NAMES.get(str(rule.get("value")), "Contacts export")
 
     @classmethod
     def from_job(cls, job: ExportJob, download_url: str | None) -> DownloadItemResponse:
@@ -135,7 +165,7 @@ class DownloadItemResponse(BaseModel):
                 if is_transcript
                 else f"{campaign_name} results"
                 if is_campaign
-                else "Contacts export"
+                else cls._contacts_name(job)
             ),
             format=job.format,
             status="expired" if job.is_expired else job.status,

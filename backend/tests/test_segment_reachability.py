@@ -245,3 +245,87 @@ async def test_the_unreachable_list_can_already_be_exported(
     body = (await get_provider("local").get(job.storage_key)).decode()
     assert "Refused Raj" in body
     assert "Reached Rita" not in body and "Untried Uma" not in body
+
+
+async def test_a_scan_export_is_recognisable_in_the_download_center(
+    client, make_user, db_session, organization
+) -> None:
+    """Every contacts export was called "Contacts export".
+
+    So an operator who exported the reachability list and then the full roster saw two identical
+    rows and had to open both to tell them apart. A scan export is a contacts export with a
+    reachability rule, not a second kind of job, so the name is read back off that rule.
+    """
+    import app.crm.tasks as tasks
+
+    tasks.run_contact_export.apply_async = lambda args, task_id: None
+    headers = await _population(client, make_user, db_session, organization)
+
+    await client.post(
+        "/api/v1/contacts/export",
+        headers=headers,
+        json={
+            "format": "csv",
+            "match_type": "all",
+            "rules": [
+                {
+                    "field_source": "scan",
+                    "field_key": "reachability",
+                    "operator": "eq",
+                    "value": "unreachable",
+                }
+            ],
+        },
+    )
+    await client.post(
+        "/api/v1/contacts/export",
+        headers=headers,
+        json={"format": "csv", "match_type": "all", "rules": []},
+    )
+
+    listed = await client.get("/api/v1/downloads", headers=headers)
+    assert listed.status_code == 200, listed.text
+    names = [row["name"] for row in listed.json()["data"]]
+
+    assert "Not on WhatsApp — contacts export" in names
+    assert "Contacts export" in names
+
+
+async def test_a_mixed_filter_keeps_the_plain_name(
+    client, make_user, db_session, organization
+) -> None:
+    """A filter combining reachability with other conditions is not "the unreachable list".
+
+    Naming it one would be a more confident claim than the filter supports, and worse than the
+    generic title it replaces.
+    """
+    import app.crm.tasks as tasks
+
+    tasks.run_contact_export.apply_async = lambda args, task_id: None
+    headers = await _population(client, make_user, db_session, organization)
+
+    await client.post(
+        "/api/v1/contacts/export",
+        headers=headers,
+        json={
+            "format": "csv",
+            "match_type": "all",
+            "rules": [
+                {
+                    "field_source": "scan",
+                    "field_key": "reachability",
+                    "operator": "eq",
+                    "value": "unreachable",
+                },
+                {
+                    "field_source": "contact",
+                    "field_key": "opt_in_status",
+                    "operator": "eq",
+                    "value": "opted_in",
+                },
+            ],
+        },
+    )
+
+    listed = await client.get("/api/v1/downloads", headers=headers)
+    assert [row["name"] for row in listed.json()["data"]] == ["Contacts export"]

@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Contact,
   FileText,
+  Filter,
   Hash,
   ListChecks,
   Megaphone,
@@ -87,7 +88,19 @@ function useWorkspaceSearch(term: string, enabled: boolean): { results: SearchRe
     staleTime: 30_000,
     queryFn: async (): Promise<SearchResult[]> => {
       const lower = normalized.toLocaleLowerCase();
-      const [contacts, campaigns, templates, numbers, users, tasks, media, conversations] = await Promise.all([
+      const [
+        contacts,
+        campaigns,
+        templates,
+        numbers,
+        users,
+        tasks,
+        media,
+        conversations,
+        segments,
+        tags,
+        cases,
+      ] = await Promise.all([
         hasPermission("contacts:read")
           ? settle(
               (async () =>
@@ -141,6 +154,26 @@ function useWorkspaceSearch(term: string, enabled: boolean): { results: SearchRe
               [],
             )
           : [],
+        hasPermission("segments:read")
+          ? settle((async () => unwrap(await api.GET("/api/v1/segments")))(), [])
+          : [],
+        hasPermission("contacts:read")
+          ? settle((async () => unwrap(await api.GET("/api/v1/tags")))(), [])
+          : [],
+        // The only Vi-domain record with an org-wide search of its own. KYC cases, SIM orders and
+        // activation records are addressed per contact or per case, so there is nothing to index
+        // globally without an endpoint that does not exist -- and inventing one to fill a palette
+        // would be the wrong order to build it in.
+        hasPermission("reactivation:read")
+          ? settle(
+              (async () => unwrap(
+                await api.GET("/api/v1/reactivation-pipeline", {
+                  params: { query: { q: normalized, limit: 8 } },
+                }),
+              ).data)(),
+              [],
+            )
+          : [],
       ]);
 
       const results: SearchResult[] = [];
@@ -184,6 +217,39 @@ function useWorkspaceSearch(term: string, enabled: boolean): { results: SearchRe
           description: `${number.display_number} · ${number.status}`,
           path: `/channels/numbers/${number.id}`,
           icon: Hash,
+        });
+      }
+      for (const segment of segments.filter((item) => item.name.toLocaleLowerCase().includes(lower)).slice(0, 6)) {
+        results.push({
+          id: `segment-${segment.id}`,
+          kind: "Segments",
+          label: segment.name,
+          description:
+            segment.description ||
+            `${segment.rules.length} condition${segment.rules.length === 1 ? "" : "s"}`,
+          path: `/segments/${segment.id}`,
+          icon: Filter,
+        });
+      }
+      for (const tag of tags.filter((item) => item.name.toLocaleLowerCase().includes(lower)).slice(0, 6)) {
+        results.push({
+          id: `tag-${tag.id}`,
+          kind: "Tags",
+          label: tag.name,
+          // The count is the useful part: a tag nobody uses looks identical otherwise.
+          description: `${tag.usage_count.toLocaleString()} contact${tag.usage_count === 1 ? "" : "s"}`,
+          path: `/contacts?tag=${encodeURIComponent(tag.name)}`,
+          icon: Hash,
+        });
+      }
+      for (const entry of cases.slice(0, 6)) {
+        results.push({
+          id: `case-${entry.id}`,
+          kind: "Reactivation",
+          label: entry.contact_name ?? entry.previous_vi_number ?? "Reactivation case",
+          description: [entry.stage, entry.previous_vi_number].filter(Boolean).join(" · "),
+          path: `/reactivation?contact_id=${entry.contact_id}`,
+          icon: ListChecks,
         });
       }
       for (const account of users.filter((item) =>
@@ -380,7 +446,7 @@ export function CommandPalette({ open, onClose }: Props): JSX.Element | null {
             id="command-search"
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder="Search contacts, campaigns, templates, numbers, tasks…"
+            placeholder="Search contacts, cases, campaigns, segments, templates, tags, tasks…"
             className="h-14 min-w-0 flex-1 bg-transparent text-base text-text-primary outline-none placeholder:text-text-disabled"
           />
           <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-text-secondary hover:bg-hover">

@@ -1,5 +1,31 @@
 # Final Product Implementation Roadmap
 
+## DL-01 — a scan export you can tell apart in the Download Center (2026-09-17)
+
+`MODULE_STATUS` asked the Download Center to "add compliant Scan-result sources". It already has
+them: a scan export **is** a contacts export carrying a reachability rule (SCAN-03), so it lands in
+the history, under `contacts:export`, with the signed link and expiry every other artifact gets.
+Third time this week that reading the code answered a tracker item.
+
+What was genuinely wrong was the **name**. Every contacts export was titled "Contacts export", so
+an operator who exported the unreachable list and then the full roster saw two identical rows and
+had to open both to tell them apart — on a screen whose entire job is telling artifacts apart.
+
+The title is now read back off the filter: a single `scan`/`reachability`/`eq` rule names the row
+after the list it came from, in the Scan screen's own words. **Only the single-rule case.** A
+filter combining reachability with three other conditions is not "the unreachable list", and
+naming it one would be a more confident claim than the filter supports — worse than the generic
+title it replaces. A test pins that.
+
+Backend 1,733 → **1,735**. No migration, no contract change (the name is derived, not stored).
+
+Download Center 88% → **90%**.
+
+PASS: backend **1,735 passed, 0 skipped** against live MySQL 8 (544.2s); Ruff, strict mypy (331
+files) clean. Both new tests were run against the code they describe first; one failed and one
+passed, the passing one being the "mixed filter keeps the plain name" case that the old code
+satisfied by having only one name.
+
 ## SEG-02 — the team's own audiences, offered where somebody would look for them (2026-09-17)
 
 The discoverability gap SEG-01 named, closed. Frontend 971 → **977** across **58 files**; no
