@@ -1,5 +1,28 @@
 # Final Product Implementation Roadmap
 
+## VAL-04 — the same mistake, looked for everywhere else (2026-09-17)
+
+Every one of the 72 parameterless reads timed against a seeded account of 20,000 contacts and
+20,000 campaign recipients. **Nothing is over the 300ms budget.** The slowest is
+`/scan/reachability` at 126ms — the one PERF-01 already halved and whose remaining cost is recorded
+— then `/templates/usage` at 37ms and the ordinary contact list at 28ms. Everything else is under
+20ms.
+
+PERF-01 was a query that cost what the account weighs rather than what the page weighs. That shape
+is invisible on an empty database, which is exactly how it shipped, and there was no reason to
+believe it was the only one. It was worth finding out rather than assuming.
+
+`scripts/live_api_read_sweep.py` now times each request and records the ten slowest paths in its
+evidence, so the check is repeatable rather than a thing done once at 2am. It is not a performance
+test — one warm request on one container proves little about a production host under load — and the
+script says so where the figures are written. What it does is make an endpoint whose cost grows
+with the data sort itself to the top of a file somebody already reads.
+
+No product code changed. No module percentage moves: this is a measurement.
+
+PASS: 72 paths timed, **0 over budget**; sweep **209 requests, 0 returned 5xx**; Ruff and mypy
+clean on the amended script.
+
 ## PERF-01 — a page should cost what a page costs (2026-09-17)
 
 `GET /scan/reachability` fell from **228ms to 125ms** at 20,000 contacts, and the query behind its

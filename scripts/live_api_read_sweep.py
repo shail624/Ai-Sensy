@@ -19,6 +19,11 @@ Two rules keep it bounded and meaningful:
   exercises each documented branch -- a granularity that only breaks on ``month``, say -- without
   the combinatorial explosion of crossing every parameter with every other.
 
+Each request is also timed, and the evidence records the slowest paths. A query that costs what
+the *account* weighs rather than what the *page* weighs is invisible on an empty database and easy
+to write by accident (PERF-01 was exactly that), so the sweep is the natural place to notice it:
+run it against an account with real volume and the offenders sort themselves to the top.
+
 Only a 5xx or a transport error fails the gate. A 400, 403, 404 or 422 means the endpoint ran and
 answered; refusing an unbounded date range is correct behaviour, not a defect. Endpoints that
 declare a date ``preset`` are given one, so the aggregate query underneath really executes rather
@@ -35,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -108,15 +114,19 @@ def run_sweep(*, base_url: str, email: str, password: str, spec_path: Path, outp
 
     failures: list[dict[str, Any]] = []
     statuses: dict[int, int] = {}
+    slowest: dict[str, float] = {}
     with httpx.Client(base_url=base_url, timeout=60.0, trust_env=False) as client:
         headers = {"Authorization": f"Bearer {login(client, email, password)}"}
         for path, params in planned:
             url = f"{path}?{urlencode(params)}" if params else path
+            started = time.perf_counter()
             try:
                 response = client.get(url, headers=headers)
             except httpx.HTTPError as exc:
                 failures.append({"path": path, "params": params, "error": repr(exc)[:400]})
                 continue
+            elapsed_ms = (time.perf_counter() - started) * 1_000
+            slowest[path] = max(slowest.get(path, 0.0), elapsed_ms)
             statuses[response.status_code] = statuses.get(response.status_code, 0) + 1
             if response.status_code >= 500:
                 failures.append(
@@ -135,6 +145,13 @@ def run_sweep(*, base_url: str, email: str, password: str, spec_path: Path, outp
         "requests_issued": len(planned),
         "status_counts": {str(code): count for code, count in sorted(statuses.items())},
         "not_exercised": not_exercised,
+        # Worst observed time per path, slowest first. Not a budget -- one warm request on one
+        # container is not a performance test -- but a cheap way to see which reads grow with the
+        # data rather than with the page.
+        "slowest_ms": {
+            path: round(ms, 1)
+            for path, ms in sorted(slowest.items(), key=lambda item: -item[1])[:10]
+        },
         "failures": failures,
         "passed": not failures,
     }
@@ -149,6 +166,8 @@ def run_sweep(*, base_url: str, email: str, password: str, spec_path: Path, outp
     print(f"  {len(planned) - len(failures)} answered, {len(failures)} returned 5xx or raised")
     for path in not_exercised:
         print(f"  NOT EXERCISED {path} (requires a parameter the contract does not enumerate)")
+    for path, ms in sorted(slowest.items(), key=lambda item: -item[1])[:3]:
+        print(f"  slowest: {ms:7.1f} ms  {path}")
     return 0 if not failures else 1
 
 

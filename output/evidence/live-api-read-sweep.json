@@ -12,6 +12,18 @@
     "/api/v1/analytics/series",
     "/api/v1/analytics/trends"
   ],
+  "slowest_ms": {
+    "/api/v1/scan/reachability": 126.0,
+    "/api/v1/templates/usage": 37.3,
+    "/api/v1/contacts": 27.9,
+    "/api/v1/analytics/comparison": 18.3,
+    "/api/v1/users": 18.2,
+    "/api/v1/analytics/summary": 12.3,
+    "/api/v1/analytics/executive": 11.2,
+    "/api/v1/analytics/kpis": 10.6,
+    "/api/v1/reactivation-pipeline": 10.5,
+    "/api/v1/roles": 9.5
+  },
   "failures": [],
   "passed": true
 }
