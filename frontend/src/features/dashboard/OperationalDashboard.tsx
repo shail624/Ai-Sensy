@@ -30,6 +30,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { useAnalyticsComparison } from "@/features/analytics/api";
+import { ApprovalCenter } from "@/features/approvals";
 import { ChannelHealthStrip } from "@/features/dashboard/ChannelHealthStrip";
 import { FreshnessIndicator } from "@/features/analytics/FreshnessIndicator";
 import type { AnalyticsFilterState } from "@/features/analytics/types";
@@ -396,6 +397,11 @@ export function OperationalDashboard(): JSX.Element {
       {/* First, because sending capacity is a precondition for most of the work below it: a number
           Meta flagged overnight used to stay invisible here until a campaign failed. */}
       {canChannels ? <ChannelHealthStrip /> : null}
+
+      {/* Second, because it is the only thing on this page that is blocked on *this operator*.
+          Everything below is work the team is doing; this is work the team is waiting for, and it
+          used to be visible only inside whichever module it belonged to. */}
+      <ApprovalCenter />
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border bg-surface-2 px-3 py-2.5">
         <p className="text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Decision scope:</strong> real authorized records from the current tenant. Conversation waiting time is derived from unread age and is not presented as a configured SLA.</p>

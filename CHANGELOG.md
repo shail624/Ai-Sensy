@@ -1,5 +1,48 @@
 # Changelog
 
+## APPR-01 — what is waiting on you, in one place (2026-09-17)
+
+The last of the three modules the scope document excluded. `MODULE_STATUS` recorded CORE-08 as
+**"Skipped: Not required by product owner"**, refusing *"No Approval Center, generic approval
+framework, approval queue, escalation system or new approval authority"*. The owner has asked for
+the remaining scope, so this is that work — built to honour the *reason* the original refusal was
+right. Frontend 993 → **1,001** across **61 files**; no backend change, no migration, contract
+unchanged.
+
+**No new authority, and that is the whole design.** What CORE-08 refused was a second place where
+permission to act is decided — a generic framework competing with the modules that already own
+their decisions. Nothing here decides anything:
+
+- A KYC item is approved through `POST /kyc-cases/{id}/approvals` under `kyc:approve`.
+- An activation item through `POST /activation-records/{id}/approval` under `activation:approve`.
+- The **read** permission shows the queue; the **approve** permission draws the button. Somebody may
+  legitimately see what is pending and not be the person who signs it off, and a button they cannot
+  use promises an authority they lack.
+
+So the screen is a *view*, not a table: it holds no approvals of its own, introduces no state, and
+would keep working unchanged if a module changed what approving means.
+
+**What it answers is the question neither module could.** KYC lives in one workspace and activation
+in another, so "what is waiting on *me*" required opening both and knowing to. Something waiting in
+the workspace nobody opened today waited another day. It sits second on the dashboard, under
+channel health — everything else there is work the team is doing; this is work the team is waiting
+*for*.
+
+**Oldest first**, because the thing that has waited longest is the thing most worth deciding.
+
+**Identity-merge recommendations are deliberately absent.** They have an approve endpoint and no
+list endpoint, so aggregating them would mean writing backend to fill a screen — the wrong order to
+build in. Named here so their absence reads as a decision rather than an oversight.
+
+Approval Workflow 20% → **70%**. The remaining thirty points are the escalation system and generic
+framework the original decision refused on merit; nothing in tonight's instruction says those became
+a good idea, and building them would still be building a second authority.
+
+Canonical average 85.4% → **87.0%**.
+
+PASS: frontend **1,001 passed across 61 files**, ESLint, TypeScript and the production build clean;
+backend unchanged at 1,735 passed, 0 skipped against live MySQL 8.
+
 ## SIM-01 — the fulfilment queues the scope document said would not be built (2026-09-17)
 
 **Owner decision, recorded.** `MODULE_STATUS` carried, for SIM Orders, *"No standalone heavy UI is
