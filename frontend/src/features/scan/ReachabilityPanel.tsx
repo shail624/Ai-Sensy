@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { Badge, type BadgeTone, Card, CardHeader, EmptyState, ErrorState, Input, Skeleton } from "@/components/ui";
+import { Badge, type BadgeTone, Button, Card, CardHeader, EmptyState, ErrorState, Input, Skeleton } from "@/components/ui";
+import { useStartContactExport } from "@/features/contacts/api";
 import { useReachability, useReachabilityCounts } from "@/features/scan/api";
 import { VERDICT_HINTS, VERDICT_LABELS, type Verdict } from "@/features/scan/types";
 import { apiErrorMessage } from "@/lib/api/errors";
@@ -32,6 +33,28 @@ function day(value: string | null | undefined): string {
 export function ReachabilityPanel(): JSX.Element {
   const [verdict, setVerdict] = useState<Verdict | "">("");
   const [search, setSearch] = useState("");
+  const [exported, setExported] = useState(false);
+  // The contacts export addresses people by segment rule, and SCAN-02 made reachability one, so
+  // this is scope §13's "Export" through the one export pipeline rather than a second one built
+  // beside it. The Download Center, signed links and expiry all come with it unchanged.
+  const exporting = useStartContactExport();
+
+  async function startExport(): Promise<void> {
+    if (!verdict) return;
+    await exporting.mutateAsync({
+      format: "csv",
+      rules: [
+        {
+          group_index: 0,
+          field_source: "scan",
+          field_key: "reachability",
+          operator: "eq",
+          value: verdict,
+        },
+      ],
+    });
+    setExported(true);
+  }
   const reachability = useReachability(verdict, search);
   // Asked separately because it costs differently — see `useReachabilityCounts`. The tiles show a
   // dash until it lands rather than holding up the list behind it.
@@ -46,7 +69,22 @@ export function ReachabilityPanel(): JSX.Element {
         className="border-b border-border px-4 py-4 sm:px-5"
         title="WhatsApp reachability"
         description="Read from delivery receipts for campaigns already sent — nothing is sent to produce it, and no number is looked up anywhere."
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!verdict || exporting.isPending}
+            onClick={() => void startExport()}
+          >
+            {exporting.isPending ? "Preparing…" : "Export this list"}
+          </Button>
+        }
       />
+      {exported ? (
+        <p className="border-b border-border bg-accent-soft px-4 py-2 text-xs text-text-primary sm:px-5">
+          Export started. It appears in the Download Center when it is ready.
+        </p>
+      ) : null}
 
       <div className="grid gap-2 border-b border-border p-4 sm:grid-cols-3 sm:px-5">
         {ORDER.map((name) => {
@@ -56,7 +94,10 @@ export function ReachabilityPanel(): JSX.Element {
               key={name}
               type="button"
               aria-pressed={selected}
-              onClick={() => setVerdict(selected ? "" : name)}
+              onClick={() => {
+                setVerdict(selected ? "" : name);
+                setExported(false);
+              }}
               className={`rounded-xl border p-4 text-left transition-colors ${
                 selected ? "border-accent bg-accent-soft" : "border-border bg-surface-subtle hover:border-border-strong"
               }`}

@@ -1,5 +1,49 @@
 # Project State
 
+## SCAN-03 — the export was already built, and now it is reachable from the screen (2026-09-17)
+
+Scope §13's last applicable item, delivered by **not** building it. Backend 1,732 → **1,733**,
+frontend 967 → **969**; no migration, contract unchanged at 247 paths.
+
+SCAN-02 made reachability a segment rule. The contacts export addresses people **by segment rule**,
+not by id. So `POST /contacts/export` with a `scan`/`reachability` rule already produced exactly the
+right file — and this was checked rather than assumed: the test runs the export to completion and
+reads the artifact, which contains the refused customer and neither the reachable one nor the one
+nobody has tried.
+
+Building a `scan_reachability` entity beside it would have duplicated the artifact writer, the
+storage key, the signed link, the expiry and the Download Center registration, to produce the same
+CSV. The export service says why in its own words — *"A report **is** an export: same `exports`
+row, same queue, same worker discipline, same signed-download flow… so no second export pipeline
+exists."* That reasoning applies here unchanged.
+
+**What was genuinely missing was the way in.** An operator looking at the reachability list had to
+leave it, build a segment, and start an export from a third screen to get the file for the list
+already in front of them. There is now an **Export this list** button on the panel, which sends the
+verdict currently selected. It stays disabled until one is chosen, because "everything" is what the
+Contacts page already exports and this button means *this* list.
+
+### WhatsApp Scan is now complete under the owner's chosen method
+
+| Item | State |
+|---|---|
+| Active-status, Invalid-number, Scan analytics | done (SCAN-01) |
+| Create segment | done (SCAN-02) |
+| **Export** | **done here** |
+| Upload list, Batch management, Duplicate detection, Scan queue, Retry failed scans | not applicable — machinery for *running* scans, and this method runs none |
+| Business-account result | out of reach — Meta's Cloud API does not expose it, and the only route is the provider the owner declined |
+
+Ten of eleven items are settled and the eleventh is settled *as impossible by decision*, which is a
+different and more honest statement than the "ten of eleven covered" this ledger carried before
+SCAN-02 corrected it.
+
+WhatsApp Scan 75% → **90%**. The remaining ten points are the authenticated representative-data
+visual review every module owes, not a feature. Canonical average 81.9% → **82.4%**.
+
+PASS: backend **1,733 passed, 0 skipped** against live MySQL 8 (520.3s); frontend **969 passed
+across 57 files**; OpenAPI unchanged at 247 paths; Ruff, strict mypy (331 files), ESLint,
+TypeScript and the production build clean.
+
 ## SCAN-02 — the owner chose the compliant method, so reachability became actionable (2026-09-17)
 
 **Owner decision, recorded:** asked whether WhatsApp Scan should stay on delivery evidence or add a
@@ -1318,7 +1362,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2538: simple unweighted average **81.9%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2553: simple unweighted average **82.4%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

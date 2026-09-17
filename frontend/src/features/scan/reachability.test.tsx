@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReachabilityPanel } from "@/features/scan/ReachabilityPanel";
 
 const state = vi.hoisted(() => ({
   asked: [] as { verdict: string; q: string }[],
+  exported: [] as unknown[],
   countsAsked: [] as string[],
   counts: { data: undefined as unknown, isPending: false },
   result: {
@@ -14,6 +15,16 @@ const state = vi.hoisted(() => ({
     error: null as unknown,
     refetch: vi.fn(),
   },
+}));
+
+vi.mock("@/features/contacts/api", () => ({
+  useStartContactExport: () => ({
+    mutateAsync: async (input: unknown) => {
+      state.exported.push(input);
+      return {};
+    },
+    isPending: false,
+  }),
 }));
 
 vi.mock("@/features/scan/api", () => ({
@@ -42,6 +53,7 @@ const reached = {
 
 beforeEach(() => {
   state.asked = [];
+  state.exported = [];
   state.countsAsked = [];
   state.counts = { data: { reachable: 1, unreachable: 1, unknown: 1 }, isPending: false };
   state.result = {
@@ -166,5 +178,38 @@ describe("ReachabilityPanel", () => {
 
     expect(state.countsAsked.at(-1)).toBe("99900");
     expect(state.asked.at(-1)?.q).toBe("99900");
+  });
+});
+
+describe("exporting the list (scope §13 'Export')", () => {
+  it("exports through the contacts export, filtered by the verdict on screen", async () => {
+    // Not a second export pipeline: the contacts export addresses people by segment rule and
+    // SCAN-02 made reachability one, so the Download Center, signed links and expiry all come
+    // with it unchanged.
+    render(<ReachabilityPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Not on WhatsApp/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Export this list/ }));
+
+    await waitFor(() => expect(state.exported).toHaveLength(1));
+    expect(state.exported[0]).toEqual({
+      format: "csv",
+      rules: [
+        {
+          group_index: 0,
+          field_source: "scan",
+          field_key: "reachability",
+          operator: "eq",
+          value: "unreachable",
+        },
+      ],
+    });
+  });
+
+  it("will not export until a verdict is chosen", () => {
+    // "Everything" is what the Contacts page already exports. The button here means this list.
+    render(<ReachabilityPanel />);
+
+    expect(screen.getByRole("button", { name: /Export this list/ })).toBeDisabled();
   });
 });

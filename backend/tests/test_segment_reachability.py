@@ -200,3 +200,48 @@ async def test_the_segment_and_the_scan_screen_describe_the_same_people(
     )
 
     assert from_screen == from_segment == {"Refused Raj"}
+
+
+async def test_the_unreachable_list_can_already_be_exported(
+    client, make_user, db_session, organization
+) -> None:
+    """Scope §13's "Export", through the export path that already exists.
+
+    The contacts export takes segment rules, and SCAN-02 made reachability one, so the list an
+    operator wants to hand to somebody is already exportable without a second export pipeline --
+    which is what this repository's export service says it exists to avoid.
+    """
+    headers = await _population(client, make_user, db_session, organization)
+
+    import app.crm.tasks as tasks
+
+    tasks.run_contact_export.apply_async = lambda args, task_id: None
+    started = await client.post(
+        "/api/v1/contacts/export",
+        headers=headers,
+        json={
+            "format": "csv",
+            "match_type": "all",
+            "rules": [
+                {
+                    "field_source": "scan",
+                    "field_key": "reachability",
+                    "operator": "eq",
+                    "value": "unreachable",
+                }
+            ],
+        },
+    )
+
+    assert started.status_code == 202, started.text
+
+    # 202 only proves the filter validated. What matters is which people come out of it.
+    from app.services.export_service import ExportService
+    from app.storage.base import get_provider
+
+    job = await ExportService(db_session).run(started.json()["job"]["id"])
+
+    assert job.row_count == 1
+    body = (await get_provider("local").get(job.storage_key)).decode()
+    assert "Refused Raj" in body
+    assert "Reached Rita" not in body and "Untried Uma" not in body
