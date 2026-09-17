@@ -116,13 +116,16 @@ requirement — any MySQL 8 works, including one installed directly:
 
 ```bash
 apt-get install -y mysql-server                 # or: docker compose up -d
-mysqld --user=mysql --bind-address=127.0.0.1 &
 mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'root'"
+./scripts/local_services.sh                     # starts MySQL + Redis if they are not already up
 cd backend && DB_HOST=127.0.0.1 MYSQL_ROOT_PASSWORD=root pytest
 ```
 
 With a server reachable the full backend suite runs with **zero skips**. Without one it still
-passes; the skipped tests simply do not run, which is why they are easy to leave unproven.
+passes; the skipped tests simply do not run, which is why they are easy to leave unproven — and
+why `scripts/local_services.sh` exists. A machine that restarted turns a zero-skip run back into
+six skips with no failure to notice, so the script is idempotent and safe to run before every
+suite.
 
 ### Sweeping the read surface against a real database
 

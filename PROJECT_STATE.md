@@ -1,5 +1,24 @@
 # Project State
 
+## VAL-02 — a zero-skip run should not depend on remembering (2026-09-17)
+
+`scripts/local_services.sh` starts MySQL 8 and Redis if they are not already running, and says so.
+Idempotent, safe before every suite.
+
+VAL-01 cleared the six live-MySQL skips by standing a server up by hand. A restart put them back.
+The run still reported **exit 0** — 1,657 passed, 6 skipped — because a skipped test is not a
+failing test, and the skip reason scrolls past in a wall of dots. That is the failure mode the
+skips had in the first place: they are invisible when they matter and nobody is lying, so nothing
+draws attention to the gap.
+
+A script does not fix the invisibility, but it removes the reason to shrug at it: bringing the
+services back is now one command that can be run before every suite rather than a procedure to
+remember. The README says plainly that a machine which restarted turns a zero-skip run back into
+six skips with no failure to notice.
+
+PASS: services restarted, `tests/test_migrations_mysql.py` back to **12 passed**, and the full
+backend suite re-run at **1,663 passed, 0 skipped**. No product code, no contract change.
+
 ## GSHEET-01 — import contacts from a Google Sheet tab (2026-09-16)
 
 `POST /api/v1/contacts/import/google-sheet` reads one tab with a configured service account and
