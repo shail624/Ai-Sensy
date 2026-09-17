@@ -43,6 +43,7 @@ from app.models.segment import (
     SOURCE_ENGAGEMENT,
     SOURCE_KYC,
     SOURCE_REACTIVATION,
+    SOURCE_SCAN,
     SOURCE_TAG,
 )
 from app.models.tag import Tag, contact_tags
@@ -56,6 +57,7 @@ from app.models.vi_domain import (
     KycCase,
     ReactivationCase,
 )
+from app.repositories.reachability import VERDICTS, verdict_condition
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +290,9 @@ def validate_rule(
     if field_source in _DOMAIN_FIELDS:
         _validate_domain_rule(field_source, field_key, operator, value)
         return
+    if field_source == SOURCE_SCAN:
+        _validate_scan_rule(field_key, operator, value)
+        return
     if field_source not in (SOURCE_CONTACT, SOURCE_ENGAGEMENT):
         _fail(f"unknown field_source {field_source!r}")
 
@@ -397,6 +402,42 @@ def _domain_condition(
     return ~member if operator in {"ne", "nin"} else member
 
 
+#: The one scan field, and the only operators that mean anything for it. A verdict is one of three
+#: states, so ``contains`` or ``gt`` would be nonsense and are refused rather than quietly ignored.
+_SCAN_FIELD = "reachability"
+_SCAN_OPS = {"eq", "ne", "in", "nin"}
+
+
+def _validate_scan_rule(field_key: str, operator: str, value: Any) -> None:
+    if field_key != _SCAN_FIELD:
+        _fail(f"unknown scan field {field_key!r}; only {_SCAN_FIELD!r} exists")
+    if operator not in _SCAN_OPS:
+        _fail(f"{_SCAN_FIELD!r} supports {sorted(_SCAN_OPS)}, got {operator!r}")
+    values = value if operator in {"in", "nin"} else [value]
+    if operator in {"in", "nin"} and not isinstance(value, list):
+        _fail(f"{operator} expects a list of verdicts")
+    for item in values:
+        if item not in VERDICTS:
+            _fail(f"unknown verdict {item!r}; expected one of {sorted(VERDICTS)}")
+
+
+def _scan_condition(organization_id: int, operator: str, value: Any) -> Any:
+    """What WhatsApp has said about the number, as a segment predicate.
+
+    Built from :func:`verdict_condition`, which is the Scan screen's own logic, so a segment of
+    "not on WhatsApp" is exactly the set that screen shows. Two implementations would drift, and
+    that drift would present as a campaign quietly excluding a different population from the one
+    the operator read before building it.
+
+    This is what scope §13's "Create segment" means under the delivery-evidence method: the
+    reachability list stops being something to look at and becomes something to act on -- excluded
+    from the next campaign, or targeted by it.
+    """
+    verdicts = value if operator in {"in", "nin"} else [value]
+    matched = or_(*(verdict_condition(organization_id, verdict) for verdict in verdicts))
+    return ~matched if operator in {"ne", "nin"} else matched
+
+
 def _rule_condition(
     organization_id: int,
     field_source: str,
@@ -411,6 +452,8 @@ def _rule_condition(
         return _attribute_condition((attributes or {})[field_key], operator, value)
     if field_source in _DOMAIN_FIELDS:
         return _domain_condition(organization_id, field_source, field_key, operator, value)
+    if field_source == SOURCE_SCAN:
+        return _scan_condition(organization_id, operator, value)
 
     column, value_type = _column_for(field_source, field_key)
     if operator == "exists":

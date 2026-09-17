@@ -32,6 +32,8 @@ SOURCE_REACTIVATION = "reactivation"
 SOURCE_KYC = "kyc"
 SOURCE_DOCUMENT = "document"
 SOURCE_ACTIVATION = "activation"
+#: What WhatsApp itself has said about the number (scope §13 "Create segment").
+SOURCE_SCAN = "scan"
 FIELD_SOURCES = (
     SOURCE_CONTACT,
     SOURCE_ATTRIBUTE,
@@ -41,6 +43,7 @@ FIELD_SOURCES = (
     SOURCE_KYC,
     SOURCE_DOCUMENT,
     SOURCE_ACTIVATION,
+    SOURCE_SCAN,
 )
 
 
@@ -87,7 +90,8 @@ class SegmentRule(IntPKMixin, Base):
         Index("ix_segrules_segment", "segment_id", "group_index"),
         CheckConstraint(
             "field_source IN "
-            "('contact','attribute','tag','engagement','reactivation','kyc','document','activation')",
+            "('contact','attribute','tag','engagement','reactivation','kyc','document',"
+            "'activation','scan')",
             name="ck_segrules_source",
         ),
         MYSQL_TABLE_ARGS,

@@ -30,6 +30,7 @@ export type FieldSource =
   | "document"
   | "activation"
   | "engagement"
+  | "scan"
   | "tag"
   | "attribute";
 
@@ -40,6 +41,7 @@ export const FIELD_SOURCES: FieldSource[] = [
   "document",
   "activation",
   "engagement",
+  "scan",
   "tag",
   "attribute",
 ];
@@ -51,6 +53,7 @@ export const FIELD_SOURCE_LABELS: Record<FieldSource, string> = {
   document: "Documents",
   activation: "Activation",
   engagement: "Engagement",
+  scan: "WhatsApp reachability",
   tag: "Tag",
   attribute: "Custom attribute",
 };
@@ -62,6 +65,7 @@ export const FIELD_SOURCE_HINTS: Record<FieldSource, string> = {
   document: "Whether a current document of a governed type or status exists.",
   activation: "Their current activation lifecycle status.",
   engagement: "When they were last in touch.",
+  scan: "What WhatsApp said when a campaign reached them — nothing is sent to find out.",
   tag: "Whether they carry a tag.",
   attribute: "One of this organization's own custom fields.",
 };
@@ -150,6 +154,26 @@ export const ENGAGEMENT_FIELDS: FieldSpec[] = [
   { key: "last_inbound_at", label: "Last inbound message", kind: "datetime" },
   { key: "last_outbound_at", label: "Last outbound message", kind: "datetime" },
   { key: "last_contacted_at", label: "Last contacted", kind: "datetime" },
+];
+
+/**
+ * `_SCAN_FIELD` — what WhatsApp itself has said about the number.
+ *
+ * Derived on the server from delivery receipts for campaigns already sent, so a segment built on
+ * it is the same population the Scan screen lists. The labels match that screen's, because an
+ * operator who reads "Not on WhatsApp" there must find the same words here.
+ */
+export const SCAN_FIELDS: FieldSpec[] = [
+  {
+    key: "reachability",
+    label: "WhatsApp status",
+    kind: "enum",
+    choices: [
+      { value: "reachable", label: "On WhatsApp" },
+      { value: "unreachable", label: "Not on WhatsApp" },
+      { value: "unknown", label: "Never messaged" },
+    ],
+  },
 ];
 
 export const REACTIVATION_FIELDS: FieldSpec[] = [
@@ -260,6 +284,7 @@ export function fieldsForSource(
   if (source === "document") return DOCUMENT_FIELDS;
   if (source === "activation") return ACTIVATION_FIELDS;
   if (source === "engagement") return ENGAGEMENT_FIELDS;
+  if (source === "scan") return SCAN_FIELDS;
   if (source === "attribute") {
     return attributes.map((definition) => ({
       key: definition.key_name,

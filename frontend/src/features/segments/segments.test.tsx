@@ -34,6 +34,9 @@ import {
 } from "@/features/segments/selectors";
 import type { AttributeDefinition, Segment, SegmentRule, Tag } from "@/features/segments/types";
 import {
+  FIELD_SOURCE_HINTS,
+  FIELD_SOURCE_LABELS,
+  FIELD_SOURCES,
   fieldsForSource,
   isStale,
   kindForDataType,
@@ -964,5 +967,30 @@ describe("navigation — segments entry", () => {
     expect(visibleNavItems((code) => code === "inbox:read").map((item) => item.path)).not.toContain(
       "/segments",
     );
+  });
+});
+
+describe("WhatsApp reachability as a segment rule (scope §13 'Create segment')", () => {
+  it("offers the verdict the Scan screen shows, in the same words", () => {
+    // An operator who reads "Not on WhatsApp" on the Scan screen has to find the same words here,
+    // or they cannot tell that the two describe one population.
+    const [field] = fieldsForSource("scan", []);
+
+    expect(field?.key).toBe("reachability");
+    expect(field?.choices?.map((choice) => choice.label)).toEqual([
+      "On WhatsApp",
+      "Not on WhatsApp",
+      "Never messaged",
+    ]);
+  });
+
+  it("is listed as a source an operator can pick", () => {
+    expect(FIELD_SOURCES).toContain("scan");
+    expect(FIELD_SOURCE_LABELS.scan).toBe("WhatsApp reachability");
+  });
+
+  it("says plainly that nothing is sent to produce it", () => {
+    // The compliance point, where somebody choosing the rule will actually read it.
+    expect(FIELD_SOURCE_HINTS.scan).toMatch(/nothing is sent/i);
   });
 });

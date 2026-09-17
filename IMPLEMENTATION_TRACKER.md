@@ -1,5 +1,59 @@
 # Implementation Tracker (canonical)
 
+## SCAN-02 — the owner chose the compliant method, so reachability became actionable (2026-09-17)
+
+**Owner decision, recorded:** asked whether WhatsApp Scan should stay on delivery evidence or add a
+paid third-party provider for direct number lookups, the owner chose **delivery evidence** — the
+free, compliant method that sends nothing and calls nobody. That closes one of the four open
+questions, and it changes what "finished" means for this module.
+
+Under that decision the remaining work was not a provider. It was that an operator could *read* the
+reachability list and not *act* on it. Backend 1,727 → **1,732**, frontend 964 → **967**; one
+migration, `0065_segment_scan_source`; contract unchanged at 247 paths.
+
+**A segment can now ask what WhatsApp said.** `field_source: "scan"`, `field_key: "reachability"`,
+matched against `reachable` / `unreachable` / `unknown`. The money case is the first one: every
+campaign send costs, so a roster that keeps including numbers Meta has already refused pays for the
+same refusal every month. `unknown` is the mirror of it — a contact nobody has ever tried is a
+campaign waiting to happen, which calls for the opposite action to "not reachable", and the
+grammar keeps the two apart rather than folding them into one "not reachable".
+
+**One predicate, two screens.** The rule compiles through `verdict_condition`, which is the Scan
+screen's own clause. A second implementation would drift, and that drift presents in the worst
+possible way: a campaign quietly targeting a different population from the list the operator read
+before building it. A test asserts the screen and the segment return the same people.
+
+A misspelled verdict is a `422` naming it, not an empty segment. An empty segment reads as "nobody
+qualifies", which is a different claim from "you typed it wrong" — the same reasoning FIX-01
+applied to the webhook status filters.
+
+### Corrected: "ten of the eleven section 13 items" was overstated
+
+The previous entry claimed SCAN-01 covered ten of scope §13's eleven items. Counted honestly
+against the owner's chosen method:
+
+| Item | State |
+|---|---|
+| Active-status result | done (SCAN-01) |
+| Invalid-number result | done (SCAN-01, error 131026) |
+| Scan analytics | done (SCAN-01 counts) |
+| **Create segment** | **done here** |
+| Upload number list, Batch management, Duplicate detection, Scan queue, Retry failed scans | **not applicable** — all five are machinery for *running* scans, and this method runs none; the evidence already exists |
+| Export | **outstanding**, and doable |
+| Business-account result | **out of reach** — Meta's Cloud API does not expose it, and the only way to get it is the provider the owner declined |
+
+So: four done, five that the chosen method makes moot, one genuinely left, one that the decision
+puts permanently out of scope. "Ten of eleven" counted the five not-applicable items as covered,
+which flatters the number by treating "we never need to" as "we did".
+
+WhatsApp Scan 55% → 75%. Segments 75% → 78%. Canonical average 81.1% → **81.9%** (2538/31 = 81.87).
+
+PASS: backend **1,732 passed, 0 skipped** against live MySQL 8 (529.7s); frontend **967 passed
+across 57 files**; migration applied, downgraded and re-applied against live MySQL 8; OpenAPI
+unchanged at 247 paths (a segment rule's `field_source` is a free string on the wire); Ruff, strict
+mypy (331 files), ESLint, TypeScript and the production build clean. The five backend tests were
+run against the code they describe first, to see them fail.
+
 ## VAL-05 — the journey nothing tested, and a sweep for the last milestone's bug class (2026-09-17)
 
 Two pieces of verification, no product change. Backend 1,726 → **1,727**.

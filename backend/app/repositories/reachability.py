@@ -114,6 +114,37 @@ def _evidence(organization_id: int, *, contact_ids: Sequence[int] | None = None)
     )
 
 
+def verdict_condition(organization_id: int, verdict: str) -> ColumnElement[bool]:
+    """A contact-level predicate for one verdict, for callers outside this repository.
+
+    Exists so a *segment* of "not on WhatsApp" is the same set the Scan screen shows. Written
+    separately it would drift, and the way that drift presents is the worst kind: a campaign
+    excluding a different population from the one the operator read off the screen before building
+    it.
+
+    Phrased as ``EXISTS`` against the evidence rather than a join, because a segment's predicate is
+    combined with others by ``compile_rules`` and has to be a condition, not a shape.
+    """
+    evidence = _evidence(organization_id)
+    inner = (
+        select(evidence.c.contact_id)
+        .where(
+            evidence.c.contact_id == Contact.id,
+            ReachabilityRepository._verdict_clause(evidence, verdict),
+        )
+        .exists()
+    )
+    # ``unknown`` is the absence of evidence, so it is the one verdict expressed by *not* finding a
+    # row rather than by finding one that says so.
+    if verdict == UNKNOWN:
+        return ~(
+            select(evidence.c.contact_id)
+            .where(evidence.c.contact_id == Contact.id)
+            .exists()
+        )
+    return inner
+
+
 class ReachabilityRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
