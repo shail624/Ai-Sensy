@@ -1,6 +1,8 @@
 import { MessageCircle } from "lucide-react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
+import { useMediaList } from "@/features/media/api";
+
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { apiErrorMessage, useAttributeDefinitions, usePhoneNumbers, useTemplates } from "@/features/campaigns/api";
 import type { CampaignFormValues } from "@/features/campaigns/campaignForm";
@@ -143,6 +145,10 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
         </div>
       ) : null}
 
+      {template && shape.mediaHeaderFormat ? (
+        <HeaderMediaPicker form={form} format={shape.mediaHeaderFormat} />
+      ) : null}
+
       {template && shape.headerCount + shape.bodyCount + shape.buttonCount > 0 ? (
         <div className="space-y-3 rounded-xl border border-border p-4">
           <div>
@@ -202,6 +208,66 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
           description="Nothing to map — every recipient receives the same text."
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The file a media-header template sends, chosen once for the whole campaign.
+ *
+ * It is the offer's picture, not a field of anybody's record, so one asset covers every recipient.
+ * Without this the campaign could not name a file at all: the send path has always required one
+ * for such a template, so the campaign was accepted and then rejected once per recipient.
+ *
+ * Only files of the kind the template declares are offered. A video where the template said image
+ * is refused by the server, and refusing it here as well means the operator never picks it.
+ */
+function HeaderMediaPicker({
+  form,
+  format,
+}: {
+  form: UseFormReturn<CampaignFormValues>;
+  format: string;
+}): JSX.Element {
+  const kind = format.toLowerCase();
+  const media = useMediaList();
+  const options = (media.data?.data ?? []).filter((asset) => asset.media_type === kind);
+  const error = form.formState.errors.header_media_id;
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-text-primary">Header {kind}</h3>
+        <p className="mt-1 text-xs text-text-secondary">
+          This template&apos;s header carries a {kind}. Every recipient receives the same one.
+        </p>
+      </div>
+      {media.isPending ? (
+        <p className="text-xs text-text-secondary">Loading the media library…</p>
+      ) : options.length === 0 ? (
+        <p className="text-xs text-danger">
+          No {kind} files in the media library yet. Upload one under Media, then come back.
+        </p>
+      ) : (
+        <div>
+          <label htmlFor="header-media" className={LABEL_CLASS}>
+            File
+          </label>
+          <select
+            id="header-media"
+            className={FIELD_CLASS}
+            {...form.register("header_media_id")}
+          >
+            <option value="">Choose a {kind}…</option>
+            {options.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.file_name ?? asset.id}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {error ? <p className="mt-1 text-xs text-danger">{String(error.message)}</p> : null}
     </div>
   );
 }

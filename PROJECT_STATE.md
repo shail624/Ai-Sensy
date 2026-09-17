@@ -1,5 +1,50 @@
 # Project State
 
+## CAM-MEDIA-01 — a campaign could not attach the image its template asks for (2026-09-17)
+
+The same shape as CAM-BTN-01, one field over, found by looking for it deliberately. A template
+whose header carries an image — an offer picture over a reactivation message, about as ordinary as
+a campaign gets — could not be sent by one. `SendService` has always required `header_media` for
+such a template and the campaign path supplied none, so the campaign was accepted, the roster was
+built, and **every recipient was rejected** with *"has a media header and needs header_media"*.
+Backend 1,718 → **1,721**, frontend 961 → **964**; contract stays at 247 paths, `VariableMap` gains
+`header_media`.
+
+Refusing it would have been the cheap fix and the wrong one: an image-header offer is a campaign
+the owner should be able to run. So the campaign carries the file.
+
+**It rides the variable map, not a new column.** The map already answers "where does each part of
+this message get its content"; a media header is that question for the header. No migration, and
+the shape mirrors the send spec it feeds. One asset for the whole campaign rather than one per
+contact: it is the offer's picture, not a field of anybody's record, and copying the same id onto
+200,000 roster rows would be 200,000 copies of one fact.
+
+**Three ways it can be wrong, all answered at create time.** No file for a media-header template;
+a file for a template whose header is text; a video where the template declared an image. Each was
+previously a rejection from Meta, per recipient, after the sending window had opened. Each is now a
+422 naming the field, because the template already says which kind it is and create time already
+knows.
+
+**`kind` is read from the template, not from the asset.** The template is what declares the header
+an image, and the campaign was refused unless the file matched; reading it back off the asset would
+let a file replaced afterwards quietly change what the template says it is.
+
+The wizard offers only files of the declared kind, and says plainly when the library has none of
+them rather than presenting an empty picker.
+
+Two things surfaced while testing and are worth recording. The send is **two** calls to Meta — the
+file is uploaded for an id, then the message references it — which the campaign mock did not
+answer, and a green test here would have proved only that the mock was agreeable. And the media
+upload is multipart, so the assertion reads the JSON message calls only; decoding the upload would
+have failed for a reason unrelated to the header.
+
+Campaigns 96% → 97%. The canonical 31-module average stays at **81.0%**.
+
+PASS: backend **1,721 passed, 0 skipped** against live MySQL 8 (562.1s); frontend **964 passed
+across 57 files**; regenerated OpenAPI (247 paths) and TypeScript with no drift; Ruff, strict mypy
+(331 files), ESLint, TypeScript and the production build clean. The six new tests were run against
+the code they describe first, to see them fail.
+
 ## CAM-BTN-01 — a campaign could never fill in a button's link (2026-09-17)
 
 A WhatsApp template whose button carries a per-customer link — the ordinary shape of a Vi
@@ -1077,7 +1122,7 @@ Next action after the single commit/push: STOP; no next milestone is authorized.
 | Current phase | `Screenshot-by-screenshot Live Chat, Contacts, Campaigns and Manage acceptance; preserve unfinished segment work and complete cumulative release/host validation.` |
 | Repository version | `1.0.0-rc1` |
 | Consolidated release evidence | Last complete Docker/security release profile is PAR-AUTO-22: **23/23 PASS in 685.9s**, with **1521 backend / zero skips**, **832 frontend**, lint/types/OpenAPI/build, scans, image contracts/SBOMs and certified WAHA runtime. Historical PAR-VIEW-05 source tree passed **1579 backend / 6 MySQL-only skips / 0 failures in 413.35s**, **875 frontend tests**, static **6/6**, strict mypy **322 files**, synchronized **235-path** OpenAPI and production build; its Docker/security release rerun remains pending. Preserved pre-PAR-AUTO-19 deployed evidence is **25/25 in 597.4s**, including canary **5.764ms p95 / 300ms**, Redis-down readiness **503 degraded**, and zero synthetic-secret/PII leaks. |
-| Full-scope completion | The 31 canonical rows sum to 2512: simple unweighted average **81.0%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
+| Full-scope completion | The 31 canonical rows sum to 2513: simple unweighted average **81.0%**, recalculated median **88%**. This is distinct from the green source-validation gate and is not a 100% AiSensy parity claim. |
 | Migration head | `0063_reachability_contact_index` (**64 linear revisions**), added by PERF-02 to index the recipient ledger by contact. Applied, downgraded and re-applied against live MySQL 8. |
 | OpenAPI | `3.1.0` · **`238` paths**. PAR-VIEW-05 adds list/create/delete Reports saved-view contracts; canonical export and generated TypeScript are synchronized. |
 | Backend evidence (QR-08, historical) | Ruff PASS · strict mypy PASS (300 files) · 1380 full pytest tests PASS (1367 before QR-08; +13) · Bandit PASS (only pre-existing Low findings) |

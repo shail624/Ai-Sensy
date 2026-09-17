@@ -21005,6 +21005,21 @@
         "title": "CampaignEstimateResponse",
         "description": "Pre-send cost estimate (FR-CAM-11; Doc 04 §17).\n\nInvariant: ``recipients == sum(b.count for b in breakdown) + unresolved.count``."
       },
+      "CampaignHeaderMedia": {
+        "properties": {
+          "media_asset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Media Asset Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "media_asset_id"
+        ],
+        "title": "CampaignHeaderMedia",
+        "description": "The file a media-header template sends, for every recipient of this campaign.\n\nOne asset for the whole campaign rather than one per contact: a media header is the offer's\npicture, not a field of the customer's record, and Meta binds it per send from the same id."
+      },
       "CampaignListResponse": {
         "properties": {
           "data": {
@@ -34982,6 +34997,16 @@
             },
             "type": "array",
             "title": "Buttons"
+          },
+          "header_media": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CampaignHeaderMedia"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

@@ -5799,6 +5799,20 @@ export interface components {
             /** Notes */
             notes: string[];
         };
+        /**
+         * CampaignHeaderMedia
+         * @description The file a media-header template sends, for every recipient of this campaign.
+         *
+         *     One asset for the whole campaign rather than one per contact: a media header is the offer's
+         *     picture, not a field of the customer's record, and Meta binds it per send from the same id.
+         */
+        CampaignHeaderMedia: {
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+        };
         /** CampaignListResponse */
         CampaignListResponse: {
             /** Data */
@@ -10892,6 +10906,7 @@ export interface components {
             body?: components["schemas"]["VariableMapping"][];
             /** Buttons */
             buttons?: components["schemas"]["VariableMapping"][];
+            header_media?: components["schemas"]["CampaignHeaderMedia"] | null;
         };
         /**
          * VariableMapping

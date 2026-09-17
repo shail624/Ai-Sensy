@@ -55,6 +55,8 @@ export const campaignSchema = z
     header: z.array(mappingSchema),
     body: z.array(mappingSchema),
     buttons: z.array(mappingSchema),
+    /** The file a media-header template sends. Empty for a text header or no header at all. */
+    header_media_id: z.string(),
   })
   .superRefine((values, ctx) => {
     if (values.audience_type === "segment" && values.segment_id === "") {
@@ -98,6 +100,7 @@ export function blankCampaign(): CampaignFormValues {
     header: [],
     body: [],
     buttons: [],
+    header_media_id: "",
   };
 }
 
@@ -154,6 +157,7 @@ export function campaignToForm(campaign: Campaign): CampaignFormValues {
     header: toMappings(map.header),
     body: toMappings(map.body),
     buttons: toMappings(map.buttons),
+    header_media_id: readHeaderMediaId(map.header_media),
   };
 }
 
@@ -177,6 +181,13 @@ function toAudienceRef(values: CampaignFormValues): CampaignCreateRequest["audie
   return { contact_ids: values.contact_ids };
 }
 
+/** The stored map is a free-form object on the wire, so its interior is read defensively. */
+function readHeaderMediaId(value: unknown): string {
+  if (typeof value !== "object" || value === null) return "";
+  const id = (value as { media_asset_id?: unknown }).media_asset_id;
+  return typeof id === "string" ? id : "";
+}
+
 function toVariableMap(values: CampaignFormValues): CampaignCreateRequest["variable_map"] {
   const clean = (mappings: MappingValues[]) =>
     mappings.map((mapping) => ({
@@ -189,6 +200,9 @@ function toVariableMap(values: CampaignFormValues): CampaignCreateRequest["varia
     header: clean(values.header),
     body: clean(values.body),
     buttons: clean(values.buttons),
+    // Omitted rather than sent as null when nothing is chosen: the server refuses a file for a
+    // template with a text header, and an empty choice is not a choice.
+    ...(values.header_media_id ? { header_media: { media_asset_id: values.header_media_id } } : {}),
   };
 }
 

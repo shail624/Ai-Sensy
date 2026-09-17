@@ -295,6 +295,47 @@ describe("templateShape", () => {
 });
 
 describe("campaignForm", () => {
+  it("sends the chosen header file through to the request", () => {
+    // A media-header template could not name a file at all, so the campaign was accepted and then
+    // rejected once per recipient by Meta.
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Offer",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+      header_media_id: "asset-1",
+    });
+
+    expect(request.variable_map?.header_media).toEqual({ media_asset_id: "asset-1" });
+  });
+
+  it("omits the header file entirely when none is chosen", () => {
+    // An empty choice is not a choice: the server refuses a file for a text-header template, and
+    // sending an empty one would turn "nothing selected" into "this template takes an image".
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Offer",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+    });
+
+    expect(request.variable_map).not.toHaveProperty("header_media");
+  });
+
+  it("reads a stored header file back into the form", () => {
+    const values = campaignToForm(
+      campaignFixture({
+        variable_map: { header: [], body: [], header_media: { media_asset_id: "asset-9" } },
+      }),
+    );
+
+    expect(values.header_media_id).toBe("asset-9");
+  });
+
   it("sends a button mapping through to the request", () => {
     // Every layer below this dropped it silently until now, so the one thing worth pinning is that
     // the form does not become the next layer that does.

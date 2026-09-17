@@ -32,9 +32,11 @@ from app.models.campaign import (
     CampaignRecipient,
 )
 from app.models.contact import Contact
+from app.models.media import MediaAsset
 from app.models.template import MessageTemplate
 from app.models.user import User
 from app.repositories.campaign import CampaignRecipientRepository, CampaignRepository
+from app.repositories.media import MediaRepository
 from app.repositories.template import TemplateRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.services.audience_service import AudienceService
@@ -43,6 +45,7 @@ from app.services.phone_number_service import PhoneNumberService
 from app.services.template_validation import (
     expected_button_variables,
     expected_variables,
+    header_media_format,
     render,
 )
 
@@ -104,6 +107,7 @@ class CampaignService:
         self._templates = TemplateRepository(session)
         self._numbers = PhoneNumberService(session)
         self._number_rows = PhoneNumberRepository(session)
+        self._assets = MediaRepository(session)
         self._audience = AudienceService(session)
         self._audit = AuditService(session)
 
@@ -144,7 +148,12 @@ class CampaignService:
         """Create a draft and materialize its roster (FR-CAM-01/02)."""
         number = await self._numbers.get_number(organization_id, number_public_id)
         template = await self._template(organization_id, template_public_id)
-        self._validate(audience_type=audience_type, template=template, variable_map=variable_map)
+        await self._validate(
+            organization_id=organization_id,
+            audience_type=audience_type,
+            template=template,
+            variable_map=variable_map,
+        )
 
         campaign = Campaign(
             organization_id=organization_id,
@@ -207,7 +216,8 @@ class CampaignService:
         for key, value in fields.items():
             setattr(campaign, key, value)
 
-        self._validate(
+        await self._validate(
+            organization_id=organization_id,
             audience_type=campaign.audience_type,
             template=template,
             variable_map=campaign.variable_map_json,
@@ -314,9 +324,10 @@ class CampaignService:
             )
         return template
 
-    def _validate(
+    async def _validate(
         self,
         *,
+        organization_id: int,
         audience_type: str,
         template: MessageTemplate,
         variable_map: dict[str, Any] | None,
@@ -327,6 +338,79 @@ class CampaignService:
                 errors=[{"field": "audience_type", "code": "invalid", "message": audience_type}],
             )
         self._validate_map(template, variable_map or {})
+        await self._validate_header_media(organization_id, template, variable_map or {})
+
+    async def _validate_header_media(
+        self, organization_id: int, template: MessageTemplate, variable_map: dict[str, Any]
+    ) -> MediaAsset | None:
+        """A media-header template needs a file, and it has to be one this organization owns.
+
+        Checked here because the alternative is where it used to be checked: nowhere. `SendService`
+        requires ``header_media`` for such a template and the campaign path supplied none, so the
+        campaign was accepted, the roster was built, and every recipient was rejected one at a time
+        once the send began -- the operator learning at dispatch what create time already knew.
+        """
+        reference = variable_map.get("header_media") or {}
+        public_id = reference.get("media_asset_id") if isinstance(reference, dict) else None
+
+        if not template.has_media_header:
+            if public_id:
+                raise CampaignInvalid(
+                    f"Template {template.name!r} has no media header, so it takes no image.",
+                    errors=[
+                        {
+                            "field": "variable_map.header_media",
+                            "code": "not_applicable",
+                            "message": "the template's header is text",
+                        }
+                    ],
+                )
+            return None
+
+        if not public_id:
+            raise CampaignInvalid(
+                f"Template {template.name!r} has a media header, so the campaign needs an image "
+                "to send with it.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media",
+                        "code": "required",
+                        "message": "choose a file from the media library",
+                    }
+                ],
+            )
+
+        asset = await self._assets.get_active_by_uuid(
+            organization_id, uuidlib.UUID(str(public_id)).bytes
+        )
+        if asset is None:
+            raise CampaignInvalid(
+                "That media file was not found.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media.media_asset_id",
+                        "code": "not_found",
+                        "message": str(public_id),
+                    }
+                ],
+            )
+
+        wanted = header_media_format(template.components_json or [])
+        if wanted and asset.media_type != wanted:
+            # Meta rejects a video where the template declared an image, and the rejection arrives
+            # per recipient. The template already says which kind it is, so this is answerable now.
+            raise CampaignInvalid(
+                f"Template {template.name!r} has a {wanted} header, but that file is "
+                f"{asset.media_type}.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media.media_asset_id",
+                        "code": "wrong_media_type",
+                        "message": f"expected {wanted}, got {asset.media_type}",
+                    }
+                ],
+            )
+        return asset
 
     @staticmethod
     def _validate_map(template: MessageTemplate, variable_map: dict[str, Any]) -> None:

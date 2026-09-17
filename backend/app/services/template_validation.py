@@ -234,6 +234,20 @@ def variable_count(components: list[dict[str, Any]]) -> int:
     return sum(expected_variables(components))
 
 
+def header_media_format(components: list[dict[str, Any]]) -> str | None:
+    """Which kind of file the header carries, or ``None`` when it carries text.
+
+    The same value :func:`has_media_header` reduces to a boolean. Kept as the kind because a
+    campaign has to check the file it was given *matches*: Meta rejects a video sent where the
+    template declared an image, once per recipient, and the template already said which it is.
+    """
+    header = component_of(components, COMPONENT_HEADER)
+    if header is None:
+        return None
+    fmt = str(header.get("format") or FORMAT_TEXT).lower()
+    return fmt if fmt in MEDIA_FORMATS else None
+
+
 def has_media_header(components: list[dict[str, Any]]) -> bool:
     header = component_of(components, COMPONENT_HEADER)
     if header is None:

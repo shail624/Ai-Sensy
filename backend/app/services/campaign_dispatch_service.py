@@ -58,7 +58,7 @@ from app.services.audit_service import AuditAction, AuditService
 from app.services.campaign_batch_service import CampaignBatchService
 from app.services.campaign_retry_service import CampaignRetryService
 from app.services.send_service import SendService
-from app.services.template_validation import button_targets
+from app.services.template_validation import button_targets, header_media_format
 
 logger = get_logger(__name__)
 
@@ -100,6 +100,25 @@ class CampaignNotDispatchable(ConflictError):
     code = "campaign_not_dispatchable"
     title = "Campaign Not Dispatchable"
 
+
+
+
+def _header_media(campaign: Campaign, template: MessageTemplate) -> dict[str, Any]:
+    """The media header this campaign sends, in the shape ``SendService`` reads.
+
+    ``kind`` comes from the template rather than from the asset: the template is what declares the
+    header is an image, and the campaign was refused at creation unless the file matched. Reading
+    it back off the asset would let a file replaced afterwards change what the template says it is.
+
+    Omitted entirely when there is none, because ``SendService`` treats an empty dict and a missing
+    key the same, while a present-but-empty one reads like an answer.
+    """
+    reference = (campaign.variable_map_json or {}).get("header_media") or {}
+    asset_id = reference.get("media_asset_id") if isinstance(reference, dict) else None
+    kind = header_media_format(template.components_json or [])
+    if not asset_id or not kind:
+        return {}
+    return {"header_media": {"media_asset_id": str(asset_id), "kind": kind}}
 
 
 def _button_values(template: MessageTemplate, variables: dict[str, Any]) -> list[dict[str, Any]]:
@@ -309,6 +328,11 @@ class CampaignDispatchService:
                         "header": list(variables.get("header") or []),
                         "body": list(variables.get("body") or []),
                         "buttons": _button_values(template, variables),
+                        # The campaign's own file, the same one for every recipient. Read from the
+                        # map rather than the roster: it is a property of the campaign, not of the
+                        # customer, and copying it onto every row would be a hundred thousand
+                        # copies of one id.
+                        **_header_media(campaign, template),
                     }
                 },
                 campaign_id=campaign.id,

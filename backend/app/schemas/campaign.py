@@ -43,6 +43,16 @@ class VariableMapping(BaseModel):
     fallback: str | None = None
 
 
+class CampaignHeaderMedia(BaseModel):
+    """The file a media-header template sends, for every recipient of this campaign.
+
+    One asset for the whole campaign rather than one per contact: a media header is the offer's
+    picture, not a field of the customer's record, and Meta binds it per send from the same id.
+    """
+
+    media_asset_id: uuidlib.UUID
+
+
 class VariableMap(BaseModel):
     """Mappings positioned to the template's ``{{1}}, {{2}} …``, per component.
 
@@ -59,6 +69,11 @@ class VariableMap(BaseModel):
     header: list[VariableMapping] = Field(default_factory=list)
     body: list[VariableMapping] = Field(default_factory=list)
     buttons: list[VariableMapping] = Field(default_factory=list)
+    #: Required when the template's header carries a file instead of text. It lives here rather
+    #: than in a column of its own because this is the same kind of statement as the rest of the
+    #: map -- where each part of the message gets its content -- and it needs no migration to say
+    #: so. ``None`` for a text header or no header at all.
+    header_media: CampaignHeaderMedia | None = None
 
 
 class AudienceRef(BaseModel):
