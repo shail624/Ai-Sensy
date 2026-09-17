@@ -1,5 +1,57 @@
 # Implementation Tracker (canonical)
 
+## CAM-BTN-01 — a campaign could never fill in a button's link (2026-09-17)
+
+A WhatsApp template whose button carries a per-customer link — the ordinary shape of a Vi
+reactivation offer, "Recharge now" pointing at `https://vi.co/pay/{{1}}` — could not be sent by a
+campaign. Not "sent wrong": Meta counts button parameters and rejects a message that is short one,
+so **every recipient failed**, one rejection at a time, after the window the campaign was scheduled
+for had opened. Nothing on any screen said it would. Backend 1,716 → **1,718**, frontend 958 →
+**961**; contract stays at 247 paths, `VariableMap` gains `buttons`.
+
+Found while checking whether TMPL-02's new preview had anywhere to lead. It did not.
+
+**Six layers, and every one of them dropped it.**
+
+1. `VariableMap` declared `header` and `body` only, so Pydantic **silently discarded** a `buttons`
+   mapping. No caller could supply one, and none was told why.
+2. `_validate_map` iterated `("header", "body")`, so a campaign on a template that *requires* a
+   button value was accepted with none — the one moment a 422 would have cost one operator one
+   message.
+3. `_variables_for` resolved `("header", "body")`, so nothing was stored on the roster.
+4. `campaign_dispatch_service` passed a hardcoded `"buttons": []`.
+5. `campaign_service.preview` never passed buttons to `render()`, so the sample renders showed
+   `https://vi.co/pay/{{1}}` — the template, not the message.
+6. The wizard's `templateShape` counted header and body placeholders only, so no control was ever
+   drawn to ask.
+
+Either end of that chain was already complete: `TemplateContent.buttons`, `TemplateButtonValue`
+with its index, and the Meta adapter's `sub_type`/`index`/`parameters` emission have been there all
+along, and `POST /messages/send` accepts button values today. Only the campaign path between them
+was missing, so the feature looked present from both directions and worked from neither.
+
+**The value is paired back to its button, not assumed to line up.** Meta addresses a button
+parameter by its index *within the template*, and the roster stores values in mapping order, so
+`_button_values` walks the template's buttons and pairs them. A template whose second button is a
+fixed phone number and whose third carries the link would otherwise send the link as parameter two
+and reach nobody.
+
+**The send path now checks the count, and only the direction that is proven.** Too few button
+values is a rejection from Meta — that is the failure this milestone is about, and it is now a 422
+at accept. Too many is a different question: a quick reply takes a tap payload with no placeholder
+to count, and this repository's own send tests have always supplied a value for a fixed URL button.
+Whether Meta accepts that is not something this container can ask it, so the check is a minimum
+rather than an equality. Tightening it on a guess would break sends that work today. **Worth an
+owner's decision if the answer is ever known.**
+
+Templates 91% → 92%, Campaigns 95% → 96%. The canonical 31-module average stays at **81.0%**: two points spread over thirty-one modules does not move it, and rounding it up would be the kind of small overstatement these ledgers exist to prevent.
+
+PASS: backend **1,718 passed, 0 skipped** against live MySQL 8 (549.3s); frontend **961 passed
+across 57 files**; regenerated OpenAPI (247 paths) and TypeScript with no drift; Ruff, strict mypy
+(331 files), ESLint, TypeScript and the production build clean. The five new tests were run against
+the code they describe first, to see them fail; the dispatch one asserts on the Graph payload
+rather than the recipient row, because the mock accepts anything and only the wire tells the truth.
+
 ## TMPL-02 — a preview that shows what the customer will actually get (2026-09-17)
 
 The template preview rendered every variable as `{{1}}` and never showed a button's destination, so

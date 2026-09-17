@@ -32,6 +32,9 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
   const templateId = useWatch({ control, name: "template_id" });
   const header = useWatch({ control, name: "header" }) ?? [];
   const body = useWatch({ control, name: "body" }) ?? [];
+  // A button whose link carries {{1}} needs a value per customer, exactly like a body variable —
+  // the difference is only that the placeholder lives in the destination rather than in the text.
+  const buttons = useWatch({ control, name: "buttons" }) ?? [];
 
   const template = templates.data?.find((candidate) => candidate.id === templateId);
   const shape = templateShape(template);
@@ -140,13 +143,14 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
         </div>
       ) : null}
 
-      {template && shape.headerCount + shape.bodyCount > 0 ? (
+      {template && shape.headerCount + shape.bodyCount + shape.buttonCount > 0 ? (
         <div className="space-y-3 rounded-xl border border-border p-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Variable mapping</h3>
             <p className="mt-1 text-xs text-text-secondary">
-              Each placeholder gets its value per contact. A fallback matters: WhatsApp rejects an
-              empty parameter, so a contact missing the mapped value would fail without one.
+              Each placeholder gets its value per contact, including one inside a button&apos;s
+              link. A fallback matters: WhatsApp rejects an empty parameter, so a contact missing
+              the mapped value would fail without one.
             </p>
           </div>
 
@@ -177,6 +181,20 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
               }))}
             />
           ))}
+
+          {buttons.slice(0, shape.buttonCount).map((_, index) => (
+            <MappingRow
+              key={`buttons-${index}`}
+              form={form}
+              component="buttons"
+              index={index}
+              label={shape.buttonLabels[index]}
+              attributeKeys={(attributes.data ?? []).map((definition) => ({
+                value: definition.key_name,
+                label: definition.label,
+              }))}
+            />
+          ))}
         </div>
       ) : template ? (
         <EmptyState
@@ -190,13 +208,27 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
 
 interface MappingRowProps {
   form: UseFormReturn<CampaignFormValues>;
-  component: "header" | "body";
+  component: "header" | "body" | "buttons";
   index: number;
+  /** A button's own label, so the row says which button rather than a bare number. */
+  label?: string;
   attributeKeys: { value: string; label: string }[];
 }
 
+const COMPONENT_LABELS: Record<MappingRowProps["component"], string> = {
+  header: "Header",
+  body: "Body",
+  buttons: "Button link",
+};
+
 /** One `{{n}}` placeholder: where its value comes from, and what to use when there isn't one. */
-function MappingRow({ form, component, index, attributeKeys }: MappingRowProps): JSX.Element {
+function MappingRow({
+  form,
+  component,
+  index,
+  label,
+  attributeKeys,
+}: MappingRowProps): JSX.Element {
   const { register, control } = form;
   const source = useWatch({ control, name: `${component}.${index}.source` });
   const fieldError = form.formState.errors[component]?.[index];
@@ -204,7 +236,8 @@ function MappingRow({ form, component, index, attributeKeys }: MappingRowProps):
   return (
     <div className="rounded-xl border border-border bg-surface-subtle p-3">
       <p className="mb-2 text-xs font-medium text-text-secondary">
-        {component === "header" ? "Header" : "Body"} variable {`{{${index + 1}}}`}
+        {COMPONENT_LABELS[component]}
+        {label ? ` — “${label}”` : ""} variable {`{{${index + 1}}}`}
       </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div>

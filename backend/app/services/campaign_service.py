@@ -40,7 +40,11 @@ from app.repositories.waba import PhoneNumberRepository
 from app.services.audience_service import AudienceService
 from app.services.audit_service import AuditAction, AuditService
 from app.services.phone_number_service import PhoneNumberService
-from app.services.template_validation import expected_variables, render
+from app.services.template_validation import (
+    expected_button_variables,
+    expected_variables,
+    render,
+)
 
 logger = get_logger(__name__)
 
@@ -273,6 +277,7 @@ class CampaignService:
                         (template.components_json or []) if template else [],
                         header=list(variables.get("header") or []),
                         body=list(variables.get("body") or []),
+                        buttons=list(variables.get("buttons") or []),
                     ),
                 }
             )
@@ -326,8 +331,16 @@ class CampaignService:
     @staticmethod
     def _validate_map(template: MessageTemplate, variable_map: dict[str, Any]) -> None:
         """The map must fill exactly the placeholders the template declares (FR-CAM-01)."""
-        header_vars, body_vars = expected_variables(template.components_json or [])
-        for label, expected in (("header", header_vars), ("body", body_vars)):
+        components = template.components_json or []
+        header_vars, body_vars = expected_variables(components)
+        # Buttons counted separately because Meta counts them separately: a URL button carries its
+        # variable inside the link and is addressed by button index, not by the body's numbering.
+        button_vars = expected_button_variables(components)
+        for label, expected in (
+            ("header", header_vars),
+            ("body", body_vars),
+            ("buttons", button_vars),
+        ):
             mappings = variable_map.get(label) or []
             if len(mappings) != expected:
                 raise CampaignInvalid(
@@ -413,13 +426,19 @@ class CampaignService:
 
     @staticmethod
     def _variables_for(contact: Contact, variable_map: dict[str, Any]) -> dict[str, list[str]]:
-        """This contact's values for the template's placeholders, in order."""
+        """This contact's values for the template's placeholders, in order.
+
+        ``buttons`` is here for the same reason ``header`` and ``body`` are: a URL button carries
+        its variable inside the link, so "which link does *this* customer get" is a per-recipient
+        question. Resolved at materialisation with the rest, it is stored on the roster and the
+        dispatch has nothing left to work out.
+        """
         return {
             label: [
                 CampaignService._value_of(contact, mapping)
                 for mapping in (variable_map.get(label) or [])
             ]
-            for label in ("header", "body")
+            for label in ("header", "body", "buttons")
         }
 
     @staticmethod

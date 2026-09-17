@@ -77,7 +77,12 @@ from app.services.contact_service import wa_id_from_e164
 from app.services.conversation_service import ConversationService
 from app.services.media_ingest_service import MediaIngestService
 from app.services.rate_gate import RateGate, is_paused
-from app.services.template_validation import VARIABLE_BUTTONS, expected_variables, render
+from app.services.template_validation import (
+    VARIABLE_BUTTONS,
+    expected_button_variables,
+    expected_variables,
+    render,
+)
 from app.services.waba_service import WabaService
 
 logger = get_logger(__name__)
@@ -591,7 +596,29 @@ class SendService:
                         }
                     ],
                 )
-        for index, button in enumerate(spec.get("buttons") or []):
+        supplied_buttons = list(spec.get("buttons") or [])
+        button_vars = expected_button_variables(template.components_json or [])
+        if len(supplied_buttons) < button_vars:
+            # A minimum, not an equality, and deliberately so. Too *few* is a proven failure: a
+            # button whose destination carries `{{1}}` and gets no value makes Meta reject the
+            # message, once per recipient, after the window the campaign was scheduled for has
+            # opened. Too *many* is a different question -- a quick reply takes a tap payload with
+            # no placeholder to count, and this repository's own send tests have always supplied a
+            # value for a fixed URL button. Whether Meta accepts that is not something this
+            # container can ask it, so the check enforces what is known and leaves the rest alone
+            # rather than tightening on a guess and breaking sends that work today.
+            raise TemplateVariablesError(
+                f"Template {template.name!r} needs {button_vars} button variable(s); "
+                f"{len(supplied_buttons)} supplied.",
+                errors=[
+                    {
+                        "field": "template.buttons",
+                        "code": "count_mismatch",
+                        "message": f"expected {button_vars}, got {len(supplied_buttons)}",
+                    }
+                ],
+            )
+        for index, button in enumerate(supplied_buttons):
             if str(button.get("type")) not in VARIABLE_BUTTONS:
                 raise TemplateVariablesError(
                     f"Button values can only be bound to {', '.join(VARIABLE_BUTTONS)} buttons.",

@@ -54,6 +54,7 @@ export const campaignSchema = z
     contact_ids: z.array(z.string()),
     header: z.array(mappingSchema),
     body: z.array(mappingSchema),
+    buttons: z.array(mappingSchema),
   })
   .superRefine((values, ctx) => {
     if (values.audience_type === "segment" && values.segment_id === "") {
@@ -96,6 +97,7 @@ export function blankCampaign(): CampaignFormValues {
     contact_ids: [],
     header: [],
     body: [],
+    buttons: [],
   };
 }
 
@@ -151,6 +153,7 @@ export function campaignToForm(campaign: Campaign): CampaignFormValues {
     contact_ids: toIdList(ref.contact_ids),
     header: toMappings(map.header),
     body: toMappings(map.body),
+    buttons: toMappings(map.buttons),
   };
 }
 
@@ -182,7 +185,11 @@ function toVariableMap(values: CampaignFormValues): CampaignCreateRequest["varia
       value: mapping.source === "literal" ? mapping.value : null,
       fallback: mapping.fallback.trim() === "" ? null : mapping.fallback,
     }));
-  return { header: clean(values.header), body: clean(values.body) };
+  return {
+    header: clean(values.header),
+    body: clean(values.body),
+    buttons: clean(values.buttons),
+  };
 }
 
 export function toCreateRequest(values: CampaignFormValues): CampaignCreateRequest {

@@ -43,6 +43,7 @@ from app.models.campaign import (
     CampaignRecipient,
 )
 from app.models.message import Message
+from app.models.template import MessageTemplate
 from app.models.user import User
 from app.repositories.campaign import (
     CampaignBatchRepository,
@@ -57,6 +58,7 @@ from app.services.audit_service import AuditAction, AuditService
 from app.services.campaign_batch_service import CampaignBatchService
 from app.services.campaign_retry_service import CampaignRetryService
 from app.services.send_service import SendService
+from app.services.template_validation import button_targets
 
 logger = get_logger(__name__)
 
@@ -97,6 +99,29 @@ class CampaignNotDispatchable(ConflictError):
 
     code = "campaign_not_dispatchable"
     title = "Campaign Not Dispatchable"
+
+
+
+def _button_values(template: MessageTemplate, variables: dict[str, Any]) -> list[dict[str, Any]]:
+    """This recipient's button values, paired back to the buttons they belong to.
+
+    The roster stores the resolved values in order; Meta addresses a button parameter by its
+    *index within the template*, so the two have to be paired here rather than assumed to line up.
+    A template whose second button is a fixed phone number and whose third carries the link would
+    otherwise send the link as parameter two and reach nobody.
+
+    This was a hardcoded ``[]``. Everything either side of it supported button values -- the
+    campaign's variable map, the send path, the Meta adapter -- so a template whose link carried a
+    variable was built, previewed and dispatched with no button parameter at all, and Meta rejected
+    it once per recipient.
+    """
+    supplied = list(variables.get("buttons") or [])
+    values: list[dict[str, Any]] = []
+    for row in button_targets(template.components_json or []):
+        if not row["takes_value"] or not supplied:
+            continue
+        values.append({"index": row["index"], "type": row["type"], "value": supplied.pop(0)})
+    return values
 
 
 class CampaignDispatchService:
@@ -283,7 +308,7 @@ class CampaignDispatchService:
                         "id": template.public_id,
                         "header": list(variables.get("header") or []),
                         "body": list(variables.get("body") or []),
-                        "buttons": [],
+                        "buttons": _button_values(template, variables),
                     }
                 },
                 campaign_id=campaign.id,

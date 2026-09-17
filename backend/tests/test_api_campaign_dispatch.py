@@ -6,6 +6,7 @@ lane's fan-out is driven directly.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import httpx
@@ -430,3 +431,138 @@ async def test_unknown_campaign_is_404(
     assert (
         await client.get(f"{CAMPAIGNS_URL}/{uuid.uuid4()}/progress", headers=headers)
     ).status_code == 404
+
+
+# --- CAM-BTN-01: a template whose link carries a variable -----------------------------------------
+LINK_TEMPLATE = [
+    {"type": "body", "text": "Hi {{1}}, your Vi number has an offer waiting."},
+    {
+        "type": "buttons",
+        "buttons": [{"type": "url", "text": "Recharge now", "url": "https://vi.co/pay/{{1}}"}],
+    },
+]
+
+
+async def _link_campaign(client, make_user, session_factory, monkeypatch):
+    """A campaign on a template whose Recharge button carries a per-customer link."""
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = LINK_TEMPLATE
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+    created = (
+        await client.post(
+            CAMPAIGNS_URL,
+            headers=headers,
+            json={
+                "name": "Vi Reactivation",
+                "phone_number_id": number_id,
+                "template_id": template_id,
+                "audience_type": "list",
+                "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+                "variable_map": {
+                    "body": [{"source": "field", "key": "full_name", "fallback": "there"}],
+                    "buttons": [{"source": "field", "key": "wa_id", "fallback": "0"}],
+                },
+            },
+        )
+    )
+    assert created.status_code == 201, created.text
+    return headers, created.json()
+
+
+async def test_a_campaign_can_bind_a_value_into_a_button_link(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """The per-customer link is the whole point of a reactivation button.
+
+    The send path has always accepted button values and the Meta adapter has always emitted them.
+    The campaign path resolved only header and body and handed dispatch a hardcoded empty list, so
+    a template whose link carries a variable was sent with no button parameter at all -- which Meta
+    rejects, for every recipient, with nothing on any screen having warned that it would.
+    """
+    headers, created = await _link_campaign(client, make_user, session_factory, monkeypatch)
+    assert (await client.post(f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers)).status_code == 202
+
+    async with session_factory() as session:
+        campaign = (await session.scalars(select(Campaign))).one()
+    await _run(session_factory, campaign.id)
+
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(CampaignRecipient))).all())
+    assert [row.status for row in rows] == [RECIPIENT_SENT, RECIPIENT_SENT], [
+        (row.status, row.error_detail) for row in rows
+    ]
+
+    # Asserted on the Graph payload, not on the recipient row: the mock accepts anything, so a
+    # missing button parameter still "sends" here. Real Meta counts the parameters and rejects the
+    # message, which is why the only honest check is what actually went on the wire.
+    sent = [
+        json.loads(request.content)
+        for request in campaign_channel["requests"]
+        if request.method == "POST"
+    ]
+    buttons = [
+        component
+        for payload in sent
+        for component in (payload.get("template", {}).get("components") or [])
+        if component.get("type") == "button"
+    ]
+    assert len(buttons) == 2, sent
+    assert {button["sub_type"] for button in buttons} == {"url"}
+    assert {button["parameters"][0]["text"] for button in buttons} == {
+        contact["wa_id"] for contact in await _wa_ids(session_factory)
+    }
+
+
+async def _wa_ids(session_factory) -> list[dict]:
+    async with session_factory() as session:
+        return [{"wa_id": c.wa_id} for c in (await session.scalars(select(Contact))).all()]
+
+
+async def test_a_campaign_is_refused_when_its_template_needs_a_button_value(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Refused at creation, where it is one message to one operator.
+
+    Unvalidated, the campaign was accepted, the roster was built and the failure arrived from Meta
+    once per recipient — thousands of identical rejections for one mapping nobody was asked for.
+    """
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = LINK_TEMPLATE
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+
+    refused = await client.post(
+        CAMPAIGNS_URL,
+        headers=headers,
+        json={
+            "name": "Vi Reactivation",
+            "phone_number_id": number_id,
+            "template_id": template_id,
+            "audience_type": "list",
+            "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+            # The link's value is simply not mapped.
+            "variable_map": {"body": [{"source": "field", "key": "full_name", "fallback": "x"}]},
+        },
+    )
+
+    assert refused.status_code == 422
+    assert "button" in refused.text.lower()

@@ -44,10 +44,21 @@ class VariableMapping(BaseModel):
 
 
 class VariableMap(BaseModel):
-    """Mappings positioned to the template's ``{{1}}, {{2}} …``, per component."""
+    """Mappings positioned to the template's ``{{1}}, {{2}} …``, per component.
+
+    ``buttons`` is one mapping per button whose destination carries a variable, in the order those
+    buttons appear — a URL button holds its variable inside the link
+    (``https://vi.co/pay/{{1}}``), so which link a customer gets is a per-recipient question like
+    any other. Buttons with fixed destinations take no mapping and are skipped.
+
+    It was missing here, which made it missing everywhere: Pydantic dropped a ``buttons`` key
+    without a word, so no caller could supply one even though the send path and the Meta adapter
+    had always accepted button values.
+    """
 
     header: list[VariableMapping] = Field(default_factory=list)
     body: list[VariableMapping] = Field(default_factory=list)
+    buttons: list[VariableMapping] = Field(default_factory=list)
 
 
 class AudienceRef(BaseModel):

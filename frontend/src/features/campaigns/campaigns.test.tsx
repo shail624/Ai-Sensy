@@ -10,6 +10,7 @@ import { CampaignTable } from "@/features/campaigns/CampaignTable";
 import { CampaignTimeline } from "@/features/campaigns/CampaignTimeline";
 import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgress";
 import {
+  blankCampaign,
   campaignToForm,
   duplicateToForm,
   followUpToForm,
@@ -251,9 +252,68 @@ describe("templateShape", () => {
   it("has an empty shape when no template is chosen", () => {
     expect(templateShape(undefined).bodyCount).toBe(0);
   });
+
+  it("counts a button whose link carries a variable", () => {
+    // The Vi reactivation shape: one personalised recharge link per customer. Nothing counted it,
+    // so the wizard drew no control, the campaign was built with no value for it, and Meta
+    // rejected the send once per recipient.
+    const shape = templateShape(
+      template({
+        components: [
+          { type: "BODY", text: "Hi {{1}}" },
+          {
+            type: "BUTTONS",
+            buttons: [{ type: "URL", text: "Recharge now", url: "https://vi.co/pay/{{1}}" }],
+          },
+        ],
+      }),
+    );
+    expect(shape.buttonCount).toBe(1);
+    expect(shape.buttonLabels).toEqual(["Recharge now"]);
+  });
+
+  it("does not ask for a value a fixed button will never take", () => {
+    // A settled link, a phone number and a quick reply are all decided at approval time. Drawing
+    // a control for them would invite a value the send has nowhere to put.
+    const shape = templateShape(
+      template({
+        components: [
+          { type: "BODY", text: "Hi {{1}}" },
+          {
+            type: "BUTTONS",
+            buttons: [
+              { type: "URL", text: "Track", url: "https://vi.co/track" },
+              { type: "PHONE_NUMBER", text: "Call", phone_number: "+911234567890" },
+              { type: "QUICK_REPLY", text: "Not now" },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(shape.buttonCount).toBe(0);
+  });
 });
 
 describe("campaignForm", () => {
+  it("sends a button mapping through to the request", () => {
+    // Every layer below this dropped it silently until now, so the one thing worth pinning is that
+    // the form does not become the next layer that does.
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Reactivation",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+      body: [{ source: "field", key: "full_name", value: "", fallback: "there" }],
+      buttons: [{ source: "field", key: "wa_id", value: "", fallback: "0" }],
+    });
+
+    expect(request.variable_map?.buttons).toEqual([
+      { source: "field", key: "wa_id", value: null, fallback: "0" },
+    ]);
+  });
+
   it("reads an existing campaign back into form values", () => {
     const values = campaignToForm(
       campaignFixture({

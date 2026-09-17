@@ -34975,11 +34975,18 @@
             },
             "type": "array",
             "title": "Body"
+          },
+          "buttons": {
+            "items": {
+              "$ref": "#/components/schemas/VariableMapping"
+            },
+            "type": "array",
+            "title": "Buttons"
           }
         },
         "type": "object",
         "title": "VariableMap",
-        "description": "Mappings positioned to the template's ``{{1}}, {{2}} …``, per component."
+        "description": "Mappings positioned to the template's ``{{1}}, {{2}} …``, per component.\n\n``buttons`` is one mapping per button whose destination carries a variable, in the order those\nbuttons appear — a URL button holds its variable inside the link\n(``https://vi.co/pay/{{1}}``), so which link a customer gets is a per-recipient question like\nany other. Buttons with fixed destinations take no mapping and are skipped.\n\nIt was missing here, which made it missing everywhere: Pydantic dropped a ``buttons`` key\nwithout a word, so no caller could supply one even though the send path and the Meta adapter\nhad always accepted button values."
       },
       "VariableMapping": {
         "properties": {
