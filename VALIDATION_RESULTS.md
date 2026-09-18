@@ -1,5 +1,98 @@
 # Validation Results
 
+## OPS-02 — the fleet view reported an empty fleet, always (2026-09-18)
+
+The registry Compose could not be used to test was tested a different way: without container images,
+but with the real application. A genuinely empty MySQL schema, `alembic upgrade head`, `app.cli
+create-owner`, uvicorn in `ENVIRONMENT=production`, a Celery worker, and a signed-in owner — §4
+through §8 of the deployment guide, run natively.
+
+It worked. Then `GET /api/v1/queues` said there were **no workers**, with a worker running and
+`ready`.
+
+`app/queue/heartbeat.py` has always held a complete worker registry: a TTL'd Redis key per worker, a
+reader, a schema, a `worker_heartbeat_ttl_seconds` setting, and `_worker_count()` in
+`queue/health.py` to fold it into each queue's row. Nothing ever wrote to it. `beat()` had no
+callers anywhere in `app/`, and the codebase contained **no Celery signal handlers at all** — no
+`worker_ready`, no `worker_shutdown`, nothing. Redis confirmed it: zero `worker:heartbeat:*` keys
+while a worker was live.
+
+So the endpoint reported zero workers in every deployment that has ever run, whether the fleet was
+healthy or entirely dead. `DEPLOYMENT.md` §12 calls that endpoint **"the primary saturation
+signal"**, lists "queue depth and worker fleet ... backlog and dead workers" as what to watch, and
+§14 tells an operator debugging "sends accepted then never delivered" to check it. A signal that
+reads identically in both states carries no information; worse, it reads as the alarming state, so
+the correct reaction to it was to learn to ignore it.
+
+`test_heartbeat_registers_with_ttl_and_lists_workers` passed throughout — it calls `beat()` itself.
+This is the same shape as the campaign-dispatch crash: the unit test exercises the function, and
+nothing in production invokes it.
+
+### The fix
+
+The writer was the only missing piece, so only the writer was added. `app/queue/worker_heartbeat.py`
+connects `worker_ready` and `worker_shutdown`, and refreshes on a daemon thread at a third of the
+TTL. `celery_app` imports it, which is what registers the handlers.
+
+It uses its own **synchronous** Redis client, and that is not an optimisation. `app.core.redis`
+caches its async client in a module-level global keyed only by the *running loop*, so a second
+thread calling `get_redis_client()` swaps out the client a running task is using — and the send
+path's rate gate reaches for that client on every message. Reusing `run_async` here would have
+traded a dead monitoring signal for intermittent send failures. `beat()` and `beat_sync()` share one
+`_payload()`, so the two writers cannot drift.
+
+The pool is derived from the queue registry rather than declared a second time, and an unrecognised
+queue reports `unknown` rather than being filed under a real pool.
+
+### Verified against a running fleet, not a fixture
+
+| | |
+|---|---|
+| Worker starts | `workers: 1`, pool `send-bulk`, queues `sends.bulk, sends.retry` |
+| 20s later | `last_seen_at` advanced — the refresh loop is alive |
+| Clean `SIGTERM` | key deleted immediately; `workers: 0` |
+| `SIGKILL` (a crash) | key survives, TTL 46s remaining — then reaped; `workers: 0` |
+| Queues with no worker | 17 of 19 report `0` — the coverage gap an operator needs to see |
+
+Six tests. The wiring test runs in a **subprocess** that imports only `celery_app`: asserting on
+signal state in-process proves nothing, because the test module's own import of `worker_heartbeat`
+connects the handlers by itself. That blind spot is exactly what let the defect through, and the
+first draft of the test had it. With the import removed from `celery_app`, the subprocess fails with
+`celery app does not import it`.
+
+PASS: backend **1,770 passed, 0 failed, 0 skipped** in 632s at INFO with live MySQL 8 and Redis
+(1,764 → 1,770; six new worker-registry tests). Lint and strict `mypy` clean across **332** source
+files.
+
+PASS: §4–§8 of the deployment guide executed natively against real MySQL and Redis — empty schema →
+**93 tables at `0068_attribute_required_and_active`** → `Owner created` → re-run reports `Owner
+already exists` → uvicorn in `ENVIRONMENT=production` → `/health` ok → `/ready` **200** with
+database, redis and storage all `up` → owner signs in through `POST /api/v1/auth/login` and receives
+a token. This is the chain DEPLOY-01 repaired, now executed end to end rather than reasoned about.
+
+PASS: read sweep across every parameterless `GET` on a brand-new deployment — **79 requests, zero
+5xx and zero transport errors**. Distribution 200×61, 400×12, 422×3, 404×2, 403×1. All three
+non-2xx singles were verified correct rather than assumed: the QR session route reports the provider
+unconfigured, identity-conflicts reports the feature disabled, and the Meta webhook route fails
+verification closed for a request carrying no `hub.*` parameters. The one slow response
+(`/api/v1/activation-records`, 399 ms) was cold start: five repeats returned 5.6–8.0 ms.
+
+PASS: the worker-registry defect was proven against the running system before any code changed —
+`workers: []` from the endpoint, zero `worker:heartbeat:*` keys in Redis, `beat()` with no callers
+in `app/`, and no Celery signal handler of any kind in the codebase.
+
+PASS: the fix was verified against a real fleet, not a fixture: registration, refresh at a third of
+the TTL, immediate deregistration on `SIGTERM`, and TTL reaping after `SIGKILL` — with the 17 queues
+that have no consumer correctly reporting zero.
+
+PASS: the wiring test fails against the defect it describes. With the import removed from
+`celery_app`, its subprocess probe exits non-zero with `celery app does not import it`.
+
+PENDING – Host Machine Validation: unchanged and unaffected — containers, TLS, the edge proxy and
+the browser matrix still need a host with registry access. What this milestone establishes is that
+the application-level first-deploy chain is sound; it does not establish that the Compose stack
+starts, because no image can be built in this environment.
+
 ## DEPLOY-02 — an optional provider blocked every deployment that never used it (2026-09-18)
 
 With a Docker daemon available, DEPLOY-01's remaining `PENDING` was attempted for real: §2, then

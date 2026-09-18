@@ -1,5 +1,28 @@
 # Module Status
 
+## OPS-02 — worker fleet visibility (2026-09-18)
+
+`GET /api/v1/queues` reported zero workers in every deployment that has ever run. `app/queue/
+heartbeat.py` held a complete worker registry and nothing wrote to it: `beat()` had no callers and
+the codebase contained no Celery signal handlers at all. The deployment guide names that endpoint
+the primary saturation signal and tells operators to alert on dead workers with it, so the signal
+was constant and therefore useless. Found by running §4–§8 natively; the existing unit test passed
+throughout because it calls `beat()` itself.
+
+Fixed by adding only the missing writer: `worker_ready`/`worker_shutdown` handlers refreshing on a
+daemon thread with a private synchronous Redis client — deliberately not the shared async client,
+whose module-level cache would have been swapped out from under running tasks and broken the send
+path's rate gate.
+
+PASS: 1,770 passed / 0 failed / 0 skipped with live MySQL 8 and Redis; lint and strict mypy across
+332 files. Registration, refresh, clean deregistration and TTL reaping after SIGKILL all verified
+against a running worker.
+PASS: first-deploy chain §4–§8 executed natively — empty schema to signed-in owner; 79-endpoint read
+sweep on a brand-new deployment with zero 5xx.
+PENDING – Host Machine Validation: containers, TLS and the browser matrix still need a host with
+registry access.
+No completion percentage increase: a defect in an operational signal, not new scope.
+
 ## DEPLOY-02 — optional WAHA profile blocked the default stack (2026-09-18)
 
 `${WAHA_API_KEY:?}` and `${WAHA_WEBHOOK_HMAC_SECRET:?}` sat inside the profiled `waha` service, and

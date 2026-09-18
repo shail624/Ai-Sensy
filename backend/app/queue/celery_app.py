@@ -154,6 +154,12 @@ def create_celery_app() -> Celery:
 
 celery_app = create_celery_app()
 
+# Registers the `worker_ready`/`worker_shutdown` handlers that publish this worker's heartbeat.
+# Imported for its side effect and after the app exists, the same way Celery signal modules are
+# normally wired. Without this import nothing writes the worker registry, and `GET /api/v1/queues`
+# reports an empty fleet however many workers are running.
+from app.queue import worker_heartbeat as _worker_heartbeat  # noqa: E402,F401
+
 
 def apply_queue_timeouts(task_name: str, queue_name: str) -> dict[str, int]:
     """Soft/hard timeouts for a task, taken from its queue's spec (Doc 06 §2.3/§2.4)."""
