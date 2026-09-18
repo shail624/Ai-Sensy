@@ -1,5 +1,48 @@
 # Project State
 
+## BUILD-01 — a third of the entry bundle was a screen almost nobody opens (2026-09-18)
+
+Two production-readiness items that needed no new feature work.
+
+**Rollup had been saying it out loud.** Every build printed
+`INEFFECTIVE_DYNAMIC_IMPORT: src/features/operations/index.ts is dynamically imported by
+src/routes/router.tsx but also statically imported by ... src/routes/router.tsx`, and the warning
+was exactly right. `router.tsx` pulled one constant, `OPERATIONS_PERMISSIONS`, from the feature's
+**barrel**; the router lives in the entry chunk; so the barrel — and with it the job list, the queue
+monitor, the logs panel, the system-health panel, the webhooks panel and the operations overview —
+was in the first thing every user downloads. The six `lazyNamed(...)` calls right below that import
+split nothing at all.
+
+`OPERATIONS_PERMISSIONS` lives in `sections.ts`, which is pure data and imports no component.
+Taking the three static imports from the modules that define what they need, instead of from the
+barrel, is the whole change:
+
+| | before | after |
+|---|---:|---:|
+| entry chunk, raw | 276 kB | **185 kB** |
+| entry chunk, gzip | 70 kB | **50 kB** |
+| all JS, raw | 1,808 kB | 1,813 kB |
+
+**20 kB of gzip off first paint, a 29% smaller entry**, and the total barely moves — which is the
+point: the code did not disappear, it moved to a chunk that loads when somebody opens Operations.
+Measured by reading the entry filename out of the built `index.html` and gzipping it, with the
+change stashed and unstashed, rather than by reading Vite's summary and hoping the same chunk was
+being compared.
+
+**The dependency audit is clean, and it was already clean where it counts.** `npm audit
+--omit=dev` reported **0 vulnerabilities** before any change: nothing shipped to a browser was
+affected. Four advisories (3 high, 1 moderate) sat in the build toolchain — `js-yaml` reached
+through `@redocly/openapi-core`, plus `browserslist` and `baseline-browser-mapping`. All four were
+semver-safe, so `npm audit fix` resolved them with **no change to `package.json`**; only the
+lockfile moved.
+
+The one thing worth checking after that bump is the contract: `openapi-typescript` sits inside the
+chain that moved. Regenerating `schema.d.ts` produces a **byte-identical** file, so the generated
+client is provably the same as the one every screen was written against.
+
+`pip-audit` reports no known vulnerabilities for the backend, and the browser-test package reports
+none.
+
 ## PERF-02 — the Scan screen cost the whole ledger the moment you filtered it (2026-09-18)
 
 With the stack running on a database carrying **20,043 contacts and 200,000 campaign recipients**,

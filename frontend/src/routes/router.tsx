@@ -3,7 +3,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout";
 import { Spinner } from "@/components/ui";
-import { OPERATIONS_PERMISSIONS } from "@/features/operations";
+// From the module that defines them, not the barrel. The router is in the entry chunk, so a
+// static import of the barrel pulls every operations panel in with it and the `lazyNamed`
+// calls below split nothing — Rollup says so out loud (INEFFECTIVE_DYNAMIC_IMPORT).
+import { OPERATIONS_PERMISSIONS } from "@/features/operations/sections";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFound } from "@/pages/NotFound";
 import { RequireAnonymous, RequireAnyPermission, RequireAuth, RequirePermission } from "@/routes/guards";
