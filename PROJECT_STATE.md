@@ -1,5 +1,51 @@
 # Project State
 
+## OPS-01 — the log line that killed every campaign dispatch (2026-09-18)
+
+Starting a Celery worker to exercise the async paths produced this, immediately, on every campaign
+dispatch task:
+
+```
+Task app.crm.campaign_tasks.dispatch_campaign raised unexpected:
+KeyError("Attempt to overwrite 'created' in LogRecord")
+```
+
+`campaign_batch_service.plan()` logged `extra={"created": len(created), ...}`. `created` is a
+`LogRecord`'s own timestamp, and `logging.makeRecord` **raises** on any key that would overwrite a
+record attribute. It raises *before* any formatter runs, so the JSON formatter's redaction and the
+reserved-name filter it already carries cannot help — the exception happens earlier than either.
+
+**Campaigns are what this platform is for, and dispatch died on its way to planning the batches.**
+Not degraded, not slow: the task raised, and the log line was the only thing that had gone wrong.
+
+**Why 1,742 tests never saw it.** `Logger.info` checks the level and returns before building the
+record, so a log statement above the active level is never executed. The suite ran above INFO,
+which means it type-checked every log call in the codebase and executed almost none of them. The
+line failed the moment a worker started with `--loglevel=info` — which is every worker.
+
+Set `log_level = "INFO"` in the pytest configuration, and **thirteen existing tests catch it**. They
+were always the right tests; they were being run with the failing statement switched off. Every log
+statement in the package now executes under test. The full suite is green at INFO: **1,744 passed,
+0 skipped** against live MySQL 8.
+
+**A second guard, because one word in a dictionary is easy to repeat.** A test walks the AST of the
+whole `app` package and asserts no `extra={...}` key collides with a `LogRecord` attribute. It
+prints the file and line, so the fix is obvious from the failure. The sweep found exactly one
+collision — this one — and every `extra=` in the codebase is a literal dict, so the sweep sees all
+of them.
+
+**The release-gate journey could only ever run once.** With a worker finally running, the existing
+`contacts-import` spec passed — then failed on the second run, and on every run after. It imports
+two contacts at fixed numbers, and the default duplicate policy is *skip*: against a database that
+already holds them nothing is created. The first failure looks like a broken import; the second is
+worse, because the assertion that a new contact **fires the automation trigger** cannot hold when no
+contact was created, so a reused fixture reads as a broken automation.
+
+Both fixtures are now unique per run. "One contact imported, trigger fired" becomes true every time
+rather than true only against a virgin stack — a stronger claim, and one that lets the gate run
+against a long-lived environment instead of only a disposable one. Verified by running it three
+times in a row against the same database.
+
 ## A11Y-01 — the accessibility review every module was waiting on (2026-09-18)
 
 Seven module rows carried some form of *"authenticated representative-data visual/WCAG/device
