@@ -1,5 +1,22 @@
 # Module Status
 
+## DEPLOY-02 — optional WAHA profile blocked the default stack (2026-09-18)
+
+`${WAHA_API_KEY:?}` and `${WAHA_WEBHOOK_HMAC_SECRET:?}` sat inside the profiled `waha` service, and
+Compose interpolates every service regardless of active profiles — so both aborted `build`/`up` for
+deployments that never enabled the provider, which `.env.production.example` (shipping them empty)
+guaranteed. Requirement relocated to a `waha-preflight` one-shot inside the profile; fail-closed
+preserved.
+
+PASS: full backend suite 1,764 passed / 0 failed / 0 skipped with MySQL 8 and Redis live.
+PASS: found by running the documented §2/§3 procedure; default stack and waha profile both render
+after the fix; 8 manifest contract tests, the new guard failing against the pre-fix manifest;
+the preflight's shell logic executed directly across all three credential cases.
+FAIL – environment: this sandbox denies the Docker registry CDN (403 on CONNECT; `docker pull
+hello-world` fails identically), so no image could be built.
+PENDING – Host Machine Validation: §3 through §8 remain unexecuted on a host with registry access.
+No completion percentage increase.
+
 ## DEPLOY-01 — first-deploy bootstrap path (2026-09-18)
 
 `DEPLOYMENT.md` §5 documented a first-deploy command that always exited 2: `app.cli create-owner`

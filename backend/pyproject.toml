@@ -49,6 +49,9 @@ dev = [
     # Security gates are pinned so their rule/output changes are explicit review events.
     "bandit==1.9.4",
     "pip-audit==2.10.1",
+    # Used by tests/test_deployment_contract.py to read the production Compose manifest.
+    # Previously present only as a transitive dependency of bandit.
+    "PyYAML>=6.0",
 ]
 
 [build-system]

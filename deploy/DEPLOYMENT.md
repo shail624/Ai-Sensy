@@ -487,7 +487,16 @@ docker compose -f docker-compose.production.yml --env-file .env.production --pro
 
 Required in `.env.production` when the profile is enabled: `WAHA_API_KEY`,
 `WAHA_BASE_URL=http://waha:3000`, `WAHA_SESSION_NAME`, `WAHA_WEBHOOK_HMAC_SECRET` and
-`WAHA_ORGANIZATION_ID`. The HMAC secret signs inbound deliveries and is verified over the raw body
+`WAHA_ORGANIZATION_ID`. A `waha-preflight` one-shot in the same profile refuses to
+start the provider when `WAHA_API_KEY` or `WAHA_WEBHOOK_HMAC_SECRET` is unset or empty, and `waha`
+waits on it completing.
+
+That check used to be `${WAHA_API_KEY:?...}` on the `waha` service itself, which could not work:
+Compose interpolates every service in a manifest **regardless of which profiles are active**, so
+those two markers aborted `build`, `up`, `ps` and `down` for the whole stack — including for every
+deployment that never enables the provider. `.env.production.example` ships both empty, so a first
+deploy that followed §2 and §3 verbatim failed at the build step naming an optional component it had
+not opted into. The requirement is unchanged; only the place it is enforced moved. The HMAC secret signs inbound deliveries and is verified over the raw body
 before anything is parsed; leaving it empty rejects **every** delivery rather than accepting
 unsigned ones.
 

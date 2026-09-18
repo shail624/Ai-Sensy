@@ -154,9 +154,7 @@ def test_backend_image_smoke_imports_the_worker_task_modules() -> None:
     command = image_contract.smoke_command("docker", "app:test", "backend")
     code = command[-1]
     assert "loader.import_default_modules()" in code
-    assert (
-        f"len(app.openapi()['paths']) == {image_contract.canonical_openapi_path_count()}" in code
-    )
+    assert f"len(app.openapi()['paths']) == {image_contract.canonical_openapi_path_count()}" in code
     assert "registered_tasks == expected_tasks" in code
     assert "'missing':" in code
     assert "'unexpected':" in code
@@ -222,9 +220,7 @@ def _waha_webhook_model(*, production: bool) -> dict[str, object]:
     services: dict[str, object] = {"waha": waha}
     if production:
         services["api"] = {
-            "environment": {
-                "WAHA_WEBHOOK_HMAC_SECRET": validate_waha_webhook.SYNTHETIC_HMAC
-            },
+            "environment": {"WAHA_WEBHOOK_HMAC_SECRET": validate_waha_webhook.SYNTHETIC_HMAC},
             "networks": {"default": None},
         }
     else:
@@ -358,3 +354,28 @@ def test_deployed_stack_environment_satisfies_every_required_compose_variable() 
     )
 
     assert release_contract.required_variables(compose_text) <= environment.keys()
+
+
+def test_required_variables_ignores_markers_written_inside_comments() -> None:
+    """A comment describing the syntax is prose, not a declaration.
+
+    `required_variables` feeds both the deployed-stack gate's environment and
+    `synthetic_environment`. A marker matched inside a comment invents a variable name that no
+    environment provides, so the gate fails on a variable that does not exist.
+    """
+    compose_text = (
+        "services:\n"
+        "  # This used to be written as ${LEGACY_VAR:?explained in prose} and could not work.\n"
+        "  real:\n"
+        "    environment:\n"
+        "      DECLARED: ${DECLARED_VAR:?DECLARED_VAR is required}\n"
+    )
+    assert release_contract.required_variables(compose_text) == {"DECLARED_VAR"}
+
+
+def test_required_variables_still_reads_the_real_manifest() -> None:
+    """The comment strip must not swallow genuine declarations."""
+    compose_text = release_contract.PRODUCTION_COMPOSE.read_text(encoding="utf-8")
+    found = release_contract.required_variables(compose_text)
+    assert found >= release_contract.REQUIRED_SECRETS
+    assert "IMAGE_TAG" in found

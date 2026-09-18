@@ -121,3 +121,63 @@ def test_deployment_guide_names_the_current_migration_head() -> None:
     head = revisions[-1]
     guide = DEPLOYMENT_GUIDE.read_text(encoding="utf-8")
     assert f"**`{head}`**" in guide, f"DEPLOYMENT.md §4 does not name the current head {head!r}"
+
+
+def test_an_optional_profile_never_blocks_the_default_stack(compose: dict[str, Any]) -> None:
+    """A `${VAR:?}` reachable only from a profiled service breaks every Compose command.
+
+    Profiles gate which services *run*; they do not gate interpolation, which Compose performs
+    over the whole manifest. So a required-variable marker that only an opt-in profile needs still
+    aborts `build`, `up`, `ps` and `down` for deployments that never enable it. The QR provider
+    carried two — `WAHA_API_KEY` and `WAHA_WEBHOOK_HMAC_SECRET`, both shipped empty by
+    `.env.production.example` — so a first deploy following §2 and §3 verbatim failed at the build
+    step, naming a component it had not opted into.
+
+    A variable is legitimate here only if some service that runs by default already requires it.
+    """
+
+    # Scan the *parsed* services, never the raw file: a `${VAR:?}` written inside a comment — this
+    # module's own manifest comments contain one — is prose, not a declaration, and a text scan
+    # reports it as a defect. The parser drops comments, which is exactly the distinction wanted.
+    def markers(body: object) -> set[str]:
+        return set(re.findall(r"\$\{([A-Z_][A-Z0-9_]*):\?", yaml.safe_dump(body)))
+
+    services = compose["services"]
+    required: set[str] = set()
+    satisfied_by_default: set[str] = set()
+    for body in services.values():
+        found = markers(body)
+        required |= found
+        if not body.get("profiles"):
+            satisfied_by_default |= found
+    assert required, "expected the manifest to require some variables"
+
+    profile_only = sorted(required - satisfied_by_default)
+    assert not profile_only, (
+        "these are required by an opt-in profile only, and abort every Compose command for the "
+        f"default stack: {profile_only}"
+    )
+
+
+def test_waha_preflight_defers_expansion_to_the_container_shell(compose: dict[str, Any]) -> None:
+    """The guard must read the container's environment, not the host's at render time.
+
+    `$$` is Compose's escape for a literal `$`. Written with a single `$`, Compose would interpolate
+    the variable while rendering the manifest — baking whatever the operator's shell happened to
+    hold into the command string, which both breaks the check (it would always see a literal value)
+    and writes a credential into `docker compose config` output.
+    """
+    preflight = compose["services"]["waha-preflight"]
+    assert "waha" in preflight["profiles"]
+    assert preflight["restart"] == "no"
+
+    script = preflight["command"][0]
+    for variable in ("WAHA_API_KEY", "WAHA_WEBHOOK_HMAC_SECRET"):
+        assert f"$${variable}" in script, f"{variable} must be written as $${variable}"
+        assert f"${{{variable}}}" not in script
+        # A bare `$VAR` (not preceded by another `$`) would be interpolated at render time.
+        assert not re.search(rf"(?<!\$)\${variable}\b", script)
+
+    # And the provider must actually wait for the verdict.
+    waha = compose["services"]["waha"]
+    assert waha["depends_on"]["waha-preflight"]["condition"] == "service_completed_successfully"

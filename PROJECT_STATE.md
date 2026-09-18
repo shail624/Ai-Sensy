@@ -1,5 +1,66 @@
 # Project State
 
+## DEPLOY-02 — an optional provider blocked every deployment that never used it (2026-09-18)
+
+With a Docker daemon available, DEPLOY-01's remaining `PENDING` was attempted for real: §2, then
+§3. §3 never reached a build step.
+
+```
+error while interpolating services.waha.environment.WAHA_API_KEY:
+required variable WAHA_API_KEY is missing a value
+```
+
+The QR provider is **opt-in and off by default** — ADR-0021 Class B, `--profile waha`, and §15 opens
+by saying a deployment that has not adopted it "runs exactly the stack it ran before". It did not.
+`WAHA_API_KEY` and `WAHA_WEBHOOK_HMAC_SECRET` were written as `${VAR:?}` **inside the profiled
+service**, and profiles do not gate interpolation. Both markers therefore aborted `build`, `up`,
+`ps` and `down` for every deployment, adopted or not. `.env.production.example` ships both empty,
+and `${VAR:?}` rejects empty as well as unset, so §2 followed verbatim guaranteed the failure.
+
+This is the same defect DEPLOY-01 reasoned about and avoided one commit earlier. It was already in
+the manifest at that point, and was not found by reading — the render that checked DEPLOY-01's own
+work passed only because the test environment had both WAHA variables set, which is precisely the
+condition a real first deploy does not have. Running it found it in seconds.
+
+### The fix
+
+The requirement is not dropped, it is relocated. A `waha-preflight` one-shot, in the `waha` profile,
+refuses to start when either credential is unset or empty; `waha` waits on it with
+`service_completed_successfully`. It reuses the backend image rather than adding another external
+one to a digest-pinned topology, and defers `$$VAR` expansion to the container shell. Fail-closed
+behaviour is preserved exactly; what changed is that it now fails closed for the people who enabled
+the provider instead of for everyone.
+
+`tests/test_deployment_contract.py` gains a general guard: any `${VAR:?}` reachable only from a
+profiled service is a defect. It names both variables against the pre-fix manifest.
+
+### A third defect, caused by the fix for the second
+
+The first full suite run after the WAHA change reported **7 failed**. One was real and was mine:
+`test_deployed_stack_environment_satisfies_every_required_compose_variable`.
+
+`release_contract.required_variables()` finds required variables with a regex over the **raw**
+manifest text. The comment explaining the WAHA change contained the marker syntax as prose, so the
+release contract read a variable literally named `VAR`, which no environment can provide — failing
+the deployed-stack gate and seeding a junk entry into `synthetic_environment()`.
+
+That is the same false positive the new profile test hit an hour earlier, in a second place, and it
+was latent before either change: any comment in this manifest mentioning the syntax would have done
+it. Both ends are fixed — the prose no longer spells the marker, and `required_variables` strips
+whole-line comments before scanning, with two tests covering it (a comment is ignored; the real
+manifest still yields every declared secret plus `IMAGE_TAG`).
+
+The other six failures were not the change. MySQL and Redis had stopped when the Docker daemon was
+started, and the run was scored against a broken environment. They are recorded here because the
+same misreading happened once before in this project and was nearly repeated: with both services
+restarted and nothing else altered, the suite is **1,764 passed, 0 failed, 0 skipped** in 622s.
+
+`PyYAML` is now declared in the backend `dev` extra. `tests/test_deployment_contract.py` imports it,
+and it had been reaching the environment only as a transitive dependency of `bandit`.
+
+The first draft of the new profile test was itself wrong — it scanned the raw file and flagged `${VAR:?}`
+written inside a manifest comment. It now scans the parsed services, where comments do not exist.
+
 ## DEPLOY-01 — the first command of a first deploy could never have worked (2026-09-18)
 
 `DEPLOYMENT.md` §5 tells an operator to create the first organization and owner like this:

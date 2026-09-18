@@ -2,6 +2,9 @@
 #
 # Ten services: mysql, redis, migrate (one-shot), api, three worker pools, beat, frontend, nginx.
 #
+# Three more sit behind profiles and never start with a plain `up -d`: `bootstrap` (§5, creates
+# the first owner), and `waha-preflight` + `waha` (the opt-in QR provider, ADR-0021 Class B).
+#
 # Two properties this file exists to guarantee:
 #   1. **Schema before traffic.** `migrate` runs to completion and exits; api/worker/beat all wait
 #      on `service_completed_successfully`, so no replica ever serves an older schema.
@@ -147,6 +150,41 @@ services:
       timeout: 5s
       retries: 10
 
+  # ---- WAHA preflight (profile: waha) ---------------------------------------------------------
+  # The requirement that WAHA_API_KEY and WAHA_WEBHOOK_HMAC_SECRET are set when this profile is
+  # enabled used to be expressed as a Compose required-variable marker on the `waha` service
+  # itself. That cannot work: Compose interpolates every service in a manifest regardless of
+  # which profiles are active, so
+  # those markers aborted `build`, `up`, `ps` and `down` for the *whole stack* — including for the
+  # overwhelming majority of deployments that never enable the provider. `.env.production.example`
+  # ships both variables empty, so a first deploy that followed §2 and §3 verbatim failed at the
+  # build step with an error about an optional component it had not asked for.
+  #
+  # The check moves here instead of being dropped. This service is in the `waha` profile, so it
+  # runs only when the provider does, and `waha` waits on it completing successfully — an empty
+  # credential still refuses to start the provider, which is the property the `:?` was there for.
+  # It reuses the backend image rather than introducing another external one into a digest-pinned
+  # topology, and `$$VAR` defers expansion to the container's shell rather than to Compose.
+  waha-preflight:
+    <<: *backend-image
+    profiles: ["waha"]
+    restart: "no"
+    logging: *default-logging
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+      WAHA_WEBHOOK_HMAC_SECRET: ${WAHA_WEBHOOK_HMAC_SECRET:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        missing='';
+        [ -n "$$WAHA_API_KEY" ] || missing="$$missing WAHA_API_KEY";
+        [ -n "$$WAHA_WEBHOOK_HMAC_SECRET" ] || missing="$$missing WAHA_WEBHOOK_HMAC_SECRET";
+        if [ -n "$$missing" ]; then
+        echo "refusing to start the waha profile; unset or empty:$$missing" >&2;
+        exit 1;
+        fi;
+        echo 'waha preflight: required provider credentials are present'
+
   # ---- QR provider (ADR-0021 Class B; optional, opt-in) --------------------------------------
   #
   # In the `waha` profile, so an operator who has not adopted the QR channel runs the exact stack
@@ -172,20 +210,23 @@ services:
       # NOWEB is the certified engine. The adapter fails closed on any other
       # (`WahaEngineNotApproved`), so this is pinned rather than left to an image default.
       WHATSAPP_DEFAULT_ENGINE: NOWEB
-      WAHA_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
-      WHATSAPP_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY is required when the waha profile is enabled}
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:-}
       # One deployment-wide signed route, internal to the Compose network. Per-session webhooks are
       # intentionally absent: configuring both modes duplicates deliveries, while per-session HMAC
       # config would persist the signing key in the session store. This key is dedicated to WAHA and
       # must never reuse META_WEBHOOK_VERIFY_TOKEN or META_APP_SECRET.
       WHATSAPP_HOOK_URL: http://api:8000/api/v1/webhooks/waha
       WHATSAPP_HOOK_EVENTS: message,message.any,message.ack
-      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_SECRET:?WAHA_WEBHOOK_HMAC_SECRET is required when the waha profile is enabled}
+      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_SECRET:-}
       # The certified sender retries every failure. Keep the observed 2026.7.2 defaults explicit so
       # an upstream default change cannot silently alter delivery pressure or recovery timing.
       WHATSAPP_HOOK_RETRIES_POLICY: constant
       WHATSAPP_HOOK_RETRIES_DELAY_SECONDS: "2"
       WHATSAPP_HOOK_RETRIES_ATTEMPTS: "15"
+    depends_on:
+      waha-preflight:
+        condition: service_completed_successfully
     volumes:
       # WhatsApp session state — `/app/.sessions/noweb/waha.sqlite3` (session registry) and
       # `/app/.sessions/noweb/<session>/` (per-session store/config), verified against this exact
