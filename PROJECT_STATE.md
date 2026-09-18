@@ -1,5 +1,46 @@
 # Project State
 
+## PERF-02 — the Scan screen cost the whole ledger the moment you filtered it (2026-09-18)
+
+With the stack running on a database carrying **20,043 contacts and 200,000 campaign recipients**,
+the contract's read sweep put `/api/v1/scan/reachability` at the top of its slowest list. The
+sweep exists to notice exactly that: *"a query that costs what the account weighs rather than what
+the page weighs is invisible on an empty database and easy to write by accident."*
+
+**The unfiltered page was 13ms. Every verdict filter was 400–460ms.** Filtering by verdict is the
+ordinary way that screen is used — "show me who is not on WhatsApp" is the question it answers — so
+the fast path was the one nobody takes.
+
+The aggregate has to read the whole ledger, and that part is not a defect: a verdict is only known
+once every receipt for a contact has been read, so there is no page of fifty to narrow to first.
+`_evidence()` already documents that split, and the page's own half was optimised in SCAN-01. What
+was left is that **none of the columns the aggregate reads were in any index.** Access was served by
+`uq_crecip_campaign_contact`, then each of ~200,000 matched rows cost a separate row lookup for
+`status`, `error_code`, `delivered_at`, `read_at` and `failed_at`.
+
+`ix_crecip_reachability` covers them. The plan goes from a row lookup per match to index-only:
+
+| | before | after |
+|---|---:|---:|
+| `verdict=reachable` | 403 ms | **181 ms** |
+| `verdict=unreachable` | 396 ms | **183 ms** |
+| `verdict=unknown` | 445 ms | **229 ms** |
+| `/reachability/counts` | 460 ms | **216 ms** |
+| `/templates/usage` (same ledger) | 417 ms | **155 ms** |
+
+Every one moves from over the project's **300ms** budget to inside it, and the read sweep's slowest
+path falls from **563.5ms to 226.7ms** across all 210 requests.
+
+**The cost is on the write side, and it was measured rather than assumed.** `delivered_at`,
+`read_at` and `failed_at` are in the index and all three are written as receipts arrive, so every
+receipt now maintains it. A bulk update of 2,000 recipients went from 57.8ms to 69.6ms — **+21%, or
+about six microseconds per receipt.** That is the right way round for a ledger written once per
+message and read on every visit to the screen, and it is recorded here so the trade can be revisited
+rather than rediscovered.
+
+Non-unique, so MySQL's rule that a unique index must include the partitioning column does not apply
+and `created_at` stays out of it.
+
 ## OPS-01 — the log line that killed every campaign dispatch (2026-09-18)
 
 Starting a Celery worker to exercise the async paths produced this, immediately, on every campaign

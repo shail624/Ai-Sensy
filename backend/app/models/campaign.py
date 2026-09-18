@@ -278,6 +278,24 @@ class CampaignRecipient(IntPKMixin, Base):
         # started from a campaign. Reachability asks the opposite -- what happened to this
         # contact across every campaign -- and without this the page scanned the ledger.
         Index("ix_crecip_contact", "contact_id"),
+        # Reachability's aggregate, made index-only. The access path was already served by
+        # `uq_crecip_campaign_contact`, but none of the columns it *reads* were in any index, so
+        # every matched row cost a lookup: filtering the Scan screen by a verdict — the ordinary
+        # way to use it — took 400ms against 200,000 recipients while the unfiltered page took 13.
+        # Covering it brings the filtered page to 180ms and the tallies to 215ms, both inside the
+        # 300ms budget. Measured cost on the write side is +21% on a bulk receipt update, about six
+        # microseconds per receipt, which is the right way round for a ledger read on every visit
+        # to that screen and written once per message.
+        Index(
+            "ix_crecip_reachability",
+            "campaign_id",
+            "contact_id",
+            "status",
+            "error_code",
+            "delivered_at",
+            "read_at",
+            "failed_at",
+        ),
         Index("ix_crecip_wamid", "wamid"),
         Index("ix_crecip_batch", "batch_id"),
         MYSQL_TABLE_ARGS,
