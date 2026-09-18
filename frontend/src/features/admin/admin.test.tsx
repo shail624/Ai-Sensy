@@ -10,6 +10,8 @@ import { AuditDetailDialog } from "@/features/admin/AuditDetailDialog";
 import { PermissionMatrix } from "@/features/admin/PermissionMatrix";
 import {
   auditChanges,
+  auditFieldLabel,
+  auditValueLabel,
   auditFacets,
   canToggleActive,
   filterAudit,
@@ -470,6 +472,27 @@ describe("AuditDetailDialog", () => {
       <AuditDetailDialog entry={auditFixture({ integrity: "mismatch" })} onClose={vi.fn()} />,
     );
     expect(screen.getByText("Does not match")).toBeInTheDocument();
+  });
+
+  it("reads the snapshot the way a person would say it", () => {
+    // null meant the string "null", a boolean meant "true", and a timestamp meant a raw ISO
+    // string: three things an investigator had to translate in their head on every row.
+    expect(auditValueLabel(null)).toBe("Not set");
+    expect(auditValueLabel(true)).toBe("Yes");
+    expect(auditValueLabel(false)).toBe("No");
+    expect(auditValueLabel("")).toBe("Empty");
+    expect(auditValueLabel([])).toBe("None");
+    expect(auditValueLabel(["gold", "silver"])).toBe("gold, silver");
+    expect(auditValueLabel("2026-07-22T09:00:00Z")).not.toContain("T09:00:00Z");
+    // An internal id stays an id: turning 42 into a name needs the API to carry the name, and
+    // inventing one here would be a guess presented as evidence.
+    expect(auditValueLabel(42)).toBe("42");
+  });
+
+  it("names the changed field without leaking the column it came from", () => {
+    expect(auditFieldLabel("checklist_purpose")).toBe("Checklist purpose");
+    expect(auditFieldLabel("assigned_user_id")).toBe("Assigned user");
+    expect(auditFieldLabel("status")).toBe("Status");
   });
 
   it("marks a protected read so a compliance review can find it", () => {

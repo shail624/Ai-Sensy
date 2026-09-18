@@ -1,5 +1,35 @@
 # Project State
 
+## AUDIT-02 — a trail an investigator can read without translating it (2026-09-18)
+
+`MODULE_STATUS` listed **"normalize remaining old/new values"** as pending on Audit Timeline. The
+snapshots the services record are good — `status`, `category`, `reason`, `assigned_user_id` — and the
+dialog printed them raw:
+
+| the snapshot said | the screen showed | it now shows |
+|---|---|---|
+| `null` | `null` | **Not set** |
+| `true` | `true` | **Yes** |
+| `""` | *(blank cell)* | **Empty** |
+| `[]` | `[]` | **None** |
+| `["gold","silver"]` | `["gold","silver"]` | **gold, silver** |
+| `2026-07-22T09:00:00Z` | `2026-07-22T09:00:00Z` | the reader's own local date and time |
+| `checklist_purpose` | `checklist_purpose` | **Checklist purpose** |
+
+Each one is small and each one is a translation the reader had to do in their head, on every row, at
+the moment they were trying to follow what happened. `null` printed as the word "null" is the worst
+of them: it reads as a value somebody set rather than a field nobody filled.
+
+**Internal numeric ids are deliberately left alone.** Turning `assigned_user_id: 42` into a name
+needs the API to carry that name, and inventing one on the client would be a guess presented as
+evidence — in the one screen where that is least acceptable. It stays as `42`, and the work to
+resolve it stays named in the pending column rather than quietly dropped.
+
+The two helpers live in `selectors.ts` beside `auditChanges`, not in the dialog, so the list and any
+later surface read the trail the same way.
+
+Audit Timeline 96% → **98%**.
+
 ## ATTR-01 — a field that must not be emptied, and one that has been retired (2026-09-18)
 
 `custom_attribute_definitions` could say a field was indexed and that it held PII. It could not say
