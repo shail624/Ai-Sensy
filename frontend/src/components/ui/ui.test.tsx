@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { Badge, EmptyState, ErrorState, Modal, Section, TagChip } from "@/components/ui";
+import { Badge, EmptyState, ErrorState, Modal, ScrollRegion, Section, TagChip } from "@/components/ui";
 
 describe("ui primitives", () => {
   it("Section renders its title and children", () => {
@@ -91,6 +91,32 @@ describe("Modal focus management (DS-10)", () => {
     expect(screen.getByText("Not evaluated")).toHaveAttribute(
       "title",
       "Rules changed since the last evaluation",
+    );
+  });
+
+  it("ScrollRegion can be reached and named without a mouse", () => {
+    // A wide table in a plain overflow div scrolls by trackpad and by nothing else: with no
+    // focusable element inside, the columns past the fold cannot be reached from a keyboard at
+    // all. The tab stop is the fix; the name is what makes the tab stop mean something.
+    render(
+      <ScrollRegion label="Permissions by role">
+        <p>wide content</p>
+      </ScrollRegion>,
+    );
+
+    const region = screen.getByRole("region", { name: "Permissions by role" });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(region.className).toContain("overflow-x-auto");
+  });
+
+  it("ScrollRegion keeps the layout classes its caller passes", () => {
+    render(
+      <ScrollRegion label="Team workload table" className="rounded-xl border border-border">
+        <p>rows</p>
+      </ScrollRegion>,
+    );
+    expect(screen.getByRole("region", { name: "Team workload table" }).className).toContain(
+      "rounded-xl",
     );
   });
 });

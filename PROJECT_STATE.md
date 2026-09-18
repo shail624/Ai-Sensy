@@ -1,5 +1,75 @@
 # Project State
 
+## A11Y-01 — the accessibility review every module was waiting on (2026-09-18)
+
+Seven module rows carried some form of *"authenticated representative-data visual/WCAG/device
+review"* as pending, and it had stayed pending because it reads like something only a target host
+can settle. Most of it is not. The failures live in status chips, table headers, timestamps,
+avatars and primary buttons — none of which a signed-out page draws, all of which a signed-in
+browser can measure. Chromium and a seeded database are enough.
+
+So: the API against the live MySQL 8, the **production build** served behind it, a real sign-in,
+and axe-core over **24 routes** in **both themes** at **1440px and 375px**, plus the sign-in screen.
+
+**The first run found 151 failing nodes.** They reduced to six causes, and every one was a
+one-place fix:
+
+**`text-*` was painting with a tone meant for solid marks.** `index.css` already said so — *"the
+base tone is tuned for solid marks (dots, bars) and does not reach 4.5:1 as 12px text on its own
+tint"* — and already defined `--color-*-on-soft` for the purpose. What the note understated is that
+it was not only the soft tint: `text-success` on plain white measures **3.37:1**. A status word
+written with the base tone failed everywhere it appeared, in **over three hundred** places.
+
+Fixed at the utility rather than the call sites: `textColor` now maps `text-success` /
+`text-warning` / `text-danger` / `text-info` to the on-soft tone, while `bg-*` and `border-*` keep
+the base. The accessible tone becomes the default — an author writing `text-danger` gets the
+readable red without having to remember that two exist — and fills, borders and marks are
+untouched. The explicit `-soft` and `-on-soft` names still work, so nothing that spells the tone
+out loses meaning.
+
+**White on the dark theme's accent measured 1.86:1.** Every primary button and every avatar, on
+every screen, in the dark theme. The dark accent is a bright teal, so a white label on it was close
+to invisible; the light theme was fine at 5.47:1, which is exactly why a light-only pass would
+never have reported it. The dark themes now take a deep teal ink (**9.15:1** on the accent, 11.51:1
+on its hover tone) that keeps the brand hue rather than dropping to a neutral black.
+
+**`--color-text-disabled` is named for inactive controls and used for readable content** —
+timestamps, search hints, column labels, "never checked", the ⌘K hint. At `#99a1b3` that content
+measured **2.3–2.6:1**. Darkened to clear 4.5:1 on every surface, in both themes. The cost is a
+narrower gap to `--color-text-secondary`; legible beats subtly ranked.
+
+**The destructive fill.** White on the light red sat at 4.37:1 — under the bar by a hair, on the
+one button where a misread is expensive. The light fill is darkened and the label comes from a new
+`--color-danger-fg`, mirroring the `--color-accent-fg` that already existed. The dark theme keeps
+its lighter red, because there the tone is also a border and a mark where the bar is 3:1, and takes
+a dark label instead.
+
+**The avatar palette** was commented *"tuned for legible white text in both themes"* and nine of
+its ten tones were not: between **2.15:1** and 4.47:1, the amber worst. Each is now the darkest-but-
+one step of the hue it started from. A contact whose avatar was blue is still blue.
+
+**Three tables could not be scrolled without a mouse.** A wide table inside a plain
+`overflow-x-auto` div has no focusable element, so there is no way to put the caret in it and reach
+the columns past the fold — invisible on the desktop it was designed on, and the reason the phone
+pass was worth running. `ScrollRegion` is the governed primitive for it: a named, focusable scroll
+container. Three call sites adopt it; the gate now catches the other fifty-six if they ever
+overflow.
+
+**The gate is committed, not a one-off.** `e2e/tests/accessibility.spec.ts` runs inside the existing
+browser-runner image, which already executes every spec in `tests/`, so the deployed-stack profile
+picks it up with no change to the runner. A failure prints the offending colours and element, so it
+is actionable as printed. Two supporting changes make it runnable outside that container as well:
+`E2E_ARTIFACTS_DIR` and `E2E_CHROMIUM_PATH`, and a `preview` proxy so the **built** bundle can be
+exercised against a real API without deploying it first — otherwise the artefact that ships
+furthest stays out of reach of the checks that run most often.
+
+**What this does not close.** A human visual and taste review, the browser matrix beyond Chromium,
+screen-reader narrative quality, and target-host/production-scale work all remain. Automated
+conformance is a floor, not a verdict. The seven module rows now say that precisely instead of
+carrying "WCAG review" as an open item that had, in fact, been passing nothing.
+
+Shared Enterprise Design System 94% → **96%**.
+
 ## AUDIT-01 — where an action came from, and a digest that actually verifies (2026-09-18)
 
 `MODULE_STATUS` listed **device identity** as pending on Audit Timeline: *"entries carry a source

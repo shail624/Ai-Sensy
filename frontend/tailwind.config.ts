@@ -46,6 +46,7 @@ const config: Config = {
           DEFAULT: "var(--color-danger)",
           soft: "var(--color-danger-soft)",
           "on-soft": "var(--color-danger-on-soft)",
+          fg: "var(--color-danger-fg)",
         },
         info: {
           DEFAULT: "var(--color-info)",
@@ -54,6 +55,41 @@ const config: Config = {
         },
         // Reserved channel accent — WhatsApp identity marker only (Doc 05 DS-5).
         channel: "#25D366",
+      },
+      // `text-*` resolves to the on-soft tone, while `bg-*`/`border-*` keep the base.
+      //
+      // `index.css` already states the reason: "the base tone is tuned for solid marks (dots,
+      // bars) and does not reach 4.5:1 as 12px text on its own tint, which DS-10 requires in both
+      // themes." That was true of every background, not only the soft tint — `text-success` on
+      // plain white measures 3.37:1 — so a status word written with the base tone failed DS-10
+      // wherever it appeared, in more than three hundred places.
+      //
+      // Fixing the utility rather than the call sites makes the accessible tone the default: an
+      // author writing `text-danger` gets the readable red without having to remember which of the
+      // two exists. The explicit `-soft` and `-on-soft` names stay, so nothing that spells the
+      // tone out loses meaning, and fills, borders and marks are untouched.
+      textColor: {
+        success: {
+          DEFAULT: "var(--color-success-on-soft)",
+          soft: "var(--color-success-soft)",
+          "on-soft": "var(--color-success-on-soft)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning-on-soft)",
+          soft: "var(--color-warning-soft)",
+          "on-soft": "var(--color-warning-on-soft)",
+        },
+        danger: {
+          DEFAULT: "var(--color-danger-on-soft)",
+          soft: "var(--color-danger-soft)",
+          "on-soft": "var(--color-danger-on-soft)",
+          fg: "var(--color-danger-fg)",
+        },
+        info: {
+          DEFAULT: "var(--color-info-on-soft)",
+          soft: "var(--color-info-soft)",
+          "on-soft": "var(--color-info-on-soft)",
+        },
       },
       boxShadow: {
         sm: "var(--shadow-sm)",

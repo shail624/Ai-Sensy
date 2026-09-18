@@ -1,4 +1,4 @@
-import { Badge, EmptyState, ErrorState, Spinner } from "@/components/ui";
+import { Badge, EmptyState, ErrorState, ScrollRegion, Spinner } from "@/components/ui";
 import { apiErrorMessage, useTeamWorkload } from "@/features/analytics/api";
 
 interface TeamWorkloadTableProps {
@@ -49,7 +49,7 @@ export function TeamWorkloadTable({ enabled }: TeamWorkloadTableProps): JSX.Elem
           </div>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <ScrollRegion label="Team workload table" className="rounded-xl border border-border">
         <table className="w-full min-w-[760px] text-left text-xs">
           <thead className="border-b border-border bg-surface-2 text-[10px] font-semibold uppercase tracking-wide text-text-disabled">
             <tr>
@@ -86,7 +86,7 @@ export function TeamWorkloadTable({ enabled }: TeamWorkloadTableProps): JSX.Elem
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       <p className="text-[11px] text-text-disabled">
         Snapshot {asOf} UTC · “Due today” uses {snapshot.timezone}. Pending stock is not added across dates.
       </p>

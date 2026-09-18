@@ -79,7 +79,7 @@ export function Sidebar({ collapsed, className, onNavigate, onClose }: SidebarPr
             <Icon aria-hidden className={`${compact ? "h-6 w-6" : "h-[18px] w-[18px]"} shrink-0`} />
             <span className={compact ? "max-w-full break-words" : "min-w-0 flex-1"}>{caption}</span>
             {item.maturity ? (
-              <span className={`${compact ? "text-[8px]" : "rounded px-1 text-[9px]"} uppercase tracking-wide opacity-80`}>{item.maturity}</span>
+              <span className={`${compact ? "text-[8px]" : "rounded px-1 text-[9px]"} uppercase tracking-wide`}>{item.maturity}</span>
             ) : null}
           </>}
         </NavLink>

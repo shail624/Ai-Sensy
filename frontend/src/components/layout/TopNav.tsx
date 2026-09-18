@@ -196,7 +196,7 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
           <button ref={notificationButtonRef} type="button" aria-label={`Notification center${unreadCount ? `, ${unreadCount} unread` : ""}`} aria-expanded={attentionOpen} onClick={() => setAttentionOpen(true)} className={`relative ${iconBtn}`}>
             <Bell aria-hidden className="h-[18px] w-[18px]" />
             {unreadCount > 0 ? (
-              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white ring-2 ring-surface">{unreadCount > 99 ? "99+" : unreadCount}</span>
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-danger-fg ring-2 ring-surface">{unreadCount > 99 ? "99+" : unreadCount}</span>
             ) : null}
           </button>
           <div ref={accountMenuRef} className="relative">

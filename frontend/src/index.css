@@ -14,7 +14,11 @@
   --color-bg-hover: #f1f2f7;
   --color-text-primary: #101426;
   --color-text-secondary: #5b6478;
-  --color-text-disabled: #99a1b3;
+  /* Named for inactive controls but used throughout for readable tertiary content —
+     timestamps, hints, column labels. At its previous #99a1b3 that content measured
+     2.3-2.6:1, so it is darkened to clear DS-10's 4.5:1 on every surface. The cost is a
+     narrower gap to `--color-text-secondary`; legible beats subtly ranked. */
+  --color-text-disabled: #636e85;
   --color-border-default: #e7e9f0;
   --color-border-strong: #d3d7e2;
   --color-accent: #0f766e;
@@ -32,7 +36,14 @@
   --color-success-soft: #e7f6ee;
   --color-warning: #d98207;
   --color-warning-soft: #fdf1e0;
-  --color-danger: #e0364e;
+  /* Darkened so white on the destructive button clears 4.5:1 (it sat at 4.37:1). Safe to
+     move now that `text-danger` resolves to the on-soft tone: this value is only a fill,
+     a border and a mark, where the bar is 3:1. */
+  --color-danger: #cf1934;
+  /* The label on that fill. White clears 4.5:1 over the darkened light red; in dark the
+     fill stays light — so borders and marks keep their 3:1 — and the label goes dark
+     instead, which is the ordinary dark-theme arrangement. */
+  --color-danger-fg: #ffffff;
   --color-danger-soft: #fce9ec;
   --color-info: #1f7fd6;
   --color-info-soft: #e7f1fc;
@@ -60,13 +71,17 @@
   --color-bg-hover: #1e2540;
   --color-text-primary: #eef1f8;
   --color-text-secondary: #99a2ba;
-  --color-text-disabled: #5a6486;
+  --color-text-disabled: #858ead;
   --color-border-default: #232c44;
   --color-border-strong: #33405f;
   --color-accent: #2dd4bf;
   --color-accent-strong: #5eead4;
   --color-accent-soft: #123a38;
-  --color-accent-fg: #ffffff;
+  /* The dark theme's accent is a bright teal, so a white label on it measured 1.86:1 —
+     every primary button and every avatar in the dark theme. A deep teal ink keeps the
+     brand hue and reads at 9.15:1 on the accent, 11.51:1 on its hover tone. Light keeps
+     white: its accent is the dark green, where white is already 5.47:1. */
+  --color-accent-fg: #06201e;
   --color-accent-on-soft: #5eead4;
   --color-success-on-soft: #4fd98a;
   --color-warning-on-soft: #f5b769;
@@ -77,6 +92,7 @@
   --color-warning: #f0a13a;
   --color-warning-soft: #2a2012;
   --color-danger: #f2586e;
+  --color-danger-fg: #101426;
   --color-danger-soft: #2a1620;
   --color-info: #45a6f5;
   --color-info-soft: #10233a;
@@ -105,13 +121,13 @@
     --color-bg-hover: #1e2540;
     --color-text-primary: #eef1f8;
     --color-text-secondary: #99a2ba;
-    --color-text-disabled: #5a6486;
+    --color-text-disabled: #858ead;
     --color-border-default: #232c44;
     --color-border-strong: #33405f;
     --color-accent: #2dd4bf;
     --color-accent-strong: #5eead4;
     --color-accent-soft: #123a38;
-    --color-accent-fg: #ffffff;
+    --color-accent-fg: #06201e;
     --color-accent-on-soft: #5eead4;
     --color-success-on-soft: #4fd98a;
     --color-warning-on-soft: #f5b769;
@@ -122,6 +138,7 @@
     --color-warning: #f0a13a;
     --color-warning-soft: #2a2012;
     --color-danger: #f2586e;
+    --color-danger-fg: #101426;
     --color-danger-soft: #2a1620;
     --color-info: #45a6f5;
     --color-info-soft: #10233a;

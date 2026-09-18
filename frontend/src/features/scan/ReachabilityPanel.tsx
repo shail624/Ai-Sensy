@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Badge, type BadgeTone, Button, Card, CardHeader, EmptyState, ErrorState, Input, Skeleton } from "@/components/ui";
+import { Badge, type BadgeTone, Button, Card, CardHeader, EmptyState, ErrorState, Input, ScrollRegion, Skeleton } from "@/components/ui";
 import { useStartContactExport } from "@/features/contacts/api";
 import { useReachability, useReachabilityCounts } from "@/features/scan/api";
 import { VERDICT_HINTS, VERDICT_LABELS, type Verdict } from "@/features/scan/types";
@@ -139,7 +139,7 @@ export function ReachabilityPanel(): JSX.Element {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Reachability results table">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-secondary">
@@ -169,7 +169,7 @@ export function ReachabilityPanel(): JSX.Element {
                 Showing the first {rows.length}. Narrow with the search or a status above.
               </p>
             ) : null}
-          </div>
+          </ScrollRegion>
         )}
       </div>
     </Card>

@@ -9,6 +9,7 @@ export { Button, type ButtonVariant, type ButtonSize } from "./Button";
 export { Card, CardHeader } from "./Card";
 export { Badge, type BadgeTone } from "./Badge";
 export { Avatar } from "./Avatar";
+export { ScrollRegion } from "./ScrollRegion";
 export { Skeleton, SkeletonStat } from "./Skeleton";
 export { StatCard } from "./StatCard";
 export {

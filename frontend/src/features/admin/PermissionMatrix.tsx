@@ -1,4 +1,4 @@
-import { EmptyState } from "@/components/ui";
+import { EmptyState, ScrollRegion } from "@/components/ui";
 import { groupPermissions } from "@/features/admin/selectors";
 import type { Permission, Role } from "@/features/admin/types";
 
@@ -46,7 +46,7 @@ export function PermissionMatrix({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <ScrollRegion label="Permissions by role" className="rounded-lg border border-border">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
             <tr>
@@ -135,7 +135,7 @@ export function PermissionMatrix({
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
 
       <p className="mt-2 text-xs text-text-disabled">
         System roles ship with the platform and cannot be edited — create a custom role to diverge.
