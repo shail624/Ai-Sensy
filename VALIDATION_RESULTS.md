@@ -1,5 +1,116 @@
 # Validation Results
 
+## DEPLOY-01 — the first command of a first deploy could never have worked (2026-09-18)
+
+`DEPLOYMENT.md` §5 tells an operator to create the first organization and owner like this:
+
+```bash
+docker compose ... run --rm api python -m app.cli create-owner
+```
+
+It exits **2**, with `owner email is required (--email or OWNER_EMAIL)`. It always has.
+
+`app.cli` reads `OWNER_EMAIL`, `OWNER_FULL_NAME` and `OWNER_PASSWORD` from the environment **inside
+the container**. Compose gives a container only the variables named in its own `environment:` block,
+and `docker-compose.production.yml` names none of them anywhere — `--env-file` governs interpolation
+of the manifest on the host, which is a different thing. Verified by rendering the manifest with all
+three set: the `api` service receives 24 variables and not one of them is an owner variable.
+
+So the platform built, migrated, started and passed health checks, and then the first human step
+failed — no account, no way to sign in, nothing to do but read the CLI source.
+
+**Why no gate caught it.** `scripts/deployed_stack_gate.py` creates an owner too, and it works,
+because it passes `--env OWNER_EMAIL --env OWNER_PASSWORD` explicitly. The gate proved its own
+invocation and never exercised the documented one. Automation that takes a different path from the
+human it stands in for verifies the path, not the human's.
+
+### The fix
+
+A `bootstrap` one-shot with its own environment block, in its own profile:
+
+```bash
+docker compose ... --profile bootstrap run --rm bootstrap
+```
+
+It does not share `x-backend-env`, and that is the point. Adding `OWNER_PASSWORD` there would put a
+plaintext credential into every api, worker and beat container for the life of the deployment, where
+`docker inspect` and `/proc/<pid>/environ` both read it back. Here it exists only in the container
+that consumes it, only while the command runs, and only when the profile is named.
+
+The owner variables use `${VAR:-}` rather than `${VAR:?}`. Compose interpolates **every** service in
+a manifest regardless of which profiles are active — confirmed with a two-service reproduction — so a
+required-variable marker in a profiled service aborts `up -d` for the whole stack. §5 ends by telling
+the operator to clear `OWNER_*`; with `:?` that instruction would have taken the platform down the
+next time it restarted. The CLI already rejects an empty email or password with a clear message.
+
+### Two more, found on the way
+
+**`API_DOCS_ENABLED` was decoration.** SEC-01 added the setting yesterday and documented it in
+`.env.production.example`; no service ever passed it, so an operator who set it changed nothing. It
+now rides the shared backend environment.
+
+Its default is `false`, not empty, and the distinction is not cosmetic: the field is `bool | None`,
+and pydantic **rejects an empty string**. `${API_DOCS_ENABLED:-}` — the obvious spelling, and the one
+used for every optional string beside it — would have raised `ValidationError` at import time in
+every backend container and crash-looped the entire stack, in the default case of an operator never
+setting it. Caught by trying it before writing it. `false` is also exactly what production already
+did implicitly, so nobody's behaviour changes.
+
+**§4 named a migration head 41 revisions behind.** It told operators to expect `alembic upgrade head`
+to finish at `0027_analytics`; the head is `0068_attribute_required_and_active`. An operator checking
+their upgrade against that line would have concluded a correct migration had failed.
+
+### Evidence
+
+`backend/tests/test_deployment_contract.py` — six tests over the manifest, all hermetic. Four fail
+against the pre-fix files (owner variables absent, no profile gate, docs flag unreachable, stale
+head). Two pass before and after by construction: they guard the fix itself — that `OWNER_PASSWORD`
+stays out of the long-lived services, and that no owner variable is ever marked required. The head
+test reads `alembic/versions` rather than a constant, so the guide cannot drift again silently.
+
+Canonical average unchanged at **87.5%**: this is a deployment defect and its documentation, not
+scope. No module row moves, no OpenAPI path changes, no migration was added.
+
+PASS: backend **1,760 passed, 0 skipped** in 708s at INFO (1,754 → 1,760; six new manifest contract
+tests). MySQL 8 and Redis were live for the run — `tests/test_migrations_mysql.py` reports **12
+passed**, executed rather than skipped.
+
+PASS: the defect was reproduced before it was fixed, not inferred. `docker compose config` rendered
+with `OWNER_EMAIL`, `OWNER_FULL_NAME`, `OWNER_PASSWORD`, `BOOTSTRAP_ORG_NAME`, `BOOTSTRAP_ORG_SLUG`
+and `API_DOCS_ENABLED` all set: the `api` service received **24** variables and **none of the six**.
+
+PASS: the fix was verified the same way, in both directions. With the owner variables set and the
+profile active, `bootstrap` receives all five plus `DATABASE_URL`, with `command:
+["python","-m","app.cli","create-owner"]` and `restart: "no"`. With them cleared — the state §5
+leaves an operator in — interpolation still succeeds, the default service set is the same ten as
+before, `bootstrap` is absent from it, and `API_DOCS_ENABLED` resolves to `'false'`, never `''`.
+
+PASS: the `${VAR:?}`-inside-a-profile trap was confirmed against Compose v5.1.1 with a two-service
+reproduction before the manifest was written, not assumed: `error while interpolating
+services.gated.environment.NEEDED: required variable MUST_BE_SET is missing a value`. Profiles do
+not gate interpolation, which is why the owner variables use `:-`.
+
+PASS: the empty-string crash was confirmed against the real `Settings` class before the manifest was
+written. `API_DOCS_ENABLED=''` raises `ValidationError`; `'true'`, `'false'`, `'1'` and `'0'` all
+parse. The obvious spelling `${API_DOCS_ENABLED:-}` would have crash-looped every backend container
+in the default case.
+
+PASS: four of the six new tests fail against the pre-fix files, proven by stashing the fix and
+re-running. The two that pass before and after guard the fix itself and are documented as such in
+the module's docstring.
+
+PASS: backend lint (`ruff check app tests scripts ../scripts`) clean and strict `mypy` clean across
+**331** source files.
+
+PENDING – Host Machine Validation: the corrected §5 command has not been executed against a real
+Docker daemon — none is available in this environment (`docker compose config` runs without one;
+`up` does not). The manifest contract is proven by rendering; the end-to-end owner creation is not.
+`scripts/deployed_stack_gate.py` was deliberately left unchanged: it passes its own explicit
+`--env OWNER_EMAIL --env OWNER_PASSWORD`, it currently passes, and switching it to the documented
+`bootstrap` path is a change to the release gate that cannot be validated here. Making that switch —
+so the gate exercises the operator's path rather than its own — is the right follow-up and is
+recorded as outstanding rather than silently done.
+
 ## SEC-01 — the API explained itself to anyone who asked (2026-09-18)
 
 `/docs`, `/redoc` and `/api/v1/openapi.json` were mounted unconditionally and served without

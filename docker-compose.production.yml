@@ -51,6 +51,11 @@ x-backend-env: &backend-env
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   CORS_ORIGINS: ${CORS_ORIGINS:-}
+  # `/docs`, `/redoc` and the OpenAPI schema. Defaulted to "false" rather than to an empty string:
+  # the setting is `bool | None`, and pydantic rejects "" outright, so passing an empty value would
+  # fail validation at import time and crash-loop every backend container. "false" is also what
+  # production already did implicitly, so an operator who never sets it sees no change.
+  API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_JSON: "true"
   STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
@@ -211,6 +216,35 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # ---- First-deploy bootstrap (profile: bootstrap) ---------------------------------------------
+  # Creates the first organization and Owner. A one-shot like `migrate`, but with its own
+  # environment block rather than a share of `x-backend-env`, because of OWNER_PASSWORD: putting a
+  # plaintext credential in the common anchor would place it in the environment of every api,
+  # worker and beat container for the entire life of the deployment, where `docker inspect` and
+  # /proc/<pid>/environ both expose it. Here it exists only in the container that consumes it, only
+  # while the command runs, and only when the profile is named explicitly.
+  #
+  # The owner values use `:-` and not `:?` deliberately. Compose interpolates every service in the
+  # file regardless of which profiles are active, so a required-variable marker here would abort
+  # `up -d` for the whole stack the moment §5 tells the operator to clear OWNER_* after bootstrap.
+  # `app.cli` already rejects an empty email or password with an explicit message.
+  bootstrap:
+    <<: *backend-image
+    restart: "no"
+    logging: *default-logging
+    profiles: ["bootstrap"]
+    command: ["python", "-m", "app.cli", "create-owner"]
+    environment:
+      <<: *backend-env
+      BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-Vi Reactivation Team}
+      BOOTSTRAP_ORG_SLUG: ${BOOTSTRAP_ORG_SLUG:-vi-reactivation}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      OWNER_FULL_NAME: ${OWNER_FULL_NAME:-Owner}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   # ---- API ------------------------------------------------------------------------------------
   api:

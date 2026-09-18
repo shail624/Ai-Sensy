@@ -1,5 +1,24 @@
 # Module Status
 
+## DEPLOY-01 — first-deploy bootstrap path (2026-09-18)
+
+`DEPLOYMENT.md` §5 documented a first-deploy command that always exited 2: `app.cli create-owner`
+reads `OWNER_EMAIL`/`OWNER_PASSWORD` from the container environment and no service declared them.
+Replaced with a profile-gated `bootstrap` one-shot that carries them, scoped so `OWNER_PASSWORD`
+never enters a long-lived container. Also fixed two adjacent defects: `API_DOCS_ENABLED` reached no
+container (SEC-01 shipped the setting, not its delivery), and §4 named a migration head 41 revisions
+stale.
+
+PASS: backend 1,760 passed / 0 skipped at INFO with live MySQL 8 and Redis; lint and strict mypy
+across 331 files. Six new manifest contract tests, four of which fail against the pre-fix files.
+PASS: defect and fix both verified by rendering the manifest with `docker compose config`, and the
+two traps avoided (profile-scoped `${VAR:?}`; empty string into a `bool | None`) were each confirmed
+by reproduction before the manifest was written.
+PENDING – Host Machine Validation: no Docker daemon here, so the corrected command is proven by
+manifest rendering rather than by an executed deploy. `deployed_stack_gate.py` still creates its
+owner by its own `--env` path; moving it onto the documented `bootstrap` path remains outstanding.
+No completion percentage increase: a deployment defect and its documentation, not scope.
+
 ## UI-REF-04 — Live Chat category semantics (2026-09-14, local)
 
 Restores the owner's category definitions: Active = open; Requesting = open and

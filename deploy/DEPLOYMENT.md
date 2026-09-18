@@ -91,8 +91,10 @@ older schema.
 docker compose -f docker-compose.production.yml --env-file .env.production up migrate
 ```
 
-Expect `alembic upgrade head` to finish at **`0027_analytics`** and the container to exit 0.
-Re-running is a no-op.
+Expect `alembic upgrade head` to finish at **`0068_attribute_required_and_active`** and the
+container to exit 0. Re-running is a no-op. Confirm the head against the repository rather
+than against this line — `ls backend/alembic/versions | tail -1` is the authority, and a
+release that adds a migration moves it.
 
 Verify:
 
@@ -110,14 +112,30 @@ still run first, which is what a command touching the database wants.
 ## 5. Initial setup (first deploy only)
 
 Create the first organization and owner. Permissions are seeded idempotently by
-`sync_system_roles` on migrate, so this only creates the human account:
+`sync_system_roles` on migrate, so this only creates the human account.
+
+Set `OWNER_EMAIL` and `OWNER_PASSWORD` in `.env.production` (and optionally `OWNER_FULL_NAME`,
+`BOOTSTRAP_ORG_NAME`, `BOOTSTRAP_ORG_SLUG`), then run the `bootstrap` profile:
 
 ```bash
 docker compose -f docker-compose.production.yml --env-file .env.production \
-  run --rm api python -m app.cli create-owner
+  --profile bootstrap run --rm bootstrap
 ```
 
-Then clear `OWNER_*` from `.env.production`.
+Expect `Owner created: <email>`, and the container to exit 0. Re-running is safe — a second run
+reports `Owner already exists` and changes nothing.
+
+`--profile bootstrap` is not optional and `api` is not a substitute for `bootstrap`. Compose passes
+a container only the variables named in its own `environment:` block, and `--env-file` governs
+interpolation of this file on the host rather than the environment inside a container. The shared
+backend environment deliberately does **not** carry `OWNER_PASSWORD` — that would leave a plaintext
+credential in every api, worker and beat container for the life of the deployment, readable through
+`docker inspect`. Only the `bootstrap` service declares it, so only that service can create the
+owner: `run --rm api python -m app.cli create-owner` exits 2 with
+`owner email is required (--email or OWNER_EMAIL)`.
+
+Then clear `OWNER_*` from `.env.production`. The stack starts normally without them — the owner
+variables are read only by this profile, and their absence is not an error.
 
 ---
 
@@ -421,6 +439,8 @@ Two numbers to keep consistent when you scale:
 
 | Symptom | Likely cause |
 |---|---|
+| `app.cli: error: owner email is required (--email or OWNER_EMAIL)` on first deploy | `create-owner` was run against `api`, which does not carry the owner variables. Use `--profile bootstrap run --rm bootstrap` (§5). `--env-file` does not place variables inside a container |
+| `API_DOCS_ENABLED` set but `/docs` still 404 | An older build. The variable reached the host but not the container until it was added to the shared backend environment; rebuild and recreate the `api` containers |
 | `exec /usr/local/bin/docker-entrypoint.sh: no such file or directory` | The script was checked out with CRLF endings. `.gitattributes` pins `*.sh` to LF — re-clone or run `git add --renormalize .` |
 | Image build fails at `pip install .` with a missing `README.md` | `backend/README.md` was deleted; `pyproject.toml` declares it as the project readme |
 | Frontend image build fails at `COPY nginx.conf` | `frontend/nginx.conf` moved out of the build context — it must sit beside `frontend/Dockerfile` |

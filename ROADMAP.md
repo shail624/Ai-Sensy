@@ -1,5 +1,73 @@
 # Final Product Implementation Roadmap
 
+## DEPLOY-01 — the first command of a first deploy could never have worked (2026-09-18)
+
+`DEPLOYMENT.md` §5 tells an operator to create the first organization and owner like this:
+
+```bash
+docker compose ... run --rm api python -m app.cli create-owner
+```
+
+It exits **2**, with `owner email is required (--email or OWNER_EMAIL)`. It always has.
+
+`app.cli` reads `OWNER_EMAIL`, `OWNER_FULL_NAME` and `OWNER_PASSWORD` from the environment **inside
+the container**. Compose gives a container only the variables named in its own `environment:` block,
+and `docker-compose.production.yml` names none of them anywhere — `--env-file` governs interpolation
+of the manifest on the host, which is a different thing. Verified by rendering the manifest with all
+three set: the `api` service receives 24 variables and not one of them is an owner variable.
+
+So the platform built, migrated, started and passed health checks, and then the first human step
+failed — no account, no way to sign in, nothing to do but read the CLI source.
+
+**Why no gate caught it.** `scripts/deployed_stack_gate.py` creates an owner too, and it works,
+because it passes `--env OWNER_EMAIL --env OWNER_PASSWORD` explicitly. The gate proved its own
+invocation and never exercised the documented one. Automation that takes a different path from the
+human it stands in for verifies the path, not the human's.
+
+### The fix
+
+A `bootstrap` one-shot with its own environment block, in its own profile:
+
+```bash
+docker compose ... --profile bootstrap run --rm bootstrap
+```
+
+It does not share `x-backend-env`, and that is the point. Adding `OWNER_PASSWORD` there would put a
+plaintext credential into every api, worker and beat container for the life of the deployment, where
+`docker inspect` and `/proc/<pid>/environ` both read it back. Here it exists only in the container
+that consumes it, only while the command runs, and only when the profile is named.
+
+The owner variables use `${VAR:-}` rather than `${VAR:?}`. Compose interpolates **every** service in
+a manifest regardless of which profiles are active — confirmed with a two-service reproduction — so a
+required-variable marker in a profiled service aborts `up -d` for the whole stack. §5 ends by telling
+the operator to clear `OWNER_*`; with `:?` that instruction would have taken the platform down the
+next time it restarted. The CLI already rejects an empty email or password with a clear message.
+
+### Two more, found on the way
+
+**`API_DOCS_ENABLED` was decoration.** SEC-01 added the setting yesterday and documented it in
+`.env.production.example`; no service ever passed it, so an operator who set it changed nothing. It
+now rides the shared backend environment.
+
+Its default is `false`, not empty, and the distinction is not cosmetic: the field is `bool | None`,
+and pydantic **rejects an empty string**. `${API_DOCS_ENABLED:-}` — the obvious spelling, and the one
+used for every optional string beside it — would have raised `ValidationError` at import time in
+every backend container and crash-looped the entire stack, in the default case of an operator never
+setting it. Caught by trying it before writing it. `false` is also exactly what production already
+did implicitly, so nobody's behaviour changes.
+
+**§4 named a migration head 41 revisions behind.** It told operators to expect `alembic upgrade head`
+to finish at `0027_analytics`; the head is `0068_attribute_required_and_active`. An operator checking
+their upgrade against that line would have concluded a correct migration had failed.
+
+### Evidence
+
+`backend/tests/test_deployment_contract.py` — six tests over the manifest, all hermetic. Four fail
+against the pre-fix files (owner variables absent, no profile gate, docs flag unreachable, stale
+head). Two pass before and after by construction: they guard the fix itself — that `OWNER_PASSWORD`
+stays out of the long-lived services, and that no owner variable is ever marked required. The head
+test reads `alembic/versions` rather than a constant, so the guide cannot drift again silently.
+
 ## SEC-01 — the API explained itself to anyone who asked (2026-09-18)
 
 `/docs`, `/redoc` and `/api/v1/openapi.json` were mounted unconditionally and served without
