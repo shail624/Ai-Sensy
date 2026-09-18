@@ -126,6 +126,16 @@ PASS: `tests/contacts-import.spec.ts` against the production build with live MyS
 Celery worker — **three consecutive runs against the same database**, where the previous fixtures
 passed once and failed every time after.
 
+PASS: runtime soak, added after the fix landed. A Celery worker and Beat ran together against the
+live stack at `--loglevel=info` for roughly half an hour. **105 tasks succeeded and none raised**,
+among them **12 `dispatch_campaign` tasks** — the exact tasks that raised
+`KeyError("Attempt to overwrite 'created' in LogRecord")` on every attempt before the fix. All six
+Beat-scheduled tasks fired on their own cadence and completed: `campaign-scheduler-tick`,
+`reactivation-reminder-notifications`, `inbox-auto-resolve`, `automation-schedules`,
+`automation-trigger-receipts` and `analytics-report-schedules`. The only lines at ERROR level are
+two `webhook_dead_lettered` events, which are an application event being logged, not a failure of
+the task that logged them.
+
 PASS: backend lint (`ruff check app tests scripts ../scripts`), strict `mypy` across **331** source
 files, OpenAPI drift clean at **247 paths**, browser-test TypeScript.
 
