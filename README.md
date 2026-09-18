@@ -141,6 +141,42 @@ python scripts/live_api_read_sweep.py --base-url http://127.0.0.1:8000 \
 It fails only on a 5xx or a transport error, and reports separately any path it could not exercise
 because the contract does not enumerate that parameter's accepted values.
 
+### Running the browser gates without Docker
+
+`e2e/tests/` holds the release-gate owner journey and the WCAG 2.1 AA sweep — 24 authenticated
+routes in both themes, the same 24 at phone width, and the signed-out screen. The `deployed`
+quality profile runs them in containers, which is right for CI and an obstacle anywhere Docker is
+not available: without it these never run, and an accessibility gate nobody can run is a gate that
+stops being true.
+
+`scripts/local_stack.sh` starts what they need on top of `local_services.sh` — the API, a Celery
+worker, and the **production build** behind the same-origin `/api` proxy. It is idempotent, starts
+each process in its own session so it returns instead of hanging, and cold-starts in about 25
+seconds:
+
+```bash
+./scripts/local_services.sh          # MySQL 8 + Redis
+./scripts/local_stack.sh             # API :8000, worker, built frontend :4173
+cd backend && OWNER_PASSWORD='<password>' \
+    .venv/bin/python -m app.cli create-owner --email owner@example.com --name Owner
+cd ../e2e && npm ci && E2E_BASE_URL=http://127.0.0.1:4173 \
+    E2E_OWNER_EMAIL=owner@example.com E2E_OWNER_PASSWORD='<password>' \
+    E2E_ARTIFACTS_DIR=/tmp/wa-artifacts npx playwright test
+```
+
+Three things are easy to lose an hour to, so they are handled or called out:
+
+- **The worker is not optional.** Without one, the journey reaches "Start import" and waits until it
+  times out, which reads as a broken import rather than a missing process.
+- **Sign-in is rate limited** to 10 attempts per 5 minutes, and every browser test signs in. The
+  script disables the limiter for this local stack, exactly as `backend/tests/conftest.py` does;
+  production keeps it on. Left enabled, the tests fail on a blank page and look like broken screens.
+- **The owner address must be one the login form accepts** — a `.local` TLD is refused by the CLI,
+  deliberately, so an account cannot be created that could never sign in.
+
+Add `E2E_CHROMIUM_PATH=/path/to/chromium` when a browser is already provisioned for a different
+Playwright version, and `E2E_ARTIFACTS_DIR` anywhere the container's `/artifacts` does not exist.
+
 The provider-neutral Module 11 gate is the automation entry point for local and CI execution:
 
 ```bash

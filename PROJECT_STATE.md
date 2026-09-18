@@ -1,5 +1,41 @@
 # Project State
 
+## GATE-01 — the browser gates needed Docker, and now they do not (2026-09-18)
+
+A11Y-01 committed a WCAG gate over 24 authenticated routes, and the release-gate owner journey has
+existed since before it. Both live in `e2e/tests/`, and both were reachable only through the
+`deployed` quality profile, which builds containers. That is correct for CI and an obstacle
+everywhere else — including the environment this milestone was written in. A gate nobody can run is
+a gate that quietly stops being true, and the two proved that within hours: A11Y-02 exists because
+re-running them found contrast gaps A11Y-01 had left behind.
+
+`scripts/local_stack.sh` starts what they need on top of the existing `local_services.sh` — the
+API, a Celery worker, and the **production build** behind the same-origin `/api` proxy that
+BUILD-01's `vite preview` config added. Idempotent, returns in 0.06s when everything is already up,
+and cold-starts in **24 seconds**.
+
+Writing it surfaced three things that each cost an hour to diagnose, so each is handled in the
+script and written down in the README rather than left as folklore:
+
+**A launcher that never returns.** `( cmd & )` is not detachment: the subshell stays the parent and
+waits, so the script's stdout is held open by a server that will not exit for hours. From a terminal
+that looks like a hang; from a CI step or an agent it *is* one. The first version of this script did
+exactly that and sat for ten minutes with every service healthy. Each process now starts under
+`setsid` with stdin closed and output redirected.
+
+**The worker is not optional.** Without one the journey reaches "Start import" and waits until it
+times out, which reads as a broken import rather than as a missing process.
+
+**Sign-in is rate limited**, to 10 attempts per 5 minutes, and every browser test signs in. One
+`playwright test` spends half the budget and a second run inside the window gets `429` on login —
+at which point three tests fail on a blank page and look like broken screens. That is how it was
+first seen here. The script disables the limiter for this local stack exactly as
+`backend/tests/conftest.py` already does, with the reason stated; production keeps the default,
+which is on.
+
+Verified the only way that means anything: the whole stack stopped, brought up by the script alone,
+and all five browser tests run against it.
+
 ## A11Y-02 — the gate caught what A11Y-01 missed (2026-09-18)
 
 Re-running the accessibility gate after BUILD-01, against a database the owner-journey spec had
