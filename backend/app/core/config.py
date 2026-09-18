@@ -143,6 +143,13 @@ class Settings(BaseSettings):
     rate_gate_fallback_fraction: float = 0.25
 
     # ---- Rate limiting (Doc 04 §9) ---------------------------------------
+    #: Serve the interactive API explorer (`/docs`, `/redoc`) and the raw schema.
+    #:
+    #: Left unset it follows the environment: on outside production, off inside it. This is a
+    #: private operations platform, not a public API product — an unauthenticated visitor could
+    #: read every path, payload and enum in it, which is a map rather than a breach but a free one.
+    #: Publishing a reference for integrators is a deliberate act; set this to true to make it one.
+    api_docs_enabled: bool | None = None
     rate_limit_enabled: bool = True
     # 'auth' bucket: brute-force protection for login/refresh (Doc 04 §9 — 10 / 5 min / IP).
     rate_limit_auth_max: int = 10
@@ -255,6 +262,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serve_api_docs(self) -> bool:
+        """Whether to mount `/docs`, `/redoc` and the schema; explicit setting wins."""
+        if self.api_docs_enabled is not None:
+            return self.api_docs_enabled
+        return not self.is_production
 
 
 @lru_cache(maxsize=1)

@@ -1,5 +1,29 @@
 # Implementation Tracker (canonical)
 
+## SEC-01 — the API explained itself to anyone who asked (2026-09-18)
+
+`/docs`, `/redoc` and `/api/v1/openapi.json` were mounted unconditionally and served without
+authentication, in every environment including production. Confirmed against the running stack: all
+three answer **200** with no token.
+
+**This is a map, not a breach**, and saying otherwise would overstate it: no endpoint is reachable
+without a token, and the schema exposes no data. But it is every path, every payload shape and every
+enum of a **private telecom operations platform**, handed to an anonymous visitor — reconnaissance
+that costs an attacker one request and tells them exactly which of 247 endpoints to spend their time
+on.
+
+`API_DOCS_ENABLED` now decides, and left unset it follows the environment: **on outside production,
+off inside it**. The explicit setting wins in both directions, so a team that wants a public
+reference says so rather than getting one by default, and a developer loses nothing locally.
+
+Nothing in the product depends on the mount: the frontend reads `frontend/openapi.json`, exported at
+build time by `scripts/export_openapi.py`, which builds the schema from the application object
+rather than fetching the URL.
+
+**This is not the "published documentation" item** that Audit records as pending for the API module,
+and that row does not move. Publishing a reference for integrators is a deliberate act somebody
+still has to take; what changed is that not taking it no longer publishes one by accident.
+
 ## AUDIT-02 — a trail an investigator can read without translating it (2026-09-18)
 
 `MODULE_STATUS` listed **"normalize remaining old/new values"** as pending on Audit Timeline. The
