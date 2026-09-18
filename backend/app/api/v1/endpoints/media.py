@@ -122,7 +122,7 @@ async def get_media(
     media_id: uuidlib.UUID, session: SessionDep, actor: MediaReadActor
 ) -> MediaResponse:
     return MediaResponse.from_asset(
-        await MediaService(session).get_media(actor.organization_id, media_id)
+        await MediaService(session).get_library_media(actor.organization_id, media_id)
     )
 
 
@@ -134,7 +134,7 @@ async def get_media(
 async def media_content(
     media_id: uuidlib.UUID, session: SessionDep, actor: MediaReadActor
 ) -> MediaContentResponse:
-    url, ttl = await MediaService(session).signed_url(actor.organization_id, media_id)
+    url, ttl = await MediaService(session).library_signed_url(actor.organization_id, media_id)
     return MediaContentResponse(url=url, expires_in=ttl)
 
 

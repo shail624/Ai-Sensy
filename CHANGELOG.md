@@ -1,5 +1,62 @@
 # Changelog
 
+## DOC-01 — the document is the only door to the document (2026-09-18)
+
+`MODULE_STATUS` listed **document-access evidence** as pending on Audit Timeline. Building it turned
+up a second, larger thing sitting next to it.
+
+**Reading a customer's identity document left no trace.** Every *change* to a document was audited
+— created, version added, verified, rejected, expired, archived — and every *read* was not. That is
+the wrong way round for a file that is somebody's Aadhaar or PAN: "who altered this record" is
+rarely the question a compliance review opens with, and *"who looked at this customer's identity
+document, from where, and when"* had no answer anywhere.
+
+`contact_document.accessed` is now recorded whenever a signed preview URL is minted, following the
+`channel_secret.accessed` precedent the codebase already set for an audited read. It carries the
+document type, the version number and the file name — and, thanks to AUDIT-01, the address and
+device the request came from. **The URL itself is deliberately not recorded**: a signed URL is a
+credential for the bytes, so writing one into the audit trail would make the trail a second copy of
+the thing it protects.
+
+**And the permission had a second door.** A document is *built on* a media asset and shares the
+upload endpoint, so one row in `media_assets` holds either a campaign image or an identity scan.
+`documents:read` guarded the document routes and guarded nothing on the media routes. Proved, not
+inferred — a user holding only `media:read`:
+
+| | before | after |
+|---|---|---|
+| `GET /documents/{id}` | 403 ✅ | 403 |
+| `GET /documents/…/content` | 403 ✅ | 403 |
+| `GET /media` | **lists `aadhaar.png`** | `[]` |
+| `GET /media/{id}` | **200, metadata** | 403 |
+| `GET /media/{id}/content` | **200, signed URL to the scan** | 403 |
+
+**Severity, stated honestly: latent, not live.** No shipped role holds `media:read` without
+`documents:read` — owner, admin, manager and agent all hold both, analyst holds neither — so nothing
+is exposed in a default installation. But custom roles are a first-class feature with a permission
+matrix built to compose them, and the moment somebody creates a "Media librarian" the second door
+opens onto every customer's identity file. Splitting the two permissions means nothing if either
+one reaches the same bytes.
+
+**Closed by removing the door, not by duplicating the check.** The media API now refuses an asset
+that backs a document outright, rather than re-checking `documents:read` there. The document route
+already exists, already checks that permission, and now records the access — one door, guarded and
+logged, beats two doors that have to agree with each other forever. Derived live from
+`contact_document_versions` rather than flagged on the asset, because a flag can drift from the
+truth it copies and a join cannot.
+
+The library listing excludes them for the same reason: a customer's identity document is not
+reusable campaign material, and showing it there leaks the file name and invites somebody to attach
+it to a broadcast.
+
+**A marker that does not cry wolf.** Protected reads get their own info-toned *Data access* chip in
+the audit list and detail, not the red *Security* chip. That one means something went wrong; an
+authorised read has not, and marking every one red would drown the failures the chip exists to
+surface. But these are the rows a compliance review scans for, and in a list where every other entry
+is a change they are easy to walk past.
+
+Documents 87% → **89%**; Audit Timeline 94% → **96%**.
+
 ## GATE-01 — the browser gates needed Docker, and now they do not (2026-09-18)
 
 A11Y-01 committed a WCAG gate over 24 authenticated routes, and the release-gate owner journey has

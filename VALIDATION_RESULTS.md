@@ -1,5 +1,86 @@
 # Validation Results
 
+## DOC-01 — the document is the only door to the document (2026-09-18)
+
+`MODULE_STATUS` listed **document-access evidence** as pending on Audit Timeline. Building it turned
+up a second, larger thing sitting next to it.
+
+**Reading a customer's identity document left no trace.** Every *change* to a document was audited
+— created, version added, verified, rejected, expired, archived — and every *read* was not. That is
+the wrong way round for a file that is somebody's Aadhaar or PAN: "who altered this record" is
+rarely the question a compliance review opens with, and *"who looked at this customer's identity
+document, from where, and when"* had no answer anywhere.
+
+`contact_document.accessed` is now recorded whenever a signed preview URL is minted, following the
+`channel_secret.accessed` precedent the codebase already set for an audited read. It carries the
+document type, the version number and the file name — and, thanks to AUDIT-01, the address and
+device the request came from. **The URL itself is deliberately not recorded**: a signed URL is a
+credential for the bytes, so writing one into the audit trail would make the trail a second copy of
+the thing it protects.
+
+**And the permission had a second door.** A document is *built on* a media asset and shares the
+upload endpoint, so one row in `media_assets` holds either a campaign image or an identity scan.
+`documents:read` guarded the document routes and guarded nothing on the media routes. Proved, not
+inferred — a user holding only `media:read`:
+
+| | before | after |
+|---|---|---|
+| `GET /documents/{id}` | 403 ✅ | 403 |
+| `GET /documents/…/content` | 403 ✅ | 403 |
+| `GET /media` | **lists `aadhaar.png`** | `[]` |
+| `GET /media/{id}` | **200, metadata** | 403 |
+| `GET /media/{id}/content` | **200, signed URL to the scan** | 403 |
+
+**Severity, stated honestly: latent, not live.** No shipped role holds `media:read` without
+`documents:read` — owner, admin, manager and agent all hold both, analyst holds neither — so nothing
+is exposed in a default installation. But custom roles are a first-class feature with a permission
+matrix built to compose them, and the moment somebody creates a "Media librarian" the second door
+opens onto every customer's identity file. Splitting the two permissions means nothing if either
+one reaches the same bytes.
+
+**Closed by removing the door, not by duplicating the check.** The media API now refuses an asset
+that backs a document outright, rather than re-checking `documents:read` there. The document route
+already exists, already checks that permission, and now records the access — one door, guarded and
+logged, beats two doors that have to agree with each other forever. Derived live from
+`contact_document_versions` rather than flagged on the asset, because a flag can drift from the
+truth it copies and a join cannot.
+
+The library listing excludes them for the same reason: a customer's identity document is not
+reusable campaign material, and showing it there leaks the file name and invites somebody to attach
+it to a broadcast.
+
+**A marker that does not cry wolf.** Protected reads get their own info-toned *Data access* chip in
+the audit list and detail, not the red *Security* chip. That one means something went wrong; an
+authorised read has not, and marking every one red would drown the failures the chip exists to
+surface. But these are the rows a compliance review scans for, and in a list where every other entry
+is a change they are easy to walk past.
+
+Documents 87% → **89%**; Audit Timeline 94% → **96%**.
+
+Canonical average 87.2% → **87.3%**; median **90%**.
+
+PASS: backend **1,747 passed, 0 skipped** at INFO against live MySQL 8 (1,744 → 1,747; three new
+document tests).
+
+PASS: the bypass is proven, not asserted. Against the pre-fix code
+`test_media_read_alone_cannot_reach_a_customers_identity_document` and
+`test_reading_a_document_is_recorded_with_who_what_and_where` both **fail**; with the fix both pass,
+and the governed path still returns a URL to the owner.
+
+PASS: the audit row carries actor, `entity_type=contact_document`, document type, version number and
+file name, plus the user agent and packed address from the request context — and the test asserts
+the signed URL is **not** in it.
+
+PASS: frontend **1,007 passed across 61 files** (1,006 → 1,007), ESLint, TypeScript and the
+production build. OpenAPI drift clean at **247 paths** — a behaviour change, not a contract change.
+
+PENDING – Host Machine Validation: unchanged.
+
+NOTE: an earlier run of this suite reported 6 failures and 6 skips. Redis was down after a container
+restart; the six were campaign tests that need a broker, and the six skips were the live-MySQL
+migration tests. With both services up the suite is green. Recorded because a red run that is not a
+regression is exactly the kind of thing that gets misremembered later.
+
 ## GATE-01 — the browser gates needed Docker, and now they do not (2026-09-18)
 
 A11Y-01 committed a WCAG gate over 24 authenticated routes, and the release-gate owner journey has

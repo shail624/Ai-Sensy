@@ -3,12 +3,12 @@ import { useSearchParams } from "react-router-dom";
 
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { AdminPagination } from "@/features/admin/AdminPagination";
-import { SecurityChip } from "@/features/admin/AdminBadges";
+import { ProtectedReadChip, SecurityChip } from "@/features/admin/AdminBadges";
 import { apiErrorMessage, useAuditLog } from "@/features/admin/api";
 import { AuditDetailDialog } from "@/features/admin/AuditDetailDialog";
 import { auditChanges, auditFacets, selectAuditPage } from "@/features/admin/selectors";
 import type { AuditEntry, AuditListQuery } from "@/features/admin/types";
-import { actionEntity, humanizeAction, isSecurityEvent } from "@/features/admin/types";
+import { actionEntity, humanizeAction, isProtectedRead, isSecurityEvent } from "@/features/admin/types";
 import { formatDateTime, UNKNOWN } from "@/lib/format";
 
 const FIELD_CLASS =
@@ -183,6 +183,7 @@ export function AuditPanel(): JSX.Element {
                           {actionEntity(entry.action)}
                         </span>
                         {isSecurityEvent(entry.action) ? <SecurityChip /> : null}
+                        {isProtectedRead(entry.action) ? <ProtectedReadChip /> : null}
                       </span>
                       <span className="mt-1 block text-xs text-text-secondary">
                         {entry.actor ?? entry.actor_type}

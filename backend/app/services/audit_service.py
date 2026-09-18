@@ -69,6 +69,7 @@ class AuditAction:
     DOCUMENT_REJECTED = "contact_document.rejected"
     DOCUMENT_EXPIRED = "contact_document.expired"
     DOCUMENT_ARCHIVED = "contact_document.archived"
+    DOCUMENT_ACCESSED = "contact_document.accessed"
     BULK_STARTED = "bulk.started"
     BULK_COMPLETED = "bulk.completed"
     TAG_CREATED = "tag.created"

@@ -50,6 +50,21 @@ export function SecurityChip(): JSX.Element {
   return <span className={chip("border-danger text-danger")}>Security</span>;
 }
 
+/**
+ * Marks an entry where protected data was read rather than changed.
+ *
+ * Info-toned, not danger: the access was authorised. It is here to be *findable*, because "who
+ * opened this customer's Aadhaar" is the question a compliance review starts with and the answer
+ * otherwise sits in a list where every other row is an edit.
+ */
+export function ProtectedReadChip(): JSX.Element {
+  return (
+    <span className={chip("border-info text-info")} title="Protected data was read, not changed">
+      Data access
+    </span>
+  );
+}
+
 const INTEGRITY: Record<AuditIntegrity, { label: string; tone: string; title: string }> = {
   verified: {
     label: "Verified",

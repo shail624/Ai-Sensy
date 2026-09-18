@@ -472,6 +472,18 @@ describe("AuditDetailDialog", () => {
     expect(screen.getByText("Does not match")).toBeInTheDocument();
   });
 
+  it("marks a protected read so a compliance review can find it", () => {
+    withProviders(
+      <AuditDetailDialog
+        entry={auditFixture({ action: "contact_document.accessed" })}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Data access")).toBeInTheDocument();
+    // Not the Security chip: that one means something went wrong, and an authorised read has not.
+    expect(screen.queryByText("Security")).not.toBeInTheDocument();
+  });
+
   it("does not raise an alarm over a row written before the timestamp was covered", () => {
     // These pre-date the fix, and their content is intact — flagging the whole existing history as
     // tampered would make the verdict worthless on the day it was first needed.

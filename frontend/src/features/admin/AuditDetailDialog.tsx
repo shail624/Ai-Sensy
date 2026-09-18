@@ -1,8 +1,8 @@
 import { Modal } from "@/components/ui";
-import { IntegrityChip, SecurityChip } from "@/features/admin/AdminBadges";
+import { IntegrityChip, ProtectedReadChip, SecurityChip } from "@/features/admin/AdminBadges";
 import { auditChanges } from "@/features/admin/selectors";
 import type { AuditEntry } from "@/features/admin/types";
-import { humanizeAction, isSecurityEvent } from "@/features/admin/types";
+import { humanizeAction, isProtectedRead, isSecurityEvent } from "@/features/admin/types";
 import { formatDateTime, UNKNOWN } from "@/lib/format";
 
 function render(value: unknown): string {
@@ -37,6 +37,7 @@ export function AuditDetailDialog({
             {entry.action}
           </code>
           {isSecurityEvent(entry.action) ? <SecurityChip /> : null}
+          {isProtectedRead(entry.action) ? <ProtectedReadChip /> : null}
         </div>
 
         <dl className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs">
