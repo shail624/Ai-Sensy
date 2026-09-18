@@ -4149,7 +4149,7 @@
         "tags": [
           "Custom Attributes"
         ],
-        "summary": "Update label / indexing / enum values",
+        "summary": "Update label, indexing, enum values, required and retired state",
         "operationId": "update_attribute_api_v1_custom_attributes__attribute_id__patch",
         "security": [
           {
@@ -19261,6 +19261,16 @@
             "type": "boolean",
             "title": "Is Pii",
             "default": false
+          },
+          "is_required": {
+            "type": "boolean",
+            "title": "Is Required",
+            "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
           }
         },
         "type": "object",
@@ -19316,6 +19326,14 @@
             "type": "boolean",
             "title": "Is Pii"
           },
+          "is_required": {
+            "type": "boolean",
+            "title": "Is Required"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -19336,6 +19354,8 @@
           "enum_values",
           "is_indexed",
           "is_pii",
+          "is_required",
+          "is_active",
           "created_at",
           "updated_at"
         ],
@@ -19391,6 +19411,28 @@
               }
             ],
             "title": "Is Pii"
+          },
+          "is_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Required"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
           }
         },
         "type": "object",

@@ -57,6 +57,8 @@ async def create_attribute(
         enum_values=payload.enum_values,
         is_indexed=payload.is_indexed,
         is_pii=payload.is_pii,
+        is_required=payload.is_required,
+        is_active=payload.is_active,
     )
     return AttributeDefinitionResponse.from_definition(definition)
 
@@ -64,7 +66,7 @@ async def create_attribute(
 @router.patch(
     "/custom-attributes/{attribute_id}",
     response_model=AttributeDefinitionResponse,
-    summary="Update label / indexing / enum values",
+    summary="Update label, indexing, enum values, required and retired state",
 )
 async def update_attribute(
     attribute_id: uuidlib.UUID,
@@ -80,6 +82,8 @@ async def update_attribute(
         enum_values=payload.enum_values,
         is_indexed=payload.is_indexed,
         is_pii=payload.is_pii,
+        is_required=payload.is_required,
+        is_active=payload.is_active,
     )
     return AttributeDefinitionResponse.from_definition(definition)
 

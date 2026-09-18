@@ -172,6 +172,8 @@ function attributeDefinitionFixture(
     enum_values: null,
     is_indexed: false,
     is_pii: false,
+    is_required: false,
+    is_active: true,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
@@ -1524,7 +1526,38 @@ describe("UserAttributesPanel", () => {
       enum_values: null,
       is_indexed: false,
       is_pii: false,
+      is_required: false,
+      is_active: true,
     });
+  });
+
+  it("retires a definition and marks one required, sending both as the editor shows them", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "string" }),
+    ];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = attributeDefinitionFixture({});
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    // "Retired" is the inverse of the stored `is_active`, because that is the decision somebody is
+    // actually taking — nobody sets out to "make a field not active".
+    fireEvent.click(screen.getByRole("checkbox", { name: /Required/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Retired/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toMatchObject({ is_required: true, is_active: false });
+  });
+
+  it("shows which definitions are required or retired without opening the editor", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", is_required: true }),
+      attributeDefinitionFixture({ id: "a2", key_name: "old", label: "Old", is_active: false }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("Required")).toBeInTheDocument();
+    expect(screen.getByText("Retired")).toBeInTheDocument();
   });
 
   it("creates an attribute flagged as PII, leaving indexed unset", async () => {
@@ -1545,6 +1578,8 @@ describe("UserAttributesPanel", () => {
       enum_values: null,
       is_indexed: false,
       is_pii: true,
+      is_required: false,
+      is_active: true,
     });
   });
 
@@ -1572,6 +1607,8 @@ describe("UserAttributesPanel", () => {
       enum_values: ["gold", "silver"],
       is_indexed: true,
       is_pii: false,
+      is_required: false,
+      is_active: true,
     });
   });
 
@@ -1655,6 +1692,8 @@ describe("UserAttributesPanel", () => {
       enum_values: null,
       is_indexed: false,
       is_pii: false,
+      is_required: false,
+      is_active: true,
     });
   });
 

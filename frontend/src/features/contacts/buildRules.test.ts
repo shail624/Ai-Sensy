@@ -26,6 +26,8 @@ function attrFixture(): AttributeDefinition {
     enum_values: ["pending", "done"],
     is_indexed: false,
     is_pii: false,
+    is_required: false,
+    is_active: true,
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   };

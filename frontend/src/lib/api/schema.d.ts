@@ -1265,7 +1265,7 @@ export interface paths {
         delete: operations["delete_attribute_api_v1_custom_attributes__attribute_id__delete"];
         options?: never;
         head?: never;
-        /** Update label / indexing / enum values */
+        /** Update label, indexing, enum values, required and retired state */
         patch: operations["update_attribute_api_v1_custom_attributes__attribute_id__patch"];
         trace?: never;
     };
@@ -5197,6 +5197,16 @@ export interface components {
              * @default false
              */
             is_pii: boolean;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
         };
         /** AttributeDefinitionResponse */
         AttributeDefinitionResponse: {
@@ -5219,6 +5229,10 @@ export interface components {
             is_indexed: boolean;
             /** Is Pii */
             is_pii: boolean;
+            /** Is Required */
+            is_required: boolean;
+            /** Is Active */
+            is_active: boolean;
             /**
              * Created At
              * Format: date-time
@@ -5240,6 +5254,10 @@ export interface components {
             is_indexed?: boolean | null;
             /** Is Pii */
             is_pii?: boolean | null;
+            /** Is Required */
+            is_required?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /**
          * AudienceRef

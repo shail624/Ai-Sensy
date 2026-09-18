@@ -47,6 +47,8 @@ interface EditorState {
   enumValuesText: string;
   isIndexed: boolean;
   isPii: boolean;
+  isRequired: boolean;
+  isActive: boolean;
 }
 
 function emptyEditor(): EditorState {
@@ -58,6 +60,8 @@ function emptyEditor(): EditorState {
     enumValuesText: "",
     isIndexed: false,
     isPii: false,
+    isRequired: false,
+    isActive: true,
   };
 }
 
@@ -70,6 +74,8 @@ function editorFor(definition: AttributeDefinition): EditorState {
     enumValuesText: (definition.enum_values ?? []).join(", "),
     isIndexed: definition.is_indexed,
     isPii: definition.is_pii,
+    isRequired: definition.is_required,
+    isActive: definition.is_active,
   };
 }
 
@@ -127,10 +133,22 @@ export function UserAttributesPanel(): JSX.Element {
     const enumValues = isEnum ? parseEnumValues(editor.enumValuesText) : null;
     const isIndexed = editor.isIndexed;
     const isPii = editor.isPii;
+    const isRequired = editor.isRequired;
+    const isActive = editor.isActive;
 
     if (editor.definition) {
       update.mutate(
-        { id: editor.definition.id, body: { label, enum_values: enumValues, is_indexed: isIndexed, is_pii: isPii } },
+        {
+          id: editor.definition.id,
+          body: {
+            label,
+            enum_values: enumValues,
+            is_indexed: isIndexed,
+            is_pii: isPii,
+            is_required: isRequired,
+            is_active: isActive,
+          },
+        },
         { onSuccess: () => setEditor(null) },
       );
     } else {
@@ -142,6 +160,8 @@ export function UserAttributesPanel(): JSX.Element {
           enum_values: enumValues,
           is_indexed: isIndexed,
           is_pii: isPii,
+          is_required: isRequired,
+          is_active: isActive,
         },
         { onSuccess: () => setEditor(null) },
       );
@@ -244,6 +264,7 @@ export function UserAttributesPanel(): JSX.Element {
                 <th scope="col" className="px-3 py-2">Type</th>
                 <th scope="col" className="hidden px-3 py-2 md:table-cell">Indexed</th>
                 <th scope="col" className="hidden px-3 py-2 md:table-cell">PII</th>
+                <th scope="col" className="hidden px-3 py-2 md:table-cell">State</th>
                 <th scope="col" className="hidden px-3 py-2 lg:table-cell">Updated At</th>
                 {canManage ? (
                   <th scope="col" className="px-3 py-2 text-right">Actions</th>
@@ -280,6 +301,26 @@ export function UserAttributesPanel(): JSX.Element {
                     ) : (
                       <span className="text-xs text-text-disabled">—</span>
                     )}
+                  </td>
+                  <td className="hidden px-3 py-2 align-top md:table-cell">
+                    <span className="flex flex-wrap gap-1">
+                      {definition.is_required ? (
+                        <Badge tone="info" title="Once set, this value cannot be cleared.">
+                          Required
+                        </Badge>
+                      ) : null}
+                      {!definition.is_active ? (
+                        <Badge
+                          tone="neutral"
+                          title="Takes no new values. What was recorded stays readable."
+                        >
+                          Retired
+                        </Badge>
+                      ) : null}
+                      {definition.is_required || !definition.is_active ? null : (
+                        <span className="text-xs text-text-disabled">—</span>
+                      )}
+                    </span>
                   </td>
                   <td className="hidden px-3 py-2 align-top text-xs text-text-secondary lg:table-cell">
                     {formatDateTime(definition.updated_at)}
@@ -438,6 +479,40 @@ export function UserAttributesPanel(): JSX.Element {
                 <span className="block text-text-primary">Personally identifiable information</span>
                 <span className="block text-xs text-text-secondary">
                   Flags this attribute as PII. Not yet enforced elsewhere in the product.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={editor.isRequired}
+                onChange={(event) => setEditor({ ...editor, isRequired: event.target.checked })}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-text-primary">Required</span>
+                <span className="block text-xs text-text-secondary">
+                  Once set, this value cannot be cleared. It does not force every update to carry
+                  it: attributes are saved a few at a time, so demanding the field on every write
+                  would block ordinary edits and every import.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!editor.isActive}
+                onChange={(event) => setEditor({ ...editor, isActive: !event.target.checked })}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-text-primary">Retired</span>
+                <span className="block text-xs text-text-secondary">
+                  Stops accepting new values. What was already recorded stays readable and can
+                  still be cleared, so a field can be wound down instead of deleted out from under
+                  the contacts that carry it.
                 </span>
               </span>
             </label>

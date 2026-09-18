@@ -1,5 +1,42 @@
 # Implementation Tracker (canonical)
 
+## ATTR-01 — a field that must not be emptied, and one that has been retired (2026-09-18)
+
+`custom_attribute_definitions` could say a field was indexed and that it held PII. It could not say
+either of the two things an operations team actually asks of a field definition: *this one must not
+be left blank*, and *we have stopped using this one*. `MODULE_STATUS` listed both as
+**"Required/active controls … preserve existing model."**
+
+**"Required" had to be defined before it could be built, and the obvious definition is wrong.**
+`PUT /contacts/{id}/attributes` is a **partial** update: it writes the keys it is handed and deletes
+the ones passed as `null`. So "required" cannot mean *every write must carry this key* — that reading
+would reject every ordinary edit that touches one field, and every contact import in the product,
+the moment somebody ticked the box.
+
+It means **it may not be cleared**. Passing `null` for a required attribute is refused; omitting it
+is fine, and has its own test saying so, because that distinction is the whole design and would
+otherwise be the first thing a later change breaks by accident.
+
+**Retiring is not deleting.** A retired definition accepts no new value, and what was already
+recorded stays readable *and stays clearable* — so a field can be wound down and tidied up rather
+than deleted out from under the contacts and segment rules that reference it. Deleting a definition
+already removes its values; that was the only available exit, and it is a destructive one.
+
+Both refusals arrive through the endpoint's existing field-level 422 envelope, as
+`attribute_required` and `attribute_retired` beside the `unknown_attribute` and `invalid_value`
+codes already there, so a client that handles one handles these.
+
+**Both defaults preserve every existing row exactly** — nothing becomes required, nothing becomes
+retired — so the migration changes no observable behaviour on its own.
+
+In the UI the checkbox says **"Retired"**, not "Active", and is the inverse of the stored flag:
+nobody sets out to make a field *not active*, they set out to retire it. Both states show as badges
+in the definitions list, so the answer to "why won't this field save?" is visible without opening
+the editor. Changing either flag is audited with before and after, because both change what the team
+is allowed to record about a customer.
+
+Tags and Attributes 96% → **99%**.
+
 ## DOC-01 — the document is the only door to the document (2026-09-18)
 
 `MODULE_STATUS` listed **document-access evidence** as pending on Audit Timeline. Building it turned
