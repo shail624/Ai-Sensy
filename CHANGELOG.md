@@ -1,5 +1,43 @@
 # Changelog
 
+## DEPLOY-03 — the first deploy, executed on a real machine (2026-09-18)
+
+DEPLOY-01 and DEPLOY-02 were repaired here and proven by rendering the manifest, because this
+environment has no registry access and cannot build an image. Both closed with `PENDING – Host
+Machine Validation`. The owner ran the repaired procedure on their own Windows machine, and the
+whole chain completed.
+
+| Step | Result |
+|---|---|
+| §3 build | `wa-platform/backend:v1` and `wa-platform/frontend:v1` built, 28.8s |
+| §4 migrate | `0001_identity_and_audit` → `0068_attribute_required_and_active` against containerised MySQL 8; `migrate-1 exited with code 0` |
+| §5 owner | `Owner created: <redacted>` |
+| §6 start | Ten services up; `api` and `frontend` report **Healthy** |
+| §7 readiness | `/ready` returned **200 on the first poll** |
+
+Host: Docker 29.7.2, Compose v5.3.1, Windows PowerShell 5.1.
+
+**Both defects are now disproven in the field, not only on paper.**
+
+DEPLOY-02: the generated `.env.production` contains **no `WAHA_*` variable at all**. Before the
+guards were relocated, `${WAHA_API_KEY:?}` inside the profiled service would have aborted `build`
+with `required variable WAHA_API_KEY is missing a value` — this exact configuration was the failure.
+It built without comment.
+
+DEPLOY-01: the bootstrap one-shot logged
+`no such role; executing as a command: python -m app.cli create-owner`, then `Owner created`. That
+line is the backend entrypoint's fall-through branch doing precisely what its comment claims, with
+the owner variables reaching the container because the `bootstrap` service declares them. The
+command the guide used to document exits 2 here.
+
+### What this does not yet cover
+
+Signing in through the SPA, the §8 smoke checks (CSV import, inbound webhook, reply, export,
+formula-injection neutralisation, executive gating), TLS, the browser matrix, and OPS-02's worker
+fleet showing in `GET /api/v1/queues` on this host. Those stay `PENDING – Host Machine Validation`.
+`META_APP_SECRET` is a generated placeholder on this deployment, so Meta webhook verification fails
+closed by design and WhatsApp sending is inert until the real secret is set.
+
 ## OPS-02 — the fleet view reported an empty fleet, always (2026-09-18)
 
 The registry Compose could not be used to test was tested a different way: without container images,

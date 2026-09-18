@@ -1,5 +1,19 @@
 # Module Status
 
+## DEPLOY-03 — first deploy executed on a real host (2026-09-18)
+
+The owner ran the repaired procedure on Windows (Docker 29.7.2, Compose v5.3.1). Build, migrate to
+`0068`, `--profile bootstrap run --rm bootstrap`, ten services up with `api`/`frontend` healthy, and
+`/ready` 200 on the first poll. DEPLOY-01 and DEPLOY-02 are now disproven in the field rather than
+only by manifest rendering: the environment file carried no `WAHA_*` variable at all (the exact
+configuration that used to abort `build`), and `Owner created` came back on the first attempt.
+
+PASS: §3–§7 on the owner's host.
+PENDING – Host Machine Validation: SPA sign-in, §8 smoke sequence, TLS, browser matrix, and OPS-02's
+fleet view on that host. WhatsApp sending is inert there by configuration — `META_APP_SECRET` is a
+generated placeholder, so webhook verification fails closed as designed.
+No completion percentage increase: this closes validation debt, it does not add scope.
+
 ## OPS-02 — worker fleet visibility (2026-09-18)
 
 `GET /api/v1/queues` reported zero workers in every deployment that has ever run. `app/queue/
