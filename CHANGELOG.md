@@ -1,5 +1,42 @@
 # Changelog
 
+## A11Y-02 — the gate caught what A11Y-01 missed (2026-09-18)
+
+Re-running the accessibility gate after BUILD-01, against a database the owner-journey spec had
+since filled with automations, produced two failures. Neither came from BUILD-01. Both were gaps in
+**A11Y-01's own work**, and finding them is the entire reason that gate is committed rather than
+run once and reported.
+
+**The muted tone was only checked against half the backgrounds it lands on.** A11Y-01 cleared
+`--color-text-disabled` against the four surface tokens. It never checked the five `-soft` tints,
+and the tone lands on those too — the sub-line on a *selected* automation card sits on
+`--color-accent-soft`, where the dark theme measured **3.83:1**.
+
+Checking the tone against every background it actually reaches found **three** failures, not one:
+
+| | dark accent-soft | light danger-soft | light info-soft |
+|---|---:|---:|---:|
+| before | 3.83 | 4.39 | 4.48 |
+| after | **4.56** | **4.59** | **4.60** |
+
+Only the first was rendered on the night — a selected automation card needs an automation to exist,
+and none did until the release-gate journey created one. The other two sat latent, waiting for a
+danger or info tint to carry a muted label. Reporting "zero violations" was true of what rendered;
+it was not true of the token.
+
+Fixed at the token, not the component: `#636e85 → #606b81` in light and `#858ead → #949cb7` in
+dark. Both are small moves, and both now clear 4.5:1 against **all nine** backgrounds — four
+surfaces and five soft tints. The gap to `--color-text-secondary` narrows to about two points of
+luminance, which is the same trade A11Y-01 made and is restated in the token's comment rather than
+left to be rediscovered: a step in a three-step scale that fails DS-10 is not a step worth keeping.
+
+**A fourth scrollable table.** `BreakdownTable` joins the three A11Y-01 converted to `ScrollRegion`.
+It failed for the same reason and only at phone width, and only now that analytics has rows wide
+enough to overflow — the same "invisible until the data arrives" shape as the contrast gap above.
+
+All five browser tests pass: WCAG 2.1 AA over 24 routes in the light theme, the same 24 in dark, the
+same 24 at 375px, the sign-in screen, and the owner journey end to end.
+
 ## BUILD-01 — a third of the entry bundle was a screen almost nobody opens (2026-09-18)
 
 Two production-readiness items that needed no new feature work.

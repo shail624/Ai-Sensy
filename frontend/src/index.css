@@ -15,10 +15,16 @@
   --color-text-primary: #101426;
   --color-text-secondary: #5b6478;
   /* Named for inactive controls but used throughout for readable tertiary content —
-     timestamps, hints, column labels. At its previous #99a1b3 that content measured
-     2.3-2.6:1, so it is darkened to clear DS-10's 4.5:1 on every surface. The cost is a
-     narrower gap to `--color-text-secondary`; legible beats subtly ranked. */
-  --color-text-disabled: #636e85;
+     timestamps, hints, column labels, the sub-line on a selected card. At its previous
+     #99a1b3 that content measured 2.3-2.6:1.
+     Cleared against every background the tone actually lands on, which is the four surfaces
+     *and* the five `-soft` tints: a first pass covering only the surfaces still failed on the
+     dark accent tint (3.83:1) and on the light danger and info tints, and only the first of
+     those three was rendered at the time, so two sat latent waiting for the right state.
+     The cost is a narrow gap to `--color-text-secondary` — the two now differ by about two
+     points of luminance. Legible beats subtly ranked, and a step in a three-step scale that
+     fails DS-10 is not a step worth keeping. */
+  --color-text-disabled: #606b81;
   --color-border-default: #e7e9f0;
   --color-border-strong: #d3d7e2;
   --color-accent: #0f766e;
@@ -71,7 +77,7 @@
   --color-bg-hover: #1e2540;
   --color-text-primary: #eef1f8;
   --color-text-secondary: #99a2ba;
-  --color-text-disabled: #858ead;
+  --color-text-disabled: #949cb7;
   --color-border-default: #232c44;
   --color-border-strong: #33405f;
   --color-accent: #2dd4bf;
@@ -121,7 +127,7 @@
     --color-bg-hover: #1e2540;
     --color-text-primary: #eef1f8;
     --color-text-secondary: #99a2ba;
-    --color-text-disabled: #858ead;
+    --color-text-disabled: #949cb7;
     --color-border-default: #232c44;
     --color-border-strong: #33405f;
     --color-accent: #2dd4bf;
