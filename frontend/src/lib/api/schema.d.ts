@@ -5275,6 +5275,8 @@ export interface components {
             entity_id: number | null;
             /** Ip Address */
             ip_address: string | null;
+            /** User Agent */
+            user_agent: string | null;
             /** Before */
             before: {
                 [key: string]: unknown;
@@ -5292,6 +5294,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Integrity
+             * @enum {string}
+             */
+            integrity: "verified" | "verified_legacy" | "mismatch" | "unhashed";
         };
         /**
          * AutoResolveSettings

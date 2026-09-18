@@ -1,5 +1,68 @@
 # Changelog
 
+## AUDIT-01 — where an action came from, and a digest that actually verifies (2026-09-18)
+
+`MODULE_STATUS` listed **device identity** as pending on Audit Timeline: *"entries carry a source
+address, not a device."* Building that turned out to be the smaller half of the story.
+
+**Only sign-in ever recorded where an action came from.** `audit_logs.ip_address` has existed since
+the schema was written, and exactly one caller filled it — `AuthService`. Every other audited action
+in the platform recorded *who* and *what* and nothing about *where*. That gap does not show in a
+column list: the column is there, populated for the rows somebody happens to check first, and the
+absence is discovered by whoever has to investigate an incident, at the worst possible moment.
+
+The origin now fills itself from a request-scoped context (`client_ip_ctx`, `user_agent_ctx`, set
+and reset by the existing `RequestIDMiddleware` alongside the request id it already carried). An
+action audited five layers below the route records its origin without every service signature
+growing two parameters it has no way to fill. A background job has no request and records no
+origin — which is correct; inventing one would be worse than leaving it blank.
+
+`user_agent` is bounded to 400 characters at the context boundary, because a header is
+attacker-controlled and unbounded, and an audit write must never fail because somebody sent a long
+one. A truncated device string is still useful; losing the record would not be.
+
+**The tamper-evidence digest had never worked.** The test written to prove the new column did not
+break the hash chain failed — and not because of the new column. `created_at` was left to the
+column default, which SQLAlchemy applies at **flush**, i.e. *after* `record()` takes the digest. So
+every row ever written stored a real timestamp under a hash computed over `null`. No row could be
+recomputed from its own persisted content, which is the only thing a stored digest is for.
+
+Worse than useless: the one field left uncovered was the timestamp — exactly what a tamperer would
+move and exactly what an investigator relies on.
+
+Confirmed against the live database, not only in tests: all **33** rows already in `audit_logs`
+classify as `verified_legacy`, and the first row written through the fixed path classifies as
+`verified`.
+
+The time is now stamped at construction, so the value hashed is the value stored. The canonical
+form is otherwise **unchanged on purpose** — widening it would invalidate the digest of every
+historical row, and a scheme that cannot verify yesterday is worth less than one covering slightly
+fewer fields. `user_agent` therefore sits outside the hash, as `ip_address` already did.
+
+**A digest nothing recomputes protects nothing** — which is precisely how this went unnoticed for
+the whole life of the schema. `AuditService.verify()` now reports one of four verdicts, carried on
+every entry the read endpoint returns and shown in the entry dialog:
+
+- `verified` — reproduces exactly; content and timestamp both intact.
+- `verified_legacy` — reproduces only under the pre-fix form. Content intact, timestamp never
+  covered. Reported apart rather than as tampered: flagging the entire existing history would be a
+  false alarm on the day the verdict was first needed, and calling it fully verified would overstate
+  what its digest covers.
+- `mismatch` — neither form reproduces; the row changed after it was written.
+- `unhashed` — no digest was stored, so there is nothing to check against.
+
+**Five unhandled promise rejections, fixed in passing.** The frontend suite reported two escaping
+rejections from SIM-01 and APPR-01; the same defect sat in three more places in the automation
+builder. `void mutation.mutateAsync(...)` discards the promise **without** attaching a rejection
+handler, so a refused transition reached `window.onunhandledrejection` even though the screen
+displayed the error correctly. Replaced with `.mutate(...)` — this repository's established pattern,
+which routes failures into the `isError` state these components already read. The suite now reports
+zero unhandled errors.
+
+Audit Timeline 90% → **94%**. Device identity is done and the origin gap behind it is closed; what
+remains is normalizing old/new values, document-access evidence, and the authenticated
+representative-data review every module owes.
+
 ## APPR-01 — what is waiting on you, in one place (2026-09-17)
 
 The last of the three modules the scope document excluded. `MODULE_STATUS` recorded CORE-08 as

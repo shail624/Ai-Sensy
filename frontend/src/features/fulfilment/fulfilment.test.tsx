@@ -40,19 +40,19 @@ vi.mock("@/features/fulfilment/api", () => ({
     refetch: vi.fn(),
   }),
   useTransitionSimOrder: () => ({
-    mutateAsync: async ({ order, to }: { order: { id: string; row_version: number }; to: string }) => {
-      if (state.fails) throw new Error("That order moved while you were looking at it.");
+    // Shaped like `useMutation`'s result: `mutate` starts the work and never hands back a promise,
+    // so a refused move lands in `isError` instead of escaping as an unhandled rejection.
+    mutate: ({ order, to }: { order: { id: string; row_version: number }; to: string }) => {
+      if (state.fails) return;
       state.moved.push({ id: order.id, to, version: order.row_version });
-      return order;
     },
     isPending: false,
     isError: state.fails,
     error: state.fails ? new Error("That order moved while you were looking at it.") : null,
   }),
   useTransitionActivation: () => ({
-    mutateAsync: async ({ record, to }: { record: { id: string; row_version: number }; to: string }) => {
+    mutate: ({ record, to }: { record: { id: string; row_version: number }; to: string }) => {
       state.moved.push({ id: record.id, to, version: record.row_version });
-      return record;
     },
     isPending: false,
     isError: false,

@@ -1,5 +1,5 @@
 import { Modal } from "@/components/ui";
-import { SecurityChip } from "@/features/admin/AdminBadges";
+import { IntegrityChip, SecurityChip } from "@/features/admin/AdminBadges";
 import { auditChanges } from "@/features/admin/selectors";
 import type { AuditEntry } from "@/features/admin/types";
 import { humanizeAction, isSecurityEvent } from "@/features/admin/types";
@@ -49,6 +49,10 @@ export function AuditDetailDialog({
               : UNKNOWN}
           </Row>
           <Row label="IP address">{entry.ip_address ?? UNKNOWN}</Row>
+          <Row label="Device">{entry.user_agent ?? UNKNOWN}</Row>
+          <Row label="Integrity">
+            <IntegrityChip integrity={entry.integrity} />
+          </Row>
         </dl>
 
         <div>

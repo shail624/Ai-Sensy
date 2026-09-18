@@ -40,8 +40,10 @@ vi.mock("@/features/approvals/api", () => ({
     refetch: vi.fn(),
   }),
   useApprove: () => ({
-    mutateAsync: async (item: { id: string; source: string; rowVersion: number }) => {
-      if (state.fails) throw new Error("Somebody else decided this one.");
+    // Shaped like `useMutation`'s result: `mutate` starts the work and never hands back a promise,
+    // so a refusal lands in `isError` instead of escaping as an unhandled rejection.
+    mutate: (item: { id: string; source: string; rowVersion: number }) => {
+      if (state.fails) return;
       state.approved.push({ id: item.id, source: item.source, version: item.rowVersion });
     },
     isPending: false,

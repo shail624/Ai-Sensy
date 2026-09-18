@@ -10,10 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import client_ip_ctx, user_agent_ctx
+from app.core.security import pack_ip
+from app.db.mixins import utcnow
 from app.models.audit import ACTOR_USER, AuditLog
 from app.repositories.audit import AuditRepository
 
@@ -207,6 +211,43 @@ class AuditAction:
     SLA_EVENT_RECORDED = "sla_event.recorded"
 
 
+def _context_ip() -> bytes | None:
+    """The current request's address, packed the way the column stores it."""
+    raw = client_ip_ctx.get()
+    return pack_ip(raw) if raw else None
+
+
+def _context_user_agent() -> str | None:
+    """The current request's client string, bounded to what the column holds.
+
+    A header is attacker-controlled and unbounded; an audit write must never fail because somebody
+    sent a long one, and a truncated device string is still a useful one.
+    """
+    agent = user_agent_ctx.get()
+    return agent[:400] if agent else None
+
+
+class _Unset:
+    """Distinguishes "hash what the row carries" from "hash ``None``", which is a real value here."""
+
+
+_UNSET = _Unset()
+
+#: The four verdicts :meth:`AuditService.verify` can reach, named so the read contract carries
+#: them as a closed set rather than as free text.
+Integrity = Literal["verified", "verified_legacy", "mismatch", "unhashed"]
+
+#: The row reproduces its stored digest exactly — content and timestamp both intact.
+VERIFIED: Integrity = "verified"
+#: The row reproduces only under the pre-fix canonical form, in which ``created_at`` was hashed as
+#: ``null``. Its content is intact; its timestamp was never covered and cannot be vouched for.
+VERIFIED_LEGACY: Integrity = "verified_legacy"
+#: Neither form reproduces: the row's content changed after it was written.
+MISMATCH: Integrity = "mismatch"
+#: No digest was stored, so there is nothing to check against.
+UNHASHED: Integrity = "unhashed"
+
+
 class AuditService:
     def __init__(self, session: AsyncSession) -> None:
         self._repo = AuditRepository(session)
@@ -225,7 +266,14 @@ class AuditService:
         after: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> AuditLog:
-        """Append one audit entry (does not commit — shares the caller's transaction)."""
+        """Append one audit entry (does not commit — shares the caller's transaction).
+
+        The origin fills itself from the request context when the caller does not supply it. Only
+        the sign-in path ever passed an address, so every other action recorded *who* and *what*
+        and nothing about *where* — a gap invisible in the column list and only discovered by
+        somebody investigating. A background task has no request and records no origin, which is
+        correct: inventing one would be worse than leaving it blank.
+        """
         entry = AuditLog(
             action=action,
             actor_user_id=actor_user_id,
@@ -233,17 +281,48 @@ class AuditService:
             organization_id=organization_id,
             entity_type=entity_type,
             entity_id=entity_id,
-            ip_address=ip_address,
+            ip_address=ip_address if ip_address is not None else _context_ip(),
+            user_agent=_context_user_agent(),
             before_json=before,
             after_json=after,
             metadata_json=metadata,
+            # Stamped here rather than left to the column default, which SQLAlchemy applies at
+            # flush — i.e. *after* the digest below is taken. The row then stored a real timestamp
+            # under a hash computed over ``null``, so no row could ever be recomputed from its own
+            # persisted content and the digest proved nothing. Worse, the one field a tamperer
+            # would move, and an investigator would rely on, was the field left uncovered.
+            created_at=utcnow(),
         )
         entry.row_hash = self._row_hash(entry)
         return await self._repo.record(entry)
 
     @staticmethod
-    def _row_hash(entry: AuditLog) -> str:
-        """SHA-256 of the entry's canonical content (tamper-evidence, Doc 03 §11.2)."""
+    def verify(entry: AuditLog) -> Integrity:
+        """Whether a stored row still reproduces its own digest.
+
+        Recomputing and comparing is the whole point of keeping one, so it is worth being able to
+        do from anywhere that holds a row. Rows written before the timestamp was covered are
+        reported apart from rows written since: calling them fully verified would overstate what
+        their digest protects, and calling them tampered would be a false alarm on every row of
+        the existing history.
+        """
+        if entry.row_hash is None:
+            return UNHASHED
+        if entry.row_hash == AuditService._row_hash(entry):
+            return VERIFIED
+        if entry.row_hash == AuditService._row_hash(entry, timestamp=None):
+            return VERIFIED_LEGACY
+        return MISMATCH
+
+    @staticmethod
+    def _row_hash(entry: AuditLog, *, timestamp: datetime | None | _Unset = _UNSET) -> str:
+        """SHA-256 of the entry's canonical content (tamper-evidence, Doc 03 §11.2).
+
+        ``timestamp`` overrides what is hashed for ``created_at``, which only :meth:`verify` uses,
+        to re-derive the pre-fix form of a historical row. It is an explicit override rather than a
+        plain default because ``None`` is itself the value that form used.
+        """
+        created_at = entry.created_at if isinstance(timestamp, _Unset) else timestamp
         canonical = json.dumps(
             {
                 "action": entry.action,
@@ -255,7 +334,7 @@ class AuditService:
                 "before": entry.before_json,
                 "after": entry.after_json,
                 "metadata": entry.metadata_json,
-                "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                "created_at": created_at.isoformat() if created_at else None,
             },
             sort_keys=True,
             default=str,

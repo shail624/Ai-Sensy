@@ -17,6 +17,8 @@ export type ApiKeyCreateRequest = components["schemas"]["ApiKeyCreateRequest"];
 
 export type AuditEntry = components["schemas"]["AuditLogResponse"];
 export type AuditPage = components["schemas"]["AuditLogPage"];
+/** Whether a stored entry still reproduces its own digest — narrowed from the generated contract. */
+export type AuditIntegrity = AuditEntry["integrity"];
 
 /**
  * The preset system roles the platform seeds (Doc 01 §2.4).

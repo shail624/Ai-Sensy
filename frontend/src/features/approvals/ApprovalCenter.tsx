@@ -75,7 +75,7 @@ export function ApprovalCenter(): JSX.Element {
                 key={`${item.source}-${item.id}`}
                 item={item}
                 pending={approve.isPending}
-                onApprove={() => void approve.mutateAsync(item)}
+                onApprove={() => approve.mutate(item)}
               />
             ))}
           </ul>

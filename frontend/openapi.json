@@ -19509,6 +19509,17 @@
             ],
             "title": "Ip Address"
           },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          },
           "before": {
             "anyOf": [
               {
@@ -19549,6 +19560,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "integrity": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "verified_legacy",
+              "mismatch",
+              "unhashed"
+            ],
+            "title": "Integrity"
           }
         },
         "type": "object",
@@ -19560,10 +19581,12 @@
           "entity_type",
           "entity_id",
           "ip_address",
+          "user_agent",
           "before",
           "after",
           "metadata",
-          "created_at"
+          "created_at",
+          "integrity"
         ],
         "title": "AuditLogResponse"
       },

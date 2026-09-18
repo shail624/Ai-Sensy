@@ -177,7 +177,7 @@ function SimQueue({ search, showSettled }: { search: string; showSettled: boolea
                         order={order}
                         canManage={canManage}
                         pending={transition.isPending}
-                        onMove={(to) => void transition.mutateAsync({ order, to })}
+                        onMove={(to) => transition.mutate({ order, to })}
                       />
                     ))}
                   </div>
@@ -308,7 +308,7 @@ function ActivationQueue({
                         record={record}
                         canManage={canManage}
                         pending={transition.isPending}
-                        onMove={(to) => void transition.mutateAsync({ record, to })}
+                        onMove={(to) => transition.mutate({ record, to })}
                       />
                     ))}
                   </div>

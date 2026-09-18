@@ -20,6 +20,12 @@ from typing import Any
 # Correlation id for the in-flight request; set by RequestIDMiddleware and read by
 # the formatter so every log line for a request can be tied together (Doc 06 §13.3).
 request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
+#: Where the current request came from, for the audit trail rather than the log line.
+#: Set by ``RequestIDMiddleware`` and read by ``AuditService.record``, so an action audited
+#: five layers down carries its origin without every service signature growing two parameters it
+#: has no way to fill.
+client_ip_ctx: ContextVar[str | None] = ContextVar("client_ip", default=None)
+user_agent_ctx: ContextVar[str | None] = ContextVar("user_agent", default=None)
 
 # Standard LogRecord attributes we do not want to duplicate into the JSON payload.
 _RESERVED = set(

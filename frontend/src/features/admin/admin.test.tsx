@@ -107,10 +107,12 @@ function auditFixture(overrides: Partial<AuditEntry> = {}): AuditEntry {
     entity_type: "user",
     entity_id: 7,
     ip_address: "10.0.0.4",
+    user_agent: "ViDesk/2.1 (Windows)",
     before: { full_name: "Priya", is_active: true },
     after: { full_name: "Priya S.", is_active: true },
     metadata: null,
     created_at: "2026-07-22T09:00:00Z",
+    integrity: "verified",
     ...overrides,
   };
 }
@@ -455,6 +457,29 @@ describe("AuditDetailDialog", () => {
       <AuditDetailDialog entry={auditFixture({ action: "user.login_failed" })} onClose={vi.fn()} />,
     );
     expect(screen.getByText("Security")).toBeInTheDocument();
+  });
+
+  it("shows where the action came from, not only who did it", () => {
+    withProviders(<AuditDetailDialog entry={auditFixture()} onClose={vi.fn()} />);
+    expect(screen.getByText("Device")).toBeInTheDocument();
+    expect(screen.getByText("ViDesk/2.1 (Windows)")).toBeInTheDocument();
+  });
+
+  it("says when an entry no longer reproduces its own digest", () => {
+    withProviders(
+      <AuditDetailDialog entry={auditFixture({ integrity: "mismatch" })} onClose={vi.fn()} />,
+    );
+    expect(screen.getByText("Does not match")).toBeInTheDocument();
+  });
+
+  it("does not raise an alarm over a row written before the timestamp was covered", () => {
+    // These pre-date the fix, and their content is intact — flagging the whole existing history as
+    // tampered would make the verdict worthless on the day it was first needed.
+    withProviders(
+      <AuditDetailDialog entry={auditFixture({ integrity: "verified_legacy" })} onClose={vi.fn()} />,
+    );
+    expect(screen.getByText("Content verified")).toBeInTheDocument();
+    expect(screen.queryByText("Does not match")).not.toBeInTheDocument();
   });
 });
 
