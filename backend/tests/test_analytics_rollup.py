@@ -8,6 +8,7 @@ other's numbers.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta
 
 import pytest
@@ -16,12 +17,24 @@ from sqlalchemy import func, select
 from app.models.analytics import (
     GRAIN_DAY,
     GRAIN_HOUR,
+    KIND_DOMAIN_OUTCOMES,
     KIND_MESSAGES,
     RUN_OK,
     AnalyticsContactRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsMessageRollup,
     AnalyticsRollupRun,
     AnalyticsTaskRollup,
+)
+from app.models.business_event import (
+    BUSINESS_EVENT_ACTIVATION_TRANSITIONED,
+    BUSINESS_EVENT_ELIGIBILITY_DECIDED,
+    BUSINESS_EVENT_KYC_DECIDED,
+    BUSINESS_EVENT_REACTIVATION_CREATED,
+    BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
+    BUSINESS_EVENT_SIM_TRANSITIONED,
+    BUSINESS_EVENT_SLA_RECORDED,
+    BusinessEvent,
 )
 from app.models.contact import Contact
 from app.models.conversation import Conversation
@@ -36,6 +49,7 @@ from app.models.message import (
 from app.models.organization import Organization
 from app.models.task import Task
 from app.models.task_event import TASK_EVENT_COMPLETED, TASK_EVENT_CREATED, TaskEvent
+from app.models.vi_domain import KycCase, ReactivationCase
 from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
 from app.services.analytics_rollup_service import (
     AnalyticsRollupService,
@@ -389,7 +403,8 @@ async def test_a_watermark_row_exists_per_kind(db_session, org_fixture):
 
     kinds = (await db_session.scalars(select(AnalyticsRollupRun.kind))).all()
     assert set(kinds) == {
-        "messages", "failures", "campaigns", "conversations", "tasks", "contacts"
+        "messages", "failures", "campaigns", "conversations", "tasks", "contacts",
+        "domain_outcomes",
     }
 
 
@@ -481,6 +496,116 @@ async def test_an_empty_hour_writes_no_contact_row(db_session, org_fixture):
     """Densification is the read layer's job (Doc 15 §10) — the writer stores no zero rows."""
     await _rollup(db_session, org_fixture)
     assert (await db_session.scalars(select(AnalyticsContactRollup))).all() == []
+
+
+async def test_domain_outcome_rollup_is_event_derived_and_additive(
+    db_session, org_fixture, make_user
+):
+    """GROW-05 facts come from immutable events and retain duration components."""
+    actor = (await make_user(email="domain-analytics@vi.test", is_superuser=True)).user
+    case_row = ReactivationCase(
+        organization_id=org_fixture["organization_id"],
+        contact_id=org_fixture["contact_id"],
+        stage="completed",
+        source="referral",
+        idempotency_key=uuid.uuid4().bytes,
+        request_hash="a" * 64,
+        created_at=BUCKET + timedelta(minutes=1),
+        updated_at=BUCKET + timedelta(minutes=31),
+    )
+    db_session.add(case_row)
+    await db_session.flush()
+    kyc = KycCase(
+        organization_id=org_fixture["organization_id"],
+        reactivation_case_id=case_row.id,
+        contact_id=org_fixture["contact_id"],
+        status="approved",
+        idempotency_key=uuid.uuid4().bytes,
+        request_hash="b" * 64,
+        created_at=BUCKET + timedelta(minutes=15),
+        updated_at=BUCKET + timedelta(minutes=45),
+    )
+    db_session.add(kyc)
+    await db_session.flush()
+
+    def event(event_type: str, minute: int, subject_id: int, payload: dict) -> BusinessEvent:
+        return BusinessEvent(
+            uuid=uuid.uuid4().bytes,
+            organization_id=org_fixture["organization_id"],
+            event_type=event_type,
+            event_version=1,
+            occurred_at=BUCKET + timedelta(minutes=minute),
+            actor_type="user",
+            actor_id=actor.id,
+            subject_type="domain_record",
+            subject_id=subject_id,
+            contact_id=org_fixture["contact_id"],
+            source="vi_domain",
+            payload_json=payload,
+        )
+
+    db_session.add_all(
+        [
+            event(BUSINESS_EVENT_REACTIVATION_CREATED, 1, case_row.id, {"stage": "new_lead"}),
+            event(
+                BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
+                31,
+                case_row.id,
+                {"from_stage": "activation_pending", "to_stage": "completed"},
+            ),
+            event(
+                BUSINESS_EVENT_ELIGIBILITY_DECIDED,
+                10,
+                case_row.id,
+                {"status": "eligible", "source": "rules"},
+            ),
+            event(
+                BUSINESS_EVENT_KYC_DECIDED,
+                45,
+                kyc.id,
+                {"decision_type": "manager_approval", "decision": "approved"},
+            ),
+            event(BUSINESS_EVENT_SIM_TRANSITIONED, 40, case_row.id, {"to_status": "delivered"}),
+            event(
+                BUSINESS_EVENT_ACTIVATION_TRANSITIONED,
+                50,
+                case_row.id,
+                {"to_status": "completed"},
+            ),
+            event(
+                BUSINESS_EVENT_SLA_RECORDED,
+                20,
+                case_row.id,
+                {"event_type": "started", "entity_type": "reactivation_case"},
+            ),
+            event(
+                BUSINESS_EVENT_SLA_RECORDED,
+                35,
+                case_row.id,
+                {"event_type": "breached", "entity_type": "reactivation_case"},
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    await _rollup(
+        db_session,
+        org_fixture,
+        start=BUCKET,
+        end=BUCKET + timedelta(hours=1),
+        kinds=[KIND_DOMAIN_OUTCOMES],
+    )
+
+    rows = list((await db_session.scalars(select(AnalyticsDomainOutcomeRollup))).all())
+    assert sum(row.reactivation_case_created_count for row in rows) == 1
+    assert sum(row.reactivation_completed_count for row in rows) == 1
+    assert sum(row.reactivation_turnaround_seconds_sum for row in rows) == 1800
+    assert sum(row.eligibility_eligible_count for row in rows) == 1
+    assert sum(row.kyc_approved_count for row in rows) == 1
+    assert sum(row.kyc_turnaround_seconds_sum for row in rows) == 1800
+    assert sum(row.sim_delivered_count for row in rows) == 1
+    assert sum(row.activation_completed_count for row in rows) == 1
+    assert sum(row.sla_breached_count for row in rows) == 1
 
 
 # --- Daily consolidation (Doc 15 §21.4) ---------------------------------------------------------

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXCLUDED_NAVIGATION_TERMS,
   isPermittedNavItem,
+  manageNavGroups,
   navItems,
   primaryNavItems,
   secondaryNavGroups,
@@ -15,7 +16,7 @@ import { REACTIVATION_SECTIONS } from "@/features/reactivation/sections";
 describe("Phase 1 information architecture", () => {
   it("keeps the business workspace in the planned order", () => {
     expect(navItems.filter((item) => item.group === "Workspace").map((item) => item.label)).toEqual([
-      "Dashboard", "Live Chat", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
+      "Dashboard", "Live Chat", "Chat History", "Campaigns", "Broadcasts", "Templates", "Contacts", "Segments", "Automation", "Analytics", "Reactivation",
     ]);
   });
 
@@ -24,18 +25,43 @@ describe("Phase 1 information architecture", () => {
     expect(navItems.find((item) => item.label === "Admin")?.group).toBe("Platform");
   });
 
-  it("keeps the default sidebar focused without removing entitled destinations", () => {
+  it("keeps the AiSensy-style daily tabs visible without removing entitled destinations", () => {
     expect(primaryNavItems(() => true).map((item) => item.label)).toEqual([
-      "Dashboard", "Live Chat", "Contacts", "Campaigns", "Templates", "Analytics",
+      "Dashboard", "Live Chat", "Chat History", "Contacts", "Campaigns", "Automation",
     ]);
     const secondary = secondaryNavGroups(() => true).flatMap((group) => group.items);
     expect(secondary.map((item) => item.label)).toContain("Media");
-    expect(secondary.map((item) => item.label)).toContain("Automation");
+    expect(secondary.map((item) => item.label)).toContain("Download Center");
+    expect(secondary.map((item) => item.label)).toContain("Templates");
     expect(secondary.map((item) => item.label)).toContain("Settings");
+  });
+
+  it("exposes reference-aligned Manage entries only to entitled users", () => {
+    const items = manageNavGroups(() => true).flatMap((group) => group.items);
+    expect(items.slice(0, 8).map((item) => item.label)).toEqual([
+      "Template Message", "Opt-in Management", "Live Chat Settings", "User Attributes",
+      "Canned Messages", "Team", "Tags", "Analytics",
+    ]);
+    expect(new Set(items.map((item) => item.path)).size).toBe(items.length);
+    expect(items.every(isPermittedNavItem)).toBe(true);
+    expect(manageNavGroups(() => false)).toEqual([]);
+    expect(manageNavGroups((code) => code === "contacts:read").flatMap((group) => group.items)
+      .some((item) => item.label === "Team" || item.label === "Opt-in Management")).toBe(false);
+    expect(manageNavGroups((code) => code === "auth:self").flatMap((group) => group.items)
+      .map((item) => item.path)).toEqual(["/settings/preferences"]);
   });
 
   it("does not expose permission-gated modules without an entitlement", () => {
     expect(visibleNavItems(() => false).map((item) => item.label)).toEqual(["Dashboard"]);
+  });
+
+  it("shows Download Center for every artifact-family entitlement", () => {
+    const path = "/downloads";
+    expect(visibleNavItems((code) => code === "contacts:export").some((item) => item.path === path)).toBe(true);
+    expect(visibleNavItems((code) => code === "analytics:export").some((item) => item.path === path)).toBe(true);
+    expect(visibleNavItems((code) => code === "inbox:export").some((item) => item.path === path)).toBe(true);
+    expect(visibleNavItems((code) => code === "campaigns:export").some((item) => item.path === path)).toBe(true);
+    expect(visibleNavItems(() => false).some((item) => item.path === path)).toBe(false);
   });
 
   it("permanently rejects excluded product concepts from navigation", () => {
@@ -73,8 +99,10 @@ describe("Phase 1 foundation boundaries", () => {
 
   it("labels reactivation foundations honestly while connecting reusable modules", () => {
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Foundation").length).toBeGreaterThan(0);
+    // SIM and activation joined the connected set with SIM-01: both had complete APIs since
+    // CORE-02 and no screen, so the links resolved to a filtered case list rather than the orders.
     expect(REACTIVATION_SECTIONS.filter((section) => section.phase === "Connected").map((section) => section.key)).toEqual([
-      "pipeline", "kyc", "documents", "reports",
+      "pipeline", "kyc", "documents", "sim", "activation", "reports",
     ]);
   });
 });

@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timedelta
+
+from sqlalchemy import select
+
+from app.models.contact import Contact
+from app.models.conversation import CONV_OPEN, CONV_PENDING, Conversation
+from app.models.task import TASK_STATUS_OPEN, TASK_TYPE_CUSTOM, Task
+from app.models.waba import PhoneNumber, WhatsAppBusinessAccount
+
 PASSWORD = "Sup3r-Secret-Pass1"
 
 
@@ -158,6 +168,136 @@ async def test_users_permission_enforcement(client, make_user) -> None:
     headers = await _headers(client, "agent@vi.co")
     assert (await client.get("/api/v1/users", headers=headers)).status_code == 403
     assert (await client.get("/api/v1/users")).status_code == 401
+
+
+async def test_team_workload_is_current_tenant_scoped_and_permission_gated(
+    client, make_user, session_factory, organization, monkeypatch
+) -> None:
+    import app.services.team_workload_service as workload_module
+
+    anchor = datetime(2026, 8, 24, 10, 0, 0)
+    monkeypatch.setattr(workload_module, "utcnow", lambda: anchor)
+    monkeypatch.setattr(
+        workload_module,
+        "_day_bounds_utc",
+        lambda _: (
+            datetime(2026, 8, 24, 0, 0, 0),
+            datetime(2026, 8, 25, 0, 0, 0),
+            "UTC",
+        ),
+    )
+
+    await make_user(email="owner-work@vi.co", password=PASSWORD, is_superuser=True)
+    agent = await make_user(
+        email="agent-work@vi.co", password=PASSWORD, full_name="Asha Agent", roles=("agent",)
+    )
+    owner_headers = await _headers(client, "owner-work@vi.co")
+    contact_id = (
+        await client.post(
+            "/api/v1/contacts",
+            headers=owner_headers,
+            json={"phone_e164": "+919990001234"},
+        )
+    ).json()["id"]
+    unassigned_contact_id = (
+        await client.post(
+            "/api/v1/contacts",
+            headers=owner_headers,
+            json={"phone_e164": "+919990001235"},
+        )
+    ).json()["id"]
+
+    async with session_factory() as session:
+        contacts = list(
+            await session.scalars(
+                select(Contact).where(
+                    Contact.uuid.in_(
+                        [
+                            uuid.UUID(contact_id).bytes,
+                            uuid.UUID(unassigned_contact_id).bytes,
+                        ]
+                    )
+                )
+            )
+        )
+        contact_by_uuid = {contact.public_id: contact for contact in contacts}
+        contact = contact_by_uuid[contact_id]
+        unassigned_contact = contact_by_uuid[unassigned_contact_id]
+        waba = WhatsAppBusinessAccount(
+            organization_id=organization.id,
+            waba_id="workload-waba",
+            business_name="Vi",
+            access_token_enc=b"ciphertext",
+        )
+        session.add(waba)
+        await session.flush()
+        number = PhoneNumber(
+            organization_id=organization.id,
+            waba_id=waba.id,
+            phone_number_id="workload-number",
+            display_number="+911111111122",
+        )
+        session.add(number)
+        await session.flush()
+        session.add_all(
+            [
+                Conversation(
+                    organization_id=organization.id,
+                    phone_number_id=number.id,
+                    contact_id=unassigned_contact.id,
+                    assigned_user_id=agent.user.id,
+                    status=CONV_OPEN,
+                    unread_count=3,
+                ),
+                Conversation(
+                    organization_id=organization.id,
+                    phone_number_id=number.id,
+                    contact_id=contact.id,
+                    assigned_user_id=None,
+                    status=CONV_PENDING,
+                    unread_count=1,
+                ),
+                Task(
+                    organization_id=organization.id,
+                    contact_id=contact.id,
+                    assigned_agent_id=agent.user.id,
+                    title="Overdue follow-up",
+                    task_type=TASK_TYPE_CUSTOM,
+                    status=TASK_STATUS_OPEN,
+                    due_at=anchor - timedelta(days=2),
+                ),
+                Task(
+                    organization_id=organization.id,
+                    contact_id=contact.id,
+                    assigned_agent_id=agent.user.id,
+                    title="Today follow-up",
+                    task_type=TASK_TYPE_CUSTOM,
+                    status=TASK_STATUS_OPEN,
+                    due_at=datetime(2026, 8, 24, 16, 0, 0),
+                ),
+            ]
+        )
+        await session.commit()
+
+    response = await client.get("/api/v1/users/workload", headers=owner_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["totals"] == {
+        "unresolved_conversations": 2,
+        "unread_conversations": 2,
+        "unread_messages": 4,
+        "open_tasks": 2,
+        "overdue_tasks": 1,
+        "due_today_tasks": 1,
+    }
+    asha = next(row for row in body["data"] if row["user_name"] == "Asha Agent")
+    unassigned = next(row for row in body["data"] if row["user_id"] is None)
+    assert (asha["unresolved_conversations"], asha["open_tasks"]) == (1, 2)
+    assert asha["attention_required"] is True
+    assert unassigned["unresolved_conversations"] == 1
+
+    agent_headers = await _headers(client, "agent-work@vi.co")
+    assert (await client.get("/api/v1/users/workload", headers=agent_headers)).status_code == 403
 
 
 async def test_list_filter_and_search(client, make_user) -> None:

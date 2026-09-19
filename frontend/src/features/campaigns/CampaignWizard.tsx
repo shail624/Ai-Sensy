@@ -93,7 +93,15 @@ const STEP_META: Record<
 /** Which fields each step owns, so "Next" validates only what is on screen. */
 const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
   audience: ["audience_type", "segment_id", "tag_ids", "contact_ids"],
-  basics: ["name", "phone_number_id", "template_id", "header", "body"],
+  basics: [
+    "name",
+    "phone_number_id",
+    "template_id",
+    "header",
+    "body",
+    "buttons",
+    "header_media_id",
+  ],
   preview: [],
   delivery: [],
   approval: [],
@@ -168,6 +176,7 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
     for (const [component, wanted] of [
       ["header", shape.headerCount],
       ["body", shape.bodyCount],
+      ["buttons", shape.buttonCount],
     ] as const) {
       const current = getValues(component);
       if (current.length === wanted) continue;

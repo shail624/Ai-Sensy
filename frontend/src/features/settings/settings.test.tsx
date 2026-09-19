@@ -4,18 +4,42 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { visibleNavItems } from "@/components/layout/navigation";
+import { useQuickReplies as useComposerQuickReplies } from "@/features/inbox/api";
 import { ApplicationPanel } from "@/features/settings/ApplicationPanel";
+import { CannedMessagesPanel } from "@/features/settings/CannedMessagesPanel";
+import { UserAttributesPanel } from "@/features/settings/UserAttributesPanel";
 import { FeatureFlagsPanel } from "@/features/settings/FeatureFlagsPanel";
 import { KeyValueEditor, type KeyValueEntry } from "@/features/settings/KeyValueEditor";
 import { OrganizationPanel } from "@/features/settings/OrganizationPanel";
 import { PreferencesPanel } from "@/features/settings/PreferencesPanel";
+import {
+  useAttributeDefinitions as useCampaignAttributeDefinitions,
+  useTags as useCampaignTags,
+} from "@/features/campaigns/api";
+import {
+  useCustomAttributeDefinitions,
+  useTags as useContactProfileTags,
+} from "@/features/customer-profile/api";
 import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
-import type { FeatureFlag, Organization, Setting } from "@/features/settings/types";
+import { TagsPanel } from "@/features/settings/TagsPanel";
+import type {
+  AttributeDefinition,
+  FeatureFlag,
+  InboxOperationsPolicy,
+  Organization,
+  QuickReply,
+  Setting,
+  Tag,
+  WorkingDay,
+} from "@/features/settings/types";
 import {
   draftFromValue,
   inferValueType,
   isEditableSetting,
+  matchesAttributeFilter,
+  parseEnumValues,
   parseValue,
+  validateAttributeEnumValues,
   validateKey,
 } from "@/features/settings/types";
 
@@ -50,12 +74,107 @@ function settingFixture(overrides: Partial<Setting> = {}): Setting {
   };
 }
 
+const TEST_WEEKDAYS: WorkingDay["day"][] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+function inboxOperationsFixture(
+  overrides: Partial<InboxOperationsPolicy> = {},
+): InboxOperationsPolicy {
+  return {
+    assignment_mode: "manual",
+    auto_mark_read: true,
+    consent: {
+      enabled: false,
+      opt_in_keywords: ["START", "YES"],
+      opt_out_keywords: ["STOP", "UNSUBSCRIBE"],
+    },
+    working_hours: {
+      enabled: false,
+      days: TEST_WEEKDAYS.map((day) => ({
+        day,
+        enabled: day !== "saturday" && day !== "sunday",
+        start: "09:00",
+        end: "18:00",
+      })),
+    },
+    automatic_replies: {
+      welcome_enabled: false,
+      welcome_body: "",
+      off_hours_enabled: false,
+      off_hours_body: "",
+    },
+    auto_resolve: {
+      enabled: false,
+      inactive_after_hours: 72,
+    },
+    configured: false,
+    updated_at: null,
+    organization_timezone: "UTC",
+    ...overrides,
+  };
+}
+
 function flagFixture(overrides: Partial<FeatureFlag> = {}): FeatureFlag {
   return {
     key: "ai_replies",
     description: "AI-drafted replies in the inbox.",
     is_enabled: false,
     rollout: null,
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function tagFixture(overrides: Partial<Tag> = {}): Tag {
+  return {
+    id: "t1",
+    type: "tag",
+    name: "Prepaid",
+    color: "#1F6FEB",
+    description: "Prepaid reactivation cohort.",
+    usage_count: 3,
+    created_at: "2026-07-01T10:00:00Z",
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function quickReplyFixture(overrides: Partial<QuickReply> = {}): QuickReply {
+  return {
+    id: "qr1",
+    shortcut: "hi",
+    title: "Greeting",
+    body: "Hi there, thanks for reaching out!",
+    shared: false,
+    usage_count: 0,
+    created_at: "2026-07-01T10:00:00Z",
+    updated_at: "2026-07-20T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function attributeDefinitionFixture(
+  overrides: Partial<AttributeDefinition> = {},
+): AttributeDefinition {
+  return {
+    id: "attr1",
+    type: "custom_attribute",
+    key_name: "plan",
+    label: "Plan",
+    data_type: "string",
+    enum_values: null,
+    is_indexed: false,
+    is_pii: false,
+    is_required: false,
+    is_active: true,
+    created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
   };
@@ -79,12 +198,19 @@ vi.mock("@/lib/auth", () => ({
 /** Canned responses per path, so the real hooks and components run without a network. */
 const responses: Record<string, unknown> = {};
 const writes: { path: string; body: unknown }[] = [];
+/**
+ * Per-path write failures, checked before `responses`. Left empty, every existing test's writes
+ * behave exactly as before — this only matters to the tests that populate it to simulate a rejected
+ * mutation (a duplicate name, a failed delete) without touching backend error semantics.
+ */
+const writeErrors: Record<string, unknown> = {};
 
 vi.mock("@/lib/api/client", () => {
   const get = async (path: string) =>
     path in responses ? { data: responses[path] } : { error: new Error(`no stub for ${path}`) };
   const write = async (path: string, init?: { body?: unknown }) => {
     writes.push({ path, body: init?.body });
+    if (path in writeErrors) return { error: writeErrors[path] };
     return path in responses
       ? { data: responses[path] }
       : { error: new Error("network disabled under test") };
@@ -97,13 +223,13 @@ vi.mock("@/lib/api/client", () => {
   };
 });
 
-function withProviders(ui: React.ReactElement) {
+function withProviders(ui: React.ReactElement, path = "/") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -111,7 +237,9 @@ function withProviders(ui: React.ReactElement) {
 beforeEach(() => {
   permissions.value = ["settings:read", "settings:manage", "auth:self"];
   for (const key of Object.keys(responses)) delete responses[key];
+  for (const key of Object.keys(writeErrors)) delete writeErrors[key];
   writes.length = 0;
+  responses["/api/v1/settings/inbox-operations"] = inboxOperationsFixture();
 });
 
 // --- Value typing ----------------------------------------------------------------------------------
@@ -355,6 +483,14 @@ describe("OrganizationPanel", () => {
 // --- Application settings ------------------------------------------------------------------------------
 
 describe("ApplicationPanel", () => {
+  it("focuses the real consent controls after following the Manage deep link", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />, "/settings/application#consent");
+    const control = await screen.findByLabelText("Recognize consent keywords");
+    await waitFor(() => expect(control.closest("#consent")).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Save inbox policy" })).toBeEnabled();
+  });
+
   it("separates the two scopes and makes system settings read-only", async () => {
     responses["/api/v1/settings"] = [
       settingFixture({ key: "org.key", scope: "organization" }),
@@ -380,17 +516,132 @@ describe("ApplicationPanel", () => {
     expect(within(list).getByText("3")).toBeInTheDocument();
   });
 
-  it("explains that the store ships empty rather than showing a broken form", async () => {
+  it("explains an empty advanced store without hiding the operational controls", async () => {
     responses["/api/v1/settings"] = [];
     withProviders(<ApplicationPanel />);
-    expect(await screen.findByText("No organization settings yet")).toBeInTheDocument();
-    expect(screen.getByText(/store ships empty/)).toBeInTheDocument();
+    expect(await screen.findByText("No advanced settings yet")).toBeInTheDocument();
+    expect(await screen.findByText("Inbox operations")).toBeInTheDocument();
   });
 
-  it("says retention and messaging defaults are not modelled as settings", async () => {
+  it("distinguishes consumed operational policy from unclaimed advanced keys", async () => {
     responses["/api/v1/settings"] = [];
     withProviders(<ApplicationPanel />);
-    expect(await screen.findByText(/not modelled as settings/)).toBeInTheDocument();
+    expect(await screen.findByText(/Operational inbox behavior is modelled above/)).toBeInTheDocument();
+    expect(screen.getByText(/module explicitly consumes them/)).toBeInTheDocument();
+  });
+
+  it("saves routing, read-state and consent settings through the validated endpoint", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />);
+
+    fireEvent.change(await screen.findByLabelText("Assignment rule"), {
+      target: { value: "least_open" },
+    });
+    fireEvent.click(screen.getByLabelText("Clear unread on open"));
+    fireEvent.click(screen.getByLabelText("Recognize consent keywords"));
+    fireEvent.change(screen.getByLabelText("Opt-in keywords"), {
+      target: { value: "JOIN, YES" },
+    });
+    fireEvent.change(screen.getByLabelText("Opt-out keywords"), {
+      target: { value: "STOP, LEAVE" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbox policy" }));
+
+    await waitFor(() =>
+      expect(writes).toContainEqual({
+        path: "/api/v1/settings/inbox-operations",
+        body: {
+          assignment_mode: "least_open",
+          auto_mark_read: false,
+          consent: {
+            enabled: true,
+            opt_in_keywords: ["JOIN", "YES"],
+            opt_out_keywords: ["STOP", "LEAVE"],
+          },
+          working_hours: {
+            enabled: false,
+            days: [
+              { day: "monday", enabled: true, start: "09:00", end: "18:00" },
+              { day: "tuesday", enabled: true, start: "09:00", end: "18:00" },
+              { day: "wednesday", enabled: true, start: "09:00", end: "18:00" },
+              { day: "thursday", enabled: true, start: "09:00", end: "18:00" },
+              { day: "friday", enabled: true, start: "09:00", end: "18:00" },
+              { day: "saturday", enabled: false, start: "09:00", end: "18:00" },
+              { day: "sunday", enabled: false, start: "09:00", end: "18:00" },
+            ],
+          },
+          automatic_replies: {
+            welcome_enabled: false,
+            welcome_body: "",
+            off_hours_enabled: false,
+            off_hours_body: "",
+          },
+          auto_resolve: {
+            enabled: false,
+            inactive_after_hours: 72,
+          },
+        },
+      }),
+    );
+  });
+
+  it("persists working hours and guarded customer replies", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />);
+
+    fireEvent.click(await screen.findByLabelText("Use organization working hours"));
+    fireEvent.change(screen.getByLabelText("Monday enabled").closest("div")!.querySelector("input[type=time]")!, {
+      target: { value: "08:30" },
+    });
+    fireEvent.click(screen.getByLabelText("Send a welcome reply"));
+    fireEvent.change(screen.getByLabelText("Message", { selector: "textarea#welcome-reply-body" }), {
+      target: { value: "Welcome to Vi support." },
+    });
+    fireEvent.click(screen.getByLabelText("Send an off-hours reply"));
+    fireEvent.change(screen.getByLabelText("Message", { selector: "textarea#off-hours-reply-body" }), {
+      target: { value: "We will reply during working hours." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbox policy" }));
+
+    await waitFor(() => {
+      const write = writes.find((entry) => entry.path === "/api/v1/settings/inbox-operations");
+      const body = write?.body as {
+        working_hours?: { enabled?: boolean; days?: WorkingDay[] };
+        automatic_replies?: Record<string, unknown>;
+      };
+      expect(body.working_hours?.enabled).toBe(true);
+      expect(body.working_hours?.days).toHaveLength(7);
+      expect(body.working_hours?.days?.[0]).toEqual({
+        day: "monday",
+        enabled: true,
+        start: "08:30",
+        end: "18:00",
+      });
+      expect(body.automatic_replies).toEqual({
+        welcome_enabled: true,
+        welcome_body: "Welcome to Vi support.",
+        off_hours_enabled: true,
+        off_hours_body: "We will reply during working hours.",
+      });
+    });
+  });
+
+  it("enables automatic resolution with a bounded inactivity window", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />);
+
+    fireEvent.click(await screen.findByLabelText("Resolve inactive conversations"));
+    fireEvent.change(screen.getByLabelText("Inactive for"), { target: { value: "36" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbox policy" }));
+
+    await waitFor(() => {
+      const write = writes.find((entry) => entry.path === "/api/v1/settings/inbox-operations");
+      const body = write?.body as { auto_resolve?: Record<string, unknown> };
+      expect(body.auto_resolve).toEqual({ enabled: true, inactive_after_hours: 36 });
+    });
+    expect(
+      screen.getByText(/Unread messages, snoozed threads and conversations with open follow-up/),
+    ).toBeInTheDocument();
   });
 });
 
@@ -472,6 +723,1123 @@ describe("PreferencesPanel", () => {
   });
 });
 
+// --- Tags -------------------------------------------------------------------------------------
+
+/**
+ * The real contact/inbox/customer-profile tag picker, reduced to its data dependency: the same
+ * `useTags` hook `Inbox.tsx`, `ContactsList.tsx` and `BulkActionDialog.tsx` import from
+ * `customer-profile/api`, under the same `["tags"]` cache key the Settings panel writes through.
+ */
+function ContactPickerProbe(): JSX.Element {
+  const tags = useContactProfileTags();
+  return (
+    <ul aria-label="Contact tag picker">
+      {(tags.data ?? []).map((tag) => (
+        <li key={tag.id}>{tag.name}</li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The real campaign/segment/automation tag picker: the same `useTags` hook `CampaignAudienceStep`,
+ * `SegmentEditor` and `AutomationBuilder` import from `campaigns/api`, under the
+ * `["campaigns", "pickers", "tags"]` cache key.
+ */
+function CampaignPickerProbe(): JSX.Element {
+  const tags = useCampaignTags();
+  return (
+    <ul aria-label="Campaign tag picker">
+      {(tags.data ?? []).map((tag) => (
+        <li key={tag.id}>{tag.name}</li>
+      ))}
+    </ul>
+  );
+}
+
+describe("TagsPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["contacts:read", "contacts:write", "auth:self"];
+  });
+
+  it("lists tags with the usage count the read returns", async () => {
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+
+    expect(await screen.findByText("Prepaid")).toBeInTheDocument();
+    expect(screen.getByText("3 contacts")).toBeInTheDocument();
+    expect(screen.getByText("Prepaid reactivation cohort.")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no tag exists yet", async () => {
+    // The gap this panel closes: with no tag and no way to make one, tagging can never start.
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    expect(await screen.findByText("No tags yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New tag" }).length).toBeGreaterThan(0);
+  });
+
+  it("creates a tag, sending blank optional fields as null rather than empty strings", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  Winback  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags");
+    expect(writes[0]?.body).toEqual({ name: "Winback", color: null, description: null });
+  });
+
+  it("refuses a colour the server would reject, before sending it", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Winback" } });
+    fireEvent.change(screen.getByLabelText(/Colour/), { target: { value: "red" } });
+
+    expect(screen.getByText("Use a hex colour such as #1F6FEB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create tag" })).toBeDisabled();
+    expect(writes).toHaveLength(0);
+  });
+
+  it("narrows the list by search and by usage", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid", usage_count: 3 }),
+      tagFixture({ id: "t2", name: "Postpaid", description: null, usage_count: 0 }),
+    ];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    fireEvent.change(screen.getByLabelText("Search tags"), { target: { value: "post" } });
+    expect(screen.queryByText("Prepaid")).not.toBeInTheDocument();
+    expect(screen.getByText("Postpaid")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search tags"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by usage"), { target: { value: "unused" } });
+    expect(screen.queryByText("Prepaid")).not.toBeInTheDocument();
+    expect(screen.getByText("Postpaid")).toBeInTheDocument();
+  });
+
+  it("edits a tag through the patch endpoint", async () => {
+    responses["/api/v1/tags"] = [tagFixture()];
+    responses["/api/v1/tags/{tag_id}"] = tagFixture({ name: "Prepaid India" });
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Prepaid" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prepaid India" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags/{tag_id}");
+    expect(writes[0]?.body).toMatchObject({ name: "Prepaid India" });
+  });
+
+  it("says how many contacts a delete would detach before it happens", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ usage_count: 3 })];
+    // `undefined` stands in for the endpoint's real `204 No Content`: the key is present, so the
+    // stub reports success, but there is no body. Treating that as a failure was a live bug.
+    responses["/api/v1/tags/{tag_id}"] = undefined;
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Prepaid" }));
+    expect(screen.getByText(/applied to 3 contacts/)).toBeInTheDocument();
+    expect(screen.getByText(/removes the tag from all of them/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/tags/{tag_id}");
+
+    // A successful empty-body delete must close the dialog, not report an error.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete tag" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("hides the write controls entirely without contacts:write", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    expect(screen.queryByRole("button", { name: "New tag" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Prepaid" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Prepaid" })).not.toBeInTheDocument();
+    expect(screen.getByText(/needs the contacts write permission/)).toBeInTheDocument();
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<TagsPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    // A response is still supplied so the query settles cleanly in the background; the assertion
+    // below runs synchronously, before that promise has a chance to resolve.
+    responses["/api/v1/tags"] = [tagFixture()];
+    withProviders(<TagsPanel />);
+    expect(screen.getByText("Loading tags…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("names each row action after its own tag, so a buttons-only list is not all 'Edit'/'Delete'", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Postpaid" }),
+    ];
+    withProviders(<TagsPanel />);
+
+    await screen.findByText("Prepaid");
+    expect(screen.getByRole("button", { name: "Edit Prepaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Prepaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Postpaid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Postpaid" })).toBeInTheDocument();
+    // The visible label stays the shared design-system text; only the accessible name is per-row.
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("keeps the create dialog open with the typed name intact when it conflicts", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ name: "Prepaid" })];
+    writeErrors["/api/v1/tags"] = { detail: "A tag named 'Prepaid' already exists." };
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prepaid" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    // The conflict is visible and accessible, not a silently swallowed rejection.
+    expect(await screen.findByRole("alert")).toHaveTextContent("A tag named 'Prepaid' already exists.");
+    // The dialog is still open — a false success is not shown...
+    expect(screen.getByRole("button", { name: "Create tag" })).toBeInTheDocument();
+    // ...and the operator's typed value was not thrown away.
+    expect(screen.getByLabelText("Name")).toHaveValue("Prepaid");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("keeps the confirmation open with a visible error when the delete request fails, and allows a retry", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ usage_count: 3 })];
+    writeErrors["/api/v1/tags/{tag_id}"] = { detail: "This tag could not be deleted right now." };
+    withProviders(<TagsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+
+    // The error is visible where the operator is already looking, not hidden behind the dialog.
+    expect(await screen.findByRole("alert")).toHaveTextContent("This tag could not be deleted right now.");
+    // The confirmation is still open — deletion was not falsely reported as done...
+    expect(screen.getByRole("button", { name: "Delete tag" })).toBeInTheDocument();
+    // ...and the tag itself is still in the list behind it, because nothing was invalidated.
+    expect(screen.getByText("Prepaid")).toBeInTheDocument();
+
+    // Retrying is possible: once the failure clears, the same button succeeds.
+    delete writeErrors["/api/v1/tags/{tag_id}"];
+    responses["/api/v1/tags/{tag_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete tag" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different tag", async () => {
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Postpaid", description: null, usage_count: 0 }),
+    ];
+    writeErrors["/api/v1/tags/{tag_id}"] = { detail: "Prepaid could not be saved." };
+    withProviders(<TagsPanel />);
+
+    // Fail an edit on Prepaid...
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Prepaid could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // ...then open the editor for a different tag: the earlier failure must not resurface here.
+    fireEvent.click(screen.getByRole("button", { name: "Edit Postpaid" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // The same guarantee applies to the delete-confirmation dialog.
+    fireEvent.click(screen.getByRole("button", { name: "Delete Prepaid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete tag" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Prepaid could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Postpaid" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the existing contact and campaign tag pickers after a create, without a manual reload", async () => {
+    responses["/api/v1/tags"] = [tagFixture({ id: "t1", name: "Prepaid" })];
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <TagsPanel />
+        </div>
+        <ContactPickerProbe />
+        <CampaignPickerProbe />
+      </>,
+    );
+
+    // All three real consumers — Settings, the contact/inbox picker and the campaign picker — start
+    // from the one shared cache, scoped separately so the shared tag name is not ambiguous.
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const contactPicker = screen.getByRole("list", { name: "Contact tag picker" });
+    const campaignPicker = screen.getByRole("list", { name: "Campaign tag picker" });
+    expect(await within(settingsPanel).findByText("Prepaid")).toBeInTheDocument();
+    expect(await within(contactPicker).findByText("Prepaid")).toBeInTheDocument();
+    expect(await within(campaignPicker).findByText("Prepaid")).toBeInTheDocument();
+    expect(within(contactPicker).queryByText("Winback")).not.toBeInTheDocument();
+    expect(within(campaignPicker).queryByText("Winback")).not.toBeInTheDocument();
+
+    // The server state a real create leaves behind, so the invalidation-triggered refetches see it.
+    responses["/api/v1/tags"] = [
+      tagFixture({ id: "t1", name: "Prepaid" }),
+      tagFixture({ id: "t2", name: "Winback", usage_count: 0, description: null }),
+    ];
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New tag" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Name"), { target: { value: "Winback" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create tag" }));
+
+    // Neither picker is remounted or manually refetched — invalidation alone brings them current.
+    await waitFor(() => expect(within(contactPicker).getByText("Winback")).toBeInTheDocument());
+    await waitFor(() => expect(within(campaignPicker).getByText("Winback")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Winback")).toBeInTheDocument();
+  });
+});
+
+// --- Canned messages ----------------------------------------------------------------------------
+
+/**
+ * The real Message Composer picker, reduced to its data dependency: the same `useQuickReplies` hook
+ * `MessageComposer.tsx` imports from `inbox/api`, under the identical `["quick-replies"]` cache key
+ * the Settings panel writes through.
+ */
+function ComposerQuickReplyProbe(): JSX.Element {
+  const quickReplies = useComposerQuickReplies();
+  return (
+    <ul aria-label="Composer quick-reply picker">
+      {(quickReplies.data ?? []).map((reply) => (
+        <li key={reply.id}>{reply.shortcut}</li>
+      ))}
+    </ul>
+  );
+}
+
+describe("CannedMessagesPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["inbox:read", "inbox:write", "auth:self"];
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    withProviders(<CannedMessagesPanel />);
+    expect(screen.getByText("Loading canned messages…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no canned message exists yet", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    expect(await screen.findByText("No canned messages yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New canned message" }).length).toBeGreaterThan(0);
+  });
+
+  it("shows a clean read-only empty state, with no create action, without inbox:write", async () => {
+    permissions.value = ["inbox:read"];
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    expect(await screen.findByText("No canned messages yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/inbox write permission/).length).toBeGreaterThan(0);
+  });
+
+  it("lists replies with a Personal or Shared badge", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", shared: false }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", shared: true }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Personal")).toBeInTheDocument();
+    expect(within(table).getByText("Shared")).toBeInTheDocument();
+  });
+
+  it("narrows the list by search across shortcut, title and body", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", body: "Hello there" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", body: "See you soon" }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    fireEvent.change(screen.getByLabelText("Search canned messages"), { target: { value: "soon" } });
+    expect(screen.queryByText("Greeting")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("narrows the list by scope", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting", shared: false }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off", shared: true }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    fireEvent.change(screen.getByLabelText("Filter by scope"), { target: { value: "shared" } });
+    expect(screen.queryByText("Greeting")).not.toBeInTheDocument();
+    expect(screen.getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("creates a personal reply by default", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies");
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Greeting", body: "Hi there!", shared: false });
+  });
+
+  it("creates a shared reply when Shared is selected", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    fireEvent.change(screen.getByLabelText("Scope"), { target: { value: "shared" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Greeting", body: "Hi there!", shared: true });
+  });
+
+  it("blocks submission and explains why for an empty shortcut, an over-limit shortcut, title or body", async () => {
+    responses["/api/v1/quick-replies"] = { data: [] };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    const submit = screen.getByRole("button", { name: "Create canned message" });
+
+    // Empty shortcut — the required fields are simply not all filled in yet.
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    expect(submit).toBeDisabled();
+
+    // Over-limit shortcut.
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "x".repeat(61) } });
+    expect(screen.getByText("Shortcuts are limited to 60 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+
+    // Over-limit title.
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "x".repeat(121) } });
+    expect(screen.getByText("Titles are limited to 120 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
+
+    // Over-limit body.
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "x".repeat(4097) } });
+    expect(screen.getByText("Bodies are limited to 4096 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    expect(writes).toHaveLength(0);
+  });
+
+  it("keeps the create dialog open with the typed values intact when the shortcut conflicts", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ shortcut: "hi" })] };
+    writeErrors["/api/v1/quick-replies"] = {
+      detail: "The shortcut 'hi' is already used by a personal quick reply.",
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New canned message" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Duplicate" } });
+    fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Body text" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
+
+    // The conflict is visible and accessible, not a silently swallowed rejection.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The shortcut 'hi' is already used by a personal quick reply.",
+    );
+    // The dialog is still open — a false success is not shown...
+    expect(screen.getByRole("button", { name: "Create canned message" })).toBeInTheDocument();
+    // ...and every typed value survives the failed attempt.
+    expect(screen.getByLabelText("Shortcut")).toHaveValue("hi");
+    expect(screen.getByLabelText("Title")).toHaveValue("Duplicate");
+    expect(screen.getByLabelText("Body")).toHaveValue("Body text");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("edits a reply through the patch endpoint, with scope shown but not editable", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ shared: true })] };
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = quickReplyFixture({
+      shared: true,
+      title: "Updated Greeting",
+    });
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Greeting" }));
+    // Scope is informational only — no control can change it once created.
+    expect(screen.queryByLabelText("Scope")).not.toBeInTheDocument();
+    expect(screen.getByText("Set when a canned message is created and cannot be changed here.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Updated Greeting" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies/{quick_reply_id}");
+    expect(writes[0]?.body).toEqual({ shortcut: "hi", title: "Updated Greeting", body: quickReplyFixture().body });
+  });
+
+  it("deletes through the 204 endpoint", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    // `undefined` stands in for the real `204 No Content` — present key, no body.
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = undefined;
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Greeting" }));
+    expect(screen.getByText(/personal canned message, visible only to you/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/quick-replies/{quick_reply_id}");
+
+    // A successful empty-body delete must close the dialog, not report an error.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete canned message" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the confirmation open with a visible error when the delete fails, and allows a retry", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    writeErrors["/api/v1/quick-replies/{quick_reply_id}"] = {
+      detail: "This canned message could not be deleted right now.",
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+
+    // The error is visible where the operator is already looking, not hidden behind the dialog.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This canned message could not be deleted right now.",
+    );
+    // The confirmation is still open — deletion was not falsely reported as done...
+    expect(screen.getByRole("button", { name: "Delete canned message" })).toBeInTheDocument();
+    // ...and the reply itself is still in the list behind it, because nothing was invalidated.
+    expect(screen.getByText("Greeting")).toBeInTheDocument();
+
+    // Retrying is possible: once the failure clears, the same button succeeds.
+    delete writeErrors["/api/v1/quick-replies/{quick_reply_id}"];
+    responses["/api/v1/quick-replies/{quick_reply_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete canned message" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different reply", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+    writeErrors["/api/v1/quick-replies/{quick_reply_id}"] = { detail: "Greeting could not be saved." };
+    withProviders(<CannedMessagesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Greeting could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Sign-off" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete canned message" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Greeting could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Sign-off" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the real Message Composer picker after a create, without a manual reload", async () => {
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture({ id: "qr1", shortcut: "hi" })] };
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <CannedMessagesPanel />
+        </div>
+        <ComposerQuickReplyProbe />
+      </>,
+    );
+
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const composerPicker = screen.getByRole("list", { name: "Composer quick-reply picker" });
+    expect(await within(settingsPanel).findByText("Greeting")).toBeInTheDocument();
+    expect(await within(composerPicker).findByText("hi")).toBeInTheDocument();
+    expect(within(composerPicker).queryByText("bye")).not.toBeInTheDocument();
+
+    // The server state a real create leaves behind, so the invalidation-triggered refetch sees it.
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New canned message" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Shortcut"), { target: { value: "bye" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Title"), { target: { value: "Sign-off" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Body"), { target: { value: "See you!" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create canned message" }));
+
+    // Not remounted, not manually refetched — invalidation alone brings the composer's picker current.
+    await waitFor(() => expect(within(composerPicker).getByText("bye")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Sign-off")).toBeInTheDocument();
+  });
+
+  it("hides every write control without inbox:write, on a populated list", async () => {
+    permissions.value = ["inbox:read"];
+    responses["/api/v1/quick-replies"] = { data: [quickReplyFixture()] };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Greeting" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Greeting" })).not.toBeInTheDocument();
+    expect(screen.getByText(/inbox write permission/)).toBeInTheDocument();
+  });
+
+  it("names each row action after its own canned message", async () => {
+    responses["/api/v1/quick-replies"] = {
+      data: [
+        quickReplyFixture({ id: "qr1", shortcut: "hi", title: "Greeting" }),
+        quickReplyFixture({ id: "qr2", shortcut: "bye", title: "Sign-off" }),
+      ],
+    };
+    withProviders(<CannedMessagesPanel />);
+
+    await screen.findByText("Greeting");
+    expect(screen.getByRole("button", { name: "Edit Greeting" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Greeting" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Sign-off" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Sign-off" })).toBeInTheDocument();
+    // The visible label stays the shared design-system text; only the accessible name is per-row.
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<CannedMessagesPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+});
+
+// --- User attributes -----------------------------------------------------------------------------
+
+/**
+ * The real Contacts-page picker, reduced to its data dependency: the same `useCustomAttributeDefinitions`
+ * hook `ContactsList.tsx` and `BulkActionDialog.tsx` import from `customer-profile/api`, under the
+ * identical `["custom-attributes"]` cache key the Settings panel writes through.
+ * `ContactsToolbar.tsx` does not read this hook itself — it receives definitions as a prop from
+ * `ContactsList.tsx`, so it refreshes transitively through the same list.
+ */
+function AttributePickerProbe(): JSX.Element {
+  const definitions = useCustomAttributeDefinitions();
+  return (
+    <ul aria-label="Contact attribute picker">
+      {(definitions.data ?? []).map((definition) => (
+        <li key={definition.id}>{definition.key_name}</li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The real campaign/segment attribute picker: the same `useAttributeDefinitions` hook
+ * `CampaignBasicsStep.tsx`, `SegmentEditor.tsx` and `SegmentDetail.tsx` import from `campaigns/api`,
+ * under the `["campaigns", "pickers", "attributes"]` cache key — a prefix of the
+ * `["campaigns", "pickers"]` list this panel's mutations invalidate.
+ */
+function CampaignAttributePickerProbe(): JSX.Element {
+  const definitions = useCampaignAttributeDefinitions();
+  return (
+    <ul aria-label="Campaign attribute picker">
+      {(definitions.data ?? []).map((definition) => (
+        <li key={definition.id}>{definition.key_name}</li>
+      ))}
+    </ul>
+  );
+}
+
+describe("attribute helper functions", () => {
+  it("splits, trims and drops empty entries from comma-separated choices", () => {
+    expect(parseEnumValues(" gold ,silver,, bronze ")).toEqual(["gold", "silver", "bronze"]);
+    expect(parseEnumValues("")).toEqual([]);
+    expect(parseEnumValues("   ")).toEqual([]);
+  });
+
+  it("requires at least one choice for an enum attribute, and nothing for any other type", () => {
+    expect(validateAttributeEnumValues("enum", "")).toMatch(/at least one value/);
+    expect(validateAttributeEnumValues("enum", "gold")).toBeNull();
+    expect(validateAttributeEnumValues("string", "")).toBeNull();
+  });
+
+  it("matches an attribute by key name, label and the exact type filter", () => {
+    const plan = attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "enum" });
+    const ltv = attributeDefinitionFixture({ key_name: "ltv", label: "LTV", data_type: "number" });
+
+    expect(matchesAttributeFilter(plan, "plan", "all")).toBe(true);
+    expect(matchesAttributeFilter(plan, "LTV", "all")).toBe(false);
+    expect(matchesAttributeFilter(plan, "", "number")).toBe(false);
+    expect(matchesAttributeFilter(ltv, "", "number")).toBe(true);
+  });
+});
+
+describe("UserAttributesPanel", () => {
+  beforeEach(() => {
+    permissions.value = ["contacts:read", "contacts:write", "auth:self"];
+  });
+
+  it("shows the loading state before the list resolves", () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture()];
+    withProviders(<UserAttributesPanel />);
+    expect(screen.getByText("Loading user attributes…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("keeps the create action reachable when no attribute exists yet", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "New attribute" }).length).toBeGreaterThan(0);
+  });
+
+  it("shows a clean read-only empty state, with no create action, without contacts:write", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/contacts write permission/).length).toBeGreaterThan(0);
+  });
+
+  it("lists attributes with their type, indexed and PII state", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", data_type: "enum", is_indexed: true }),
+      attributeDefinitionFixture({ id: "a2", key_name: "notes", label: "Notes", data_type: "string", is_pii: true }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    const tbody = screen.getByRole("table").querySelector("tbody")!;
+    expect(within(tbody).getByText("Choice list")).toBeInTheDocument();
+    expect(within(tbody).getByText("Indexed")).toBeInTheDocument();
+    expect(within(tbody).getByText("PII")).toBeInTheDocument();
+  });
+
+  it("narrows the list by search across key name and label", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Search user attributes"), { target: { value: "ltv" } });
+    expect(screen.queryByText("Plan")).not.toBeInTheDocument();
+    expect(screen.getByText("LTV")).toBeInTheDocument();
+  });
+
+  it("narrows the list by data type", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", data_type: "string" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV", data_type: "number" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Filter by type"), { target: { value: "number" } });
+    expect(screen.queryByText("Plan")).not.toBeInTheDocument();
+    expect(screen.getByText("LTV")).toBeInTheDocument();
+  });
+
+  it("explains a filtered-to-nothing list and offers Clear filters", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ key_name: "plan", label: "Plan" })];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    fireEvent.change(screen.getByLabelText("Search user attributes"), { target: { value: "nope" } });
+    expect(await screen.findByText("No user attributes match")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("Plan")).toBeInTheDocument();
+  });
+
+  it("creates a plain string attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes");
+    expect(writes[0]?.body).toEqual({
+      key_name: "region",
+      label: "Region",
+      data_type: "string",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: false,
+      is_required: false,
+      is_active: true,
+    });
+  });
+
+  it("retires a definition and marks one required, sending both as the editor shows them", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "string" }),
+    ];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = attributeDefinitionFixture({});
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    // "Retired" is the inverse of the stored `is_active`, because that is the decision somebody is
+    // actually taking — nobody sets out to "make a field not active".
+    fireEvent.click(screen.getByRole("checkbox", { name: /Required/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Retired/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toMatchObject({ is_required: true, is_active: false });
+  });
+
+  it("shows which definitions are required or retired without opening the editor", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan", is_required: true }),
+      attributeDefinitionFixture({ id: "a2", key_name: "old", label: "Old", is_active: false }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    expect(await screen.findByText("Required")).toBeInTheDocument();
+    expect(screen.getByText("Retired")).toBeInTheDocument();
+  });
+
+  it("creates an attribute flagged as PII, leaving indexed unset", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "ssn" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "SSN" } });
+    fireEvent.click(screen.getByLabelText(/Personally identifiable information/));
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({
+      key_name: "ssn",
+      label: "SSN",
+      data_type: "string",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: true,
+      is_required: false,
+      is_active: true,
+    });
+  });
+
+  it("creates an enum attribute with its choices, and offers no choice field for a non-enum type", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    expect(screen.queryByLabelText("Choices")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Plan" } });
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "enum" } });
+    expect(screen.getByLabelText("Choices")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Choices"), { target: { value: "gold, silver" } });
+    fireEvent.click(screen.getByLabelText(/Indexed/));
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({
+      key_name: "plan",
+      label: "Plan",
+      data_type: "enum",
+      enum_values: ["gold", "silver"],
+      is_indexed: true,
+      is_pii: false,
+      is_required: false,
+      is_active: true,
+    });
+  });
+
+  it("blocks submission for an empty or over-limit key name, an over-limit label, and an enum with no choices", async () => {
+    responses["/api/v1/custom-attributes"] = [];
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    const submit = screen.getByRole("button", { name: "Create attribute" });
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "x".repeat(61) } });
+    expect(screen.getByText("Key names are limited to 60 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "x".repeat(121) } });
+    expect(screen.getByText("Labels are limited to 120 characters")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
+
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "enum" } });
+    expect(submit).toBeDisabled();
+
+    // Punctuation-only input parses to zero choices, surfacing the validator's own message rather
+    // than the field's static description (which is present whether or not there is an error).
+    fireEvent.change(screen.getByLabelText("Choices"), { target: { value: ",," } });
+    expect(screen.getByText("Enum attributes require at least one value")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    expect(writes).toHaveLength(0);
+  });
+
+  it("keeps the create dialog open with the typed values intact when the key name conflicts", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ key_name: "plan" })];
+    writeErrors["/api/v1/custom-attributes"] = {
+      detail: "An attribute named 'plan' already exists.",
+    };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Duplicate" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "An attribute named 'plan' already exists.",
+    );
+    expect(screen.getByRole("button", { name: "Create attribute" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Key name")).toHaveValue("plan");
+    expect(screen.getByLabelText("Label")).toHaveValue("Duplicate");
+    expect(writes).toHaveLength(1);
+  });
+
+  it("edits label and flags through the patch endpoint, with key name and type shown but not editable", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ key_name: "plan", label: "Plan", data_type: "string" }),
+    ];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = attributeDefinitionFixture({
+      label: "Plan Tier",
+    });
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    const dialog = screen.getByRole("dialog");
+    // Immutable facts are shown as information, not as editable controls.
+    expect(screen.queryByLabelText("Key name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Type")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("plan")).toBeInTheDocument();
+    expect(within(dialog).getByText("Text")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Plan Tier" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes/{attribute_id}");
+    expect(writes[0]?.body).toEqual({
+      label: "Plan Tier",
+      enum_values: null,
+      is_indexed: false,
+      is_pii: false,
+      is_required: false,
+      is_active: true,
+    });
+  });
+
+  it("deletes through the 204 endpoint and states that stored values are removed too", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    // `undefined` stands in for the real `204 No Content` — present key, no body.
+    responses["/api/v1/custom-attributes/{attribute_id}"] = undefined;
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Plan" }));
+    expect(screen.getByText(/removes this attribute and its stored value from every contact/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.path).toBe("/api/v1/custom-attributes/{attribute_id}");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete attribute" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the confirmation open with a visible error when the delete fails, and allows a retry", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    writeErrors["/api/v1/custom-attributes/{attribute_id}"] = {
+      detail: "This attribute could not be deleted right now.",
+    };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This attribute could not be deleted right now.",
+    );
+    expect(screen.getByRole("button", { name: "Delete attribute" })).toBeInTheDocument();
+    // Still in the table behind the dialog, because nothing was invalidated.
+    expect(within(screen.getByRole("table")).getByText("Plan")).toBeInTheDocument();
+
+    delete writeErrors["/api/v1/custom-attributes/{attribute_id}"];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Delete attribute" })).not.toBeInTheDocument(),
+    );
+    expect(writes).toHaveLength(2);
+  });
+
+  it("does not carry a failed attempt's error into a dialog opened for a different attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    writeErrors["/api/v1/custom-attributes/{attribute_id}"] = { detail: "Plan could not be saved." };
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Plan could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit LTV" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete attribute" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Plan could not be saved.");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete LTV" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the real Contacts-page and campaign/segment attribute pickers after a create, without a manual reload", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" })];
+
+    withProviders(
+      <>
+        <div data-testid="settings-panel">
+          <UserAttributesPanel />
+        </div>
+        <AttributePickerProbe />
+        <CampaignAttributePickerProbe />
+      </>,
+    );
+
+    // All three real consumers — Settings, the Contacts-page picker and the campaign/segment
+    // picker — start from the one shared `QueryClient`, scoped separately so the shared key name
+    // is not ambiguous.
+    const settingsPanel = screen.getByTestId("settings-panel");
+    const attributePicker = screen.getByRole("list", { name: "Contact attribute picker" });
+    const campaignPicker = screen.getByRole("list", { name: "Campaign attribute picker" });
+    expect(await within(settingsPanel).findByText("Plan")).toBeInTheDocument();
+    expect(await within(attributePicker).findByText("plan")).toBeInTheDocument();
+    expect(await within(campaignPicker).findByText("plan")).toBeInTheDocument();
+    expect(within(attributePicker).queryByText("region")).not.toBeInTheDocument();
+    expect(within(campaignPicker).queryByText("region")).not.toBeInTheDocument();
+
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "region", label: "Region", data_type: "string" }),
+    ];
+
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New attribute" }));
+    fireEvent.change(within(settingsPanel).getByLabelText("Key name"), { target: { value: "region" } });
+    fireEvent.change(within(settingsPanel).getByLabelText("Label"), { target: { value: "Region" } });
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create attribute" }));
+
+    await waitFor(() => expect(within(attributePicker).getByText("region")).toBeInTheDocument());
+    await waitFor(() => expect(within(campaignPicker).getByText("region")).toBeInTheDocument());
+    expect(within(settingsPanel).getByText("Region")).toBeInTheDocument();
+  });
+
+  it("hides every write control without contacts:write, on a populated list", async () => {
+    permissions.value = ["contacts:read"];
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ label: "Plan" })];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Plan" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Plan" })).not.toBeInTheDocument();
+    expect(screen.getByText(/contacts write permission/)).toBeInTheDocument();
+  });
+
+  it("names each row action after its own attribute", async () => {
+    responses["/api/v1/custom-attributes"] = [
+      attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
+      attributeDefinitionFixture({ id: "a2", key_name: "ltv", label: "LTV" }),
+    ];
+    withProviders(<UserAttributesPanel />);
+
+    await screen.findByText("Plan");
+    expect(screen.getByRole("button", { name: "Edit Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit LTV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete LTV" })).toBeInTheDocument();
+    expect(screen.getAllByText("Edit")).toHaveLength(2);
+  });
+
+  it("offers a retry when the list fails to load", async () => {
+    withProviders(<UserAttributesPanel />);
+    expect(await screen.findByRole("button", { name: /Retry/i })).toBeInTheDocument();
+  });
+});
+
 // --- Sections & navigation -------------------------------------------------------------------------------------
 
 describe("settings sections", () => {
@@ -480,8 +1848,28 @@ describe("settings sections", () => {
     expect(preferences?.permission).toBe("auth:self");
   });
 
+  it("puts tags on the contact permission their own endpoints enforce", () => {
+    const tags = SETTINGS_SECTIONS.find((section) => section.key === "tags");
+    expect(tags?.permission).toBe("contacts:read");
+  });
+
+  it("puts canned messages on the inbox permission their own endpoints enforce", () => {
+    const cannedMessages = SETTINGS_SECTIONS.find((section) => section.key === "canned-messages");
+    expect(cannedMessages?.permission).toBe("inbox:read");
+  });
+
+  it("puts user attributes on the contact permission their own endpoints enforce", () => {
+    const userAttributes = SETTINGS_SECTIONS.find((section) => section.key === "user-attributes");
+    expect(userAttributes?.permission).toBe("contacts:read");
+  });
+
   it("collects the distinct permissions that grant access to the area", () => {
-    expect(SETTINGS_PERMISSIONS).toEqual(["settings:read", "auth:self"]);
+    expect(SETTINGS_PERMISSIONS).toEqual([
+      "settings:read",
+      "contacts:read",
+      "inbox:read",
+      "auth:self",
+    ]);
   });
 });
 

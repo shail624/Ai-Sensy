@@ -22,12 +22,16 @@ class TagRepository(BaseRepository[Tag]):
         )
         return list((await self.session.scalars(stmt)).all())
 
-    async def get_active_by_uuid(self, organization_id: int, public_id: bytes) -> Tag | None:
+    async def get_active_by_uuid(
+        self, organization_id: int, public_id: bytes, *, for_update: bool = False
+    ) -> Tag | None:
         stmt = select(Tag).where(
             Tag.organization_id == organization_id,
             Tag.uuid == public_id,
             Tag.deleted_at.is_(None),
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         return (await self.session.scalars(stmt)).first()
 
     async def get_by_name(self, organization_id: int, name: str) -> Tag | None:
@@ -38,14 +42,22 @@ class TagRepository(BaseRepository[Tag]):
         )
         return (await self.session.scalars(stmt)).first()
 
-    async def get_by_uuids(self, organization_id: int, public_ids: list[bytes]) -> list[Tag]:
+    async def get_by_uuids(
+        self, organization_id: int, public_ids: list[bytes], *, for_update: bool = False
+    ) -> list[Tag]:
         if not public_ids:
             return []
-        stmt = select(Tag).where(
-            Tag.organization_id == organization_id,
-            Tag.uuid.in_(public_ids),
-            Tag.deleted_at.is_(None),
+        stmt = (
+            select(Tag)
+            .where(
+                Tag.organization_id == organization_id,
+                Tag.uuid.in_(public_ids),
+                Tag.deleted_at.is_(None),
+            )
+            .order_by(Tag.id)
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         return list((await self.session.scalars(stmt)).all())
 
 

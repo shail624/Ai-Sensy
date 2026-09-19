@@ -1,16 +1,9 @@
 import { Modal } from "@/components/ui";
-import { SecurityChip } from "@/features/admin/AdminBadges";
-import { auditChanges } from "@/features/admin/selectors";
+import { IntegrityChip, ProtectedReadChip, SecurityChip } from "@/features/admin/AdminBadges";
+import { auditChanges, auditFieldLabel, auditValueLabel } from "@/features/admin/selectors";
 import type { AuditEntry } from "@/features/admin/types";
-import { humanizeAction, isSecurityEvent } from "@/features/admin/types";
+import { humanizeAction, isProtectedRead, isSecurityEvent } from "@/features/admin/types";
 import { formatDateTime, UNKNOWN } from "@/lib/format";
-
-function render(value: unknown): string {
-  if (value === undefined) return "—";
-  if (value === null) return "null";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value);
-}
 
 /**
  * One audit entry in full (Doc 05 B11.10).
@@ -37,6 +30,7 @@ export function AuditDetailDialog({
             {entry.action}
           </code>
           {isSecurityEvent(entry.action) ? <SecurityChip /> : null}
+          {isProtectedRead(entry.action) ? <ProtectedReadChip /> : null}
         </div>
 
         <dl className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs">
@@ -49,6 +43,10 @@ export function AuditDetailDialog({
               : UNKNOWN}
           </Row>
           <Row label="IP address">{entry.ip_address ?? UNKNOWN}</Row>
+          <Row label="Device">{entry.user_agent ?? UNKNOWN}</Row>
+          <Row label="Integrity">
+            <IntegrityChip integrity={entry.integrity} />
+          </Row>
         </dl>
 
         <div>
@@ -70,12 +68,12 @@ export function AuditDetailDialog({
                 <tbody>
                   {changes.map((change) => (
                     <tr key={change.field} className="border-b border-border last:border-0">
-                      <td className="px-2 py-1.5 font-mono text-text-primary">{change.field}</td>
+                      <td className="px-2 py-1.5 text-text-primary">{auditFieldLabel(change.field)}</td>
                       <td className="break-all px-2 py-1.5 text-text-secondary">
-                        {render(change.before)}
+                        {auditValueLabel(change.before)}
                       </td>
                       <td className="break-all px-2 py-1.5 text-text-primary">
-                        {render(change.after)}
+                        {auditValueLabel(change.after)}
                       </td>
                     </tr>
                   ))}

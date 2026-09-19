@@ -20,6 +20,7 @@ from sqlalchemy import (
     Numeric,
     String,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,6 +54,17 @@ class CustomAttributeDefinition(
     enum_values_json: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     is_indexed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_pii: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: May not be cleared. Setting values is a *partial* update, so "required" cannot mean "every
+    #: write must carry it" without breaking every partial update and every import; it means
+    #: passing ``null`` for this key is refused once the field is part of the definition set.
+    is_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
+    )
+    #: Retired. Accepts no new value; existing values stay readable and stay deletable, so a field
+    #: can be wound down rather than deleted out from under the history that references it.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("1")
+    )
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<CustomAttributeDefinition {self.key_name!r}:{self.data_type}>"

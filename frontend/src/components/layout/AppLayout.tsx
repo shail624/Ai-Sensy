@@ -8,13 +8,13 @@ import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
 
-const COLLAPSE_KEY = "wa.sidebar.compact.v2";
+const COLLAPSE_KEY = "wa.sidebar.compact.v4";
 const FOCUSABLE =
   'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** New workspaces open on the task rail; an explicit user choice always wins afterwards. */
+/** The reference-aligned rail keeps captions visible even in compact mode. */
 export function resolveCollapsedPreference(stored: string | null): boolean {
-  return stored === null ? true : stored === "1";
+  return stored !== "0";
 }
 
 function readCollapsed(): boolean {

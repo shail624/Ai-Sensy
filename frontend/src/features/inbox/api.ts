@@ -8,15 +8,16 @@ import {
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import type {
   Conversation,
+  ConversationCategoryCounts,
   ConversationsPage,
   ConversationState,
   ConversationStatus,
   InboxFilters,
   MessagesPage,
   Note,
-  PhoneNumber,
   QuickReply,
   TagSummary,
   UserSummary,
@@ -34,7 +35,9 @@ export const inboxKeys = {
   notes: (id: string) => ["inbox", "conversation", id, "notes"] as const,
   quickReplies: ["quick-replies"] as const,
   assignees: ["users", "assignable"] as const,
-  numbers: ["phone-numbers"] as const,
+  // Keyed on the search alone, because that is the only filter a chip carries across when it is
+  // activated. Keying on the whole filter set would cache a badge under a query it never describes.
+  counts: (q: string | undefined) => ["inbox", "counts", q ?? ""] as const,
 };
 
 /**
@@ -44,17 +47,49 @@ export const inboxKeys = {
  */
 export const POLL_INTERVAL_MS = 10_000;
 
+function utcDayBoundary(value: string | undefined, through: boolean): string | null {
+  if (!value) return null;
+  const boundary = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(boundary.getTime())) return null;
+  if (through) boundary.setDate(boundary.getDate() + 1);
+  return boundary.toISOString();
+}
+
 /** The inbox list filters, as the contract now declares them. */
 export function toListQuery(filters: InboxFilters, cursor: string | null, limit: number) {
   return {
     contact: filters.contact || null,
     status: filters.status || null,
     assignee: filters.assignee || null,
+    number: filters.number || null,
     tag: filters.tag ? [filters.tag] : null,
     q: filters.q || null,
+    from: utcDayBoundary(filters.dateFrom, false),
+    to: utcDayBoundary(filters.dateTo, true),
+    campaign: filters.campaign || null,
+    has_media: Boolean(filters.hasMedia),
+    has_audit: Boolean(filters.hasAudit),
     cursor: cursor || null,
     limit,
   };
+}
+
+/**
+ * Totals for the three category chips.
+ *
+ * Only the search term is sent. Activating a chip replaces status, assignee and tag, so a count
+ * computed with the current ones applied would advertise a list the click never produces — and a
+ * contradictory status would pin two of the three badges to a permanent zero.
+ */
+export function useConversationCounts(q: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: inboxKeys.counts(q),
+    queryFn: async (): Promise<ConversationCategoryCounts> =>
+      unwrap(await api.GET("/api/v1/conversations/counts", { params: { query: { q: q || null } } })),
+    placeholderData: keepPreviousData,
+    refetchInterval: POLL_INTERVAL_MS,
+    enabled,
+  });
 }
 
 export function useConversations(
@@ -77,7 +112,15 @@ export function useConversations(
   });
 }
 
-export function useConversation(conversationId: string | null) {
+/**
+ * `refetchInterval` defaults to the live 10s poll every existing caller (Live Chat's thread view,
+ * Customer 360's conversation section) relies on; a read-only consumer with no live-triage need
+ * (Chat History) can pass `false` to read once per selection instead, without a second hook.
+ */
+export function useConversation(
+  conversationId: string | null,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useQuery({
     queryKey: inboxKeys.detail(conversationId ?? ""),
     queryFn: async (): Promise<Conversation> =>
@@ -87,15 +130,20 @@ export function useConversation(conversationId: string | null) {
         }),
       ),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
 /**
- * Message history, newest-first, one cursor page at a time. The first page polls for new messages;
- * older pages are fetched on demand by the thread's "Load older messages" control and stay put.
+ * Message history, newest-first, one cursor page at a time. The first page polls for new messages
+ * by default; older pages are fetched on demand by the thread's "Load older messages" control and
+ * stay put. `refetchInterval` follows the same override convention as {@link useConversation}.
  */
-export function useMessages(conversationId: string | null, limit = 50) {
+export function useMessages(
+  conversationId: string | null,
+  limit = 50,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useInfiniteQuery({
     queryKey: inboxKeys.messages(conversationId ?? ""),
     initialPageParam: null as string | null,
@@ -110,7 +158,7 @@ export function useMessages(conversationId: string | null, limit = 50) {
       ),
     getNextPageParam: (last) => (last.page.has_more ? (last.page.next_cursor ?? null) : null),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
@@ -136,7 +184,7 @@ export function useQuickReplies() {
 }
 
 /** Candidate assignees — the org's users (Doc 04 §12). */
-export function useAssignableUsers() {
+export function useAssignableUsers(enabled = true) {
   return useQuery({
     queryKey: inboxKeys.assignees,
     queryFn: async (): Promise<UserSummary[]> => {
@@ -149,18 +197,7 @@ export function useAssignableUsers() {
       }));
     },
     staleTime: 5 * 60_000,
-  });
-}
-
-/** The sending number — the composer needs one to post an outbound message. */
-export function useDefaultPhoneNumber() {
-  return useQuery({
-    queryKey: inboxKeys.numbers,
-    queryFn: async (): Promise<PhoneNumber | null> => {
-      const list = unwrap(await api.GET("/api/v1/phone-numbers")).data;
-      return list.find((number) => number.is_default) ?? list[0] ?? null;
-    },
-    staleTime: 5 * 60_000,
+    enabled,
   });
 }
 
@@ -187,6 +224,30 @@ export function useAssignConversation(conversationId: string) {
         await api.POST("/api/v1/conversations/{conversation_id}/assign", {
           params: { path: { conversation_id: conversationId } },
           body: { assignee_id: assigneeId },
+        }),
+      ),
+  );
+}
+
+export function useInterveneConversation(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async (): Promise<ConversationState> =>
+      unwrap(
+        await api.POST("/api/v1/conversations/{conversation_id}/intervene", {
+          params: { path: { conversation_id: conversationId } },
+        }),
+      ),
+  );
+}
+
+export function useResolveIntervention(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async (): Promise<ConversationState> =>
+      unwrap(
+        await api.POST("/api/v1/conversations/{conversation_id}/resolve-intervention", {
+          params: { path: { conversation_id: conversationId } },
         }),
       ),
   );
@@ -307,23 +368,22 @@ export function useRemoveConversationTag(conversationId: string) {
   });
 }
 
+/**
+ * A reply to an open thread (QR-08). Conversation-scoped, not number-scoped: the provider is the
+ * conversation's own durable ownership, decided entirely server-side — this request carries no
+ * `phone_number_id`/provider field for a caller to set, forge, or need to get right.
+ */
 export function useSendMessage(conversationId: string) {
   return useConversationMutation(
     conversationId,
-    async ({
-      phoneNumberId,
-      to,
-      body,
-    }: {
-      phoneNumberId: string;
-      to: string;
-      body: string;
-    }) =>
+    async ({ body }: { body: string }) =>
       unwrap(
         await api.POST("/api/v1/messages/send", {
+          // Not a declared OpenAPI header parameter (the endpoint reads it off the raw request,
+          // Doc 04 §8) — set via the fetch-level `headers` option rather than `params.header`.
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: {
-            phone_number_id: phoneNumberId,
-            to,
+            conversation_id: conversationId,
             type: "text",
             text: { body, preview_url: false },
           },

@@ -33,7 +33,6 @@ vi.mock("@/lib/auth", () => ({
   }),
   useHasPermission: () => true,
 }));
-import { ComingSoonPage } from "@/pages/ComingSoonPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 
 // The dashboard hosts the data-backed My Work Queue widget (Doc 14 §11), so the harness supplies a
@@ -48,29 +47,32 @@ function renderAt(ui: React.ReactElement, path = "/") {
 }
 
 describe("Sidebar", () => {
-  it("keeps everyday destinations visible and places advanced areas under More", () => {
+  it("keeps AiSensy-style daily destinations visible and places configuration under Manage", () => {
     renderAt(<Sidebar collapsed={false} />);
-    for (const label of ["Dashboard", "Live Chat", "Contacts", "Campaigns", "Templates", "Analytics"]) {
+    for (const label of ["Dashboard", "Live Chat", "Chat History", "Contacts", "Campaigns", "Automation"]) {
       expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
     expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    expect(screen.getByRole("link", { name: "Template Message" })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Live Chat Settings" })).toHaveAttribute("href", "/settings/application#inbox-policy");
+    expect(screen.getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("href", "/settings/application#consent");
+    expect(screen.getByRole("link", { name: "Analytics" })).toBeInTheDocument();
     expect(screen.getAllByText("foundation")).toHaveLength(1);
     expect(screen.getByText("future")).toBeInTheDocument();
   });
 
-  it("automatically reveals More when an advanced destination is active", () => {
+  it("automatically reveals Manage when an advanced destination is active", () => {
     renderAt(<Sidebar collapsed={false} />, "/media");
-    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Manage" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("link", { name: /media/i })).toHaveAttribute("aria-current", "page");
   });
 
-  it("keeps the compact More panel closed on an advanced destination", () => {
+  it("keeps the compact Manage panel closed on an advanced destination", () => {
     renderAt(<Sidebar collapsed />, "/automation");
-    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("region", { name: "More tools" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Manage" })).not.toBeInTheDocument();
   });
 
   it("highlights the active route", () => {
@@ -86,28 +88,49 @@ describe("Sidebar", () => {
     expect(screen.queryByText("Soon")).not.toBeInTheDocument();
   });
 
-  it("hides labels when collapsed but keeps the links reachable", () => {
+  it("keeps visible captions under compact rail icons", () => {
     renderAt(<Sidebar collapsed />);
-    expect(screen.queryByText("Contacts")).not.toBeInTheDocument();
+    expect(screen.getByText("Contacts")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByText("Flows")).toBeInTheDocument();
     expect(screen.getByTitle("Contacts")).toBeInTheDocument();
   });
 
-  it("keeps advanced destinations behind one More panel on the compact rail", () => {
+  it("keeps advanced destinations behind one Manage panel on the compact rail", () => {
     renderAt(<Sidebar collapsed />);
     expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "More" }));
-    const panel = screen.getByRole("region", { name: "More tools" });
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    const panel = screen.getByRole("region", { name: "Manage" });
     expect(within(panel).getByRole("link", { name: /media/i })).toBeInTheDocument();
-    expect(within(panel).getByRole("link", { name: /settings/i })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Live Chat Settings" })).toBeInTheDocument();
 
-    fireEvent.click(within(panel).getByRole("button", { name: "Close more tools" }));
-    expect(screen.queryByRole("region", { name: "More tools" })).not.toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole("button", { name: "Close manage panel" }));
+    expect(screen.queryByRole("region", { name: "Manage" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Manage beside the page on direct deep links and selects only the matching section", () => {
+    renderAt(<Sidebar collapsed />, "/settings/application#consent");
+    const panel = screen.getByRole("region", { name: "Manage" });
+    expect(within(panel).getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("aria-current", "page");
+    expect(within(panel).getByRole("link", { name: "Live Chat Settings" })).not.toHaveAttribute("aria-current", "page");
+    expect(within(panel).getByRole("link", { name: "Application" })).not.toHaveAttribute("aria-current", "page");
+    expect(panel).not.toHaveClass("absolute");
+  });
+
+  it("supports moving into Manage and closing it with the keyboard", () => {
+    renderAt(<Sidebar collapsed />, "/settings/tags");
+    const trigger = screen.getByRole("button", { name: "Manage" });
+    fireEvent.keyDown(trigger, { key: "ArrowRight" });
+    expect(screen.getByRole("link", { name: "Template Message" })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole("region", { name: "Manage" }), { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Manage" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });
 
 describe("sidebar preference", () => {
-  it("defaults new workspaces to the compact rail and preserves explicit choices", () => {
+  it("defaults new workspaces to named tabs and preserves explicit choices", () => {
     expect(resolveCollapsedPreference(null)).toBe(true);
     expect(resolveCollapsedPreference("1")).toBe(true);
     expect(resolveCollapsedPreference("0")).toBe(false);
@@ -143,6 +166,20 @@ describe("TopNav", () => {
     expect(within(menu).getByRole("menuitem", { name: /switch to dark mode/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(logout).toHaveBeenCalled();
+  });
+
+  it("uses the shared modal focus and Escape contract for keyboard shortcuts", () => {
+    renderTopNav();
+    const account = screen.getByLabelText("Account menu");
+    fireEvent.click(account);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
+    expect(dialog).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).not.toBeInTheDocument();
+    expect(account).toHaveFocus();
   });
 
   it("opens the permission-aware command palette with governed create actions", () => {
@@ -226,7 +263,7 @@ describe("AppLayout mobile navigation", () => {
   });
 
   it("toggles the desktop rail between compact and expanded states", () => {
-    localStorage.setItem("wa.sidebar.compact.v2", "1");
+    localStorage.setItem("wa.sidebar.compact.v4", "1");
     renderAt(
       <ThemeProvider>
         <Routes>
@@ -277,13 +314,5 @@ describe("DashboardPage", () => {
   it("shows no coming-soon placeholder now that every carded module is built", () => {
     renderAt(<DashboardPage />);
     expect(screen.queryByText("Coming Soon")).not.toBeInTheDocument();
-  });
-});
-
-describe("ComingSoonPage", () => {
-  it("renders the module name and placeholder copy", () => {
-    renderAt(<ComingSoonPage title="Inbox" />);
-    expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
-    expect(screen.getByText(/inbox is coming soon/i)).toBeInTheDocument();
   });
 });

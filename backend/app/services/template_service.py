@@ -35,6 +35,8 @@ from app.repositories.waba import WabaRepository
 from app.services.audit_service import AuditAction, AuditService
 from app.services.job_service import JobService
 from app.services.template_validation import (
+    expected_button_variables,
+    expected_variables,
     has_media_header,
     render,
     validate_definition,
@@ -84,10 +86,24 @@ class TemplateService:
         return await self._versions.list_for_template(template.id)
 
     async def preview(
-        self, template: MessageTemplate, *, header: list[str], body: list[str]
-    ) -> dict[str, str]:
+        self,
+        template: MessageTemplate,
+        *,
+        header: list[str],
+        body: list[str],
+        buttons: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Render with sample values (FR-TPL-08). Pure: nothing is stored, nothing is sent."""
-        return render(template.components_json or [], header=header, body=body)
+        components = template.components_json or []
+        header_vars, body_vars = expected_variables(components)
+        return {
+            **render(components, header=header, body=body, buttons=buttons),
+            "expects": {
+                "header": header_vars,
+                "body": body_vars,
+                "buttons": expected_button_variables(components),
+            },
+        }
 
     # --- Writes --------------------------------------------------------------
     async def create(

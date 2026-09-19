@@ -25,6 +25,7 @@ from typing import Any
 import jwt
 from argon2 import PasswordHasher
 from argon2 import exceptions as argon2_exceptions
+from pydantic import EmailStr, TypeAdapter, ValidationError
 
 from app.core.config import settings
 
@@ -46,6 +47,33 @@ def validate_password_policy(password: str) -> None:
         )
     if not _HAS_LETTER.search(password) or not _HAS_DIGIT.search(password):
         raise ValueError("Password must contain at least one letter and one digit.")
+
+
+#: The very rule ``LoginRequest.email`` applies, so the two boundaries cannot drift apart.
+_SIGN_IN_EMAIL = TypeAdapter(EmailStr)
+
+
+def validate_sign_in_email(email: str) -> str:
+    """Normalise an address and reject what the sign-in form would reject.
+
+    Single source of truth shared by the API schema and the bootstrap CLI, for the same reason
+    :func:`validate_password_policy` is one. ``create-owner`` is the first command run against a
+    new deployment; without this, an address the login schema refuses -- a typo, a reserved
+    ``.test`` domain -- still produced an Owner superuser, reported success and exited 0. The
+    account was unusable from the moment it existed, and the failure surfaced only later, as a 422
+    at sign-in with no hint that the address was the problem.
+
+    Returns the normalised address, so callers do not each repeat the trimming and lowercasing.
+    """
+    candidate = email.strip().lower()
+    try:
+        _SIGN_IN_EMAIL.validate_python(candidate)
+    except ValidationError as exc:
+        raise ValueError(
+            f"{candidate!r} is not an address that can sign in, so an account created with it "
+            "would be unusable. Use an address the login form accepts."
+        ) from exc
+    return candidate
 
 # Process-wide Argon2id hasher, parameterised from settings (Doc 01 §5.4).
 _password_hasher = PasswordHasher(

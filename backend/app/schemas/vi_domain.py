@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import uuid as uuidlib
-from datetime import UTC, datetime
-from typing import Any, Literal
+from datetime import UTC, date, datetime
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
+from app.models.reactivation_view import ReactivationView, WorkspaceView
 from app.schemas.task import TaskResponse
 
 ReactivationStage = Literal[
@@ -51,6 +52,8 @@ ReactivationLabel = Literal[
     "documents_incomplete",
 ]
 ReminderView = Literal["upcoming", "due_today", "overdue"]
+ReactivationViewVisibility = Literal["private", "shared"]
+ReactivationViewDisplay = Literal["board", "list"]
 EligibilityStatus = Literal["pending", "eligible", "not_eligible", "review_required"]
 EligibilitySource = Literal["rules", "manual", "override"]
 KycStatus = Literal["pending", "documents_pending", "under_review", "approved", "rejected"]
@@ -129,6 +132,62 @@ class ReactivationNoteCreateRequest(BaseModel):
     body: str = Field(min_length=1, max_length=4096)
 
 
+class ReactivationViewFilters(BaseModel):
+    """Portable Reactivation filters; pagination is intentionally not persisted."""
+
+    q: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
+        | None
+    ) = None
+    stage: ReactivationStage | None = None
+    label: ReactivationLabel | None = None
+    owner_user_id: uuidlib.UUID | None = None
+    reminder_view: ReminderView | None = None
+    reminder_date: date | None = None
+
+
+class ReactivationViewCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    visibility: ReactivationViewVisibility = "private"
+    display: ReactivationViewDisplay = "board"
+    filters: ReactivationViewFilters
+
+
+class ReactivationViewResponse(BaseModel):
+    id: uuidlib.UUID
+    name: str
+    visibility: ReactivationViewVisibility
+    display: ReactivationViewDisplay
+    filters: ReactivationViewFilters
+    is_owner: bool
+    can_delete: bool
+    created_at: datetime
+
+    @classmethod
+    def from_view(
+        cls,
+        row: ReactivationView,
+        *,
+        actor_user_id: int,
+        can_manage_shared: bool,
+    ) -> ReactivationViewResponse:
+        is_owner = row.created_by_user_id == actor_user_id
+        return cls(
+            id=uuidlib.UUID(row.public_id),
+            name=row.name,
+            visibility=row.visibility,
+            display=row.display,
+            filters=ReactivationViewFilters.model_validate(row.filters_json),
+            is_owner=is_owner,
+            can_delete=is_owner if row.visibility == "private" else can_manage_shared,
+            created_at=row.created_at,
+        )
+
+
+class ReactivationViewsResponse(BaseModel):
+    data: list[ReactivationViewResponse]
+
+
 class EligibilityCreateRequest(IdempotentRequest):
     status: EligibilityStatus
     source: EligibilitySource
@@ -142,6 +201,61 @@ class EligibilityCreateRequest(IdempotentRequest):
         if self.status == "not_eligible" and not (self.reason or "").strip():
             raise ValueError("reason is required for a not-eligible decision")
         return self
+
+
+KycViewVisibility = Literal["private", "shared"]
+
+
+class KycViewFilters(BaseModel):
+    """Portable KYC queue filters; fetch bounds and selected-case state are never persisted."""
+
+    q: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
+        | None
+    ) = None
+    status: KycStatus | None = None
+
+
+class KycViewCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    visibility: KycViewVisibility = "private"
+    display: Literal["list"] = "list"
+    filters: KycViewFilters
+
+
+class KycViewResponse(BaseModel):
+    id: uuidlib.UUID
+    name: str
+    visibility: KycViewVisibility
+    display: Literal["list"]
+    filters: KycViewFilters
+    is_owner: bool
+    can_delete: bool
+    created_at: datetime
+
+    @classmethod
+    def from_view(
+        cls,
+        row: WorkspaceView,
+        *,
+        actor_user_id: int,
+        can_manage_shared: bool,
+    ) -> KycViewResponse:
+        is_owner = row.created_by_user_id == actor_user_id
+        return cls(
+            id=uuidlib.UUID(row.public_id),
+            name=row.name,
+            visibility=row.visibility,
+            display="list",
+            filters=KycViewFilters.model_validate(row.filters_json),
+            is_owner=is_owner,
+            can_delete=is_owner if row.visibility == "private" else can_manage_shared,
+            created_at=row.created_at,
+        )
+
+
+class KycViewsResponse(BaseModel):
+    data: list[KycViewResponse]
 
 
 class KycCreateRequest(IdempotentRequest):

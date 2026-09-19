@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toListQuery } from "@/features/inbox/api";
 import { ConversationFilters } from "@/features/inbox/ConversationFilters";
@@ -10,6 +10,7 @@ import { ConversationList } from "@/features/inbox/ConversationList";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import type { Conversation, Message } from "@/features/inbox/types";
+import { useWhatsAppQrStatus } from "@/features/whatsapp-qr/api";
 
 // The composer and controls read permissions from the session; stub a fully entitled agent.
 const permissions = { value: ["inbox:read", "inbox:write", "inbox:assign", "messages:send"] };
@@ -24,12 +25,19 @@ vi.mock("@/lib/auth", () => ({
   useHasPermission: (code: string) => permissions.value.includes(code),
 }));
 
+// QR-08: the composer consults QR-07's live session status for a WAHA-owned conversation. Mocked
+// here for deterministic control; the real hook is exercised by whatsapp-qr.test.tsx.
+vi.mock("@/features/whatsapp-qr/api", () => ({
+  useWhatsAppQrStatus: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
+
 function conversationFixture(overrides: Partial<Conversation> = {}): Conversation {
   return {
     id: "conv1",
     type: "conversation",
     status: "open",
     channel_type: "whatsapp",
+    connector_type: "meta_cloud",
     assigned_to: null,
     contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" },
     tags: [],
@@ -43,6 +51,16 @@ function conversationFixture(overrides: Partial<Conversation> = {}): Conversatio
     updated_at: "2026-07-22T10:00:00Z",
     ...overrides,
   };
+}
+
+/** A channel-endpoint-owned (WAHA) conversation — QR-08's second provider. */
+function wahaConversationFixture(overrides: Partial<Conversation> = {}): Conversation {
+  return conversationFixture({
+    id: "conv-waha-1",
+    connector_type: "waha",
+    phone_number_id: null,
+    ...overrides,
+  });
 }
 
 function messageFixture(overrides: Partial<Message> = {}): Message {
@@ -81,26 +99,54 @@ describe("toListQuery", () => {
       contact: null,
       status: null,
       assignee: null,
+      number: null,
       tag: null,
       q: null,
+      from: null,
+      to: null,
+      campaign: null,
+      has_media: false,
+      has_audit: false,
       cursor: null,
       limit: 25,
     });
   });
 
   it("carries every filter, the cursor and the limit", () => {
-    expect(toListQuery({ contact: "c1", status: "open", assignee: "u1", tag: "t1", q: "ramesh" }, "cur1", 50)).toEqual(
-      {
-        contact: "c1",
-        status: "open",
-        assignee: "u1",
-        // The contract declares `tag` repeatable; the UI filters by one at a time.
-        tag: ["t1"],
-        q: "ramesh",
-        cursor: "cur1",
-        limit: 50,
-      },
-    );
+    expect(
+      toListQuery(
+        {
+          contact: "c1",
+          status: "open",
+          assignee: "u1",
+          number: "pn1",
+          tag: "t1",
+          q: "ramesh",
+          dateFrom: "2026-08-01",
+          dateTo: "2026-08-02",
+          campaign: "campaign-1",
+          hasMedia: true,
+          hasAudit: true,
+        },
+        "cur1",
+        50,
+      ),
+    ).toEqual({
+      contact: "c1",
+      status: "open",
+      assignee: "u1",
+      number: "pn1",
+      // The contract declares `tag` repeatable; the UI filters by one at a time.
+      tag: ["t1"],
+      q: "ramesh",
+      from: new Date("2026-08-01T00:00:00").toISOString(),
+      to: new Date("2026-08-03T00:00:00").toISOString(),
+      campaign: "campaign-1",
+      has_media: true,
+      has_audit: true,
+      cursor: "cur1",
+      limit: 50,
+    });
   });
 });
 
@@ -115,6 +161,22 @@ describe("ConversationList", () => {
     expect(screen.getByText("Open")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("Window open")).toBeInTheDocument();
+  });
+
+  it("shows a distinct channel badge for a Meta conversation and a WAHA one, in one mixed list (QR-08)", () => {
+    withProviders(
+      <ConversationList
+        conversations={[
+          conversationFixture({ id: "conv-meta", contact: { id: "c1", name: "Ramesh K.", phone: "+919990000001" } }),
+          wahaConversationFixture({ contact: { id: "c2", name: "Priya S.", phone: "+919990000002" } }),
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTitle("Official WhatsApp")).toBeInTheDocument();
+    expect(screen.getByTitle("WhatsApp (QR)")).toBeInTheDocument();
   });
 
   it("marks the selected conversation and reports selection", () => {
@@ -146,6 +208,34 @@ describe("ConversationList", () => {
 });
 
 describe("ConversationFilters", () => {
+  it("replaces contradictory category filters and retains only search", () => {
+    const onChange = vi.fn();
+    withProviders(<ConversationFilters
+      filters={{ status: "resolved", assignee: "another-agent", tag: "vip", q: "customer" }}
+      onChange={onChange} tags={[]} savedViews={[]} onSaveView={vi.fn()}
+      onDeleteView={vi.fn()} currentUserId="u1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Requesting" }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open", assignee: "unassigned", q: "customer" });
+    fireEvent.click(screen.getByRole("button", { name: "Active" }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open", q: "customer" });
+    fireEvent.click(screen.getByRole("button", { name: "Intervened" }));
+    expect(onChange).toHaveBeenLastCalledWith({ assignee: "u1", q: "customer" });
+  });
+
+  it("keeps the reference view order, current state and search when switching views", () => {
+    const onChange = vi.fn();
+    withProviders(<ConversationFilters filters={{ status: "open", q: "Priya" }} onChange={onChange}
+      tags={[]} savedViews={[]} onSaveView={vi.fn()} onDeleteView={vi.fn()} currentUserId="u1" />);
+    const views = screen.getByLabelText("Live Chat views");
+    expect(within(views).getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Active", "Requesting", "Intervened",
+    ]);
+    expect(screen.getByRole("button", { name: "Active" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Requesting" }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open", assignee: "unassigned", q: "Priya" });
+    expect(screen.getByPlaceholderText("Search name or mobile number")).toHaveValue("Priya");
+  });
+
   it("maps the simple Live Chat views onto existing status and assignment filters", () => {
     const onChange = vi.fn();
     withProviders(
@@ -160,13 +250,13 @@ describe("ConversationFilters", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Requests/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Requesting/i }));
     expect(onChange).toHaveBeenLastCalledWith({ status: "open", assignee: "unassigned" });
 
     fireEvent.click(screen.getByRole("button", { name: /Active/i }));
     expect(onChange).toHaveBeenLastCalledWith({ status: "open" });
 
-    fireEvent.click(screen.getByRole("button", { name: /My chats/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Intervened/i }));
     expect(onChange).toHaveBeenLastCalledWith({ assignee: "u1" });
   });
 
@@ -238,6 +328,10 @@ describe("MessageBubble", () => {
 });
 
 describe("MessageComposer", () => {
+  afterEach(() => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({ data: undefined, isLoading: false } as never);
+  });
+
   it("blocks composing when the service window is closed", () => {
     withProviders(
       <MessageComposer
@@ -251,6 +345,52 @@ describe("MessageComposer", () => {
     expect(screen.getByLabelText("Message")).toBeDisabled();
   });
 
+  it("does not apply Meta's 24-hour window rule to a WAHA conversation (QR-08)", () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: { configured: true, connected: true } as never,
+      isLoading: false,
+    } as never);
+    withProviders(
+      <MessageComposer
+        conversation={wahaConversationFixture({
+          window: { is_open: false, expires_at: null, last_inbound_at: null },
+        })}
+      />,
+    );
+
+    expect(screen.queryByText(/24-hour service window is closed/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Message")).toBeEnabled();
+  });
+
+  it("truthfully refuses to send on a WAHA conversation that is not currently connected (QR-08)", async () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: {
+        configured: true,
+        connected: false,
+        health_detail: "WhatsApp is not currently connected.",
+      } as never,
+      isLoading: false,
+    } as never);
+    withProviders(<MessageComposer conversation={wahaConversationFixture()} />);
+
+    await waitFor(() =>
+      expect(screen.getByText("WhatsApp is not currently connected.")).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText("Message")).toBeDisabled();
+    expect(screen.getByPlaceholderText("WhatsApp not connected")).toBeInTheDocument();
+  });
+
+  it("allows composing on a WAHA conversation once the session is connected (QR-08)", async () => {
+    vi.mocked(useWhatsAppQrStatus).mockReturnValue({
+      data: { configured: true, connected: true } as never,
+      isLoading: false,
+    } as never);
+    withProviders(<MessageComposer conversation={wahaConversationFixture()} />);
+
+    await waitFor(() => expect(screen.getByLabelText("Message")).toBeEnabled());
+    expect(screen.queryByText(/not currently connected/i)).not.toBeInTheDocument();
+  });
+
   it("offers a quick-reply toggle inside an open window", () => {
     withProviders(<MessageComposer conversation={conversationFixture()} />);
 
@@ -258,6 +398,31 @@ describe("MessageComposer", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("points an inbox:write agent at Settings when there are no quick replies yet", () => {
+    withProviders(<MessageComposer conversation={conversationFixture()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick replies" }));
+
+    expect(screen.getByText("No quick replies yet.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Create one in Settings → Canned Messages" }),
+    ).toHaveAttribute("href", "/settings/canned-messages");
+  });
+
+  it("does not offer the Settings link to an agent without inbox:write", () => {
+    const original = permissions.value;
+    permissions.value = ["inbox:read", "messages:send"];
+    withProviders(<MessageComposer conversation={conversationFixture()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick replies" }));
+
+    expect(screen.getByText("No quick replies yet.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Canned Messages/ }),
+    ).not.toBeInTheDocument();
+    permissions.value = original;
   });
 
   it("keeps Send disabled until there is something to send", () => {

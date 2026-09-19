@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 
 import { PageContainer } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
-import { JobDetail } from "@/features/operations";
+import { JobDetail } from "@/features/operations/JobDetail";
 
 /** Route page: resolves the job id from the URL and renders the detail surface. */
 export function JobDetailPage(): JSX.Element {

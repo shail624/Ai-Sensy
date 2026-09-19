@@ -122,6 +122,17 @@ RECIPIENT_STATUSES = (
     RECIPIENT_SKIPPED,
     RECIPIENT_CANCELLED,
 )
+#: Rows where a send was actually handed to the channel — the only honest denominator for a
+#: delivery rate. A campaign materialises its whole roster the moment it is created, while it is
+#: still a draft (``CampaignService.create``), so ``pending`` rows exist for sends nobody has
+#: authorised yet; ``skipped`` and ``cancelled`` are deliberate non-sends. Counting any of them as
+#: an attempt divides a template's success by the size of somebody's unfinished work.
+RECIPIENT_ATTEMPTED = (
+    RECIPIENT_SENT,
+    RECIPIENT_DELIVERED,
+    RECIPIENT_READ,
+    RECIPIENT_FAILED,
+)
 
 
 class Campaign(
@@ -254,7 +265,37 @@ class CampaignRecipient(IntPKMixin, Base):
         # dispatch incapable of messaging someone twice (Doc 03 §8.3; FR-CAM-06/08).
         Index("uq_crecip_campaign_contact", "campaign_id", "contact_id", unique=True),
         Index("ix_crecip_campaign_status", "campaign_id", "status"),
+        Index("ix_crecip_campaign_created", "campaign_id", "created_at", "id"),
+        Index(
+            "ix_crecip_campaign_status_created",
+            "campaign_id",
+            "status",
+            "created_at",
+            "id",
+        ),
         Index("ix_crecip_status_created", "status", "created_at"),
+        # Every other index here leads with campaign_id, because every query until SCAN-01
+        # started from a campaign. Reachability asks the opposite -- what happened to this
+        # contact across every campaign -- and without this the page scanned the ledger.
+        Index("ix_crecip_contact", "contact_id"),
+        # Reachability's aggregate, made index-only. The access path was already served by
+        # `uq_crecip_campaign_contact`, but none of the columns it *reads* were in any index, so
+        # every matched row cost a lookup: filtering the Scan screen by a verdict — the ordinary
+        # way to use it — took 400ms against 200,000 recipients while the unfiltered page took 13.
+        # Covering it brings the filtered page to 180ms and the tallies to 215ms, both inside the
+        # 300ms budget. Measured cost on the write side is +21% on a bulk receipt update, about six
+        # microseconds per receipt, which is the right way round for a ledger read on every visit
+        # to that screen and written once per message.
+        Index(
+            "ix_crecip_reachability",
+            "campaign_id",
+            "contact_id",
+            "status",
+            "error_code",
+            "delivered_at",
+            "read_at",
+            "failed_at",
+        ),
         Index("ix_crecip_wamid", "wamid"),
         Index("ix_crecip_batch", "batch_id"),
         MYSQL_TABLE_ARGS,
@@ -278,6 +319,10 @@ class CampaignRecipient(IntPKMixin, Base):
     delivered_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    #: When this contact first wrote back after the campaign reached them. The reply itself lives
+    #: in the message ledger; this is the roster's note that it happened, so ``replied_count`` can
+    #: be derived like every other counter instead of being incremented from an event.
+    replied_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid

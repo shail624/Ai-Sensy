@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.models.contact_document import ContactDocumentVersion
 from app.models.media import MediaAsset
 from app.repositories.base import BaseRepository
 
@@ -27,12 +28,33 @@ class MediaRepository(BaseRepository[MediaAsset]):
         )
         return (await self.session.scalars(stmt)).first()
 
+    async def backs_a_document(self, media_id: int) -> bool:
+        """Whether this asset is the stored file of a customer document version.
+
+        A document is *built on* a media asset — the upload endpoint is shared — so the same row
+        that holds a campaign image can hold somebody's Aadhaar scan. That makes the media routes a
+        second way to the same bytes, and `documents:read` is only enforced on the first one.
+        Derived from `contact_document_versions` rather than flagged on the asset, because a flag
+        can drift from the truth it is copying and this cannot.
+        """
+        stmt = select(ContactDocumentVersion.id).where(
+            ContactDocumentVersion.media_asset_id == media_id
+        )
+        return (await self.session.scalars(stmt.limit(1))).first() is not None
+
     def _filters(
         self, organization_id: int, *, media_type: str | None, q: str | None
     ) -> list[ColumnElement[bool]]:
         clauses: list[ColumnElement[bool]] = [
             MediaAsset.organization_id == organization_id,
             MediaAsset.deleted_at.is_(None),
+            # The library is reusable campaign material. A customer's identity document is not
+            # that, and listing it here both leaks the file name and invites somebody to attach it
+            # to a broadcast. It stays reachable through the document, which is where the
+            # governance — permission, verification history, audit — actually lives.
+            ~select(ContactDocumentVersion.id)
+            .where(ContactDocumentVersion.media_asset_id == MediaAsset.id)
+            .exists(),
         ]
         if media_type:
             clauses.append(MediaAsset.media_type == media_type)

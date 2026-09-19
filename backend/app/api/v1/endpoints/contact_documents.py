@@ -204,6 +204,7 @@ async def contact_document_content(
 ) -> DocumentContentResponse:
     url, ttl = await ContactDocumentService(session).content(
         organization_id=actor.organization_id,
+        actor=actor,
         document_public_id=document_id,
         version_public_id=version_id,
     )

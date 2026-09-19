@@ -163,8 +163,8 @@ def _security_steps(python: str, npm: str, docker: str) -> list[Step]:
             BACKEND,
         ),
         Step(
-            "frontend production dependency audit",
-            (npm, "audit", "--omit=dev", "--audit-level=high"),
+            "frontend dependency audit",
+            (npm, "audit", "--audit-level=high"),
             FRONTEND,
         ),
         Step(
@@ -198,6 +198,11 @@ def _release_steps(python: str, docker: str) -> list[Step]:
             "REDIS_PASSWORD",
             "META_APP_SECRET",
             "META_WEBHOOK_VERIFY_TOKEN",
+            # Compose interpolates required values before profile selection, so the optional WAHA
+            # service's required API key and webhook HMAC also need conspicuous build-only
+            # sentinels here. The release gate never reads a real deployment credential.
+            "WAHA_API_KEY",
+            "WAHA_WEBHOOK_HMAC_SECRET",
         )
     }
     compose_env["IMAGE_TAG"] = tag
@@ -206,6 +211,21 @@ def _release_steps(python: str, docker: str) -> list[Step]:
         Step(
             "development Compose model",
             (docker, "compose", "-f", "docker-compose.yml", "config", "--quiet"),
+        ),
+        Step(
+            "certified WAHA runtime healthcheck",
+            (python, os.fspath(ROOT / "scripts" / "validate_waha_healthcheck.py")),
+            env={"WA_QUALITY_DOCKER": docker},
+        ),
+        Step(
+            "certified WAHA QR content negotiation",
+            (python, os.fspath(ROOT / "scripts" / "validate_waha_qr.py")),
+            env={"WA_QUALITY_DOCKER": docker},
+        ),
+        Step(
+            "certified WAHA signed-webhook delivery",
+            (python, os.fspath(ROOT / "scripts" / "validate_waha_webhook.py")),
+            env={"WA_QUALITY_DOCKER": docker},
         ),
         Step(
             "production release contract",

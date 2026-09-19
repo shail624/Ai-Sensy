@@ -23,6 +23,17 @@ export default defineConfig({
       "/ready": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
+  preview: {
+    port: 4173,
+    // The same proxy for the built bundle. Without it, the only way to exercise the production
+    // output against a real API is to deploy it, which puts the artefact that ships furthest out
+    // of reach of the checks that run most often — the accessibility gate among them.
+    proxy: {
+      "/api": { target: "http://localhost:8000", changeOrigin: true },
+      "/health": { target: "http://localhost:8000", changeOrigin: true },
+      "/ready": { target: "http://localhost:8000", changeOrigin: true },
+    },
+  },
   build: {
     outDir: "dist",
     // "hidden" emits the .map files but omits the `//# sourceMappingURL=` comment that points

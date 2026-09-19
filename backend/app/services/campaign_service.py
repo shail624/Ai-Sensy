@@ -32,15 +32,21 @@ from app.models.campaign import (
     CampaignRecipient,
 )
 from app.models.contact import Contact
+from app.models.media import MediaAsset
 from app.models.template import MessageTemplate
 from app.models.user import User
 from app.repositories.campaign import CampaignRecipientRepository, CampaignRepository
+from app.repositories.media import MediaRepository
 from app.repositories.template import TemplateRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.services.audience_service import AudienceService
 from app.services.audit_service import AuditAction, AuditService
 from app.services.phone_number_service import PhoneNumberService
-from app.services.template_validation import expected_variables, render
+from app.services.template_validation import (
+    header_media_format,
+    render,
+    variable_map_gaps,
+)
 
 logger = get_logger(__name__)
 
@@ -100,6 +106,7 @@ class CampaignService:
         self._templates = TemplateRepository(session)
         self._numbers = PhoneNumberService(session)
         self._number_rows = PhoneNumberRepository(session)
+        self._assets = MediaRepository(session)
         self._audience = AudienceService(session)
         self._audit = AuditService(session)
 
@@ -140,7 +147,12 @@ class CampaignService:
         """Create a draft and materialize its roster (FR-CAM-01/02)."""
         number = await self._numbers.get_number(organization_id, number_public_id)
         template = await self._template(organization_id, template_public_id)
-        self._validate(audience_type=audience_type, template=template, variable_map=variable_map)
+        await self._validate(
+            organization_id=organization_id,
+            audience_type=audience_type,
+            template=template,
+            variable_map=variable_map,
+        )
 
         campaign = Campaign(
             organization_id=organization_id,
@@ -203,7 +215,8 @@ class CampaignService:
         for key, value in fields.items():
             setattr(campaign, key, value)
 
-        self._validate(
+        await self._validate(
+            organization_id=organization_id,
             audience_type=campaign.audience_type,
             template=template,
             variable_map=campaign.variable_map_json,
@@ -273,6 +286,7 @@ class CampaignService:
                         (template.components_json or []) if template else [],
                         header=list(variables.get("header") or []),
                         body=list(variables.get("body") or []),
+                        buttons=list(variables.get("buttons") or []),
                     ),
                 }
             )
@@ -284,11 +298,13 @@ class CampaignService:
 
     async def recipients(
         self, campaign: Campaign, *, status: str | None, limit: int, cursor: Any
-    ) -> tuple[list[CampaignRecipient], bool, dict[int, Contact]]:
+    ) -> tuple[list[CampaignRecipient], bool, int, dict[int, Contact]]:
         rows, has_more = await self._recipients.paginate(
             campaign.id, status=status, limit=limit, cursor=cursor
         )
-        return rows, has_more, await self._recipients.contacts_for(campaign.id, rows)
+        total = await self._recipients.count_for_campaign(campaign.id, status=status)
+        contacts = await self._recipients.contacts_for(campaign.organization_id, rows)
+        return rows, has_more, total, contacts
 
     # --- Internals -----------------------------------------------------------
     async def _template(
@@ -307,9 +323,10 @@ class CampaignService:
             )
         return template
 
-    def _validate(
+    async def _validate(
         self,
         *,
+        organization_id: int,
         audience_type: str,
         template: MessageTemplate,
         variable_map: dict[str, Any] | None,
@@ -320,26 +337,102 @@ class CampaignService:
                 errors=[{"field": "audience_type", "code": "invalid", "message": audience_type}],
             )
         self._validate_map(template, variable_map or {})
+        await self._validate_header_media(organization_id, template, variable_map or {})
+
+    async def _validate_header_media(
+        self, organization_id: int, template: MessageTemplate, variable_map: dict[str, Any]
+    ) -> MediaAsset | None:
+        """A media-header template needs a file, and it has to be one this organization owns.
+
+        Checked here because the alternative is where it used to be checked: nowhere. `SendService`
+        requires ``header_media`` for such a template and the campaign path supplied none, so the
+        campaign was accepted, the roster was built, and every recipient was rejected one at a time
+        once the send began -- the operator learning at dispatch what create time already knew.
+        """
+        reference = variable_map.get("header_media") or {}
+        public_id = reference.get("media_asset_id") if isinstance(reference, dict) else None
+
+        if not template.has_media_header:
+            if public_id:
+                raise CampaignInvalid(
+                    f"Template {template.name!r} has no media header, so it takes no image.",
+                    errors=[
+                        {
+                            "field": "variable_map.header_media",
+                            "code": "not_applicable",
+                            "message": "the template's header is text",
+                        }
+                    ],
+                )
+            return None
+
+        if not public_id:
+            raise CampaignInvalid(
+                f"Template {template.name!r} has a media header, so the campaign needs an image "
+                "to send with it.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media",
+                        "code": "required",
+                        "message": "choose a file from the media library",
+                    }
+                ],
+            )
+
+        asset = await self._assets.get_active_by_uuid(
+            organization_id, uuidlib.UUID(str(public_id)).bytes
+        )
+        if asset is None:
+            raise CampaignInvalid(
+                "That media file was not found.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media.media_asset_id",
+                        "code": "not_found",
+                        "message": str(public_id),
+                    }
+                ],
+            )
+
+        wanted = header_media_format(template.components_json or [])
+        if wanted and asset.media_type != wanted:
+            # Meta rejects a video where the template declared an image, and the rejection arrives
+            # per recipient. The template already says which kind it is, so this is answerable now.
+            raise CampaignInvalid(
+                f"Template {template.name!r} has a {wanted} header, but that file is "
+                f"{asset.media_type}.",
+                errors=[
+                    {
+                        "field": "variable_map.header_media.media_asset_id",
+                        "code": "wrong_media_type",
+                        "message": f"expected {wanted}, got {asset.media_type}",
+                    }
+                ],
+            )
+        return asset
 
     @staticmethod
     def _validate_map(template: MessageTemplate, variable_map: dict[str, Any]) -> None:
         """The map must fill exactly the placeholders the template declares (FR-CAM-01)."""
-        header_vars, body_vars = expected_variables(template.components_json or [])
-        for label, expected in (("header", header_vars), ("body", body_vars)):
-            mappings = variable_map.get(label) or []
-            if len(mappings) != expected:
-                raise CampaignInvalid(
-                    f"Template {template.name!r} needs {expected} {label} variable mapping(s); "
-                    f"{len(mappings)} supplied.",
-                    errors=[
-                        {
-                            "field": f"variable_map.{label}",
-                            "code": "count_mismatch",
-                            "message": f"expected {expected}, got {len(mappings)}",
-                        }
-                    ],
-                )
-            for index, mapping in enumerate(mappings):
+        components = template.components_json or []
+        # Counts come from the shared comparison so create and dispatch cannot disagree about
+        # whether a map fills its template. Buttons are counted separately there because Meta
+        # counts them separately: a URL button carries its variable inside the link and is
+        # addressed by button index, not by the body's numbering.
+        for label, expected, supplied in variable_map_gaps(components, variable_map):
+            raise CampaignInvalid(
+                f"Template {template.name!r} needs {expected} {label} variable mapping(s); "
+                f"{supplied} supplied.",
+                errors=[
+                    {
+                        "field": f"variable_map.{label}",
+                        "code": "count_mismatch",
+                        "message": f"expected {expected}, got {supplied}",
+                    }
+                ],
+            )
+        for label in ("header", "body", "buttons"):
+            for index, mapping in enumerate(variable_map.get(label) or []):
                 CampaignService._validate_mapping(f"variable_map.{label}.{index}", mapping)
 
     @staticmethod
@@ -411,13 +504,19 @@ class CampaignService:
 
     @staticmethod
     def _variables_for(contact: Contact, variable_map: dict[str, Any]) -> dict[str, list[str]]:
-        """This contact's values for the template's placeholders, in order."""
+        """This contact's values for the template's placeholders, in order.
+
+        ``buttons`` is here for the same reason ``header`` and ``body`` are: a URL button carries
+        its variable inside the link, so "which link does *this* customer get" is a per-recipient
+        question. Resolved at materialisation with the rest, it is stored on the roster and the
+        dispatch has nothing left to work out.
+        """
         return {
             label: [
                 CampaignService._value_of(contact, mapping)
                 for mapping in (variable_map.get(label) or [])
             ]
-            for label in ("header", "body")
+            for label in ("header", "body", "buttons")
         }
 
     @staticmethod

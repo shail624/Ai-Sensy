@@ -5,12 +5,18 @@ import { cloneElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { toRangeQuery } from "@/features/analytics/api";
+import {
+  readAnalyticsFilters,
+  writeAnalyticsFilters,
+} from "@/features/analytics/AnalyticsDashboard";
 import { AnalyticsFilters } from "@/features/analytics/AnalyticsFilters";
 import { BreakdownTable } from "@/features/analytics/BreakdownTable";
 import { ExportActions } from "@/features/analytics/ExportActions";
 import { delta, formatKpi, formatLag, formatMicros, formatRate, UNKNOWN } from "@/features/analytics/format";
 import { KpiCards } from "@/features/analytics/KpiCards";
+import { ReportSchedules } from "@/features/analytics/ReportSchedules";
 import { SeriesChart } from "@/features/analytics/SeriesChart";
+import { TeamWorkloadTable } from "@/features/analytics/TeamWorkloadTable";
 import type { AnalyticsBreakdown, AnalyticsFilterState } from "@/features/analytics/types";
 
 // Permission-gated surfaces read the session; the roster is swapped per test.
@@ -86,6 +92,36 @@ describe("toRangeQuery", () => {
   });
 });
 
+describe("Analytics URL filters", () => {
+  it("restores a validated custom comparison and ignores invalid enums", () => {
+    const params = new URLSearchParams({
+      from: "2026-07-01T00:00:00Z",
+      to: "2026-08-01T00:00:00Z",
+      granularity: "not-real",
+      compare: "previous_year",
+    });
+    expect(readAnalyticsFilters(params)).toEqual({
+      preset: "",
+      from: "2026-07-01T00:00:00Z",
+      to: "2026-08-01T00:00:00Z",
+      granularity: "day",
+      compare: "previous_year",
+    });
+  });
+
+  it("writes only the portable report analysis state", () => {
+    expect(
+      writeAnalyticsFilters({
+        preset: "this_month",
+        from: "",
+        to: "",
+        granularity: "week",
+        compare: "previous_period",
+      }).toString(),
+    ).toBe("preset=this_month&granularity=week&compare=previous_period");
+  });
+});
+
 // --- Formatting: unknown is not zero (Doc 15 §11) -----------------------------------------------
 describe("formatting", () => {
   it("renders a null rate as unknown rather than 0%", () => {
@@ -143,6 +179,24 @@ describe("KpiCards", () => {
     withProviders(<KpiCards kpis={kpis} />);
     expect(screen.getByText("Delivery rate")).toBeInTheDocument();
     expect(screen.getByText("99.0%")).toBeInTheDocument();
+  });
+
+  it("renders the new business outcome indicators without invented defaults", () => {
+    withProviders(
+      <KpiCards
+        kpis={{
+          ...kpis,
+          reactivation_conversion_rate: 0.6,
+          kyc_approval_rate: 0.8,
+          sla_breach_rate: 0.2,
+          avg_kyc_turnaround_seconds: 7200,
+        }}
+      />,
+    );
+    expect(screen.getByText("Reactivation conversion")).toBeInTheDocument();
+    expect(screen.getByText("KYC approval")).toBeInTheDocument();
+    expect(screen.getByText("SLA breach")).toBeInTheDocument();
+    expect(screen.getByText("Avg KYC turnaround")).toBeInTheDocument();
   });
 
   it("shows unknown for a KPI with no denominator", () => {
@@ -360,8 +414,10 @@ describe("ExportActions", () => {
     const formats = screen.getByLabelText("Format") as HTMLSelectElement;
     expect([...reports.options].map((o) => o.value)).toEqual([
       "messages", "failures", "campaigns", "conversations", "tasks", "customers", "costs",
+      "reactivation", "kyc", "service_levels",
+      "team_productivity",
     ]);
-    expect([...formats.options].map((o) => o.value)).toEqual(["csv", "xlsx", "json"]);
+    expect([...formats.options].map((o) => o.value)).toEqual(["csv", "xlsx", "json", "pdf"]);
   });
 
   it("starts an export through the generated client", async () => {
@@ -381,6 +437,138 @@ describe("ExportActions", () => {
     await waitFor(() =>
       expect(calls.some((url) => url.includes("/api/v1/analytics/reports/export"))).toBe(true),
     );
+    vi.unstubAllGlobals();
+  });
+
+  it("starts a PDF report through the same generated client", async () => {
+    let requestBody = "";
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      if (request.method === "POST") requestBody = await request.clone().text();
+      return new Response(
+        JSON.stringify({ job: { id: "exp-pdf", type: "export", status: "queued", poll_url: "/x" } }),
+        { status: 202, headers: { "Content-Type": "application/json" } },
+      );
+    });
+
+    withProviders(<ExportActions filters={FILTERS} />);
+    fireEvent.change(screen.getByLabelText("Format"), { target: { value: "pdf" } });
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+
+    await waitFor(() => expect(requestBody).not.toBe(""));
+    expect(JSON.parse(requestBody).format).toBe("pdf");
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("TeamWorkloadTable", () => {
+  it("renders authoritative current workload and attention states", async () => {
+    vi.stubGlobal("fetch", async () =>
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              user_id: "00000000-0000-0000-0000-000000000001",
+              user_name: "Asha Agent",
+              is_active: true,
+              unresolved_conversations: 4,
+              unread_conversations: 2,
+              unread_messages: 5,
+              open_tasks: 3,
+              overdue_tasks: 1,
+              due_today_tasks: 2,
+              attention_required: true,
+            },
+            {
+              user_id: null,
+              user_name: "Unassigned",
+              is_active: null,
+              unresolved_conversations: 2,
+              unread_conversations: 0,
+              unread_messages: 0,
+              open_tasks: 0,
+              overdue_tasks: 0,
+              due_today_tasks: 0,
+              attention_required: true,
+            },
+          ],
+          totals: {
+            unresolved_conversations: 6,
+            unread_conversations: 2,
+            unread_messages: 5,
+            open_tasks: 3,
+            overdue_tasks: 1,
+            due_today_tasks: 2,
+          },
+          as_of: "2026-08-24T08:00:00",
+          timezone: "Asia/Calcutta",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    withProviders(<TeamWorkloadTable enabled />);
+
+    expect(await screen.findByText("Asha Agent")).toBeInTheDocument();
+    expect(screen.getByText("Assign now")).toBeInTheDocument();
+    expect(screen.getByText(/Pending stock is not added across dates/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("ReportSchedules", () => {
+  it("is hidden unless export and executive permissions are both present", () => {
+    permissions.value = ["analytics:read", "analytics:export"];
+    const { container } = withProviders(<ReportSchedules />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("creates a timezone-aware recurring report through the generated client", async () => {
+    let posted: Record<string, unknown> | null = null;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      if (request.method === "POST") {
+        posted = JSON.parse(await request.clone().text()) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({
+            ...posted,
+            id: "schedule-1",
+            next_run_at: "2026-08-31T03:30:00",
+            last_run_at: null,
+            row_version: 0,
+            created_at: "2026-08-24T10:00:00",
+            updated_at: "2026-08-24T10:00:00",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    withProviders(<ReportSchedules />);
+    await screen.findByText("No scheduled reports yet");
+    fireEvent.click(screen.getByRole("button", { name: "Schedule report" }));
+    fireEvent.change(screen.getByLabelText("Schedule name"), {
+      target: { value: "Monday leadership pack" },
+    });
+    fireEvent.change(screen.getByLabelText("Format"), { target: { value: "pdf" } });
+    fireEvent.change(screen.getByLabelText("Day"), { target: { value: "monday" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create schedule" }));
+
+    await waitFor(() => expect(posted).not.toBeNull());
+    expect(posted).toEqual(
+      expect.objectContaining({
+        name: "Monday leadership pack",
+        format: "pdf",
+        cadence: "weekly",
+        weekday: "monday",
+        is_active: true,
+      }),
+    );
+    expect(typeof (posted as { timezone?: unknown } | null)?.timezone).toBe("string");
     vi.unstubAllGlobals();
   });
 });

@@ -41,6 +41,13 @@ from app.schemas.analytics import (
     MetricDescriptor,
     PresetLiteral,
     ReportExportRequest,
+    ReportScheduleCreate,
+    ReportScheduleResponse,
+    ReportSchedulesResponse,
+    ReportScheduleUpdate,
+    ReportViewCreate,
+    ReportViewResponse,
+    ReportViewsResponse,
 )
 from app.schemas.export_job import ExportProgressResponse
 from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
@@ -52,6 +59,8 @@ from app.services.analytics_query_service import (
     resolve_range,
 )
 from app.services.export_service import ExportService
+from app.services.report_schedule_service import ReportScheduleService
+from app.services.report_view_service import ReportViewService
 
 router = APIRouter()
 
@@ -60,6 +69,9 @@ AnalyticsExporter = Annotated[User, Depends(require_permissions("analytics:expor
 #: Cost and the executive dashboard are commercially sensitive — a support agent or analyst has no
 #: operational need for spend (Doc 15 §15).
 AnalyticsExecutive = Annotated[User, Depends(require_permissions("analytics:executive"))]
+AnalyticsScheduleManager = Annotated[
+    User, Depends(require_permissions("analytics:export", "analytics:executive"))
+]
 
 
 def _spec(
@@ -101,8 +113,12 @@ async def analytics_summary(
 ) -> AnalyticsSummaryResponse:
     """Range totals plus every derived KPI (Doc 15 §11), with the freshness of the answer."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
     )
     view = await AnalyticsQueryService(session).summary(
         organization_id=actor.organization_id, spec=spec, metrics=metrics
@@ -110,9 +126,7 @@ async def analytics_summary(
     return AnalyticsSummaryResponse.of(view)
 
 
-@router.get(
-    "/analytics/kpis", response_model=AnalyticsKpiResponse, summary="Derived KPIs only"
-)
+@router.get("/analytics/kpis", response_model=AnalyticsKpiResponse, summary="Derived KPIs only")
 async def analytics_kpis(
     session: SessionDep,
     actor: AnalyticsReader,
@@ -124,8 +138,12 @@ async def analytics_kpis(
 ) -> AnalyticsKpiResponse:
     """The §11 ratios and averages without the raw counters — the KPI-card payload."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
     )
     view = await AnalyticsQueryService(session).summary(
         organization_id=actor.organization_id, spec=spec
@@ -151,8 +169,13 @@ async def analytics_comparison(
 ) -> AnalyticsComparisonResponse:
     """Current vs previous period or previous year, for delta display (Doc 15 §14.2)."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone, compare=compare,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
+        compare=compare,
     )
     view = await AnalyticsQueryService(session).summary(
         organization_id=actor.organization_id, spec=spec, metrics=metrics
@@ -179,8 +202,13 @@ async def analytics_series(
 ) -> AnalyticsSeriesResponse:
     """One series per metric, dense across the range — no gaps for a chart to guess at."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone, compare=compare,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
+        compare=compare,
     )
     result = await AnalyticsQueryService(session).series(
         organization_id=actor.organization_id, spec=spec, metrics=metrics
@@ -206,8 +234,13 @@ async def analytics_trends(
 ) -> AnalyticsSeriesResponse:
     """A series always paired with its comparison — the trend view of the same §10 envelope."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone, compare=compare,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
+        compare=compare,
     )
     result = await AnalyticsQueryService(session).series(
         organization_id=actor.organization_id, spec=spec, metrics=metrics
@@ -257,12 +290,21 @@ async def analytics_breakdown(
 ) -> AnalyticsBreakdownResponse:
     """The generic grouped table; the named endpoints below are presets over it."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity=granularity, timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity=granularity,
+        timezone=timezone,
     )
     return await _breakdown(
-        session, actor, dimension=dimension, metrics=metrics, spec=spec,
-        limit=limit, sort_by=sort_by,
+        session,
+        actor,
+        dimension=dimension,
+        metrics=metrics,
+        spec=spec,
+        limit=limit,
+        sort_by=sort_by,
     )
 
 
@@ -282,8 +324,12 @@ async def analytics_failures(
 ) -> AnalyticsBreakdownResponse:
     """FR-AN-07 — the failure leaderboard; drill-down goes to the message list by error code."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity="day", timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
     )
     return await _breakdown(
         session, actor, dimension="error_code", metrics=["failures"], spec=spec, limit=limit
@@ -306,16 +352,24 @@ async def analytics_campaigns(
 ) -> AnalyticsBreakdownResponse:
     """FR-AN-02 — per-campaign funnel; campaign names resolve at read time (AN-CD2)."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity="day", timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
     )
     return await _breakdown(
         session,
         actor,
         dimension="campaign_id",
         metrics=[
-            "campaign_targeted", "campaign_sent", "campaign_delivered",
-            "campaign_read", "campaign_failed", "campaign_skipped",
+            "campaign_targeted",
+            "campaign_sent",
+            "campaign_delivered",
+            "campaign_read",
+            "campaign_failed",
+            "campaign_skipped",
         ],
         spec=spec,
         limit=limit,
@@ -338,16 +392,22 @@ async def analytics_agents(
 ) -> AnalyticsBreakdownResponse:
     """FR-AN-02/J6 — the agent is a *dimension* of the conversation rollup, not its own table."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity="day", timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
     )
     return await _breakdown(
         session,
         actor,
         dimension="assigned_user_id",
         metrics=[
-            "conversations_opened", "conversations_resolved",
-            "outbound_messages", "conversations_handled",
+            "conversations_opened",
+            "conversations_resolved",
+            "outbound_messages",
+            "conversations_handled",
         ],
         spec=spec,
         limit=limit,
@@ -370,8 +430,12 @@ async def analytics_costs(
 ) -> AnalyticsBreakdownResponse:
     """FR-AN-03 — spend by message type. Cost is copied from the ledger, never recomputed here."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity="day", timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
     )
     return await _breakdown(
         session,
@@ -399,8 +463,12 @@ async def analytics_executive(
 ) -> AnalyticsSummaryResponse:
     """Doc 15 §12 — a composition of existing metrics, including spend. No new measure."""
     spec = _spec(
-        actor, date_from=date_from, date_to=date_to, preset=preset,
-        granularity="day", timezone=timezone,
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
     )
     view = await AnalyticsQueryService(session).summary(
         organization_id=actor.organization_id, spec=spec
@@ -443,6 +511,63 @@ async def analytics_freshness(
     """A dashboard that cannot say how stale it is will eventually be trusted when it shouldn't."""
     rows = await AnalyticsQueryService(session).freshness(organization_id=actor.organization_id)
     return AnalyticsFreshnessResponse.of(rows)
+
+
+# --- Saved report analysis views -------------------------------------------------------------------
+
+
+@router.get(
+    "/analytics/views",
+    response_model=ReportViewsResponse,
+    summary="List personal and team-shared Report views",
+)
+async def list_report_views(
+    session: SessionDep,
+    actor: AnalyticsReader,
+) -> ReportViewsResponse:
+    rows, can_manage_shared = await ReportViewService(session).list(actor)
+    return ReportViewsResponse(
+        data=[
+            ReportViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/analytics/views",
+    response_model=ReportViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared Report view",
+)
+async def create_report_view(
+    payload: ReportViewCreate,
+    session: SessionDep,
+    actor: AnalyticsReader,
+) -> ReportViewResponse:
+    row = await ReportViewService(session).create(actor, payload)
+    return ReportViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/analytics/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team Report view",
+)
+async def delete_report_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: AnalyticsReader,
+) -> None:
+    await ReportViewService(session).delete(actor, view_id)
 
 
 # --- Report export (Doc 15 §19) ---------------------------------------------------------------------
@@ -494,3 +619,215 @@ async def report_export_progress(
     service = ExportService(session)
     job = await service.get(actor.organization_id, export_id)
     return ExportProgressResponse.from_job(job, await service.download_url(job))
+
+
+# --- Scheduled reports -----------------------------------------------------------------------------
+@router.get(
+    "/analytics/report-schedules",
+    response_model=ReportSchedulesResponse,
+    summary="List my scheduled reports",
+)
+async def list_report_schedules(
+    session: SessionDep, actor: AnalyticsScheduleManager
+) -> ReportSchedulesResponse:
+    rows = await ReportScheduleService(session).list(actor)
+    return ReportSchedulesResponse(data=[ReportScheduleResponse.from_schedule(row) for row in rows])
+
+
+@router.post(
+    "/analytics/report-schedules",
+    response_model=ReportScheduleResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a scheduled report",
+)
+async def create_report_schedule(
+    payload: ReportScheduleCreate, session: SessionDep, actor: AnalyticsScheduleManager
+) -> ReportScheduleResponse:
+    row = await ReportScheduleService(session).create(actor, payload)
+    return ReportScheduleResponse.from_schedule(row)
+
+
+@router.put(
+    "/analytics/report-schedules/{schedule_id}",
+    response_model=ReportScheduleResponse,
+    summary="Replace a scheduled report",
+)
+async def update_report_schedule(
+    schedule_id: uuidlib.UUID,
+    payload: ReportScheduleUpdate,
+    session: SessionDep,
+    actor: AnalyticsScheduleManager,
+) -> ReportScheduleResponse:
+    row = await ReportScheduleService(session).update(actor, schedule_id, payload)
+    return ReportScheduleResponse.from_schedule(row)
+
+
+@router.delete(
+    "/analytics/report-schedules/{schedule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a scheduled report",
+)
+async def delete_report_schedule(
+    schedule_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: AnalyticsScheduleManager,
+    expected_row_version: Annotated[int, Query(ge=0)],
+) -> None:
+    await ReportScheduleService(session).delete(
+        actor, schedule_id, expected_row_version=expected_row_version
+    )
+
+
+@router.get(
+    "/analytics/task-productivity",
+    response_model=AnalyticsBreakdownResponse,
+    summary="Task productivity by teammate",
+)
+async def analytics_task_productivity(
+    session: SessionDep,
+    actor: AnalyticsReader,
+    date_from: Annotated[datetime | None, Query(alias="from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="to")] = None,
+    preset: Annotated[PresetLiteral | None, Query()] = None,
+    timezone: Annotated[str | None, Query(max_length=64)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> AnalyticsBreakdownResponse:
+    """Completed/on-time/overdue task flow by assignee over the selected range."""
+    spec = _spec(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
+    )
+    return await _breakdown(
+        session,
+        actor,
+        dimension="assigned_agent_id",
+        metrics=[
+            "tasks_created",
+            "tasks_completed",
+            "tasks_completed_on_time",
+            "tasks_overdue_entered",
+        ],
+        spec=spec,
+        limit=limit,
+        sort_by="tasks_completed",
+    )
+
+
+@router.get(
+    "/analytics/reactivation-outcomes",
+    response_model=AnalyticsBreakdownResponse,
+    summary="Reactivation and eligibility outcomes",
+)
+async def analytics_reactivation_outcomes(
+    session: SessionDep,
+    actor: AnalyticsReader,
+    date_from: Annotated[datetime | None, Query(alias="from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="to")] = None,
+    preset: Annotated[PresetLiteral | None, Query()] = None,
+    timezone: Annotated[str | None, Query(max_length=64)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> AnalyticsBreakdownResponse:
+    """Factual case creation, terminal outcomes and eligibility decisions by outcome."""
+    spec = _spec(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
+    )
+    return await _breakdown(
+        session,
+        actor,
+        dimension="outcome",
+        metrics=[
+            "reactivation_cases_created",
+            "reactivation_stage_transitions",
+            "reactivation_completed",
+            "reactivation_not_required",
+            "eligibility_decisions",
+            "eligibility_eligible",
+            "eligibility_not_eligible",
+            "eligibility_review_required",
+        ],
+        spec=spec,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/analytics/kyc-outcomes",
+    response_model=AnalyticsBreakdownResponse,
+    summary="KYC decision outcomes",
+)
+async def analytics_kyc_outcomes(
+    session: SessionDep,
+    actor: AnalyticsReader,
+    date_from: Annotated[datetime | None, Query(alias="from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="to")] = None,
+    preset: Annotated[PresetLiteral | None, Query()] = None,
+    timezone: Annotated[str | None, Query(max_length=64)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> AnalyticsBreakdownResponse:
+    """Review and manager decisions with terminal approval/rejection truth."""
+    spec = _spec(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
+    )
+    return await _breakdown(
+        session,
+        actor,
+        dimension="outcome",
+        metrics=["kyc_decisions", "kyc_approved", "kyc_rejected", "kyc_needs_information"],
+        spec=spec,
+        limit=limit,
+    )
+
+
+@router.get(
+    "/analytics/service-levels",
+    response_model=AnalyticsBreakdownResponse,
+    summary="SLA and fulfilment outcomes",
+)
+async def analytics_service_levels(
+    session: SessionDep,
+    actor: AnalyticsReader,
+    date_from: Annotated[datetime | None, Query(alias="from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="to")] = None,
+    preset: Annotated[PresetLiteral | None, Query()] = None,
+    timezone: Annotated[str | None, Query(max_length=64)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> AnalyticsBreakdownResponse:
+    """SLA starts/breaches/resolutions plus SIM and activation terminal outcomes."""
+    spec = _spec(
+        actor,
+        date_from=date_from,
+        date_to=date_to,
+        preset=preset,
+        granularity="day",
+        timezone=timezone,
+    )
+    return await _breakdown(
+        session,
+        actor,
+        dimension="outcome",
+        metrics=[
+            "sla_started",
+            "sla_breached",
+            "sla_resolved",
+            "sim_delivered",
+            "sim_failed",
+            "activations_completed",
+            "activations_rejected",
+        ],
+        spec=spec,
+        limit=limit,
+    )

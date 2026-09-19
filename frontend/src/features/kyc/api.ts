@@ -10,6 +10,8 @@ import type {
   KycOperationsResponse,
   KycReasonCode,
   KycStatus,
+  KycView,
+  KycViewCreate,
 } from "@/features/kyc/types";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -18,12 +20,43 @@ export { apiErrorMessage } from "@/lib/api/errors";
 
 export const kycKeys = {
   all: ["kyc"] as const,
+  views: ["kyc", "views"] as const,
   operations: (filters: KycFilters) => ["kyc", "operations", filters] as const,
   contact: (contactId: string) => ["kyc", "contact", contactId] as const,
   decisions: (kycId: string) => ["kyc", "decisions", kycId] as const,
 };
 
-export function useKycOperations(filters: KycFilters) {
+export function useKycViews() {
+  return useQuery({
+    queryKey: kycKeys.views,
+    queryFn: async (): Promise<KycView[]> =>
+      unwrap(await api.GET("/api/v1/kyc/views")).data,
+  });
+}
+
+export function useCreateKycView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: KycViewCreate): Promise<KycView> =>
+      unwrap(await api.POST("/api/v1/kyc/views", { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: kycKeys.views }),
+  });
+}
+
+export function useDeleteKycView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/kyc/views/{view_id}", {
+        params: { path: { view_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: kycKeys.views }),
+  });
+}
+
+export function useKycOperations(filters: KycFilters, enabled = true) {
   return useQuery({
     queryKey: kycKeys.operations(filters),
     queryFn: async (): Promise<KycOperationsResponse> =>
@@ -33,6 +66,7 @@ export function useKycOperations(filters: KycFilters) {
         }),
       ),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

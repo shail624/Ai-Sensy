@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.engine import CursorResult
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models.notification import Notification
 from app.repositories.base import BaseRepository
+
+
+def _mute_clause(muted_types: Sequence[str]) -> list[ColumnElement[bool]]:
+    """Shared by the page, the unread count and mark-all-read, so the three cannot disagree.
+
+    A badge that counts what the list refuses to show, or a mark-all-read that silently clears
+    what the operator was never shown, is worse than no setting at all.
+    """
+    if not muted_types:
+        return []
+    return [Notification.notification_type.not_in(tuple(muted_types))]
 
 
 class NotificationRepository(BaseRepository[Notification]):
@@ -50,11 +63,13 @@ class NotificationRepository(BaseRepository[Notification]):
         overdue_before: datetime,
         cursor: tuple[datetime, int] | None,
         limit: int,
+        muted_types: Sequence[str] = (),
     ) -> tuple[list[Notification], bool]:
         clauses = [
             Notification.organization_id == organization_id,
             Notification.recipient_user_id == recipient_id,
         ]
+        clauses.extend(_mute_clause(muted_types))
         if notification_type:
             clauses.append(Notification.notification_type == notification_type)
         if status == "unread":
@@ -88,7 +103,9 @@ class NotificationRepository(BaseRepository[Notification]):
         rows = list((await self.session.scalars(stmt)).all())
         return rows[:limit], len(rows) > limit
 
-    async def unread_count(self, organization_id: int, recipient_id: int) -> int:
+    async def unread_count(
+        self, organization_id: int, recipient_id: int, *, muted_types: Sequence[str] = ()
+    ) -> int:
         return int(
             (
                 await self.session.scalar(
@@ -98,6 +115,7 @@ class NotificationRepository(BaseRepository[Notification]):
                         Notification.organization_id == organization_id,
                         Notification.recipient_user_id == recipient_id,
                         Notification.read_at.is_(None),
+                        *_mute_clause(muted_types),
                     )
                 )
             )
@@ -105,7 +123,12 @@ class NotificationRepository(BaseRepository[Notification]):
         )
 
     async def mark_all_read(
-        self, organization_id: int, recipient_id: int, read_at: datetime
+        self,
+        organization_id: int,
+        recipient_id: int,
+        read_at: datetime,
+        *,
+        muted_types: Sequence[str] = (),
     ) -> int:
         result = cast(
             CursorResult[Any],
@@ -115,6 +138,7 @@ class NotificationRepository(BaseRepository[Notification]):
                     Notification.organization_id == organization_id,
                     Notification.recipient_user_id == recipient_id,
                     Notification.read_at.is_(None),
+                    *_mute_clause(muted_types),
                 )
                 .values(read_at=read_at, updated_at=read_at)
             ),

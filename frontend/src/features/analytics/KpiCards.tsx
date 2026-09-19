@@ -13,7 +13,11 @@ interface CardProps {
 function KpiCard({ spec, value, previous }: CardProps): JSX.Element {
   const change = delta(value, previous);
   // For a failure or opt-out rate, "up" is bad — direction alone is not sentiment.
-  const inverted = spec.key === "failure_rate" || spec.key === "opt_out_rate";
+  const inverted =
+    spec.key === "failure_rate" ||
+    spec.key === "opt_out_rate" ||
+    spec.key === "sla_breach_rate" ||
+    spec.key === "reactivation_drop_off_rate";
   const tone =
     change === null || change === 0
       ? "text-text-secondary"

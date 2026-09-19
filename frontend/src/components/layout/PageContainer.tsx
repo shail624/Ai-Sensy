@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 
-/** Standard page width + padding wrapper for content rendered inside the app shell. */
+/** Standard page width and compact responsive gutters inside the persistent application shell. */
 export function PageContainer({ children }: { children: ReactNode }): JSX.Element {
-  return <div className="relative mx-auto w-full max-w-[1440px] p-4 sm:p-5 lg:p-6">{children}</div>;
+  return (
+    <div
+      data-slot="page-container"
+      className="relative mx-auto w-full max-w-[1480px] px-4 py-4 sm:px-5 sm:py-5 lg:px-7 lg:py-6"
+    >
+      {children}
+    </div>
+  );
 }

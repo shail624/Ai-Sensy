@@ -1,4 +1,4 @@
-import { MessageCircle, PanelRightOpen, UserRound } from "lucide-react";
+import { MailCheck, MessageCircle, PanelRightOpen, QrCode, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge, EmptyState, ErrorState, Spinner } from "@/components/ui";
@@ -14,8 +14,11 @@ import { collateReactions } from "@/features/inbox/messageContent";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
+import { InterventionActions } from "@/features/inbox/InterventionActions";
 import type { TagSummary } from "@/features/inbox/types";
-import { useHasPermission } from "@/lib/auth";
+import { connectorLabel, isWahaConversation } from "@/features/inbox/types";
+import { useInboxOperations } from "@/features/settings/api";
+import { useAuth, useHasPermission } from "@/lib/auth";
 
 interface Props {
   conversationId: string;
@@ -26,19 +29,23 @@ interface Props {
 
 /** The active chat keeps daily reply controls visible and moves secondary context one click away. */
 export function ConversationThread({ conversationId, tags, pinned = false, onTogglePinned = () => undefined }: Props): JSX.Element {
+  const { user } = useAuth();
   const conversation = useConversation(conversationId);
   const messages = useMessages(conversationId);
   const markRead = useMarkRead(conversationId);
+  const operations = useInboxOperations();
   const reaction = useSendReaction(conversationId);
   const canSend = useHasPermission("messages:send");
   const [contextOpen, setContextOpen] = useState(false);
 
   const unread = conversation.data?.unread_count ?? 0;
   const markReadMutate = markRead.mutate;
+  const autoMarkRead = operations.data?.auto_mark_read === true;
+  const canMarkReadManually = operations.isSuccess && !autoMarkRead && unread > 0;
 
   useEffect(() => {
-    if (unread > 0) markReadMutate(undefined);
-  }, [conversationId, unread, markReadMutate]);
+    if (autoMarkRead && unread > 0) markReadMutate(undefined);
+  }, [autoMarkRead, conversationId, unread, markReadMutate]);
 
   if (conversation.isLoading) {
     return <div className="p-6"><Spinner label="Loading conversation…" /></div>;
@@ -63,24 +70,49 @@ export function ConversationThread({ conversationId, tags, pinned = false, onTog
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-sm font-bold text-text-primary">{contactName}</h2>
-              <div className="mt-0.5 flex items-center gap-2">
+              <div className="mt-0.5 flex flex-wrap items-center gap-2">
                 <p className="truncate text-xs text-text-secondary">{thread.contact?.phone}</p>
-                <Badge tone={thread.window.is_open ? "success" : "neutral"}>
-                  <MessageCircle aria-hidden className="mr-1 h-3 w-3" />
-                  {thread.window.is_open ? "Reply open" : "Template only"}
+                <Badge tone={isWahaConversation(thread) ? "info" : "neutral"}>
+                  {isWahaConversation(thread) ? (
+                    <QrCode aria-hidden className="mr-1 h-3 w-3" />
+                  ) : (
+                    <ShieldCheck aria-hidden className="mr-1 h-3 w-3" />
+                  )}
+                  {connectorLabel(thread)}
                 </Badge>
+                {isWahaConversation(thread) ? null : (
+                  <Badge tone={thread.window.is_open ? "success" : "neutral"}>
+                    <MessageCircle aria-hidden className="mr-1 h-3 w-3" />
+                    {thread.window.is_open ? "Reply open" : "Template only"}
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            aria-expanded={contextOpen}
-            onClick={() => setContextOpen((open) => !open)}
-            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition ${contextOpen ? "border-accent bg-accent-soft text-accent" : "border-border text-text-secondary hover:bg-hover"}`}
-          >
-            <PanelRightOpen aria-hidden className="h-4 w-4" />
-            <span className="hidden sm:inline">Details</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <InterventionActions conversation={thread} currentUserId={user?.id} />
+            {canMarkReadManually ? (
+              <button
+                type="button"
+                aria-label="Mark read"
+                disabled={markRead.isPending}
+                onClick={() => markReadMutate(undefined)}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-text-secondary transition hover:bg-hover disabled:opacity-50"
+              >
+                <MailCheck aria-hidden className="h-4 w-4" />
+                <span className="hidden sm:inline">Mark read</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-expanded={contextOpen}
+              onClick={() => setContextOpen((open) => !open)}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition ${contextOpen ? "border-accent bg-accent-soft text-accent" : "border-border text-text-secondary hover:bg-hover"}`}
+            >
+              <PanelRightOpen aria-hidden className="h-4 w-4" />
+              <span className="hidden sm:inline">Details</span>
+            </button>
+          </div>
         </div>
 
         <div className="mt-3 grid max-w-xl grid-cols-2 gap-2">

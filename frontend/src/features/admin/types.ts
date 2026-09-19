@@ -17,6 +17,8 @@ export type ApiKeyCreateRequest = components["schemas"]["ApiKeyCreateRequest"];
 
 export type AuditEntry = components["schemas"]["AuditLogResponse"];
 export type AuditPage = components["schemas"]["AuditLogPage"];
+/** Whether a stored entry still reproduces its own digest — narrowed from the generated contract. */
+export type AuditIntegrity = AuditEntry["integrity"];
 
 /**
  * The preset system roles the platform seeds (Doc 01 §2.4).
@@ -130,4 +132,17 @@ export function isSecurityEvent(action: string): boolean {
     action === "user.login_locked" ||
     action === "user.token_reuse_detected"
   );
+}
+
+/**
+ * Actions where somebody *read* protected data — a customer's identity document, a stored channel
+ * credential.
+ *
+ * Deliberately not `isSecurityEvent`: that chip means something went wrong, and a lawful document
+ * read has not. Marking every authorised access red would drown the failures it exists to surface.
+ * But these are the rows a compliance review scans for, and in a list where every other entry is a
+ * change they are easy to walk past, so they get a marker of their own.
+ */
+export function isProtectedRead(action: string): boolean {
+  return action === "contact_document.accessed" || action === "channel_secret.accessed";
 }

@@ -178,3 +178,124 @@ async def test_attributes_permission_enforcement(client, make_user) -> None:
         )
     ).status_code == 403
     assert (await client.get("/api/v1/custom-attributes")).status_code == 401
+
+
+# --- ATTR-01: required and retired --------------------------------------------------------------
+async def test_a_new_definition_is_neither_required_nor_retired(client, make_user) -> None:
+    """Both defaults preserve every existing definition's behaviour exactly."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+
+    definition = await _define(client, h)
+
+    assert definition["is_required"] is False
+    assert definition["is_active"] is True
+
+
+async def test_a_required_attribute_cannot_be_cleared(client, make_user) -> None:
+    """Setting values is a *partial* update, so "required" means this one may not be emptied.
+
+    It cannot mean "every write must carry it": this endpoint writes the keys it is given and
+    deletes the ones passed as null, so demanding the key on every call would break every partial
+    update and every import in the product.
+    """
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    definition = await _define(client, h, is_required=True)
+    contact = await _contact(client, h)
+
+    stored = await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"plan": "gold"}},
+    )
+    assert stored.status_code == 200, stored.text
+
+    cleared = await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"plan": None}},
+    )
+
+    assert cleared.status_code == 422, cleared.text
+    assert cleared.json()["errors"][0]["code"] == "attribute_required"
+    # The value it refused to clear is still there.
+    fetched = await client.get(f"/api/v1/contacts/{contact['id']}", headers=h)
+    assert fetched.json()["attributes"] == {"plan": "gold"}
+    assert definition["is_required"] is True
+
+
+async def test_a_partial_update_that_omits_a_required_attribute_is_fine(client, make_user) -> None:
+    """The distinction the rule above turns on, stated as its own case."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _define(client, h, is_required=True)
+    await _define(client, h, key_name="city", label="City")
+    contact = await _contact(client, h)
+
+    response = await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"city": "Delhi"}},
+    )
+
+    assert response.status_code == 200, response.text
+
+
+async def test_a_retired_attribute_takes_no_new_value_but_can_still_be_tidied_up(
+    client, make_user
+) -> None:
+    """Retiring is not deleting: the data stays readable, and stays removable."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    definition = await _define(client, h)
+    contact = await _contact(client, h)
+    await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"plan": "gold"}},
+    )
+
+    retired = await client.patch(
+        f"/api/v1/custom-attributes/{definition['id']}", headers=h, json={"is_active": False}
+    )
+    assert retired.status_code == 200 and retired.json()["is_active"] is False
+
+    # The value written before it was retired is still readable.
+    fetched = await client.get(f"/api/v1/contacts/{contact['id']}", headers=h)
+    assert fetched.json()["attributes"] == {"plan": "gold"}
+
+    refused = await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"plan": "silver"}},
+    )
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["errors"][0]["code"] == "attribute_retired"
+
+    # But it can still be cleared, so a field can be wound down rather than left half-used.
+    cleaned = await client.put(
+        f"/api/v1/contacts/{contact['id']}/attributes",
+        headers=h,
+        json={"attributes": {"plan": None}},
+    )
+    assert cleaned.status_code == 200, cleaned.text
+    assert (await client.get(f"/api/v1/contacts/{contact['id']}", headers=h)).json()["attributes"] == {}
+
+
+async def test_changing_either_flag_is_audited(client, make_user) -> None:
+    """Retiring a field and making one mandatory both change what the team may record."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    definition = await _define(client, h)
+
+    await client.patch(
+        f"/api/v1/custom-attributes/{definition['id']}",
+        headers=h,
+        json={"is_required": True, "is_active": False},
+    )
+
+    trail = await client.get("/api/v1/audit-logs?filter[action][eq]=custom_attribute.updated", headers=h)
+    entry = trail.json()["data"][0]
+    assert entry["before"]["is_required"] is False and entry["before"]["is_active"] is True
+    assert entry["after"]["is_required"] is True and entry["after"]["is_active"] is False

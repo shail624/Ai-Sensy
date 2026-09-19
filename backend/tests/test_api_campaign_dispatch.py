@@ -6,6 +6,7 @@ lane's fan-out is driven directly.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import httpx
@@ -430,3 +431,398 @@ async def test_unknown_campaign_is_404(
     assert (
         await client.get(f"{CAMPAIGNS_URL}/{uuid.uuid4()}/progress", headers=headers)
     ).status_code == 404
+
+
+# --- CAM-BTN-01: a template whose link carries a variable -----------------------------------------
+LINK_TEMPLATE = [
+    {"type": "body", "text": "Hi {{1}}, your Vi number has an offer waiting."},
+    {
+        "type": "buttons",
+        "buttons": [{"type": "url", "text": "Recharge now", "url": "https://vi.co/pay/{{1}}"}],
+    },
+]
+
+
+async def _link_campaign(client, make_user, session_factory, monkeypatch):
+    """A campaign on a template whose Recharge button carries a per-customer link."""
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = LINK_TEMPLATE
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+    created = (
+        await client.post(
+            CAMPAIGNS_URL,
+            headers=headers,
+            json={
+                "name": "Vi Reactivation",
+                "phone_number_id": number_id,
+                "template_id": template_id,
+                "audience_type": "list",
+                "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+                "variable_map": {
+                    "body": [{"source": "field", "key": "full_name", "fallback": "there"}],
+                    "buttons": [{"source": "field", "key": "wa_id", "fallback": "0"}],
+                },
+            },
+        )
+    )
+    assert created.status_code == 201, created.text
+    return headers, created.json()
+
+
+async def test_a_campaign_can_bind_a_value_into_a_button_link(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """The per-customer link is the whole point of a reactivation button.
+
+    The send path has always accepted button values and the Meta adapter has always emitted them.
+    The campaign path resolved only header and body and handed dispatch a hardcoded empty list, so
+    a template whose link carries a variable was sent with no button parameter at all -- which Meta
+    rejects, for every recipient, with nothing on any screen having warned that it would.
+    """
+    headers, created = await _link_campaign(client, make_user, session_factory, monkeypatch)
+    assert (await client.post(f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers)).status_code == 202
+
+    async with session_factory() as session:
+        campaign = (await session.scalars(select(Campaign))).one()
+    await _run(session_factory, campaign.id)
+
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(CampaignRecipient))).all())
+    assert [row.status for row in rows] == [RECIPIENT_SENT, RECIPIENT_SENT], [
+        (row.status, row.error_detail) for row in rows
+    ]
+
+    # Asserted on the Graph payload, not on the recipient row: the mock accepts anything, so a
+    # missing button parameter still "sends" here. Real Meta counts the parameters and rejects the
+    # message, which is why the only honest check is what actually went on the wire.
+    sent = [
+        json.loads(request.content)
+        for request in campaign_channel["requests"]
+        if request.method == "POST"
+    ]
+    buttons = [
+        component
+        for payload in sent
+        for component in (payload.get("template", {}).get("components") or [])
+        if component.get("type") == "button"
+    ]
+    assert len(buttons) == 2, sent
+    assert {button["sub_type"] for button in buttons} == {"url"}
+    assert {button["parameters"][0]["text"] for button in buttons} == {
+        contact["wa_id"] for contact in await _wa_ids(session_factory)
+    }
+
+
+async def _wa_ids(session_factory) -> list[dict]:
+    async with session_factory() as session:
+        return [{"wa_id": c.wa_id} for c in (await session.scalars(select(Contact))).all()]
+
+
+async def test_a_campaign_is_refused_when_its_template_needs_a_button_value(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Refused at creation, where it is one message to one operator.
+
+    Unvalidated, the campaign was accepted, the roster was built and the failure arrived from Meta
+    once per recipient — thousands of identical rejections for one mapping nobody was asked for.
+    """
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = LINK_TEMPLATE
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+
+    refused = await client.post(
+        CAMPAIGNS_URL,
+        headers=headers,
+        json={
+            "name": "Vi Reactivation",
+            "phone_number_id": number_id,
+            "template_id": template_id,
+            "audience_type": "list",
+            "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+            # The link's value is simply not mapped.
+            "variable_map": {"body": [{"source": "field", "key": "full_name", "fallback": "x"}]},
+        },
+    )
+
+    assert refused.status_code == 422
+    assert "button" in refused.text.lower()
+
+
+# --- CAM-MEDIA-01: a template whose header carries an image ---------------------------------------
+#: A minimal valid PNG header; the storage layer sniffs the type, it does not decode the image.
+PNG = b"\x89PNG\r\n\x1a\n" + b"d" * 64
+
+MEDIA_TEMPLATE = [
+    {"type": "header", "format": "image"},
+    {"type": "body", "text": "Hi {{1}}, your Vi offer is inside."},
+]
+
+
+async def test_a_campaign_on_a_media_header_template_is_not_accepted_silently(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """The same shape as the button gap, one field over.
+
+    `SendService` requires `header_media` for a template whose header carries a file, and the
+    campaign path never supplies one — there is nowhere in a campaign to attach the image. So the
+    campaign was created, the roster was built, and every recipient was rejected at send.
+    """
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = MEDIA_TEMPLATE
+        template.has_media_header = True
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+
+    created = await client.post(
+        CAMPAIGNS_URL,
+        headers=headers,
+        json={
+            "name": "Vi Reactivation",
+            "phone_number_id": number_id,
+            "template_id": template_id,
+            "audience_type": "list",
+            "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+            "variable_map": {"body": [{"source": "field", "key": "full_name", "fallback": "x"}]},
+        },
+    )
+
+    # Either the campaign is refused here, or it sends. Being accepted and then failing every
+    # recipient is the one outcome that costs the operator their sending window.
+    if created.status_code == 201:
+        assert (
+            await client.post(f"{CAMPAIGNS_URL}/{created.json()['id']}/dispatch", headers=headers)
+        ).status_code == 202
+        async with session_factory() as session:
+            campaign = (await session.scalars(select(Campaign))).one()
+        await _run(session_factory, campaign.id)
+        async with session_factory() as session:
+            rows = list((await session.scalars(select(CampaignRecipient))).all())
+        assert [row.status for row in rows] != [RECIPIENT_FAILED, RECIPIENT_FAILED], [
+            (row.error_code, row.error_detail) for row in rows
+        ]
+    else:
+        assert created.status_code == 422, created.text
+
+
+async def test_a_campaign_sends_the_image_its_template_header_declares(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """The capability, not just the refusal.
+
+    An offer image over a reactivation message is an ordinary campaign, and it was impossible:
+    nothing in a campaign could name a file. The asset id is a property of the campaign rather than
+    of the customer -- it is the offer's picture, the same for everyone -- so it rides the variable
+    map and is read from there at dispatch, instead of being copied onto every roster row.
+    """
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = MEDIA_TEMPLATE
+        template.has_media_header = True
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 2)
+    uploaded = await client.post(
+        "/api/v1/media/upload",
+        headers=headers,
+        files={"file": ("offer.png", PNG, "image/png")},
+        data={"media_type": "image"},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    asset_id = uploaded.json()["id"]
+
+    # A media-header send is two calls to Meta: the file is uploaded for an id, then the message
+    # references it. The default mock answers only the second, so the first is answered here.
+    def meta(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/media"):
+            return httpx.Response(200, json={"id": "MEDIA-1"})
+        return httpx.Response(200, json={"messages": [{"id": "wamid.CAMPAIGN-MEDIA"}]})
+
+    campaign_channel["handler"] = meta
+
+    created = await client.post(
+        CAMPAIGNS_URL,
+        headers=headers,
+        json={
+            "name": "Vi Reactivation",
+            "phone_number_id": number_id,
+            "template_id": template_id,
+            "audience_type": "list",
+            "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+            "variable_map": {
+                "body": [{"source": "field", "key": "full_name", "fallback": "there"}],
+                "header_media": {"media_asset_id": asset_id},
+            },
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert (
+        await client.post(f"{CAMPAIGNS_URL}/{created.json()['id']}/dispatch", headers=headers)
+    ).status_code == 202
+
+    async with session_factory() as session:
+        campaign = (await session.scalars(select(Campaign))).one()
+    await _run(session_factory, campaign.id)
+
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(CampaignRecipient))).all())
+    assert [row.status for row in rows] == [RECIPIENT_SENT, RECIPIENT_SENT], [
+        (row.error_code, row.error_detail) for row in rows
+    ]
+
+    # The header component reaches Meta with a file, once per recipient. Only the message calls
+    # are JSON: the upload that precedes each one is multipart, and decoding it would fail here for
+    # a reason that has nothing to do with the header.
+    messages = [
+        json.loads(request.content)
+        for request in campaign_channel["requests"]
+        if request.method == "POST" and not request.url.path.endswith("/media")
+    ]
+    headers_sent = [
+        component
+        for payload in messages
+        for component in (payload.get("template", {}).get("components") or [])
+        if component.get("type") == "header"
+    ]
+    assert len(headers_sent) == 2, headers_sent
+    assert all(component["parameters"][0]["type"] == "image" for component in headers_sent)
+
+
+async def test_a_video_file_is_refused_for_an_image_header(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """The template says which kind it is, so the mismatch is answerable before the send.
+
+    Meta rejects it per recipient otherwise, which is the same cost as supplying nothing.
+    """
+    from tests.test_api_campaigns import _approved_template, _contacts, _headers
+    from tests.test_api_webhooks import _seed_number
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="mgr@vi.co", is_superuser=True)
+    waba_id = (await client.get("/api/v1/waba", headers=headers)).json()["data"][0]["id"]
+    template_id = await _approved_template(client, headers, session_factory, waba_id)
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = MEDIA_TEMPLATE
+        template.has_media_header = True
+        await session.commit()
+    number_id = (await client.get("/api/v1/phone-numbers", headers=headers)).json()["data"][0]["id"]
+    contacts = await _contacts(client, headers, 1)
+    uploaded = await client.post(
+        "/api/v1/media/upload",
+        headers=headers,
+        files={"file": ("clip.mp4", b"\x00\x00\x00\x18ftypmp42" + b"0" * 64, "video/mp4")},
+        data={"media_type": "video"},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+
+    refused = await client.post(
+        CAMPAIGNS_URL,
+        headers=headers,
+        json={
+            "name": "Vi Reactivation",
+            "phone_number_id": number_id,
+            "template_id": template_id,
+            "audience_type": "list",
+            "audience_ref": {"contact_ids": [c["id"] for c in contacts]},
+            "variable_map": {
+                "body": [{"source": "field", "key": "full_name", "fallback": "there"}],
+                "header_media": {"media_asset_id": uploaded.json()["id"]},
+            },
+        },
+    )
+
+    assert refused.status_code == 422
+    assert "image" in refused.text and "video" in refused.text
+
+
+# --- CAM-DRIFT-01: the template changed after the campaign was built ------------------------------
+async def test_a_template_that_gained_a_variable_stops_the_campaign_not_each_recipient(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Dispatch already re-checks the template's *status*; its *shape* can change too.
+
+    `_apply_definition` rewrites `components_json`, `variable_count` and `has_media_header`, and
+    the template sync calls it — so a campaign built against a two-variable template can be
+    dispatched against a three-variable one. The stored map is then short, and every recipient
+    fails separately with a count mismatch. One refusal naming the template is the same
+    information, before the sending window is spent.
+    """
+    headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
+
+    # Meta re-approves the template with an extra body variable, as a sync would apply it.
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = [
+            {"type": "header", "format": "text", "text": "Order {{1}}"},
+            {"type": "body", "text": "Hi {{1}}, your order {{2}} is {{3}}. Ref {{4}}."},
+        ]
+        await session.commit()
+
+    dispatched = await client.post(
+        f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers
+    )
+
+    assert dispatched.status_code == 409, dispatched.text
+    assert "changed" in dispatched.text.lower() or "variable" in dispatched.text.lower()
+
+    # And nothing was queued: refusing the campaign means refusing all of it.
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(CampaignRecipient))).all())
+    assert {row.status for row in rows} == {"pending"}
+
+
+async def test_a_template_that_gained_a_media_header_stops_the_campaign(
+    client, make_user, session_factory, monkeypatch, campaign_channel
+) -> None:
+    """Same door, the other field: a header that became an image needs a file the campaign has not
+    been given, and the campaign has no way to acquire one at dispatch."""
+    headers, created = await _approved_campaign(client, make_user, session_factory, monkeypatch)
+
+    async with session_factory() as session:
+        (template,) = list((await session.scalars(select(MessageTemplate))).all())
+        template.components_json = MEDIA_TEMPLATE
+        template.has_media_header = True
+        await session.commit()
+
+    dispatched = await client.post(
+        f"{CAMPAIGNS_URL}/{created['id']}/dispatch", headers=headers
+    )
+
+    assert dispatched.status_code == 409, dispatched.text

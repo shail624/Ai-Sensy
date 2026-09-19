@@ -234,6 +234,20 @@ def variable_count(components: list[dict[str, Any]]) -> int:
     return sum(expected_variables(components))
 
 
+def header_media_format(components: list[dict[str, Any]]) -> str | None:
+    """Which kind of file the header carries, or ``None`` when it carries text.
+
+    The same value :func:`has_media_header` reduces to a boolean. Kept as the kind because a
+    campaign has to check the file it was given *matches*: Meta rejects a video sent where the
+    template declared an image, once per recipient, and the template already said which it is.
+    """
+    header = component_of(components, COMPONENT_HEADER)
+    if header is None:
+        return None
+    fmt = str(header.get("format") or FORMAT_TEXT).lower()
+    return fmt if fmt in MEDIA_FORMATS else None
+
+
 def has_media_header(components: list[dict[str, Any]]) -> bool:
     header = component_of(components, COMPONENT_HEADER)
     if header is None:
@@ -251,12 +265,124 @@ def expected_variables(components: list[dict[str, Any]]) -> tuple[int, int]:
     return header_vars, len(set(placeholders(body.get("text"))))
 
 
-def render(components: list[dict[str, Any]], *, header: list[str], body: list[str]) -> dict[str, str]:
-    """Substitute values into the text components (FR-TPL-08 preview)."""
+def button_targets(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each button with the text a tap actually acts on, and whether that text takes a value.
+
+    ``text`` is the label; ``target`` is the destination — a URL, a phone number, the code a
+    copy-code button copies — and for a quick reply there is none, because the tap sends the label
+    back. The distinction is the whole point of showing buttons in a preview: an operator can read
+    a label off the template list, but a wrong *destination* is invisible until a customer taps it.
+    """
+    component = component_of(components, COMPONENT_BUTTONS) or {}
+    rows: list[dict[str, Any]] = []
+    for index, button in enumerate(component.get("buttons") or []):
+        kind = str(button.get("type") or "").lower()
+        target = button.get("url") or button.get("phone_number") or button.get("example") or ""
+        rows.append(
+            {
+                "index": index,
+                "type": kind,
+                "text": str(button.get("text") or ""),
+                "target": str(target),
+                # A fixed button is settled at approval time; a variable one is only decided by the
+                # send, which is exactly the part a preview has to be able to show.
+                "takes_value": kind in VARIABLE_BUTTONS and bool(placeholders(str(target))),
+            }
+        )
+    return rows
+
+
+def expected_button_variables(components: list[dict[str, Any]]) -> int:
+    """How many values the buttons take between them.
+
+    Separate from :func:`expected_variables` rather than folded into it: that function's two-tuple
+    is what every send is validated against, and widening it would change the meaning of a check
+    that is correct as it stands. Meta counts button variables per button, not with the body's.
+    """
+    return sum(1 for row in button_targets(components) if row["takes_value"])
+
+
+def variable_map_gaps(
+    components: list[dict[str, Any]], variable_map: dict[str, Any]
+) -> list[tuple[str, int, int]]:
+    """Every part of a campaign's map that no longer fills the template, as (part, wanted, got).
+
+    Shared by the two moments it matters, which are not the same moment. At create time a gap is
+    the operator's own mapping being wrong. At dispatch time it is the *template* having moved
+    underneath a map that was right when it was written -- ``_apply_definition`` rewrites
+    ``components_json`` and the Meta sync calls it, so a campaign built against a two-variable
+    template can be dispatched against a three-variable one.
+
+    One implementation because the two answers have to agree: a campaign the create path called
+    complete must not be one the dispatch path calls short, or the operator is told their campaign
+    is fine right up until it is refused.
+    """
+    header_vars, body_vars = expected_variables(components)
+    gaps = []
+    for label, wanted in (
+        ("header", header_vars),
+        ("body", body_vars),
+        ("buttons", expected_button_variables(components)),
+    ):
+        got = len(variable_map.get(label) or [])
+        if got != wanted:
+            gaps.append((label, wanted, got))
+    return gaps
+
+
+def header_media_gap(
+    components: list[dict[str, Any]], variable_map: dict[str, Any]
+) -> str | None:
+    """Why the map's media header does not match the template's, phrased for a human.
+
+    ``None`` when they agree. The kind is not compared here -- that needs the asset, which needs a
+    database -- only whether a file is required, forbidden, or correctly present.
+    """
+    reference = variable_map.get("header_media") or {}
+    supplied = bool(reference.get("media_asset_id")) if isinstance(reference, dict) else False
+    wanted = header_media_format(components)
+    if wanted and not supplied:
+        return f"its header now carries {wanted} and the campaign has no file for it"
+    if not wanted and supplied:
+        return "its header is text now and takes no file"
+    return None
+
+
+def render(
+    components: list[dict[str, Any]],
+    *,
+    header: list[str],
+    body: list[str],
+    buttons: list[str] | None = None,
+) -> dict[str, Any]:
+    """Substitute values into the template (FR-TPL-08 preview).
+
+    Buttons are rendered too, because a preview that stops at the message text cannot answer the
+    question an operator opens it to ask. A URL button carries its variable *in the link*
+    (``https://vi.in/offer/{{1}}``), and that link is never shown on any screen — so a mis-mapped
+    variable sends thousands of customers to a broken page, and nothing before the send would have
+    revealed it.
+
+    ``buttons`` supplies the value for each button that takes one, in the order those buttons
+    appear. Buttons with fixed destinations consume nothing.
+    """
+    values = list(buttons or [])
+    rendered: list[dict[str, Any]] = []
+    for row in button_targets(components):
+        # Only a variable-carrying button consumes a value, so a fixed button between two variable
+        # ones does not shift the rest -- the operator's second value belongs to the second link.
+        supplied = [values.pop(0)] if row["takes_value"] and values else []
+        rendered.append(
+            {
+                **row,
+                "target": _substitute(row["target"], supplied) if row["target"] else "",
+            }
+        )
     return {
         "header": _substitute((component_of(components, COMPONENT_HEADER) or {}).get("text"), header),
         "body": _substitute((component_of(components, COMPONENT_BODY) or {}).get("text"), body),
         "footer": (component_of(components, COMPONENT_FOOTER) or {}).get("text") or "",
+        "buttons": rendered,
     }
 
 

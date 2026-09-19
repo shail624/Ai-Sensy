@@ -143,6 +143,13 @@ class Settings(BaseSettings):
     rate_gate_fallback_fraction: float = 0.25
 
     # ---- Rate limiting (Doc 04 §9) ---------------------------------------
+    #: Serve the interactive API explorer (`/docs`, `/redoc`) and the raw schema.
+    #:
+    #: Left unset it follows the environment: on outside production, off inside it. This is a
+    #: private operations platform, not a public API product — an unauthenticated visitor could
+    #: read every path, payload and enum in it, which is a map rather than a breach but a free one.
+    #: Publishing a reference for integrators is a deliberate act; set this to true to make it one.
+    api_docs_enabled: bool | None = None
     rate_limit_enabled: bool = True
     # 'auth' bucket: brute-force protection for login/refresh (Doc 04 §9 — 10 / 5 min / IP).
     rate_limit_auth_max: int = 10
@@ -153,6 +160,61 @@ class Settings(BaseSettings):
     # from the environment (OWNER_PASSWORD) and is never stored in code or settings.
     bootstrap_org_name: str = "Vi Reactivation Team"
     bootstrap_org_slug: str = "vi-reactivation"
+
+    # ---- WAHA QR provider (ADR-0021 Class B; QR-01 adapter foundation) -------------------
+    # Unconfigured and disabled by default. The application boots normally with none of these
+    # set — the adapter is registered statically but performs no network call until something
+    # explicitly asks it to, and every organization-facing QR feature flag is off by default
+    # (`app.channels.flags.OmnichannelFeatureFlag`).
+    #
+    # There is deliberately **no default API key**. An empty key is a configuration error raised
+    # at call time (`ChannelConfigError`), never a silent fallback that might reach a real server.
+    #: Administrative base URL of the self-hosted WAHA server. Must stay on an internal network —
+    #: WAHA's own documentation warns against exposing it publicly.
+    waha_base_url: str = ""
+    #: Server API key. Secret: never logged, never echoed, redacted from adapter diagnostics.
+    waha_api_key: str = ""
+    waha_timeout_seconds: float = 10.0
+    #: Certification baseline (`docs/evidence/provider-evaluations/waha-class-b-selection-record.md`).
+    #: A server reporting a different version is reported as drift; a different engine fails closed.
+    waha_certified_version: str = "2026.7.2"
+    #: Only NOWEB is owner-approved. Changing this requires a new owner decision and re-certification.
+    waha_approved_engine: str = "NOWEB"
+    #: Shared secret the WAHA server signs each webhook body with (raw-body sha512 HMAC). Secret:
+    #: never logged. Empty by default and an empty secret **rejects** every delivery, so an
+    #: unconfigured deployment cannot silently accept unsigned provider traffic.
+    waha_webhook_hmac_secret: str = ""
+    #: Session this deployment sends through — the endpoint scope for sends, acknowledgement
+    #: correlation and reconcile lookups. Empty by default; a send without one fails closed.
+    waha_session_name: str = ""
+    #: The single organization permitted to view or operate the WAHA QR connection surface
+    #: (QR-07). ADR-0021 §"Deployment scope": WAHA is internal, self-hosted, **single
+    #: organization** — not multi-tenant SaaS — so this is a scope, not a per-tenant secret
+    #: store. ``None`` (the default) means every organization sees the QR surface as
+    #: unconfigured, which is the safe default for a deployment that has not assigned it.
+    waha_organization_id: int | None = None
+
+    # ---- Google Sheets import (scope §21 "Integrations — Limited") --------
+    #: The service account's JSON key, as the file's own contents. **Secret**: it carries an RSA
+    #: private key, so it is never logged, never returned by any endpoint and never written to the
+    #: database — the sheet's *contents* are persisted as an ordinary import, the key never is.
+    #: Empty by default, and empty means the integration reports itself unconfigured rather than
+    #: failing mid-import. A service account is used rather than an operator's own Google login
+    #: because a personal account's password change or 2FA enrolment would silently stop every
+    #: scheduled sync.
+    google_service_account_json: str = ""
+    #: Read-only by intent: this integration imports *from* a sheet and never writes back, so the
+    #: narrower scope is the one to request. Widening it is an owner decision, not a config tweak.
+    google_sheets_scope: str = "https://www.googleapis.com/auth/spreadsheets.readonly"
+    google_sheets_timeout_seconds: float = 30.0
+
+    # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------
+    # Explicit opt-in on top of the environment gate itself: `development`/`test` alone is not
+    # enough, since a shared dev/staging box could still have ENVIRONMENT=development set by
+    # mistake. Defaults to False everywhere, including local development, so fixture data is
+    # never created as a side effect of anything else. Never true in production — enforced in
+    # code (`app.dev_fixtures.ensure_dev_fixtures_allowed`), not just by convention.
+    allow_dev_fixtures: bool = False
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -173,6 +235,14 @@ class Settings(BaseSettings):
             return json.loads(text)
         return [origin.strip() for origin in text.split(",") if origin.strip()]
 
+    @field_validator("waha_organization_id", mode="before")
+    @classmethod
+    def _empty_waha_organization_id_is_unconfigured(cls, value: object) -> object:
+        """Normalize Compose's empty optional scope to the safe unconfigured value."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def sqlalchemy_database_uri(self) -> str:
@@ -192,6 +262,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def serve_api_docs(self) -> bool:
+        """Whether to mount `/docs`, `/redoc` and the schema; explicit setting wins."""
+        if self.api_docs_enabled is not None:
+            return self.api_docs_enabled
+        return not self.is_production
 
 
 @lru_cache(maxsize=1)

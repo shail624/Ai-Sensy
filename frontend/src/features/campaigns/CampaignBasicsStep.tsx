@@ -1,6 +1,8 @@
 import { MessageCircle } from "lucide-react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
+import { useMediaList } from "@/features/media/api";
+
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { apiErrorMessage, useAttributeDefinitions, usePhoneNumbers, useTemplates } from "@/features/campaigns/api";
 import type { CampaignFormValues } from "@/features/campaigns/campaignForm";
@@ -32,6 +34,9 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
   const templateId = useWatch({ control, name: "template_id" });
   const header = useWatch({ control, name: "header" }) ?? [];
   const body = useWatch({ control, name: "body" }) ?? [];
+  // A button whose link carries {{1}} needs a value per customer, exactly like a body variable —
+  // the difference is only that the placeholder lives in the destination rather than in the text.
+  const buttons = useWatch({ control, name: "buttons" }) ?? [];
 
   const template = templates.data?.find((candidate) => candidate.id === templateId);
   const shape = templateShape(template);
@@ -140,13 +145,18 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
         </div>
       ) : null}
 
-      {template && shape.headerCount + shape.bodyCount > 0 ? (
+      {template && shape.mediaHeaderFormat ? (
+        <HeaderMediaPicker form={form} format={shape.mediaHeaderFormat} />
+      ) : null}
+
+      {template && shape.headerCount + shape.bodyCount + shape.buttonCount > 0 ? (
         <div className="space-y-3 rounded-xl border border-border p-4">
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Variable mapping</h3>
             <p className="mt-1 text-xs text-text-secondary">
-              Each placeholder gets its value per contact. A fallback matters: WhatsApp rejects an
-              empty parameter, so a contact missing the mapped value would fail without one.
+              Each placeholder gets its value per contact, including one inside a button&apos;s
+              link. A fallback matters: WhatsApp rejects an empty parameter, so a contact missing
+              the mapped value would fail without one.
             </p>
           </div>
 
@@ -177,6 +187,20 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
               }))}
             />
           ))}
+
+          {buttons.slice(0, shape.buttonCount).map((_, index) => (
+            <MappingRow
+              key={`buttons-${index}`}
+              form={form}
+              component="buttons"
+              index={index}
+              label={shape.buttonLabels[index]}
+              attributeKeys={(attributes.data ?? []).map((definition) => ({
+                value: definition.key_name,
+                label: definition.label,
+              }))}
+            />
+          ))}
         </div>
       ) : template ? (
         <EmptyState
@@ -188,15 +212,89 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
   );
 }
 
+/**
+ * The file a media-header template sends, chosen once for the whole campaign.
+ *
+ * It is the offer's picture, not a field of anybody's record, so one asset covers every recipient.
+ * Without this the campaign could not name a file at all: the send path has always required one
+ * for such a template, so the campaign was accepted and then rejected once per recipient.
+ *
+ * Only files of the kind the template declares are offered. A video where the template said image
+ * is refused by the server, and refusing it here as well means the operator never picks it.
+ */
+function HeaderMediaPicker({
+  form,
+  format,
+}: {
+  form: UseFormReturn<CampaignFormValues>;
+  format: string;
+}): JSX.Element {
+  const kind = format.toLowerCase();
+  const media = useMediaList();
+  const options = (media.data?.data ?? []).filter((asset) => asset.media_type === kind);
+  const error = form.formState.errors.header_media_id;
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-text-primary">Header {kind}</h3>
+        <p className="mt-1 text-xs text-text-secondary">
+          This template&apos;s header carries a {kind}. Every recipient receives the same one.
+        </p>
+      </div>
+      {media.isPending ? (
+        <p className="text-xs text-text-secondary">Loading the media library…</p>
+      ) : options.length === 0 ? (
+        <p className="text-xs text-danger">
+          No {kind} files in the media library yet. Upload one under Media, then come back.
+        </p>
+      ) : (
+        <div>
+          <label htmlFor="header-media" className={LABEL_CLASS}>
+            File
+          </label>
+          <select
+            id="header-media"
+            className={FIELD_CLASS}
+            {...form.register("header_media_id")}
+          >
+            <option value="">Choose a {kind}…</option>
+            {options.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.file_name ?? asset.id}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {error ? <p className="mt-1 text-xs text-danger">{String(error.message)}</p> : null}
+    </div>
+  );
+}
+
 interface MappingRowProps {
   form: UseFormReturn<CampaignFormValues>;
-  component: "header" | "body";
+  component: "header" | "body" | "buttons";
   index: number;
+  /** A button's own label, so the row says which button rather than a bare number. */
+  label?: string;
   attributeKeys: { value: string; label: string }[];
 }
 
+const COMPONENT_LABELS: Record<MappingRowProps["component"], string> = {
+  header: "Header",
+  body: "Body",
+  buttons: "Button link",
+};
+
 /** One `{{n}}` placeholder: where its value comes from, and what to use when there isn't one. */
-function MappingRow({ form, component, index, attributeKeys }: MappingRowProps): JSX.Element {
+function MappingRow({
+  form,
+  component,
+  index,
+  label,
+  attributeKeys,
+}: MappingRowProps): JSX.Element {
   const { register, control } = form;
   const source = useWatch({ control, name: `${component}.${index}.source` });
   const fieldError = form.formState.errors[component]?.[index];
@@ -204,7 +302,8 @@ function MappingRow({ form, component, index, attributeKeys }: MappingRowProps):
   return (
     <div className="rounded-xl border border-border bg-surface-subtle p-3">
       <p className="mb-2 text-xs font-medium text-text-secondary">
-        {component === "header" ? "Header" : "Body"} variable {`{{${index + 1}}}`}
+        {COMPONENT_LABELS[component]}
+        {label ? ` — “${label}”` : ""} variable {`{{${index + 1}}}`}
       </p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div>

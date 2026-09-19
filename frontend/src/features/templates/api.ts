@@ -4,10 +4,12 @@ import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
   JobAccepted,
+  PreviewValues,
   Template,
   TemplateCreateRequest,
   TemplatePreview,
   TemplateUpdateRequest,
+  TemplateUsage,
   TemplateVersion,
   Waba,
 } from "@/features/templates/types";
@@ -20,9 +22,10 @@ export const templateKeys = {
   all: ["templates"] as const,
   list: () => ["templates", "list"] as const,
   detail: (id: string) => ["templates", "detail", id] as const,
-  preview: (id: string) => ["templates", "preview", id] as const,
+  preview: (id: string, values?: unknown) => ["templates", "preview", id, values] as const,
   versions: (id: string) => ["templates", "versions", id] as const,
   wabas: () => ["templates", "wabas"] as const,
+  usage: ["templates", "usage"] as const,
 };
 
 /**
@@ -35,11 +38,12 @@ export const templateKeys = {
  * over that complete set (`selectors.ts`), which is exact rather than approximate. The alternative
  * — passing parameters the contract does not declare — would mean hand-writing contract shape.
  */
-export function useTemplates() {
+export function useTemplates(enabled = true) {
   return useQuery({
     queryKey: templateKeys.list(),
     queryFn: async (): Promise<Template[]> => unwrap(await api.GET("/api/v1/templates")).data,
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -60,20 +64,33 @@ export function useTemplate(templateId: string, enabled = true) {
  * The server's own render of the template (FR-TPL-08) — a pure projection that stores nothing and
  * sends nothing.
  *
- * Sample values ride the query string on this endpoint, but are not declared in the contract, so
- * this renders with none supplied. That is not a degraded preview: the renderer leaves an
- * unsupplied placeholder visible on purpose — "a preview must not invent a value" — so what comes
- * back is the message with its variables still marked, which is exactly what a template *is*.
+ * Sample values are optional. With none, the renderer leaves every placeholder visible on purpose
+ * — "a preview must not invent a value" — so what comes back is the template as written. With
+ * them, it is one customer's actual message, which is the thing worth checking before a send goes
+ * to everybody at once.
  */
-export function useTemplatePreview(templateId: string, enabled = true) {
+export function useTemplatePreview(
+  templateId: string,
+  values?: PreviewValues,
+  enabled = true,
+) {
+  // Blanks are dropped rather than sent: an empty value would substitute an empty string into the
+  // message and produce a plausible-looking result for a variable nobody supplied. Left out, the
+  // renderer keeps the placeholder visible, which is what tells an operator the mapping is short.
+  const query = {
+    ...(values?.header.some(Boolean) ? { header: values.header.filter(Boolean) } : {}),
+    ...(values?.body.some(Boolean) ? { body: values.body.filter(Boolean) } : {}),
+    ...(values?.buttons.some(Boolean) ? { button: values.buttons.filter(Boolean) } : {}),
+  };
   return useQuery({
-    queryKey: templateKeys.preview(templateId),
+    queryKey: templateKeys.preview(templateId, query),
     queryFn: async (): Promise<TemplatePreview> =>
       unwrap(
         await api.GET("/api/v1/templates/{template_id}/preview", {
-          params: { path: { template_id: templateId } },
+          params: { path: { template_id: templateId }, query },
         }),
       ),
+    placeholderData: keepPreviousData,
     enabled: enabled && Boolean(templateId),
   });
 }
@@ -165,4 +182,20 @@ export function useSyncTemplates() {
   return useTemplateMutation(
     async (): Promise<JobAccepted> => unwrap(await api.POST("/api/v1/templates/sync")),
   );
+}
+
+/**
+ * How each template has actually performed.
+ *
+ * Aggregates only, so this is a template read rather than a campaign one. Kept out of
+ * `useTemplates` because the list renders fine without it and a slower query should not hold up
+ * the screen an operator opens to write a template.
+ */
+export function useTemplateUsage(enabled = true) {
+  return useQuery({
+    queryKey: templateKeys.usage,
+    queryFn: async (): Promise<TemplateUsage[]> =>
+      unwrap(await api.GET("/api/v1/templates/usage")).data,
+    enabled,
+  });
 }

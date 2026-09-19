@@ -8,6 +8,8 @@ export type ReactivationHistoryStage = NonNullable<ReactivationStageEvent["from_
 export type ReactivationLabel = ReactivationCard["labels"][number];
 export type ReactivationNote = components["schemas"]["ReactivationNoteResponse"];
 export type EligibilityCheck = components["schemas"]["EligibilityCheckResponse"];
+export type ReactivationView = components["schemas"]["ReactivationViewResponse"];
+export type ReactivationViewCreate = components["schemas"]["ReactivationViewCreate"];
 
 type PipelineQuery = NonNullable<
   operations["get_reactivation_pipeline_api_v1_reactivation_pipeline_get"]["parameters"]["query"]
@@ -20,6 +22,7 @@ export interface ReactivationFilters {
   owner_user_id?: PipelineQuery["owner_user_id"];
   reminder_view?: PipelineQuery["reminder_view"];
   reminder_date?: PipelineQuery["reminder_date"];
+  offset?: PipelineQuery["offset"];
   limit?: PipelineQuery["limit"];
 }
 

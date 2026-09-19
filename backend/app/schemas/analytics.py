@@ -13,11 +13,14 @@ Incoming datetimes are normalised to naive-UTC — the stored form (Doc 03 §1.3
 
 from __future__ import annotations
 
+import uuid as uuidlib
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
-from pydantic import AfterValidator, BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
 
+from app.models.reactivation_view import WorkspaceView
+from app.models.report_schedule import ReportSchedule
 from app.services.analytics_query_service import (
     BreakdownResultView,
     BreakdownRowView,
@@ -32,10 +35,29 @@ PresetLiteral = Literal[
     "today", "yesterday", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"
 ]
 CompareLiteral = Literal["previous_period", "previous_year"]
-ExportFormatLiteral = Literal["csv", "xlsx", "json"]
+ExportFormatLiteral = Literal["csv", "xlsx", "json", "pdf"]
 #: The report entities of Doc 15 §19 — new ``exports.entity`` values, not a new export system.
 ReportLiteral = Literal[
-    "messages", "failures", "campaigns", "conversations", "tasks", "customers", "costs"
+    "messages",
+    "failures",
+    "campaigns",
+    "conversations",
+    "tasks",
+    "customers",
+    "costs",
+    "reactivation",
+    "kyc",
+    "service_levels",
+    "team_productivity",
+]
+ScheduledExportFormatLiteral = Literal["pdf", "xlsx", "csv"]
+ScheduledPresetLiteral = Literal[
+    "yesterday", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"
+]
+ScheduleGranularityLiteral = Literal["day", "week", "month"]
+ReportCadenceLiteral = Literal["daily", "weekly", "monthly"]
+WeekdayLiteral = Literal[
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
 ]
 
 MAX_METRICS = 24
@@ -64,7 +86,9 @@ class AnalyticsRangeFilters(BaseModel):
     preset: PresetLiteral | None = None
     granularity: GranularityLiteral = "day"
     timezone: str | None = Field(
-        default=None, max_length=64, description="IANA name; defaults to the caller's, then the org's."
+        default=None,
+        max_length=64,
+        description="IANA name; defaults to the caller's, then the org's.",
     )
     compare: CompareLiteral | None = None
 
@@ -96,6 +120,147 @@ class ReportExportRequest(BaseModel):
     report: ReportLiteral
     format: ExportFormatLiteral = "csv"
     filters: AnalyticsRangeFilters
+
+
+class ReportScheduleDefinition(BaseModel):
+    """The complete user-editable definition of an automatic report delivery."""
+
+    name: str = Field(min_length=1, max_length=120)
+    report: ReportLiteral
+    format: ScheduledExportFormatLiteral = "pdf"
+    preset: ScheduledPresetLiteral = "last_30d"
+    granularity: ScheduleGranularityLiteral = "day"
+    cadence: ReportCadenceLiteral = "weekly"
+    timezone: str = Field(min_length=1, max_length=64)
+    local_time: str = Field(pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    weekday: WeekdayLiteral | None = None
+    month_day: int | None = Field(default=None, ge=1, le=28)
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def _cadence_shape(self) -> ReportScheduleDefinition:
+        self.name = self.name.strip()
+        if not self.name:
+            raise ValueError("name cannot be blank")
+        if self.cadence == "weekly" and self.weekday is None:
+            raise ValueError("weekday is required for a weekly schedule")
+        if self.cadence != "weekly" and self.weekday is not None:
+            raise ValueError("weekday is only valid for a weekly schedule")
+        if self.cadence == "monthly" and self.month_day is None:
+            raise ValueError("month_day is required for a monthly schedule")
+        if self.cadence != "monthly" and self.month_day is not None:
+            raise ValueError("month_day is only valid for a monthly schedule")
+        return self
+
+
+class ReportScheduleCreate(ReportScheduleDefinition):
+    pass
+
+
+class ReportScheduleUpdate(ReportScheduleDefinition):
+    expected_row_version: int = Field(ge=0)
+
+
+class ReportScheduleResponse(ReportScheduleDefinition):
+    id: str
+    next_run_at: datetime | None
+    last_run_at: datetime | None
+    row_version: int
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_schedule(cls, row: ReportSchedule) -> ReportScheduleResponse:
+        return cls(
+            id=row.public_id,
+            name=row.name,
+            report=cast(ReportLiteral, row.report),
+            format=cast(ScheduledExportFormatLiteral, row.format),
+            preset=cast(ScheduledPresetLiteral, row.preset),
+            granularity=cast(ScheduleGranularityLiteral, row.granularity),
+            cadence=cast(ReportCadenceLiteral, row.cadence),
+            timezone=row.timezone,
+            local_time=row.local_time,
+            weekday=cast(WeekdayLiteral | None, row.weekday),
+            month_day=row.month_day,
+            is_active=row.is_active,
+            next_run_at=row.next_run_at,
+            last_run_at=row.last_run_at,
+            row_version=row.row_version,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+
+class ReportSchedulesResponse(BaseModel):
+    data: list[ReportScheduleResponse]
+
+
+ReportViewVisibility = Literal["private", "shared"]
+
+
+class ReportViewFilters(BaseModel):
+    """Portable report analysis filters; export, schedule and live-work state are excluded."""
+
+    from_: NaiveUTC | None = Field(default=None, alias="from")
+    to: NaiveUTC | None = None
+    preset: PresetLiteral | None = None
+    granularity: GranularityLiteral = "day"
+    compare: CompareLiteral | None = None
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def _portable_range_is_exact(self) -> ReportViewFilters:
+        if self.preset is not None and (self.from_ is not None or self.to is not None):
+            raise ValueError("a saved report view cannot combine a preset with an explicit range")
+        if self.preset is None and (self.from_ is None or self.to is None):
+            raise ValueError("provide either a preset or both 'from' and 'to'")
+        if self.from_ is not None and self.to is not None and self.from_ >= self.to:
+            raise ValueError("'from' must be earlier than 'to'")
+        return self
+
+
+class ReportViewCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    visibility: ReportViewVisibility = "private"
+    display: Literal["list"] = "list"
+    filters: ReportViewFilters
+
+
+class ReportViewResponse(BaseModel):
+    id: uuidlib.UUID
+    name: str
+    visibility: ReportViewVisibility
+    display: Literal["list"]
+    filters: ReportViewFilters
+    is_owner: bool
+    can_delete: bool
+    created_at: datetime
+
+    @classmethod
+    def from_view(
+        cls,
+        row: WorkspaceView,
+        *,
+        actor_user_id: int,
+        can_manage_shared: bool,
+    ) -> ReportViewResponse:
+        is_owner = row.created_by_user_id == actor_user_id
+        return cls(
+            id=uuidlib.UUID(row.public_id),
+            name=row.name,
+            visibility=row.visibility,
+            display="list",
+            filters=ReportViewFilters.model_validate(row.filters_json),
+            is_owner=is_owner,
+            can_delete=is_owner if row.visibility == "private" else can_manage_shared,
+            created_at=row.created_at,
+        )
+
+
+class ReportViewsResponse(BaseModel):
+    data: list[ReportViewResponse]
 
 
 # --- Response building blocks (Doc 15 §10) ---------------------------------------------------------
@@ -181,6 +346,14 @@ class AnalyticsKpiResponse(BaseModel):
     campaign_delivery_rate: float | None = None
     campaign_click_through_rate: float | None = None
     cost_per_delivered_micros: float | None = None
+    reactivation_conversion_rate: float | None = None
+    reactivation_drop_off_rate: float | None = None
+    avg_reactivation_turnaround_seconds: float | None = None
+    eligibility_rate: float | None = None
+    kyc_approval_rate: float | None = None
+    avg_kyc_turnaround_seconds: float | None = None
+    sla_breach_rate: float | None = None
+    sla_resolution_rate: float | None = None
 
     @classmethod
     def of(cls, kpis: dict[str, float | None]) -> AnalyticsKpiResponse:

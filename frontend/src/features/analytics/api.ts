@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -13,6 +13,12 @@ import type {
   ExportProgress,
   JobAccepted,
   ReportName,
+  ReportSchedule,
+  ReportScheduleCreate,
+  ReportScheduleUpdate,
+  ReportView,
+  ReportViewCreate,
+  TeamWorkload,
 } from "@/features/analytics/types";
 
 // Shared error helper, re-exported for this feature's components.
@@ -26,7 +32,40 @@ export const analyticsKeys = {
   breakdown: (q: object) => ["analytics", "breakdown", q] as const,
   freshness: ["analytics", "freshness"] as const,
   export: (id: string) => ["analytics", "export", id] as const,
+  schedules: ["analytics", "report-schedules"] as const,
+  views: ["analytics", "views"] as const,
+  workload: ["analytics", "team-workload"] as const,
 };
+
+export function useReportViews() {
+  return useQuery({
+    queryKey: analyticsKeys.views,
+    queryFn: async (): Promise<ReportView[]> =>
+      unwrap(await api.GET("/api/v1/analytics/views")).data,
+  });
+}
+
+export function useCreateReportView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ReportViewCreate): Promise<ReportView> =>
+      unwrap(await api.POST("/api/v1/analytics/views", { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: analyticsKeys.views }),
+  });
+}
+
+export function useDeleteReportView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/analytics/views/{view_id}", {
+        params: { path: { view_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: analyticsKeys.views }),
+  });
+}
 
 /**
  * Turn the filter state into the declared query parameters (Doc 15 §14.2).
@@ -68,7 +107,7 @@ export function useAnalyticsSeries(filters: AnalyticsFilterState, metrics: strin
   });
 }
 
-export function useAnalyticsComparison(filters: AnalyticsFilterState) {
+export function useAnalyticsComparison(filters: AnalyticsFilterState, enabled = true) {
   const query = {
     ...toRangeQuery(filters),
     compare: filters.compare || "previous_period",
@@ -78,6 +117,7 @@ export function useAnalyticsComparison(filters: AnalyticsFilterState) {
     queryFn: async (): Promise<AnalyticsComparison> =>
       unwrap(await api.GET("/api/v1/analytics/comparison", { params: { query } })),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -153,5 +193,63 @@ export function useReportExport(exportId: string | null) {
     enabled: Boolean(exportId),
     refetchInterval: (query) =>
       query.state.data?.download_url || query.state.data?.status === "failed" ? false : 3_000,
+  });
+}
+
+/** Current stock values live on the Team authority and are never summed as Analytics rollups. */
+export function useTeamWorkload(enabled = true) {
+  return useQuery({
+    queryKey: analyticsKeys.workload,
+    queryFn: async (): Promise<TeamWorkload> =>
+      unwrap(await api.GET("/api/v1/users/workload")),
+    enabled,
+  });
+}
+
+export function useReportSchedules(enabled = true) {
+  return useQuery({
+    queryKey: analyticsKeys.schedules,
+    queryFn: async (): Promise<ReportSchedule[]> =>
+      unwrap(await api.GET("/api/v1/analytics/report-schedules")).data,
+    enabled,
+  });
+}
+
+export function useCreateReportSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ReportScheduleCreate): Promise<ReportSchedule> =>
+      unwrap(await api.POST("/api/v1/analytics/report-schedules", { body })),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: analyticsKeys.schedules }),
+  });
+}
+
+export function useUpdateReportSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: ReportScheduleUpdate }) =>
+      unwrap(
+        await api.PUT("/api/v1/analytics/report-schedules/{schedule_id}", {
+          params: { path: { schedule_id: id } },
+          body,
+        }),
+      ),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: analyticsKeys.schedules }),
+  });
+}
+
+export function useDeleteReportSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, rowVersion }: { id: string; rowVersion: number }) =>
+      unwrap(
+        await api.DELETE("/api/v1/analytics/report-schedules/{schedule_id}", {
+          params: {
+            path: { schedule_id: id },
+            query: { expected_row_version: rowVersion },
+          },
+        }),
+      ),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: analyticsKeys.schedules }),
   });
 }

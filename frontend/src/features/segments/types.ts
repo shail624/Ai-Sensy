@@ -23,20 +23,49 @@ export type Tag = components["schemas"]["TagResponse"];
 
 // --- Field sources -------------------------------------------------------------------------------
 
-export type FieldSource = "contact" | "engagement" | "tag" | "attribute";
+export type FieldSource =
+  | "contact"
+  | "reactivation"
+  | "kyc"
+  | "document"
+  | "activation"
+  | "engagement"
+  | "scan"
+  | "tag"
+  | "attribute";
 
-export const FIELD_SOURCES: FieldSource[] = ["contact", "engagement", "tag", "attribute"];
+export const FIELD_SOURCES: FieldSource[] = [
+  "contact",
+  "reactivation",
+  "kyc",
+  "document",
+  "activation",
+  "engagement",
+  "scan",
+  "tag",
+  "attribute",
+];
 
 export const FIELD_SOURCE_LABELS: Record<FieldSource, string> = {
   contact: "Contact detail",
+  reactivation: "Reactivation",
+  kyc: "KYC",
+  document: "Documents",
+  activation: "Activation",
   engagement: "Engagement",
+  scan: "WhatsApp reachability",
   tag: "Tag",
   attribute: "Custom attribute",
 };
 
 export const FIELD_SOURCE_HINTS: Record<FieldSource, string> = {
   contact: "Who the contact is — name, phone, opt-in status, when they were added.",
+  reactivation: "Their current reactivation stage or latest eligibility decision.",
+  kyc: "Their current KYC lifecycle status.",
+  document: "Whether a current document of a governed type or status exists.",
+  activation: "Their current activation lifecycle status.",
   engagement: "When they were last in touch.",
+  scan: "What WhatsApp said when a campaign reached them — nothing is sent to find out.",
   tag: "Whether they carry a tag.",
   attribute: "One of this organization's own custom fields.",
 };
@@ -127,6 +156,115 @@ export const ENGAGEMENT_FIELDS: FieldSpec[] = [
   { key: "last_contacted_at", label: "Last contacted", kind: "datetime" },
 ];
 
+/**
+ * `_SCAN_FIELD` — what WhatsApp itself has said about the number.
+ *
+ * Derived on the server from delivery receipts for campaigns already sent, so a segment built on
+ * it is the same population the Scan screen lists. The labels match that screen's, because an
+ * operator who reads "Not on WhatsApp" there must find the same words here.
+ */
+export const SCAN_FIELDS: FieldSpec[] = [
+  {
+    key: "reachability",
+    label: "WhatsApp status",
+    kind: "enum",
+    choices: [
+      { value: "reachable", label: "On WhatsApp" },
+      { value: "unreachable", label: "Not on WhatsApp" },
+      { value: "unknown", label: "Never messaged" },
+    ],
+  },
+];
+
+export const REACTIVATION_FIELDS: FieldSpec[] = [
+  {
+    key: "stage",
+    label: "Current stage",
+    kind: "enum",
+    choices: [
+      { value: "new_lead", label: "New lead" },
+      { value: "lead_confirmed", label: "Lead confirmed" },
+      { value: "documents_pending", label: "Documents pending" },
+      { value: "documents_received", label: "Documents received" },
+      { value: "kyc_verification", label: "KYC verification" },
+      { value: "sim_required", label: "SIM required" },
+      { value: "activation_pending", label: "Activation pending" },
+      { value: "completed", label: "Completed" },
+      { value: "not_required", label: "Not required" },
+    ],
+  },
+  {
+    key: "eligibility_status",
+    label: "Latest eligibility",
+    kind: "enum",
+    choices: [
+      { value: "pending", label: "Pending" },
+      { value: "eligible", label: "Eligible" },
+      { value: "not_eligible", label: "Not eligible" },
+      { value: "review_required", label: "Review required" },
+    ],
+  },
+];
+
+export const KYC_FIELDS: FieldSpec[] = [
+  {
+    key: "status",
+    label: "KYC status",
+    kind: "enum",
+    choices: [
+      { value: "pending", label: "Pending" },
+      { value: "documents_pending", label: "Documents pending" },
+      { value: "under_review", label: "Under review" },
+      { value: "approved", label: "Approved" },
+      { value: "rejected", label: "Rejected" },
+    ],
+  },
+];
+
+export const DOCUMENT_FIELDS: FieldSpec[] = [
+  {
+    key: "status",
+    label: "Document status",
+    kind: "enum",
+    choices: [
+      { value: "submitted", label: "Submitted" },
+      { value: "verified", label: "Verified" },
+      { value: "rejected", label: "Rejected" },
+      { value: "expired", label: "Expired" },
+      { value: "archived", label: "Archived" },
+    ],
+  },
+  {
+    key: "document_type",
+    label: "Document type",
+    kind: "enum",
+    choices: [
+      { value: "identity", label: "Identity" },
+      { value: "address", label: "Address" },
+      { value: "income", label: "Income" },
+      { value: "business", label: "Business" },
+      { value: "consent", label: "Consent" },
+      { value: "other", label: "Other" },
+    ],
+  },
+];
+
+export const ACTIVATION_FIELDS: FieldSpec[] = [
+  {
+    key: "status",
+    label: "Activation status",
+    kind: "enum",
+    choices: [
+      { value: "pending", label: "Pending" },
+      { value: "verification", label: "Verification" },
+      { value: "ready", label: "Ready" },
+      { value: "approved", label: "Approved" },
+      { value: "completed", label: "Completed" },
+      { value: "rejected", label: "Rejected" },
+    ],
+  },
+];
+
 /** The custom-attribute `data_type` values, mapped to the operator set the compiler allows. */
 export function kindForDataType(dataType: string): ValueKind {
   if (dataType === "number") return "number";
@@ -141,7 +279,12 @@ export function fieldsForSource(
   attributes: AttributeDefinition[],
 ): FieldSpec[] {
   if (source === "contact") return CONTACT_FIELDS;
+  if (source === "reactivation") return REACTIVATION_FIELDS;
+  if (source === "kyc") return KYC_FIELDS;
+  if (source === "document") return DOCUMENT_FIELDS;
+  if (source === "activation") return ACTIVATION_FIELDS;
   if (source === "engagement") return ENGAGEMENT_FIELDS;
+  if (source === "scan") return SCAN_FIELDS;
   if (source === "attribute") {
     return attributes.map((definition) => ({
       key: definition.key_name,

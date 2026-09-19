@@ -43,6 +43,7 @@ from app.models.campaign import (
     CampaignRecipient,
 )
 from app.models.message import Message
+from app.models.template import MessageTemplate
 from app.models.user import User
 from app.repositories.campaign import (
     CampaignBatchRepository,
@@ -57,6 +58,12 @@ from app.services.audit_service import AuditAction, AuditService
 from app.services.campaign_batch_service import CampaignBatchService
 from app.services.campaign_retry_service import CampaignRetryService
 from app.services.send_service import SendService
+from app.services.template_validation import (
+    button_targets,
+    header_media_format,
+    header_media_gap,
+    variable_map_gaps,
+)
 
 logger = get_logger(__name__)
 
@@ -97,6 +104,48 @@ class CampaignNotDispatchable(ConflictError):
 
     code = "campaign_not_dispatchable"
     title = "Campaign Not Dispatchable"
+
+
+
+
+def _header_media(campaign: Campaign, template: MessageTemplate) -> dict[str, Any]:
+    """The media header this campaign sends, in the shape ``SendService`` reads.
+
+    ``kind`` comes from the template rather than from the asset: the template is what declares the
+    header is an image, and the campaign was refused at creation unless the file matched. Reading
+    it back off the asset would let a file replaced afterwards change what the template says it is.
+
+    Omitted entirely when there is none, because ``SendService`` treats an empty dict and a missing
+    key the same, while a present-but-empty one reads like an answer.
+    """
+    reference = (campaign.variable_map_json or {}).get("header_media") or {}
+    asset_id = reference.get("media_asset_id") if isinstance(reference, dict) else None
+    kind = header_media_format(template.components_json or [])
+    if not asset_id or not kind:
+        return {}
+    return {"header_media": {"media_asset_id": str(asset_id), "kind": kind}}
+
+
+def _button_values(template: MessageTemplate, variables: dict[str, Any]) -> list[dict[str, Any]]:
+    """This recipient's button values, paired back to the buttons they belong to.
+
+    The roster stores the resolved values in order; Meta addresses a button parameter by its
+    *index within the template*, so the two have to be paired here rather than assumed to line up.
+    A template whose second button is a fixed phone number and whose third carries the link would
+    otherwise send the link as parameter two and reach nobody.
+
+    This was a hardcoded ``[]``. Everything either side of it supported button values -- the
+    campaign's variable map, the send path, the Meta adapter -- so a template whose link carried a
+    variable was built, previewed and dispatched with no button parameter at all, and Meta rejected
+    it once per recipient.
+    """
+    supplied = list(variables.get("buttons") or [])
+    values: list[dict[str, Any]] = []
+    for row in button_targets(template.components_json or []):
+        if not row["takes_value"] or not supplied:
+            continue
+        values.append({"index": row["index"], "type": row["type"], "value": supplied.pop(0)})
+    return values
 
 
 class CampaignDispatchService:
@@ -154,9 +203,39 @@ class CampaignDispatchService:
             raise CampaignNotDispatchable(
                 f"Template is {template.status if template else 'missing'} and cannot be sent."
             )
+        self._check_template_still_fits(campaign, template)
         number = await self._numbers.get_by_id(campaign.phone_number_id)
         if number is None or number.deleted_at is not None:
             raise CampaignNotDispatchable("The sending number is no longer connected.")
+
+
+    @staticmethod
+    def _check_template_still_fits(campaign: Campaign, template: MessageTemplate) -> None:
+        """The template's *shape* can move between create and dispatch, not only its status.
+
+        The status re-check above already accepts that premise — Meta may pause a template after a
+        campaign is built. The same is true of its definition: ``_apply_definition`` rewrites
+        ``components_json``, ``variable_count`` and ``has_media_header``, and the template sync
+        calls it, so a campaign mapped against two variables can arrive here facing three.
+
+        Unchecked, that is not one failure but one per recipient: each send is rejected separately
+        for a count mismatch, the campaign burns through its roster producing identical errors, and
+        the operator reads the reason thousands of times after the window is spent. Refusing the
+        campaign says the same thing once, while there is still time to remap it.
+        """
+        components = template.components_json or []
+        variable_map = campaign.variable_map_json or {}
+        gaps = variable_map_gaps(components, variable_map)
+        media = header_media_gap(components, variable_map)
+        if not gaps and media is None:
+            return
+        reasons = [f"{label} now needs {wanted}, the campaign maps {got}" for label, wanted, got in gaps]
+        if media is not None:
+            reasons.append(media)
+        raise CampaignNotDispatchable(
+            f"Template {template.name!r} changed after this campaign was built: "
+            f"{'; '.join(reasons)}. Edit the campaign to remap it, then dispatch again."
+        )
 
     # --- Orchestration (campaigns.control) ----------------------------------
     async def plan(self, campaign_pk: int) -> dict[str, Any]:
@@ -283,7 +362,12 @@ class CampaignDispatchService:
                         "id": template.public_id,
                         "header": list(variables.get("header") or []),
                         "body": list(variables.get("body") or []),
-                        "buttons": [],
+                        "buttons": _button_values(template, variables),
+                        # The campaign's own file, the same one for every recipient. Read from the
+                        # map rather than the roster: it is a property of the campaign, not of the
+                        # customer, and copying it onto every row would be a hundred thousand
+                        # copies of one id.
+                        **_header_media(campaign, template),
                     }
                 },
                 campaign_id=campaign.id,

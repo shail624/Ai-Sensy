@@ -76,7 +76,7 @@ export function useAutomationRuns(id: string | null) {
       ).data,
     enabled: Boolean(id),
     refetchInterval: (query) =>
-      query.state.data?.some((run) => ACTIVE_RUN_STATUSES.has(run.status)) ? 1_000 : false,
+      query.state.data?.some((run) => ACTIVE_RUN_STATUSES.has(run.status)) ? 1_000 : 5_000,
   });
 }
 
@@ -105,6 +105,8 @@ export function useAutomationTriggerReceipts(id: string | null) {
         }),
       ).data,
     enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data?.some((receipt) => receipt.status === "processing") ? 1_000 : 5_000,
   });
 }
 

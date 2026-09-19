@@ -46,17 +46,36 @@ AUTOMATION_RUN_TERMINAL_STATUSES = (AUTOMATION_RUN_SUCCEEDED, AUTOMATION_RUN_FAI
 
 AUTOMATION_ATTEMPT_RUNNING = "running"
 AUTOMATION_ATTEMPT_SUCCEEDED = "succeeded"
+AUTOMATION_ATTEMPT_SKIPPED = "skipped"
 AUTOMATION_ATTEMPT_FAILED = "failed"
 AUTOMATION_ATTEMPT_INTERRUPTED = "interrupted"
 AUTOMATION_ATTEMPT_STATUSES: tuple[str, ...] = (
     AUTOMATION_ATTEMPT_RUNNING,
     AUTOMATION_ATTEMPT_SUCCEEDED,
+    AUTOMATION_ATTEMPT_SKIPPED,
     AUTOMATION_ATTEMPT_FAILED,
     AUTOMATION_ATTEMPT_INTERRUPTED,
 )
 
 AUTOMATION_TRIGGER_RECEIPT_RECEIVED = "received"
-AUTOMATION_TRIGGER_RECEIPT_STATUSES = (AUTOMATION_TRIGGER_RECEIPT_RECEIVED,)
+AUTOMATION_TRIGGER_RECEIPT_PROCESSING = "processing"
+AUTOMATION_TRIGGER_RECEIPT_PROCESSED = "processed"
+AUTOMATION_TRIGGER_RECEIPT_FAILED = "failed"
+AUTOMATION_TRIGGER_RECEIPT_STATUSES = (
+    AUTOMATION_TRIGGER_RECEIPT_RECEIVED,
+    AUTOMATION_TRIGGER_RECEIPT_PROCESSING,
+    AUTOMATION_TRIGGER_RECEIPT_PROCESSED,
+    AUTOMATION_TRIGGER_RECEIPT_FAILED,
+)
+
+AUTOMATION_WAIT_WAITING = "waiting"
+AUTOMATION_WAIT_MATCHED = "matched"
+AUTOMATION_WAIT_TIMED_OUT = "timed_out"
+AUTOMATION_WAIT_STATUSES = (
+    AUTOMATION_WAIT_WAITING,
+    AUTOMATION_WAIT_MATCHED,
+    AUTOMATION_WAIT_TIMED_OUT,
+)
 
 
 def _status_clause() -> str:
@@ -75,6 +94,10 @@ def _trigger_receipt_status_clause() -> str:
     return f"status IN ({', '.join(repr(value) for value in AUTOMATION_TRIGGER_RECEIPT_STATUSES)})"
 
 
+def _wait_status_clause() -> str:
+    return f"status IN ({', '.join(repr(value) for value in AUTOMATION_WAIT_STATUSES)})"
+
+
 class AutomationFlow(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionMixin, Base):
     """One tenant-scoped mutable automation draft and its selected publication."""
 
@@ -82,6 +105,7 @@ class AutomationFlow(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionM
     __table_args__ = (
         Index("ix_automation_flows_org_updated", "organization_id", "updated_at"),
         Index("ix_automation_flows_org_status_updated", "organization_id", "status", "updated_at"),
+        Index("ix_automation_flows_schedule_due", "status", "next_run_at"),
         CheckConstraint(_status_clause(), name="ck_automation_flows_status"),
         MYSQL_TABLE_ARGS,
     )
@@ -98,6 +122,7 @@ class AutomationFlow(IntPKMixin, UUIDMixin, TimestampMixin, AuditMixin, VersionM
     draft_content_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     active_version_no: Mapped[int | None] = mapped_column(int_id(), nullable=True)
     active_content_hash: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
 
 
 class AutomationFlowVersion(IntPKMixin, UUIDMixin, Base):
@@ -128,7 +153,7 @@ class AutomationFlowVersion(IntPKMixin, UUIDMixin, Base):
 
 
 class AutomationRun(IntPKMixin, UUIDMixin, Base):
-    """One tenant-scoped test execution pinned to an immutable published version."""
+    """One tenant-scoped test or live execution pinned to an immutable version."""
 
     __tablename__ = "automation_runs"
     __table_args__ = (
@@ -138,7 +163,7 @@ class AutomationRun(IntPKMixin, UUIDMixin, Base):
         Index("ix_automation_runs_flow_created", "flow_id", "created_at"),
         Index("ix_automation_runs_org_status_created", "organization_id", "status", "created_at"),
         CheckConstraint(_run_status_clause(), name="ck_automation_runs_status"),
-        CheckConstraint("mode = 'test'", name="ck_automation_runs_mode"),
+        CheckConstraint("mode IN ('test','live')", name="ck_automation_runs_mode"),
         MYSQL_TABLE_ARGS,
     )
 
@@ -214,6 +239,7 @@ class AutomationTriggerReceipt(IntPKMixin, UUIDMixin, Base):
         UniqueConstraint(
             "flow_id", "version_id", "event_uuid", name="uq_automation_trigger_receipt"
         ),
+        UniqueConstraint("run_id", name="uq_automation_trigger_receipts_run"),
         Index("ix_automation_trigger_receipts_flow_received", "flow_id", "received_at"),
         Index(
             "ix_automation_trigger_receipts_org_status_received",
@@ -244,6 +270,15 @@ class AutomationTriggerReceipt(IntPKMixin, UUIDMixin, Base):
         ),
         nullable=False,
     )
+    run_id: Mapped[int | None] = mapped_column(
+        big_id(),
+        ForeignKey(
+            "automation_runs.id",
+            name="fk_automation_trigger_receipts_run",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+    )
     event_uuid: Mapped[bytes] = mapped_column(uuid_binary(), nullable=False)
     event_type: Mapped[str] = mapped_column(String(80), nullable=False)
     event_version: Mapped[int] = mapped_column(int_id(), nullable=False, default=1)
@@ -253,3 +288,61 @@ class AutomationTriggerReceipt(IntPKMixin, UUIDMixin, Base):
         String(16), nullable=False, default=AUTOMATION_TRIGGER_RECEIPT_RECEIVED
     )
     received_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+    processing_started_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
+
+
+class AutomationWaitSubscription(IntPKMixin, UUIDMixin, Base):
+    """One bounded, contact-scoped pause owned by a pinned live run."""
+
+    __tablename__ = "automation_wait_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("run_id", "node_id", name="uq_automation_wait_subscription_run_node"),
+        Index(
+            "ix_automation_wait_subscriptions_match",
+            "organization_id",
+            "status",
+            "event_type",
+            "contact_id",
+            "started_at",
+        ),
+        Index(
+            "ix_automation_wait_subscriptions_timeout",
+            "status",
+            "timeout_at",
+        ),
+        Index(
+            "ix_automation_wait_subscriptions_matched_event",
+            "matched_event_uuid",
+        ),
+        CheckConstraint(_wait_status_clause(), name="ck_automation_wait_subscriptions_status"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    organization_id: Mapped[int] = mapped_column(big_id(), nullable=False)
+    run_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey(
+            "automation_runs.id",
+            name="fk_automation_wait_subscriptions_run",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    receipt_id: Mapped[int] = mapped_column(
+        big_id(),
+        ForeignKey(
+            "automation_trigger_receipts.id",
+            name="fk_automation_wait_subscriptions_receipt",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+    )
+    node_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    contact_id: Mapped[int] = mapped_column(big_id(), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=AUTOMATION_WAIT_WAITING)
+    started_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False, default=utcnow)
+    timeout_at: Mapped[datetime] = mapped_column(datetime6(), nullable=False)
+    matched_event_uuid: Mapped[bytes | None] = mapped_column(uuid_binary(), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)

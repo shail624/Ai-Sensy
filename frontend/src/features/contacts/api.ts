@@ -6,12 +6,57 @@ import type {
   BulkAction,
   BulkProgress,
   ContactsPage,
+  ContactCreate,
+  ContactView,
+  ContactViewCreate,
   ExportProgress,
   ImportInspection,
   ImportProgress,
   JobAccepted,
   SegmentRule,
 } from "@/features/contacts/types";
+
+export const contactKeys = {
+  views: ["contacts", "views"] as const,
+};
+
+export function useCreateContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ContactCreate) => unwrap(await api.POST("/api/v1/contacts", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contacts", "search"] }),
+  });
+}
+
+export function useContactViews() {
+  return useQuery({
+    queryKey: contactKeys.views,
+    queryFn: async (): Promise<ContactView[]> =>
+      unwrap(await api.GET("/api/v1/contacts/views")).data,
+  });
+}
+
+export function useCreateContactView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ContactViewCreate): Promise<ContactView> =>
+      unwrap(await api.POST("/api/v1/contacts/views", { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: contactKeys.views }),
+  });
+}
+
+export function useDeleteContactView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/contacts/views/{view_id}", {
+        params: { path: { view_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: contactKeys.views }),
+  });
+}
 
 export interface ContactSearchParams {
   rules: SegmentRule[];
@@ -185,6 +230,30 @@ export function useStartContactImport() {
       unwrap(
         await api.POST("/api/v1/contacts/import", {
           body: { upload_id: uploadId, format, mapping, dedup_strategy: dedupStrategy },
+        }),
+      ),
+  });
+}
+
+/**
+ * Pull a Google Sheet tab in as an upload.
+ *
+ * Returns the same `upload_id` a file upload does, so everything after this — inspect, mapping,
+ * dedup, start, progress — is the wizard's existing path unchanged. A sheet is a source of rows,
+ * not a second kind of import.
+ */
+export function useStageGoogleSheet() {
+  return useMutation({
+    mutationFn: async ({
+      spreadsheetId,
+      tab,
+    }: {
+      spreadsheetId: string;
+      tab: string;
+    }): Promise<{ upload_id: string; rows: number; columns: number }> =>
+      unwrap(
+        await api.POST("/api/v1/contacts/import/google-sheet", {
+          body: { spreadsheet_id: spreadsheetId, tab },
         }),
       ),
   });

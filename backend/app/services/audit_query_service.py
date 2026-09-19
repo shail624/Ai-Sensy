@@ -8,6 +8,7 @@ paths distinct. Actor internal ids are resolved to public UUIDs so internal ids 
 from __future__ import annotations
 
 import uuid as uuidlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -16,6 +17,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.repositories.audit import AuditRepository
 from app.repositories.user import UserRepository
+from app.services.audit_service import AuditAction
+
+#: The three outcomes a sign-in attempt can have. Kept together because a history of
+#: successes alone cannot show an account under attack.
+LOGIN_ACTIONS = (
+    AuditAction.LOGIN,
+    AuditAction.LOGIN_FAILED,
+    AuditAction.LOGIN_LOCKED,
+)
 
 
 @dataclass(slots=True)
@@ -30,6 +40,36 @@ class AuditQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._audit = AuditRepository(session)
         self._users = UserRepository(session)
+
+    async def login_history(
+        self,
+        organization_id: int,
+        *,
+        user_id: int,
+        limit: int,
+        cursor: tuple[datetime, int] | None,
+    ) -> AuditPage:
+        """One user's sign-in attempts, newest first.
+
+        Reads the audit trail rather than a second store: successful sign-ins, rejected passwords
+        and lockouts are already recorded there with their source address, and a parallel table
+        would be a second version of the same truth.
+
+        All three outcomes are returned together. A history showing only successes answers "when
+        did they last sign in" but not "is somebody trying to get in", which is the question that
+        makes this worth having.
+        """
+        return await self.list_entries(
+            organization_id,
+            limit=limit,
+            cursor=cursor,
+            actor_user_id=user_id,
+            entity_type=None,
+            action=None,
+            actions=LOGIN_ACTIONS,
+            date_from=None,
+            date_to=None,
+        )
 
     async def resolve_actor_id(self, actor_uuid: uuidlib.UUID) -> int | None:
         user = await self._users.get_by_uuid(actor_uuid)
@@ -46,6 +86,7 @@ class AuditQueryService:
         action: str | None,
         date_from: datetime | None,
         date_to: datetime | None,
+        actions: Sequence[str] | None = None,
     ) -> AuditPage:
         entries, has_more = await self._audit.paginate(
             organization_id,
@@ -54,6 +95,7 @@ class AuditQueryService:
             actor_user_id=actor_user_id,
             entity_type=entity_type,
             action=action,
+            actions=actions,
             date_from=date_from,
             date_to=date_to,
         )
@@ -62,6 +104,7 @@ class AuditQueryService:
             actor_user_id=actor_user_id,
             entity_type=entity_type,
             action=action,
+            actions=actions,
             date_from=date_from,
             date_to=date_to,
         )

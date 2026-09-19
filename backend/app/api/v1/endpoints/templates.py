@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.v1.endpoints.waba import ChannelUnavailableError
@@ -20,6 +20,7 @@ from app.channels.errors import ChannelError
 from app.core.config import settings
 from app.models.template import MessageTemplate
 from app.models.user import User
+from app.repositories.template_usage import TemplateUsageRepository
 from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.schemas.template import (
     TemplateCreateRequest,
@@ -27,6 +28,8 @@ from app.schemas.template import (
     TemplatePreviewResponse,
     TemplateResponse,
     TemplateUpdateRequest,
+    TemplateUsageListResponse,
+    TemplateUsageResponse,
     TemplateVersionEntry,
     TemplateVersionsResponse,
 )
@@ -120,6 +123,36 @@ async def sync_templates(
     )
 
 
+@router.get(
+    "/templates/usage",
+    response_model=TemplateUsageListResponse,
+    summary="How each template has actually performed",
+)
+async def template_usage(session: SessionDep, actor: TemplateReader) -> TemplateUsageListResponse:
+    """Campaigns sent, people reached, delivered, failed and when each template was last used.
+
+    Templates are chosen by name today, which means they are chosen by memory. Every one of these
+    numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.
+
+    Aggregates only: "which template works" is a template question, and answering it names no
+    customer and no campaign. A template nobody has sent is listed with zeros rather than omitted,
+    because an unused template is either new or quietly broken and its absence from the list is the
+    thing most worth seeing.
+
+    Counts what was sent, not what was planned. A campaign materialises its entire roster the
+    moment it is created, while it is still a draft, so an unfinished draft puts rows in the ledger
+    for sends nobody has authorised. Those are not campaigns here, not recipients, and do not make
+    the template look recently used — a template delivering to everyone must not read as a failure
+    because a colleague is midway through drafting a large campaign with it.
+
+    Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
+    """
+    usage = await TemplateUsageRepository(session).list_usage(actor.organization_id)
+    return TemplateUsageListResponse(
+        data=[TemplateUsageResponse.from_usage(row) for row in usage]
+    )
+
+
 @router.get("/templates/{template_id}", response_model=TemplateResponse, summary="Get a template")
 async def get_template(
     template_id: uuidlib.UUID, session: SessionDep, actor: TemplateReader
@@ -176,22 +209,43 @@ async def delete_template(
 )
 async def preview_template(
     template_id: uuidlib.UUID,
-    request: Request,
     session: SessionDep,
     actor: TemplateReader,
+    header: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the header's variables, in order."),
+    ] = None,
+    body: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the body's variables, in order."),
+    ] = None,
+    button: Annotated[
+        list[str] | None,
+        Query(description="Sample values for the buttons that take one, in button order."),
+    ] = None,
 ) -> TemplatePreviewResponse:
     """Pure render (FR-TPL-08): nothing is stored and nothing is sent.
 
-    Sample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this
-    a `GET` — it is a projection of the template, not a change to it.
+    Sample values ride the query string (`?body=Priya&body=%231234&button=TXN9931`) because Doc 04
+    §15 makes this a `GET` — it is a projection of the template, not a change to it.
+
+    They are declared as parameters rather than read off the raw request. Read raw they worked, but
+    they were absent from the published contract, so the generated client could not send them and
+    no screen ever did: the endpoint had a sample-value feature that nothing could reach.
+
+    Buttons are rendered with the text, and their destinations with them. A URL button carries its
+    variable inside the link — `https://vi.in/pay/{{1}}` — which appears on no other screen, so a
+    variable mapped to the wrong column is invisible right up until a customer taps it. By then the
+    same link has gone to everyone in the campaign.
+
+    `expects` says how many values each part takes, so a caller can offer exactly that many boxes
+    without re-implementing Meta's numbering rules in a second place.
     """
     service = TemplateService(session)
     template = await service.get_template(actor.organization_id, template_id)
     return TemplatePreviewResponse(
         **await service.preview(
-            template,
-            header=request.query_params.getlist("header"),
-            body=request.query_params.getlist("body"),
+            template, header=header or [], body=body or [], buttons=button or []
         )
     )
 

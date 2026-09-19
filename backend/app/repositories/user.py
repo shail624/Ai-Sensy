@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.models.role import Role, UserRole
+from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -103,6 +103,34 @@ class UserRepository(BaseRepository[User]):
         stmt = (
             select(User)
             .where(User.organization_id == organization_id, User.deleted_at.is_(None))
+            .order_by(User.id)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def list_workload_owners(self, organization_id: int) -> list[User]:
+        """All owners, including soft-deleted rows that may still hold pending work."""
+        stmt = select(User).where(User.organization_id == organization_id).order_by(User.id)
+        return list((await self.session.scalars(stmt)).all())
+
+    async def list_active_with_permission(
+        self, organization_id: int, permission_code: str
+    ) -> list[User]:
+        """Active users eligible for system assignment under the effective RBAC model."""
+        permitted_user_ids = (
+            select(UserRole.user_id)
+            .join(Role, Role.id == UserRole.role_id)
+            .join(role_permissions, role_permissions.c.role_id == Role.id)
+            .join(Permission, Permission.id == role_permissions.c.permission_id)
+            .where(Role.deleted_at.is_(None), Permission.code == permission_code)
+        )
+        stmt = (
+            select(User)
+            .where(
+                User.organization_id == organization_id,
+                User.deleted_at.is_(None),
+                User.is_active.is_(True),
+                or_(User.is_superuser.is_(True), User.id.in_(permitted_user_ids)),
+            )
             .order_by(User.id)
         )
         return list((await self.session.scalars(stmt)).all())

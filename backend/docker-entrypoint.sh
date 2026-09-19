@@ -12,8 +12,11 @@
 #
 # Anything else is executed verbatim, so one-off operational commands need no --entrypoint:
 #
-#   docker compose run --rm api python -m app.cli create-owner
 #   docker compose run --rm migrate alembic current
+#
+# Creating the first owner is *not* one of these: `app.cli create-owner` reads OWNER_EMAIL
+# and OWNER_PASSWORD from the container environment, and only the `bootstrap` service in
+# docker-compose.production.yml declares them. Use `--profile bootstrap run --rm bootstrap`.
 #
 set -eu
 

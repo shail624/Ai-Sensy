@@ -187,7 +187,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List users */
+        /**
+         * List users
+         * @description The organization's users.
+         *
+         *     Pagination and search are declared (Doc 04 §6, §7.3); the `filter[field][op]` grammar of §7.1
+         *     stays on the raw request because it spans any field crossed with eleven operators.
+         */
         get: operations["list_users_api_v1_users_get"];
         put?: never;
         /** Create a user */
@@ -209,6 +215,54 @@ export interface paths {
         get: operations["get_preferences_api_v1_users_me_preferences_get"];
         /** Update own preferences */
         put: operations["update_preferences_api_v1_users_me_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/workload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current team workload snapshot
+         * @description Pending work by teammate; conversation/task tables remain the live authorities.
+         */
+        get: operations["team_workload_api_v1_users_workload_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/login-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A user's sign-in history
+         * @description Successful sign-ins, rejected passwords and lockouts for one user, newest first.
+         *
+         *     The audit trail already records all three with their source address, so this reads that rather
+         *     than keeping a second copy of the same truth. Failures and lockouts are included deliberately:
+         *     a list of successes answers "when did they last sign in", but only the failures answer "is
+         *     somebody trying to get in", which is the question worth asking.
+         *
+         *     Gated on `users:read` — the same permission as viewing the user — and scoped to the caller's
+         *     organization, so one tenant cannot read another's sign-in activity.
+         */
+        get: operations["user_login_history_api_v1_users__user_id__login_history_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -376,6 +430,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/inbox-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the effective inbox operations policy */
+        get: operations["get_inbox_operations_api_v1_settings_inbox_operations_get"];
+        /** Update the validated inbox operations policy */
+        put: operations["update_inbox_operations_api_v1_settings_inbox_operations_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/feature-flags": {
         parameters: {
             query?: never;
@@ -428,6 +500,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/api-keys/{key_id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate an API key (new secret shown once)
+         * @description Replace a key's secret while keeping its name, scopes and audit history.
+         *
+         *     The previous secret stops authenticating immediately, so update the consumer first. Revoked
+         *     keys are not rotatable: reviving one would hand back a working secret for a credential
+         *     somebody deliberately retired.
+         */
+        post: operations["rotate_api_key_api_v1_api_keys__key_id__rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/api-keys/{key_id}": {
         parameters: {
             query?: never;
@@ -452,7 +548,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Query the audit trail */
+        /**
+         * Query the audit trail
+         * @description The audit trail, newest first.
+         *
+         *     Pagination is declared, because Doc 04 section 6 fixes `limit` and `cursor` for every
+         *     collection and section 1 requires the API to be fully OpenAPI-describable — undeclared, they
+         *     are unreachable from the generated client, which is the only contract the frontend may use.
+         *
+         *     The `filter[field][op]` grammar of section 7.1 stays on the raw request deliberately: it spans
+         *     any field crossed with eleven operators, so there is no finite set of parameters to declare.
+         */
         get: operations["list_audit_logs_api_v1_audit_logs_get"];
         put?: never;
         post?: never;
@@ -469,12 +575,53 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List/search/filter contacts */
+        /**
+         * List/search/filter contacts
+         * @description Contacts, with search, sort and pagination declared per Doc 04 §6 and §7.2-7.3.
+         *
+         *     The `filter[field][op]` grammar of §7.1 stays on the raw request: it spans any field crossed
+         *     with eleven operators, so there is no finite set of parameters to declare.
+         */
         get: operations["list_contacts_api_v1_contacts_get"];
         put?: never;
         /** Create a contact */
         post: operations["create_contact_api_v1_contacts_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal and team-shared Contacts views */
+        get: operations["list_contact_views_api_v1_contacts_views_get"];
+        put?: never;
+        /** Save a personal or team-shared Contacts view */
+        post: operations["create_contact_view_api_v1_contacts_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an owned personal or managed team Contacts view */
+        delete: operations["delete_contact_view_api_v1_contacts_views__view_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -574,10 +721,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Contact activity timeline */
+        /**
+         * Contact activity timeline
+         * @description A contact's event history, newest first, with declared pagination (Doc 04 §6).
+         */
         get: operations["contact_timeline_api_v1_contacts__contact_id__timeline_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/import/google-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pull a Google Sheet tab in as an upload (imports nothing)
+         * @description Fetch one tab with the configured service account and store it as a CSV upload.
+         *
+         *     Nothing about contacts happens here. The returned `upload_id` is the same one
+         *     `/contacts/import/inspect` and `/contacts/import` already take, so a sheet reaches contacts
+         *     through the one import pipeline — same mapping step, same dedup strategy, same per-row error
+         *     report, same audit trail. A second import path would be a second set of rules to keep in step,
+         *     and the one that drifted would be the one nobody was watching.
+         *
+         *     Requires `contacts:import`, the same permission as uploading a file, because it is the same
+         *     act: choosing which rows become customers.
+         */
+        post: operations["stage_google_sheet_api_v1_contacts_import_google_sheet_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -756,6 +935,125 @@ export interface paths {
         get: operations["bulk_progress_api_v1_contacts_bulk__bulk_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-resolution/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve exact provider/endpoint identities to one canonical Contact */
+        post: operations["resolve_identity_api_v1_identity_resolution_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contacts/{contact_id}/identities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List immutable exact identities linked to a canonical Contact */
+        get: operations["list_contact_identities_api_v1_contacts__contact_id__identities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the tenant-scoped manual identity review queue */
+        get: operations["list_identity_conflicts_api_v1_identity_conflicts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-conflicts/{conflict_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one identity conflict and its recommendation history */
+        get: operations["get_identity_conflict_api_v1_identity_conflicts__conflict_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-conflicts/{conflict_id}/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a non-destructive operator merge recommendation */
+        post: operations["create_identity_recommendation_api_v1_identity_conflicts__conflict_id__recommendations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-merge-recommendations/{recommendation_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a recommendation without merging or moving identities */
+        post: operations["approve_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/identity-merge-recommendations/{recommendation_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a recommendation without merging or moving identities */
+        post: operations["reject_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -967,7 +1265,7 @@ export interface paths {
         delete: operations["delete_attribute_api_v1_custom_attributes__attribute_id__delete"];
         options?: never;
         head?: never;
-        /** Update label / indexing / enum values */
+        /** Update label, indexing, enum values, required and retired state */
         patch: operations["update_attribute_api_v1_custom_attributes__attribute_id__patch"];
         trace?: never;
     };
@@ -1015,7 +1313,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Preview matching contacts (paginated) */
+        /**
+         * Preview matching contacts (paginated)
+         * @description A page of the contacts a segment currently matches.
+         *
+         *     Pagination is declared per Doc 04 §6, so it is reachable from the generated client.
+         */
         get: operations["preview_segment_api_v1_segments__segment_id__contacts_get"];
         put?: never;
         post?: never;
@@ -1121,7 +1424,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List background jobs */
+        /**
+         * List background jobs
+         * @description Background jobs, newest first.
+         *
+         *     Pagination is declared (Doc 04 §6); the `filter[field][op]` grammar of §7.1 stays on the raw
+         *     request because it spans any field crossed with eleven operators.
+         */
         get: operations["list_jobs_api_v1_jobs_get"];
         put?: never;
         post?: never;
@@ -1206,7 +1515,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the media library */
+        /**
+         * List the media library
+         * @description The media library.
+         *
+         *     Declaring `limit` also removes a latent 500: the previous `int(...)` on the raw value raised
+         *     on anything non-numeric, so `?limit=abc` was a server error rather than a rejected request.
+         */
         get: operations["list_media_api_v1_media_get"];
         put?: never;
         post?: never;
@@ -1283,6 +1598,26 @@ export interface paths {
          * @description Serve a job artifact's bytes to a valid signed URL.
          */
         get: operations["download_artifact_api_v1_artifacts__artifact_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the current user's generated exports
+         * @description Return a tenant-, owner-, and current-permission-scoped artifact history.
+         */
+        get: operations["list_downloads_api_v1_downloads_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1447,6 +1782,137 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/waha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive WAHA inbound events (public, HMAC-gated) — QR-08
+         * @description The WAHA analogue of :func:`receive_webhook` (QR-04 built the verify/parse/dedupe logic in
+         *     ``app.channels.waha.webhook``; this is the first HTTP route that reaches it).
+         *
+         *     No GET handshake: unlike Meta, WAHA has no subscription challenge to answer — it is configured
+         *     with this URL directly and simply starts posting. The gate is the same shape as Meta's: an
+         *     HMAC over the raw body, checked before anything is parsed, failing closed on an unconfigured
+         *     secret. Persist-first, process-async is unchanged — this endpoint does no more than
+         *     :func:`receive_webhook` does for Meta.
+         */
+        post: operations["receive_waha_webhook_api_v1_webhooks_waha_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List received webhook events
+         * @description Inbound deliveries for this organization, newest first.
+         *
+         *     The health view for the ingest path: whether deliveries are arriving, whether their signatures
+         *     verified, and whether they reached `processed` or stalled at `received`. Payload bodies are not
+         *     returned — message content belongs to the Inbox, behind `inbox:read`, not to a second copy on
+         *     an operations screen.
+         */
+        get: operations["list_webhook_events_api_v1_webhooks_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/dead-letter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the dead-letter queue
+         * @description Events that could not be processed, with the error that stopped each one.
+         *
+         *     An event reaches this queue after its retries are exhausted (Doc 04 §23.1: capped exponential
+         *     backoff, at most five attempts, then parked as `pending` for a human). Until now nothing
+         *     exposed the queue, so the parking was real but the human was never told — which is the whole
+         *     failure mode this closes.
+         */
+        get: operations["list_webhook_dead_letters_api_v1_webhooks_dead_letter_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/dead-letter/{entry_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay a dead-lettered event
+         * @description Put a parked event back through processing.
+         *
+         *     Idempotent (Doc 04 §23): replaying an entry that is already replayed returns it unchanged
+         *     rather than queueing a second pass. An operator who clicks twice — or a request the browser
+         *     retried — must not double-apply an event whose whole point was that it applies once.
+         *
+         *     Answers `404` once the source event has passed its 90-day retention (§23.1), because by then
+         *     the entry is not visible to anyone: ownership is read through the source event, so an entry
+         *     whose event has aged out has dropped out of the listing too. The same answer the list gives,
+         *     rather than a `409` describing a row the operator was never shown.
+         */
+        post: operations["replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/dead-letter/{entry_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard a dead-lettered event
+         * @description Close a parked event without processing it.
+         *
+         *     The queue exists so somebody decides; discarding is that decision written down, and it is
+         *     audited like any other. Discarding an already-replayed entry is refused — the event was
+         *     applied, and recording it as discarded afterwards would leave the queue claiming nothing
+         *     happened when something did.
+         */
+        post: operations["discard_dead_letter_api_v1_webhooks_dead_letter__entry_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/messages/send": {
         parameters: {
             query?: never;
@@ -1524,6 +1990,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scan/reachability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which contacts WhatsApp has reached, refused, or never been asked about
+         * @description Every contact, with what WhatsApp has told us about their number.
+         *
+         *     A delivery receipt proves the number is reachable; error 131026 is Meta calling it not a
+         *     WhatsApp user. Nothing else counts — a paused template or a closed 24-hour window is a fact
+         *     about our configuration, not about the customer, and treating those as "not on WhatsApp" would
+         *     condemn reachable people for our own mistakes.
+         *
+         *     `unknown` is a real answer: a contact no campaign has ever included has not been tested. It is
+         *     reported as untested rather than folded into either side, because the difference between "we
+         *     know they are not there" and "we have never asked" changes what an operator does next.
+         *
+         *     The tallies live at `/scan/reachability/counts`, not here. They are computed from the same
+         *     predicates as this page, so the two can never describe different sets, but they cost what
+         *     reading every recipient row costs and a page should not wait behind them.
+         */
+        get: operations["list_reachability_api_v1_scan_reachability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scan/reachability/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many contacts are in each reachability state
+         * @description The tallies, separately from the rows, because they cost differently.
+         *
+         *     A page is fifty contacts and costs what fifty contacts cost. "How many are in each state" is a
+         *     question about every contact the organization has, and no index makes that cheaper — every
+         *     recipient row must be read to decide one contact's verdict. Measured at 200,000 recipients: the
+         *     page takes 9ms and the tallies 425ms.
+         *
+         *     Returned together, the fast answer waited for the slow one and the whole screen took half a
+         *     second. Split, the list appears immediately and the tallies fill in. Same numbers, same
+         *     predicates as the list — they cannot describe different sets — and nothing is approximated to
+         *     make it quicker.
+         */
+        get: operations["reachability_counts_api_v1_scan_reachability_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get WhatsApp QR connection status */
+        get: operations["get_session_status_api_v1_channels_whatsapp_qr_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a WhatsApp QR connection */
+        post: operations["connect_api_v1_channels_whatsapp_qr_session_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Begin pairing and request a QR */
+        post: operations["begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch the current transient QR image */
+        get: operations["get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconnect a paired session */
+        post: operations["reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/session/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log out — invalidates WhatsApp credentials and requires a new scan */
+        post: operations["logout_api_v1_channels_whatsapp_qr_session_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates": {
         parameters: {
             query?: never;
@@ -1562,6 +2193,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/templates/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How each template has actually performed
+         * @description Campaigns sent, people reached, delivered, failed and when each template was last used.
+         *
+         *     Templates are chosen by name today, which means they are chosen by memory. Every one of these
+         *     numbers was already in `campaigns` and `campaign_recipients`; nothing read them per template.
+         *
+         *     Aggregates only: "which template works" is a template question, and answering it names no
+         *     customer and no campaign. A template nobody has sent is listed with zeros rather than omitted,
+         *     because an unused template is either new or quietly broken and its absence from the list is the
+         *     thing most worth seeing.
+         *
+         *     Counts what was sent, not what was planned. A campaign materialises its entire roster the
+         *     moment it is created, while it is still a draft, so an unfinished draft puts rows in the ledger
+         *     for sends nobody has authorised. Those are not campaigns here, not recipients, and do not make
+         *     the template look recently used — a template delivering to everyone must not read as a failure
+         *     because a colleague is midway through drafting a large campaign with it.
+         *
+         *     Declared before `/templates/{template_id}` so "usage" is not read as an identifier.
+         */
+        get: operations["template_usage_api_v1_templates_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates/{template_id}": {
         parameters: {
             query?: never;
@@ -1592,8 +2259,20 @@ export interface paths {
          * Render with sample variables
          * @description Pure render (FR-TPL-08): nothing is stored and nothing is sent.
          *
-         *     Sample values ride the query string (`?body=Priya&body=%231234`) because Doc 04 §15 makes this
-         *     a `GET` — it is a projection of the template, not a change to it.
+         *     Sample values ride the query string (`?body=Priya&body=%231234&button=TXN9931`) because Doc 04
+         *     §15 makes this a `GET` — it is a projection of the template, not a change to it.
+         *
+         *     They are declared as parameters rather than read off the raw request. Read raw they worked, but
+         *     they were absent from the published contract, so the generated client could not send them and
+         *     no screen ever did: the endpoint had a sample-value feature that nothing could reach.
+         *
+         *     Buttons are rendered with the text, and their destinations with them. A URL button carries its
+         *     variable inside the link — `https://vi.in/pay/{{1}}` — which appears on no other screen, so a
+         *     variable mapped to the wrong column is invisible right up until a customer taps it. By then the
+         *     same link has gone to everyone in the campaign.
+         *
+         *     `expects` says how many values each part takes, so a caller can offer exactly that many boxes
+         *     without re-implementing Meta's numbering rules in a second place.
          */
         get: operations["preview_template_api_v1_templates__template_id__preview_get"];
         put?: never;
@@ -1637,6 +2316,41 @@ export interface paths {
          */
         post: operations["create_campaign_api_v1_campaigns_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal and team-shared Campaign views */
+        get: operations["list_campaign_views_api_v1_campaigns_views_get"];
+        put?: never;
+        /** Save a personal or team-shared Campaign view */
+        post: operations["create_campaign_view_api_v1_campaigns_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an owned personal or managed team Campaign view */
+        delete: operations["delete_campaign_view_api_v1_campaigns_views__view_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1715,6 +2429,43 @@ export interface paths {
         };
         /** Per-recipient status (paginated) */
         get: operations["campaign_recipients_api_v1_campaigns__campaign_id__recipients_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a governed campaign recipient-results export
+         * @description Queue the persisted roster; no campaign recipient rows are read on the request path.
+         */
+        post: operations["start_campaign_results_export_api_v1_campaigns__campaign_id__exports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/exports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Campaign-results export progress and signed download link */
+        get: operations["campaign_results_export_progress_api_v1_campaigns__campaign_id__exports__export_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1859,6 +2610,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversation-transcripts/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a governed conversation transcript export
+         * @description Queue a selected thread; message rows are read only by the bounded exports worker.
+         */
+        post: operations["start_conversation_transcript_export_api_v1_conversation_transcripts_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversation-transcripts/export/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversation transcript progress and signed download link */
+        get: operations["conversation_transcript_export_progress_api_v1_conversation_transcripts_export__export_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversation-history/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization-shared Chat History views */
+        get: operations["list_conversation_history_views_api_v1_conversation_history_views_get"];
+        put?: never;
+        /** Create an organization-shared Chat History view */
+        post: operations["create_conversation_history_view_api_v1_conversation_history_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversation-history/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an organization-shared Chat History view */
+        delete: operations["delete_conversation_history_view_api_v1_conversation_history_views__view_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations": {
         parameters: {
             query?: never;
@@ -1879,6 +2702,32 @@ export interface paths {
          *     them in the OpenAPI contract, so the generated client can express them.
          */
         get: operations["list_conversations_api_v1_conversations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbox category counts
+         * @description Totals for the three inbox categories, scoped by ``q`` alone.
+         *
+         *     Status, assignee and tag are deliberately not accepted: activating a category replaces them
+         *     and keeps only the search, so counting with them applied would label the chip with a result
+         *     the click never produces. Intervened always resolves against the caller.
+         *
+         *     Declared before ``/conversations/{conversation_id}`` so ``counts`` is not read as an id.
+         */
+        get: operations["conversation_category_counts_api_v1_conversations_counts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1938,6 +2787,46 @@ export interface paths {
          * @description Hand a thread to a user. The target must be an active member of the org (else 422).
          */
         post: operations["assign_conversation_api_v1_conversations__conversation_id__assign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/intervene": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Intervene in a requested chat
+         * @description Atomically claim a requested chat for the current agent and make it active.
+         */
+        post: operations["intervene_conversation_api_v1_conversations__conversation_id__intervene_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/resolve-intervention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve an intervened chat
+         * @description Resolve only when the current agent owns the active intervention.
+         */
+        post: operations["resolve_conversation_intervention_api_v1_conversations__conversation_id__resolve_intervention_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2363,6 +3252,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own notification settings
+         * @description The categories the signed-in user has chosen not to see.
+         */
+        get: operations["get_notification_settings_api_v1_notifications_settings_get"];
+        /**
+         * Update own notification settings
+         * @description Mute or unmute categories for the signed-in user only.
+         *
+         *     Muting hides a category from this user's own list, unread count and mark-all-read; it never
+         *     stops the notification being recorded and never hides it from a supervisor's team view. The
+         *     body replaces the whole set, so unmuting is sending a shorter list rather than a second verb.
+         */
+        put: operations["update_notification_settings_api_v1_notifications_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/unread-count": {
         parameters: {
             query?: never;
@@ -2691,6 +3608,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal and team-shared Report views */
+        get: operations["list_report_views_api_v1_analytics_views_get"];
+        put?: never;
+        /** Save a personal or team-shared Report view */
+        post: operations["create_report_view_api_v1_analytics_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an owned personal or managed team Report view */
+        delete: operations["delete_report_view_api_v1_analytics_views__view_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/reports/export": {
         parameters: {
             query?: never;
@@ -2728,6 +3680,139 @@ export interface paths {
         get: operations["report_export_progress_api_v1_analytics_reports__export_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/report-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List my scheduled reports */
+        get: operations["list_report_schedules_api_v1_analytics_report_schedules_get"];
+        put?: never;
+        /** Create a scheduled report */
+        post: operations["create_report_schedule_api_v1_analytics_report_schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/report-schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace a scheduled report */
+        put: operations["update_report_schedule_api_v1_analytics_report_schedules__schedule_id__put"];
+        post?: never;
+        /** Delete a scheduled report */
+        delete: operations["delete_report_schedule_api_v1_analytics_report_schedules__schedule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/task-productivity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Task productivity by teammate
+         * @description Completed/on-time/overdue task flow by assignee over the selected range.
+         */
+        get: operations["analytics_task_productivity_api_v1_analytics_task_productivity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/reactivation-outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reactivation and eligibility outcomes
+         * @description Factual case creation, terminal outcomes and eligibility decisions by outcome.
+         */
+        get: operations["analytics_reactivation_outcomes_api_v1_analytics_reactivation_outcomes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/kyc-outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * KYC decision outcomes
+         * @description Review and manager decisions with terminal approval/rejection truth.
+         */
+        get: operations["analytics_kyc_outcomes_api_v1_analytics_kyc_outcomes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/service-levels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SLA and fulfilment outcomes
+         * @description SLA starts/breaches/resolutions plus SIM and activation terminal outcomes.
+         */
+        get: operations["analytics_service_levels_api_v1_analytics_service_levels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automations/{automation_id}/handoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a human handoff from a published automation */
+        post: operations["request_automation_handoff_api_v1_automations__automation_id__handoffs_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2940,6 +4025,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reactivation/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal and team-shared Reactivation views */
+        get: operations["list_reactivation_views_api_v1_reactivation_views_get"];
+        put?: never;
+        /** Save a personal or team-shared Reactivation view */
+        post: operations["create_reactivation_view_api_v1_reactivation_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reactivation/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an owned personal or managed team Reactivation view */
+        delete: operations["delete_reactivation_view_api_v1_reactivation_views__view_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reactivation-pipeline": {
         parameters: {
             query?: never;
@@ -3126,6 +4246,41 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal and team-shared KYC views */
+        get: operations["list_kyc_views_api_v1_kyc_views_get"];
+        put?: never;
+        /** Save a personal or team-shared KYC view */
+        post: operations["create_kyc_view_api_v1_kyc_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kyc/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an owned personal or managed team KYC view */
+        delete: operations["delete_kyc_view_api_v1_kyc_views__view_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3563,6 +4718,23 @@ export interface components {
             action: "create_task";
             /** Title */
             title: string;
+            /**
+             * Task Type
+             * @default custom
+             * @enum {string}
+             */
+            task_type: "call" | "whatsapp" | "collect_documents" | "verification" | "reminder" | "meeting" | "custom";
+            /**
+             * Priority
+             * @default medium
+             * @enum {string}
+             */
+            priority: "low" | "medium" | "high" | "critical";
+            /**
+             * Due In Minutes
+             * @default 1440
+             */
+            due_in_minutes: number;
         };
         /** ActionNode */
         ActionNode: {
@@ -3775,6 +4947,22 @@ export interface components {
             campaign_click_through_rate?: number | null;
             /** Cost Per Delivered Micros */
             cost_per_delivered_micros?: number | null;
+            /** Reactivation Conversion Rate */
+            reactivation_conversion_rate?: number | null;
+            /** Reactivation Drop Off Rate */
+            reactivation_drop_off_rate?: number | null;
+            /** Avg Reactivation Turnaround Seconds */
+            avg_reactivation_turnaround_seconds?: number | null;
+            /** Eligibility Rate */
+            eligibility_rate?: number | null;
+            /** Kyc Approval Rate */
+            kyc_approval_rate?: number | null;
+            /** Avg Kyc Turnaround Seconds */
+            avg_kyc_turnaround_seconds?: number | null;
+            /** Sla Breach Rate */
+            sla_breach_rate?: number | null;
+            /** Sla Resolution Rate */
+            sla_resolution_rate?: number | null;
         };
         /** AnalyticsMetricsResponse */
         AnalyticsMetricsResponse: {
@@ -4009,6 +5197,16 @@ export interface components {
              * @default false
              */
             is_pii: boolean;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
         };
         /** AttributeDefinitionResponse */
         AttributeDefinitionResponse: {
@@ -4031,6 +5229,10 @@ export interface components {
             is_indexed: boolean;
             /** Is Pii */
             is_pii: boolean;
+            /** Is Required */
+            is_required: boolean;
+            /** Is Active */
+            is_active: boolean;
             /**
              * Created At
              * Format: date-time
@@ -4052,6 +5254,10 @@ export interface components {
             is_indexed?: boolean | null;
             /** Is Pii */
             is_pii?: boolean | null;
+            /** Is Required */
+            is_required?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /**
          * AudienceRef
@@ -4087,6 +5293,8 @@ export interface components {
             entity_id: number | null;
             /** Ip Address */
             ip_address: string | null;
+            /** User Agent */
+            user_agent: string | null;
             /** Before */
             before: {
                 [key: string]: unknown;
@@ -4104,6 +5312,53 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Integrity
+             * @enum {string}
+             */
+            integrity: "verified" | "verified_legacy" | "mismatch" | "unhashed";
+        };
+        /**
+         * AutoResolveSettings
+         * @description Optional inactivity policy; disabled until an organization deliberately enables it.
+         */
+        AutoResolveSettings: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Inactive After Hours
+             * @default 72
+             */
+            inactive_after_hours: number;
+        };
+        /**
+         * AutomaticReplySettings
+         * @description Optional text replies; every capability is deliberately disabled by default.
+         */
+        AutomaticReplySettings: {
+            /**
+             * Welcome Enabled
+             * @default false
+             */
+            welcome_enabled: boolean;
+            /**
+             * Welcome Body
+             * @default
+             */
+            welcome_body: string;
+            /**
+             * Off Hours Enabled
+             * @default false
+             */
+            off_hours_enabled: boolean;
+            /**
+             * Off Hours Body
+             * @default
+             */
+            off_hours_body: string;
         };
         /** AutomationAttemptResponse */
         AutomationAttemptResponse: {
@@ -4119,7 +5374,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "running" | "succeeded" | "failed" | "interrupted";
+            status: "running" | "succeeded" | "skipped" | "failed" | "interrupted";
             /** Output */
             output: {
                 [key: string]: unknown;
@@ -4171,6 +5426,8 @@ export interface components {
             graph: components["schemas"]["AutomationGraph"];
             /** Active Version No */
             active_version_no: number | null;
+            /** Next Run At */
+            next_run_at: string | null;
             /** Has Unpublished Changes */
             has_unpublished_changes: boolean;
             /** Row Version */
@@ -4193,9 +5450,40 @@ export interface components {
         /** AutomationGraph */
         AutomationGraph: {
             /** Nodes */
-            nodes?: (components["schemas"]["TriggerNode"] | components["schemas"]["ConditionNode"] | components["schemas"]["ActionNode"] | components["schemas"]["DelayNode"] | components["schemas"]["TagNode"] | components["schemas"]["AssignmentNode"] | components["schemas"]["WaitNode"] | components["schemas"]["WebhookNode"] | components["schemas"]["CampaignNode"] | components["schemas"]["NotificationNode"] | components["schemas"]["ApprovalNode"])[];
+            nodes?: (components["schemas"]["TriggerNode"] | components["schemas"]["ConditionNode"] | components["schemas"]["ActionNode"] | components["schemas"]["HandoffNode"] | components["schemas"]["DelayNode"] | components["schemas"]["TagNode"] | components["schemas"]["RemoveTagNode"] | components["schemas"]["AssignmentNode"] | components["schemas"]["WaitNode"] | components["schemas"]["WebhookNode"] | components["schemas"]["CampaignNode"] | components["schemas"]["NotificationNode"] | components["schemas"]["ApprovalNode"])[];
             /** Edges */
             edges?: components["schemas"]["AutomationEdge"][];
+        };
+        /** AutomationHandoffRequest */
+        AutomationHandoffRequest: {
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /** Node Id */
+            node_id: string;
+        };
+        /** AutomationHandoffResponse */
+        AutomationHandoffResponse: {
+            /** Event Id */
+            event_id: string;
+            /** Automation Id */
+            automation_id: string;
+            /** Version No */
+            version_no: number;
+            /** Node Id */
+            node_id: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "requested" | "already_requested" | "already_intervened";
+            /** Replayed */
+            replayed: boolean;
+            conversation: components["schemas"]["ConversationStateResponse"];
         };
         /** AutomationListResponse */
         AutomationListResponse: {
@@ -4214,9 +5502,9 @@ export interface components {
             version_no: number;
             /**
              * Mode
-             * @constant
+             * @enum {string}
              */
-            mode: "test";
+            mode: "test" | "live";
             /**
              * Status
              * @enum {string}
@@ -4272,9 +5560,9 @@ export interface components {
             version_no: number;
             /**
              * Status
-             * @constant
+             * @enum {string}
              */
-            status: "received";
+            status: "received" | "processing" | "processed" | "failed";
             /** Source */
             source: string | null;
             /**
@@ -4287,6 +5575,8 @@ export interface components {
              * Format: date-time
              */
             received_at: string;
+            /** Processed At */
+            processed_at: string | null;
         };
         /** AutomationTriggerReceiptsResponse */
         AutomationTriggerReceiptsResponse: {
@@ -4534,6 +5824,20 @@ export interface components {
             /** Notes */
             notes: string[];
         };
+        /**
+         * CampaignHeaderMedia
+         * @description The file a media-header template sends, for every recipient of this campaign.
+         *
+         *     One asset for the whole campaign rather than one per contact: a media header is the offer's
+         *     picture, not a field of the customer's record, and Meta binds it per send from the same id.
+         */
+        CampaignHeaderMedia: {
+            /**
+             * Media Asset Id
+             * Format: uuid
+             */
+            media_asset_id: string;
+        };
         /** CampaignListResponse */
         CampaignListResponse: {
             /** Data */
@@ -4649,6 +5953,20 @@ export interface components {
             updated_at: string;
         };
         /**
+         * CampaignResultsExportRequest
+         * @description Queue one campaign's factual per-recipient result ledger.
+         */
+        CampaignResultsExportRequest: {
+            /**
+             * Format
+             * @default xlsx
+             * @enum {string}
+             */
+            format: "pdf" | "csv" | "xlsx" | "json";
+            /** Status */
+            status?: ("pending" | "queued" | "sent" | "delivered" | "read" | "failed" | "skipped" | "cancelled") | null;
+        };
+        /**
          * CampaignRetryResponse
          * @description What a manual retry re-queued (FR-CAM-08).
          */
@@ -4737,6 +6055,75 @@ export interface components {
             /** Row Version */
             row_version?: number | null;
         };
+        /** CampaignViewCreate */
+        CampaignViewCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @default private
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @default list
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["CampaignViewFilters"];
+        };
+        /**
+         * CampaignViewFilters
+         * @description Portable Campaign list state; local page position is intentionally never persisted.
+         */
+        CampaignViewFilters: {
+            /** Q */
+            q?: string | null;
+            /** Status */
+            status?: ("draft" | "scheduled" | "queued" | "running" | "paused" | "completed" | "cancelled" | "failed") | null;
+            /**
+             * Sort
+             * @default -created_at
+             * @enum {string}
+             */
+            sort: "-created_at" | "created_at" | "name" | "-name" | "-total_recipients";
+        };
+        /** CampaignViewResponse */
+        CampaignViewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["CampaignViewFilters"];
+            /** Is Owner */
+            is_owner: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CampaignViewsResponse */
+        CampaignViewsResponse: {
+            /** Data */
+            data: components["schemas"]["CampaignViewResponse"][];
+        };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */
@@ -4768,6 +6155,25 @@ export interface components {
              */
             kind: "condition";
             config: components["schemas"]["ConditionConfig"];
+        };
+        /**
+         * ConsentKeywordSettings
+         * @description Explicit inbound keywords that change a contact's consent state.
+         *
+         *     Disabled by default: an organization must deliberately opt into interpreting message text as
+         *     consent. Exact normalized matches only, so a sentence that merely contains ``STOP`` cannot
+         *     accidentally opt somebody out.
+         */
+        ConsentKeywordSettings: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /** Opt In Keywords */
+            opt_in_keywords?: string[];
+            /** Opt Out Keywords */
+            opt_out_keywords?: string[];
         };
         /**
          * ContactAttributesRequest
@@ -4825,6 +6231,38 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ContactIdentityResponse */
+        ContactIdentityResponse: {
+            /** Id */
+            id: string;
+            /** Contact Id */
+            contact_id: string;
+            /** Identity Namespace */
+            identity_namespace: string;
+            /** Identity Scope */
+            identity_scope: string;
+            /** Normalized Value */
+            normalized_value: string;
+            /** Identity Kind */
+            identity_kind: string;
+            /** Connector Type */
+            connector_type: string | null;
+            /** Connection Ref */
+            connection_ref: string | null;
+            /** Endpoint Ref */
+            endpoint_ref: string | null;
+            /** Source */
+            source: string;
+            /** Confidence */
+            confidence: string;
+            /** Verified At */
+            verified_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -4954,6 +6392,73 @@ export interface components {
             /** Row Version */
             row_version?: number | null;
         };
+        /** ContactViewCreate */
+        ContactViewCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @default private
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @default list
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["ContactViewFilters"];
+        };
+        /**
+         * ContactViewFilters
+         * @description Portable Contacts filters; cursor position is intentionally never persisted.
+         */
+        ContactViewFilters: {
+            /** Q */
+            q?: string | null;
+            /** Tag Id */
+            tag_id?: string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: string;
+            };
+        };
+        /** ContactViewResponse */
+        ContactViewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["ContactViewFilters"];
+            /** Is Owner */
+            is_owner: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ContactViewsResponse */
+        ContactViewsResponse: {
+            /** Data */
+            data: components["schemas"]["ContactViewResponse"][];
+        };
         /** ContactsPage */
         ContactsPage: {
             /** Data */
@@ -4970,6 +6475,77 @@ export interface components {
              * Format: uuid
              */
             assignee_id: string;
+        };
+        /**
+         * ConversationCategoryCounts
+         * @description Totals behind the three inbox category chips.
+         *
+         *     The categories overlap by construction — requesting is a subset of active, and an intervened
+         *     thread may also be open — so these are three independent totals and never a breakdown to sum.
+         */
+        ConversationCategoryCounts: {
+            /** Active */
+            active: number;
+            /** Requesting */
+            requesting: number;
+            /** Intervened */
+            intervened: number;
+        };
+        /**
+         * ConversationHistoryFilters
+         * @description Portable, non-pagination filters stored in a shared Chat History view.
+         */
+        ConversationHistoryFilters: {
+            /** Status */
+            status?: ("open" | "pending" | "resolved" | "snoozed") | null;
+            /** Assignee */
+            assignee?: string | null;
+            /** Number */
+            number?: string | null;
+            /** Tag */
+            tag?: string | null;
+            /** Q */
+            q?: string | null;
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
+            /** Campaign */
+            campaign?: string | null;
+            /**
+             * Has Media
+             * @default false
+             */
+            has_media: boolean;
+            /**
+             * Has Audit
+             * @default false
+             */
+            has_audit: boolean;
+        };
+        /** ConversationHistoryViewCreate */
+        ConversationHistoryViewCreate: {
+            /** Name */
+            name: string;
+            filters: components["schemas"]["ConversationHistoryFilters"];
+        };
+        /** ConversationHistoryViewResponse */
+        ConversationHistoryViewResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            filters: components["schemas"]["ConversationHistoryFilters"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ConversationHistoryViewsResponse */
+        ConversationHistoryViewsResponse: {
+            /** Data */
+            data: components["schemas"]["ConversationHistoryViewResponse"][];
         };
         /**
          * ConversationMessagesPage
@@ -5017,6 +6593,8 @@ export interface components {
             status: string;
             /** Channel Type */
             channel_type: string;
+            /** Connector Type */
+            connector_type: string;
             /** Assigned To */
             assigned_to: string | null;
             contact: components["schemas"]["ContactRef"] | null;
@@ -5089,6 +6667,30 @@ export interface components {
         ConversationTagsResponse: {
             /** Data */
             data: components["schemas"]["TagSummary"][];
+        };
+        /**
+         * ConversationTranscriptExportRequest
+         * @description Queue a transcript for one tenant-scoped conversation.
+         *
+         *     ``from`` is inclusive and ``to`` is exclusive. Both are optional so an operator can export the
+         *     complete factual thread; when supplied they are normalized to the platform's UTC convention.
+         */
+        ConversationTranscriptExportRequest: {
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "csv" | "xlsx" | "json";
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
         };
         /**
          * ConversationsPage
@@ -5311,6 +6913,46 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * DownloadItemResponse
+         * @description One permission-filtered artifact in the user's Download Center.
+         */
+        DownloadItemResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @default download
+             */
+            type: string;
+            /** Category */
+            category: string;
+            /** Name */
+            name: string;
+            /** Format */
+            format: string;
+            /** Status */
+            status: string;
+            /** Row Count */
+            row_count: number | null;
+            /** Download Url */
+            download_url: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /** DownloadsPage */
+        DownloadsPage: {
+            /** Data */
+            data: components["schemas"]["DownloadItemResponse"][];
+            page: components["schemas"]["Page"];
+        };
         /** EligibilityCheckResponse */
         EligibilityCheckResponse: {
             /**
@@ -5491,10 +7133,64 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * GoogleSheetStageRequest
+         * @description ``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet.
+         */
+        GoogleSheetStageRequest: {
+            /** Spreadsheet Id */
+            spreadsheet_id: string;
+            /** Tab */
+            tab: string;
+        };
+        /**
+         * GoogleSheetStageResponse
+         * @description The staged sheet, as an upload the normal import flow already understands.
+         *
+         *     ``upload_id`` is the same identifier ``/contacts/import/inspect`` and ``/contacts/import``
+         *     take, which is the point: a sheet reaches contacts through the one import pipeline, with the
+         *     same mapping step, dedup strategy, per-row error report and audit trail as a CSV. The row and
+         *     column counts are returned so the operator can tell at a glance whether they pulled the tab
+         *     they meant to.
+         */
+        GoogleSheetStageResponse: {
+            /**
+             * Type
+             * @default google_sheet_staged
+             */
+            type: string;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /** Rows */
+            rows: number;
+            /** Columns */
+            columns: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HandoffConfig */
+        HandoffConfig: {
+            /** Reason */
+            reason: string;
+        };
+        /** HandoffNode */
+        HandoffNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "handoff";
+            config: components["schemas"]["HandoffConfig"];
         };
         /** HealthResponse */
         HealthResponse: {
@@ -5510,6 +7206,207 @@ export interface components {
             /** Environment */
             environment: string;
         };
+        /** IdentityAssertionRequest */
+        IdentityAssertionRequest: {
+            /** Identity Namespace */
+            identity_namespace: string;
+            /** Identity Scope */
+            identity_scope: string;
+            /** Value */
+            value: string;
+            /** @default provider */
+            identity_kind: components["schemas"]["IdentityKind"];
+            /** Connector Type */
+            connector_type?: string | null;
+            /** Connection Ref */
+            connection_ref?: string | null;
+            /** Endpoint Ref */
+            endpoint_ref?: string | null;
+            /** @default provider */
+            source: components["schemas"]["IdentitySource"];
+            /** @default authoritative */
+            confidence: components["schemas"]["IdentityConfidence"];
+        };
+        /**
+         * IdentityConfidence
+         * @description Factual confidence categories; no fuzzy or synthetic score is inferred.
+         * @enum {string}
+         */
+        IdentityConfidence: "authoritative" | "verified" | "candidate" | "conflicted";
+        /** IdentityConflictPage */
+        IdentityConflictPage: {
+            /** Data */
+            data: components["schemas"]["IdentityConflictResponse"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** IdentityConflictResponse */
+        IdentityConflictResponse: {
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Confidence */
+            confidence: string;
+            /** Assertion Keys */
+            assertion_keys: {
+                [key: string]: unknown;
+            }[];
+            /** Candidate Contact Ids */
+            candidate_contact_ids: string[];
+            /** Review Note */
+            review_note: string | null;
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+            /** Decision At */
+            decision_at: string | null;
+            /** Decision By */
+            decision_by: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Row Version */
+            row_version: number;
+            /** Recommendations */
+            recommendations: components["schemas"]["IdentityMergeRecommendationResponse"][];
+            /**
+             * Automatic Merge
+             * @default false
+             */
+            automatic_merge: boolean;
+        };
+        /**
+         * IdentityConflictStatus
+         * @enum {string}
+         */
+        IdentityConflictStatus: "open" | "recommended" | "recommendation_approved" | "recommendation_rejected";
+        /**
+         * IdentityKind
+         * @enum {string}
+         */
+        IdentityKind: "provider" | "endpoint";
+        /** IdentityMergeRecommendationCreateRequest */
+        IdentityMergeRecommendationCreateRequest: {
+            /**
+             * Primary Contact Id
+             * Format: uuid
+             */
+            primary_contact_id: string;
+            /**
+             * Duplicate Contact Id
+             * Format: uuid
+             */
+            duplicate_contact_id: string;
+            confidence: components["schemas"]["IdentityConfidence"];
+            /** Reason */
+            reason: string;
+        };
+        /** IdentityMergeRecommendationResponse */
+        IdentityMergeRecommendationResponse: {
+            /** Id */
+            id: string;
+            /** Conflict Id */
+            conflict_id: string;
+            /** Primary Contact Id */
+            primary_contact_id: string;
+            /** Duplicate Contact Id */
+            duplicate_contact_id: string;
+            /** Confidence */
+            confidence: string;
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: number | null;
+            /** Decision Note */
+            decision_note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Merge Executed
+             * @default false
+             */
+            merge_executed: boolean;
+        };
+        /** IdentityNewContactProfile */
+        IdentityNewContactProfile: {
+            /** Full Name */
+            full_name?: string | null;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Locale */
+            locale?: string | null;
+            /** Country Code */
+            country_code?: string | null;
+        };
+        /** IdentityRecommendationDecisionRequest */
+        IdentityRecommendationDecisionRequest: {
+            /** Row Version */
+            row_version: number;
+            /** Note */
+            note?: string | null;
+        };
+        /** IdentityResolutionRequest */
+        IdentityResolutionRequest: {
+            /** Assertions */
+            assertions: components["schemas"]["IdentityAssertionRequest"][];
+            /** Contact Id */
+            contact_id?: string | null;
+            new_contact?: components["schemas"]["IdentityNewContactProfile"] | null;
+        };
+        /** IdentityResolutionResponse */
+        IdentityResolutionResponse: {
+            /** Status */
+            status: string;
+            /** Canonical Contact Id */
+            canonical_contact_id: string | null;
+            /** Identities */
+            identities: components["schemas"]["ContactIdentityResponse"][];
+            /** Conflict Id */
+            conflict_id: string | null;
+            /** Created Contact */
+            created_contact: boolean;
+            /** Reasons */
+            reasons: string[];
+            /**
+             * Automatic Merge
+             * @default false
+             */
+            automatic_merge: boolean;
+        };
+        /**
+         * IdentitySource
+         * @enum {string}
+         */
+        IdentitySource: "provider" | "operator" | "canonical_phone";
         /**
          * ImportCreateRequest
          * @description ``POST /contacts/import`` (Doc 04 §14.1 sample).
@@ -5609,6 +7506,54 @@ export interface components {
             created_at: string;
             /** Completed At */
             completed_at: string | null;
+        };
+        /**
+         * InboxOperationsResponse
+         * @description The effective policy plus persistence metadata for the settings UI.
+         */
+        InboxOperationsResponse: {
+            /**
+             * Assignment Mode
+             * @default manual
+             * @enum {string}
+             */
+            assignment_mode: "manual" | "least_open";
+            /**
+             * Auto Mark Read
+             * @default true
+             */
+            auto_mark_read: boolean;
+            consent?: components["schemas"]["ConsentKeywordSettings"];
+            working_hours?: components["schemas"]["WorkingHoursSettings"];
+            automatic_replies?: components["schemas"]["AutomaticReplySettings"];
+            auto_resolve?: components["schemas"]["AutoResolveSettings"];
+            /** Configured */
+            configured: boolean;
+            /** Updated At */
+            updated_at: string | null;
+            /** Organization Timezone */
+            organization_timezone: string;
+        };
+        /**
+         * InboxOperationsSettings
+         * @description Validated organization policy consumed by the shared inbox and inbound ledger.
+         */
+        InboxOperationsSettings: {
+            /**
+             * Assignment Mode
+             * @default manual
+             * @enum {string}
+             */
+            assignment_mode: "manual" | "least_open";
+            /**
+             * Auto Mark Read
+             * @default true
+             */
+            auto_mark_read: boolean;
+            consent?: components["schemas"]["ConsentKeywordSettings"];
+            working_hours?: components["schemas"]["WorkingHoursSettings"];
+            automatic_replies?: components["schemas"]["AutomaticReplySettings"];
+            auto_resolve?: components["schemas"]["AutoResolveSettings"];
         };
         /**
          * JobAcceptedResponse
@@ -6011,6 +7956,69 @@ export interface components {
             /** Appointment At */
             appointment_at?: string | null;
         };
+        /** KycViewCreate */
+        KycViewCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @default private
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @default list
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["KycViewFilters"];
+        };
+        /**
+         * KycViewFilters
+         * @description Portable KYC queue filters; fetch bounds and selected-case state are never persisted.
+         */
+        KycViewFilters: {
+            /** Q */
+            q?: string | null;
+            /** Status */
+            status?: ("pending" | "documents_pending" | "under_review" | "approved" | "rejected") | null;
+        };
+        /** KycViewResponse */
+        KycViewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["KycViewFilters"];
+            /** Is Owner */
+            is_owner: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** KycViewsResponse */
+        KycViewsResponse: {
+            /** Data */
+            data: components["schemas"]["KycViewResponse"][];
+        };
         /** LeadPipelineCreateRequest */
         LeadPipelineCreateRequest: {
             /** Name */
@@ -6291,18 +8299,25 @@ export interface components {
          *     ``type`` selects which payload is read; the others must be absent. Sending is deliberately not
          *     a discriminated union of free-form JSON: the ledger stores canonical content, so what a client
          *     may say is the same shape the adapter is handed.
+         *
+         *     Exactly one of ``phone_number_id``/``conversation_id`` routes the send (QR-08). The first is
+         *     the original "send to any number" contract, unchanged. The second is a reply to an existing
+         *     thread: the server resolves *which* provider owns it from the conversation's own durable
+         *     ownership and ignores this request's opinion — a client cannot supply, forge, or override that
+         *     choice through this field, which is exactly why replying by conversation exists as its own path
+         *     rather than accepting a client-declared provider/endpoint. ``to`` is required only for the
+         *     number-addressed form; a conversation reply derives its recipient from the thread's own contact.
          */
         MessageSendRequest: {
-            /**
-             * Phone Number Id
-             * Format: uuid
-             */
-            phone_number_id: string;
+            /** Phone Number Id */
+            phone_number_id?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
             /**
              * To
              * @example +14155552671
              */
-            to: string;
+            to?: string | null;
             /**
              * Type
              * @enum {string}
@@ -6404,6 +8419,20 @@ export interface components {
             contact: components["schemas"]["EntityReference"] | null;
             reactivation_case: components["schemas"]["EntityReference"] | null;
             task: components["schemas"]["EntityReference"] | null;
+            /** Action Url */
+            action_url?: string | null;
+        };
+        /**
+         * NotificationSettings
+         * @description Which categories the signed-in user has chosen not to see.
+         *
+         *     Muting is a display choice, not a delivery one: the notification is still recorded, and a
+         *     supervisor's team view still shows it. Nothing an operator is accountable for disappears
+         *     because they tidied their own list.
+         */
+        NotificationSettings: {
+            /** Muted Types */
+            muted_types?: ("follow_up_due" | "release_date_due" | "case_assigned" | "case_status_changed" | "automation_attention" | "report_ready")[];
         };
         /** NotificationsPage */
         NotificationsPage: {
@@ -6592,6 +8621,22 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * PreviewExpects
+         * @description How many sample values each part of this template takes.
+         *
+         *     Returned so the screen can offer exactly that many boxes. Counting placeholders in the browser
+         *     would mean a second implementation of the numbering rules, and the one that drifted would be
+         *     the one nobody compared against a send.
+         */
+        PreviewExpects: {
+            /** Header */
+            header: number;
+            /** Body */
+            body: number;
+            /** Buttons */
+            buttons: number;
+        };
         /** QueueHealthResponse */
         QueueHealthResponse: {
             /** Name */
@@ -6685,6 +8730,63 @@ export interface components {
             title?: string | null;
             /** Body */
             body?: string | null;
+        };
+        /** ReachabilityCounts */
+        ReachabilityCounts: {
+            /** Reachable */
+            reachable: number;
+            /** Unreachable */
+            unreachable: number;
+            /** Unknown */
+            unknown: number;
+        };
+        /**
+         * ReachabilityPage
+         * @description The rows only.
+         *
+         *     The tallies live at ``/scan/reachability/counts`` because they cost differently: a page costs
+         *     what a page costs, while counting every contact's state reads the whole recipient ledger. Kept
+         *     together, the fast answer waited for the slow one.
+         */
+        ReachabilityPage: {
+            /** Data */
+            data: components["schemas"]["ReachabilityResponse"][];
+            page: components["schemas"]["Page"];
+        };
+        /**
+         * ReachabilityResponse
+         * @description One contact, with the evidence behind its verdict rather than only the verdict.
+         *
+         *     Both timestamps are returned because which is *current* is the whole question: a number can be
+         *     deactivated after having been reachable, and an operator looking at a surprising row needs to
+         *     see that the delivery was in March and the refusal was last week. A bare label would have to be
+         *     taken on trust.
+         */
+        ReachabilityResponse: {
+            /**
+             * Contact Id
+             * Format: uuid
+             */
+            contact_id: string;
+            /** Full Name */
+            full_name: string | null;
+            /** Phone E164 */
+            phone_e164: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "reachable" | "unreachable" | "unknown";
+            /**
+             * Last Delivered At
+             * @description When WhatsApp last confirmed a message reached this number.
+             */
+            last_delivered_at: string | null;
+            /**
+             * Last Undeliverable At
+             * @description When WhatsApp last refused this number as not a WhatsApp user (error 131026).
+             */
+            last_undeliverable_at: string | null;
         };
         /** ReactivationCaseListResponse */
         ReactivationCaseListResponse: {
@@ -6981,6 +9083,77 @@ export interface components {
             /** Release At */
             release_at?: string | null;
         };
+        /** ReactivationViewCreate */
+        ReactivationViewCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @default private
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @default board
+             * @enum {string}
+             */
+            display: "board" | "list";
+            filters: components["schemas"]["ReactivationViewFilters"];
+        };
+        /**
+         * ReactivationViewFilters
+         * @description Portable Reactivation filters; pagination is intentionally not persisted.
+         */
+        ReactivationViewFilters: {
+            /** Q */
+            q?: string | null;
+            /** Stage */
+            stage?: ("new_lead" | "lead_confirmed" | "documents_pending" | "documents_received" | "kyc_verification" | "sim_required" | "activation_pending" | "completed" | "not_required") | null;
+            /** Label */
+            label?: ("follow_up" | "prepaid_required" | "name_change" | "priority" | "customer_not_reachable" | "documents_incomplete") | null;
+            /** Owner User Id */
+            owner_user_id?: string | null;
+            /** Reminder View */
+            reminder_view?: ("upcoming" | "due_today" | "overdue") | null;
+            /** Reminder Date */
+            reminder_date?: string | null;
+        };
+        /** ReactivationViewResponse */
+        ReactivationViewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @enum {string}
+             */
+            display: "board" | "list";
+            filters: components["schemas"]["ReactivationViewFilters"];
+            /** Is Owner */
+            is_owner: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReactivationViewsResponse */
+        ReactivationViewsResponse: {
+            /** Data */
+            data: components["schemas"]["ReactivationViewResponse"][];
+        };
         /** ReadyResponse */
         ReadyResponse: {
             /**
@@ -6995,6 +9168,8 @@ export interface components {
         RecipientEntry: {
             /** Contact Id */
             contact_id: string | null;
+            /** Contact Name */
+            contact_name: string | null;
             /** Wa Id */
             wa_id: string | null;
             /** Status */
@@ -7005,6 +9180,18 @@ export interface components {
             } | null;
             /** Error Code */
             error_code: string | null;
+            /** Retry Count */
+            retry_count: number;
+            /** Queued At */
+            queued_at: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            /** Delivered At */
+            delivered_at: string | null;
+            /** Read At */
+            read_at: string | null;
+            /** Failed At */
+            failed_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -7015,13 +9202,62 @@ export interface components {
         RecipientsResponse: {
             /** Data */
             data: components["schemas"]["RecipientEntry"][];
-            /** Has More */
+            page: components["schemas"]["Page"];
+            /**
+             * Has More
+             * @deprecated
+             */
             has_more: boolean;
         };
         /** RefreshRequest */
         RefreshRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /** RemoveTagConfig */
+        RemoveTagConfig: {
+            /**
+             * Tag Id
+             * Format: uuid
+             */
+            tag_id: string;
+        };
+        /** RemoveTagNode */
+        RemoveTagNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "remove_tag";
+            config: components["schemas"]["RemoveTagConfig"];
+        };
+        /**
+         * RenderedButton
+         * @description One button as the customer will meet it.
+         *
+         *     ``target`` is what a tap acts on — the link opened, the number dialled, the code copied — and
+         *     is empty for a quick reply, whose tap sends the label back instead. It is returned separately
+         *     from ``text`` because a wrong label is obvious on any screen and a wrong destination is
+         *     invisible on all of them until a customer taps it.
+         */
+        RenderedButton: {
+            /** Index */
+            index: number;
+            /** Type */
+            type: string;
+            /** Text */
+            text: string;
+            /** Target */
+            target: string;
+            /**
+             * Takes Value
+             * @description Whether this button's destination carries a variable the send supplies.
+             */
+            takes_value: boolean;
         };
         /**
          * ReportExportRequest
@@ -7036,14 +9272,253 @@ export interface components {
              * Report
              * @enum {string}
              */
-            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs";
+            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs" | "reactivation" | "kyc" | "service_levels" | "team_productivity";
             /**
              * Format
              * @default csv
              * @enum {string}
              */
-            format: "csv" | "xlsx" | "json";
+            format: "csv" | "xlsx" | "json" | "pdf";
             filters: components["schemas"]["AnalyticsRangeFilters"];
+        };
+        /** ReportScheduleCreate */
+        ReportScheduleCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Report
+             * @enum {string}
+             */
+            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs" | "reactivation" | "kyc" | "service_levels" | "team_productivity";
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "xlsx" | "csv";
+            /**
+             * Preset
+             * @default last_30d
+             * @enum {string}
+             */
+            preset: "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter";
+            /**
+             * Granularity
+             * @default day
+             * @enum {string}
+             */
+            granularity: "day" | "week" | "month";
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "daily" | "weekly" | "monthly";
+            /** Timezone */
+            timezone: string;
+            /** Local Time */
+            local_time: string;
+            /** Weekday */
+            weekday?: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") | null;
+            /** Month Day */
+            month_day?: number | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** ReportScheduleResponse */
+        ReportScheduleResponse: {
+            /** Name */
+            name: string;
+            /**
+             * Report
+             * @enum {string}
+             */
+            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs" | "reactivation" | "kyc" | "service_levels" | "team_productivity";
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "xlsx" | "csv";
+            /**
+             * Preset
+             * @default last_30d
+             * @enum {string}
+             */
+            preset: "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter";
+            /**
+             * Granularity
+             * @default day
+             * @enum {string}
+             */
+            granularity: "day" | "week" | "month";
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "daily" | "weekly" | "monthly";
+            /** Timezone */
+            timezone: string;
+            /** Local Time */
+            local_time: string;
+            /** Weekday */
+            weekday?: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") | null;
+            /** Month Day */
+            month_day?: number | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Id */
+            id: string;
+            /** Next Run At */
+            next_run_at: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Row Version */
+            row_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ReportScheduleUpdate */
+        ReportScheduleUpdate: {
+            /** Name */
+            name: string;
+            /**
+             * Report
+             * @enum {string}
+             */
+            report: "messages" | "failures" | "campaigns" | "conversations" | "tasks" | "customers" | "costs" | "reactivation" | "kyc" | "service_levels" | "team_productivity";
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "xlsx" | "csv";
+            /**
+             * Preset
+             * @default last_30d
+             * @enum {string}
+             */
+            preset: "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter";
+            /**
+             * Granularity
+             * @default day
+             * @enum {string}
+             */
+            granularity: "day" | "week" | "month";
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "daily" | "weekly" | "monthly";
+            /** Timezone */
+            timezone: string;
+            /** Local Time */
+            local_time: string;
+            /** Weekday */
+            weekday?: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") | null;
+            /** Month Day */
+            month_day?: number | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Expected Row Version */
+            expected_row_version: number;
+        };
+        /** ReportSchedulesResponse */
+        ReportSchedulesResponse: {
+            /** Data */
+            data: components["schemas"]["ReportScheduleResponse"][];
+        };
+        /** ReportViewCreate */
+        ReportViewCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @default private
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @default list
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["ReportViewFilters"];
+        };
+        /**
+         * ReportViewFilters
+         * @description Portable report analysis filters; export, schedule and live-work state are excluded.
+         */
+        ReportViewFilters: {
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
+            /** Preset */
+            preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+            /**
+             * Granularity
+             * @default day
+             * @enum {string}
+             */
+            granularity: "hour" | "day" | "week" | "month";
+            /** Compare */
+            compare?: ("previous_period" | "previous_year") | null;
+        };
+        /** ReportViewResponse */
+        ReportViewResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "private" | "shared";
+            /**
+             * Display
+             * @constant
+             */
+            display: "list";
+            filters: components["schemas"]["ReportViewFilters"];
+            /** Is Owner */
+            is_owner: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReportViewsResponse */
+        ReportViewsResponse: {
+            /** Data */
+            data: components["schemas"]["ReportViewResponse"][];
         };
         /** RoleCreateRequest */
         RoleCreateRequest: {
@@ -7952,6 +10427,57 @@ export interface components {
             data: components["schemas"]["TaskResponse"][];
             page: components["schemas"]["Page"];
         };
+        /** TeamWorkloadResponse */
+        TeamWorkloadResponse: {
+            /** Data */
+            data: components["schemas"]["TeamWorkloadRow"][];
+            totals: components["schemas"]["TeamWorkloadTotals"];
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** TeamWorkloadRow */
+        TeamWorkloadRow: {
+            /** User Id */
+            user_id: string | null;
+            /** User Name */
+            user_name: string;
+            /** Is Active */
+            is_active: boolean | null;
+            /** Unresolved Conversations */
+            unresolved_conversations: number;
+            /** Unread Conversations */
+            unread_conversations: number;
+            /** Unread Messages */
+            unread_messages: number;
+            /** Open Tasks */
+            open_tasks: number;
+            /** Overdue Tasks */
+            overdue_tasks: number;
+            /** Due Today Tasks */
+            due_today_tasks: number;
+            /** Attention Required */
+            attention_required: boolean;
+        };
+        /** TeamWorkloadTotals */
+        TeamWorkloadTotals: {
+            /** Unresolved Conversations */
+            unresolved_conversations: number;
+            /** Unread Conversations */
+            unread_conversations: number;
+            /** Unread Messages */
+            unread_messages: number;
+            /** Open Tasks */
+            open_tasks: number;
+            /** Overdue Tasks */
+            overdue_tasks: number;
+            /** Due Today Tasks */
+            due_today_tasks: number;
+        };
         /**
          * TemplateButtonPayload
          * @description A value bound to one of the template's buttons (Doc 04 §18.2 `buttons[]`).
@@ -8050,7 +10576,14 @@ export interface components {
             buttons?: components["schemas"]["TemplateButtonPayload"][];
             header_media?: components["schemas"]["TemplateHeaderMedia"] | null;
         };
-        /** TemplatePreviewResponse */
+        /**
+         * TemplatePreviewResponse
+         * @description The template as one customer will receive it (FR-TPL-08).
+         *
+         *     Buttons are rendered alongside the text. A URL button carries its variable inside the link, so
+         *     a preview that stopped at the message body could not show a mis-mapped link at all — and the
+         *     send that follows goes to every customer at once.
+         */
         TemplatePreviewResponse: {
             /** Header */
             header: string;
@@ -8058,6 +10591,9 @@ export interface components {
             body: string;
             /** Footer */
             footer: string;
+            /** Buttons */
+            buttons?: components["schemas"]["RenderedButton"][];
+            expects: components["schemas"]["PreviewExpects"];
         };
         /** TemplateResponse */
         TemplateResponse: {
@@ -8123,6 +10659,58 @@ export interface components {
             /** Row Version */
             row_version?: number | null;
         };
+        /** TemplateUsageListResponse */
+        TemplateUsageListResponse: {
+            /** Data */
+            data: components["schemas"]["TemplateUsageResponse"][];
+        };
+        /**
+         * TemplateUsageResponse
+         * @description One template's send history.
+         *
+         *     ``delivery_rate`` is ``None`` rather than ``0`` for a template nobody has sent: zero reads as
+         *     "everything failed" when the truth is that nothing was tried, and the two call for opposite
+         *     actions — fix it, or try it.
+         */
+        TemplateUsageResponse: {
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /** Name */
+            name: string;
+            /** Language */
+            language: string;
+            /** Category */
+            category: string;
+            /** Status */
+            status: string;
+            /**
+             * Campaigns
+             * @description Campaigns that were actually dispatched; a draft using the template is not one.
+             */
+            campaigns: number;
+            /**
+             * Recipients
+             * @description Recipients a send was attempted for — not the size of the roster. A campaign materialises its whole roster while it is still a draft, and those rows were never tried.
+             */
+            recipients: number;
+            /** Delivered */
+            delivered: number;
+            /** Failed */
+            failed: number;
+            /**
+             * Delivery Rate
+             * @description Delivered as a share of attempted; null when the template has never been sent.
+             */
+            delivery_rate: number | null;
+            /**
+             * Last Used At
+             * @description When the template was last sent, not when a campaign using it was drafted.
+             */
+            last_used_at: string | null;
+        };
         /** TemplateVersionEntry */
         TemplateVersionEntry: {
             /** Version No */
@@ -8177,7 +10765,7 @@ export interface components {
              * Event
              * @enum {string}
              */
-            event: "message.received" | "contact.created" | "lead.stage_changed" | "schedule";
+            event: "message.received" | "contact.created" | "conversation.auto_resolved" | "lead.stage_changed" | "schedule";
             /** Schedule Cron */
             schedule_cron?: string | null;
         };
@@ -8326,12 +10914,24 @@ export interface components {
         /**
          * VariableMap
          * @description Mappings positioned to the template's ``{{1}}, {{2}} …``, per component.
+         *
+         *     ``buttons`` is one mapping per button whose destination carries a variable, in the order those
+         *     buttons appear — a URL button holds its variable inside the link
+         *     (``https://vi.co/pay/{{1}}``), so which link a customer gets is a per-recipient question like
+         *     any other. Buttons with fixed destinations take no mapping and are skipped.
+         *
+         *     It was missing here, which made it missing everywhere: Pydantic dropped a ``buttons`` key
+         *     without a word, so no caller could supply one even though the send path and the Meta adapter
+         *     had always accepted button values.
          */
         VariableMap: {
             /** Header */
             header?: components["schemas"]["VariableMapping"][];
             /** Body */
             body?: components["schemas"]["VariableMapping"][];
+            /** Buttons */
+            buttons?: components["schemas"]["VariableMapping"][];
+            header_media?: components["schemas"]["CampaignHeaderMedia"] | null;
         };
         /**
          * VariableMapping
@@ -8490,6 +11090,78 @@ export interface components {
              */
             webhook_id: string;
         };
+        /** WebhookDeadLetterPage */
+        WebhookDeadLetterPage: {
+            /** Data */
+            data: components["schemas"]["WebhookDeadLetterResponse"][];
+            page: components["schemas"]["Page"];
+        };
+        /**
+         * WebhookDeadLetterResponse
+         * @description An event that could not be processed, and why.
+         *
+         *     ``error_detail`` is the one field here worth the surface: without it an operator can see that
+         *     something failed but not what to do about it, which is the difference between a dashboard and
+         *     a diagnosis. The payload stays out for the same reason as above.
+         */
+        WebhookDeadLetterResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Error Detail */
+            error_detail: string | null;
+            /** Attempts */
+            attempts: number;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Replayed At */
+            replayed_at: string | null;
+        };
+        /**
+         * WebhookEventResponse
+         * @description One inbound delivery, as an operator needs to see it.
+         *
+         *     Deliberately without ``payload_json``. The payload is the provider's raw body -- customer
+         *     phone numbers and message text -- and the Inbox is where that content belongs, behind
+         *     ``inbox:read``. Reproducing it here would create a second, differently-permissioned copy of
+         *     the conversation for the sake of a health screen. What this answers instead is the operational
+         *     question: are deliveries arriving, are their signatures valid, and are they being processed.
+         */
+        WebhookEventResponse: {
+            /**
+             * Event Id
+             * @description The provider's own id for the event, for cross-referencing their logs.
+             */
+            event_id: string | null;
+            /** Object Type */
+            object_type: string | null;
+            /** Status */
+            status: string;
+            /** Attempts */
+            attempts: number;
+            /** Signature Ok */
+            signature_ok: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Processed At */
+            processed_at: string | null;
+        };
+        /** WebhookEventsPage */
+        WebhookEventsPage: {
+            /** Data */
+            data: components["schemas"]["WebhookEventResponse"][];
+            page: components["schemas"]["Page"];
+        };
         /** WebhookNode */
         WebhookNode: {
             /** Id */
@@ -8502,6 +11174,113 @@ export interface components {
              */
             kind: "webhook";
             config: components["schemas"]["WebhookConfig"];
+        };
+        /**
+         * WhatsAppQrLogoutRequest
+         * @description Explicit confirmation required before an irreversible logout.
+         */
+        WhatsAppQrLogoutRequest: {
+            /**
+             * Confirm
+             * @description Must be true. Logout invalidates WhatsApp credentials and requires a new scan.
+             */
+            confirm: boolean;
+        };
+        /**
+         * WhatsAppQrStatus
+         * @description Current WhatsApp QR connection status for the caller's organization.
+         *
+         *     ``configured=False`` covers every reason the screen has nothing to operate on — WAHA
+         *     unconfigured, the organization not assigned, feature flags disabled — collapsed into one
+         *     honest "not available" signal rather than distinguishing operator-irrelevant deployment detail.
+         */
+        WhatsAppQrStatus: {
+            /**
+             * Configured
+             * @description Whether a WhatsApp QR connection is available to configure/operate.
+             */
+            configured: boolean;
+            /**
+             * Session Public Id
+             * @description Durable session identifier once a connection has been started.
+             */
+            session_public_id?: string | null;
+            /**
+             * Row Version
+             * @description Optimistic-concurrency version.
+             */
+            row_version?: number | null;
+            /**
+             * Session State
+             * @description Provider-neutral session lifecycle (SessionState).
+             */
+            session_state?: string | null;
+            /**
+             * Pairing State
+             * @description Provider-neutral pairing lifecycle (PairingState), or null when the provider's current status cannot determine it (e.g. mid-transition).
+             */
+            pairing_state?: string | null;
+            /**
+             * Provider Status
+             * @description Informational only: the raw provider status last observed. Not authoritative.
+             */
+            provider_status?: string | null;
+            /**
+             * Connected
+             * @description Whether this WhatsApp session can carry traffic now.
+             */
+            connected: boolean;
+            /**
+             * Requires Reauthentication
+             * @description Whether only a fresh scan can resolve the current state.
+             */
+            requires_reauthentication: boolean;
+            /**
+             * Healthy
+             * @description Session-level health — never server-only reachability.
+             */
+            healthy: boolean;
+            /**
+             * Health Detail
+             * @description Human-readable, secret-free health explanation.
+             */
+            health_detail: string;
+            /**
+             * Can Reconnect
+             * @description Whether a reconnect action is currently safe.
+             */
+            can_reconnect: boolean;
+            /**
+             * Reconnect Blocked Reason
+             * @description Why reconnect is unavailable right now, when can_reconnect is false.
+             */
+            reconnect_blocked_reason?: string | null;
+            /**
+             * Identity Masked
+             * @description Paired account identity with digits partly masked.
+             */
+            identity_masked?: string | null;
+            /**
+             * Push Name
+             * @description Paired account display name.
+             */
+            push_name?: string | null;
+            /**
+             * Qr Available
+             * @description Whether GET /whatsapp/qr will currently return an image.
+             */
+            qr_available: boolean;
+            /**
+             * Provider Session Missing
+             * @description Whether WhatsApp is reachable but holds no session for this connection. Distinct from an outage: the provider answered. The connection must be paired again; nothing is recreated automatically.
+             * @default false
+             */
+            provider_session_missing: boolean;
+            /**
+             * Updated At
+             * @description When this status was last reconciled against the provider.
+             */
+            updated_at?: string | null;
         };
         /**
          * WindowState
@@ -8532,6 +11311,45 @@ export interface components {
             started_at: string | null;
             /** Last Seen At */
             last_seen_at: string | null;
+        };
+        /**
+         * WorkingDaySettings
+         * @description One local-time interval; an end before its start crosses midnight.
+         */
+        WorkingDaySettings: {
+            /**
+             * Day
+             * @enum {string}
+             */
+            day: "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Start
+             * @default 09:00
+             */
+            start: string;
+            /**
+             * End
+             * @default 18:00
+             */
+            end: string;
+        };
+        /**
+         * WorkingHoursSettings
+         * @description Weekly hours interpreted in the existing organization timezone.
+         */
+        WorkingHoursSettings: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /** Days */
+            days?: components["schemas"]["WorkingDaySettings"][];
         };
     };
     responses: never;
@@ -8786,7 +11604,14 @@ export interface operations {
     };
     list_users_api_v1_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+                /** @description Match a user's name or email. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -8800,6 +11625,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8877,6 +11711,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreferencesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    team_workload_api_v1_users_workload_get: {
+        parameters: {
+            query?: {
+                timezone?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamWorkloadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    user_login_history_api_v1_users__user_id__login_history_get: {
+        parameters: {
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPage"];
                 };
             };
             /** @description Validation Error */
@@ -9356,6 +12257,59 @@ export interface operations {
             };
         };
     };
+    get_inbox_operations_api_v1_settings_inbox_operations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxOperationsResponse"];
+                };
+            };
+        };
+    };
+    update_inbox_operations_api_v1_settings_inbox_operations_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboxOperationsSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxOperationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_feature_flags_api_v1_feature_flags_get: {
         parameters: {
             query?: never;
@@ -9464,6 +12418,37 @@ export interface operations {
             };
         };
     };
+    rotate_api_key_api_v1_api_keys__key_id__rotate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     revoke_api_key_api_v1_api_keys__key_id__delete: {
         parameters: {
             query?: never;
@@ -9495,7 +12480,12 @@ export interface operations {
     };
     list_audit_logs_api_v1_audit_logs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9511,11 +12501,29 @@ export interface operations {
                     "application/json": components["schemas"]["AuditLogPage"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     list_contacts_api_v1_contacts_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+                /** @description Sort key; prefix with '-' to reverse. */
+                sort?: string | null;
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9529,6 +12537,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -9554,6 +12571,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ContactResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contact_views_api_v1_contacts_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactViewsResponse"];
+                };
+            };
+        };
+    };
+    create_contact_view_api_v1_contacts_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contact_view_api_v1_contacts_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -9796,7 +12895,12 @@ export interface operations {
     };
     contact_timeline_api_v1_contacts__contact_id__timeline_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 contact_id: string;
@@ -9812,6 +12916,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContactTimelinePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stage_google_sheet_api_v1_contacts_import_google_sheet_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleSheetStageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleSheetStageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -10103,6 +13240,239 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_identity_api_v1_identity_resolution_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityResolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityResolutionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contact_identities_api_v1_contacts__contact_id__identities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactIdentityResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_identity_conflicts_api_v1_identity_conflicts_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["IdentityConflictStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityConflictPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_identity_conflict_api_v1_identity_conflicts__conflict_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conflict_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityConflictResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_identity_recommendation_api_v1_identity_conflicts__conflict_id__recommendations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conflict_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityMergeRecommendationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityMergeRecommendationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityRecommendationDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityMergeRecommendationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_identity_recommendation_api_v1_identity_merge_recommendations__recommendation_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentityRecommendationDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityMergeRecommendationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -10805,7 +14175,12 @@ export interface operations {
     };
     preview_segment_api_v1_segments__segment_id__contacts_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 segment_id: string;
@@ -11114,7 +14489,12 @@ export interface operations {
     };
     list_jobs_api_v1_jobs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11128,6 +14508,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -11249,7 +14638,12 @@ export interface operations {
     };
     list_media_api_v1_media_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Match an asset's filename. */
+                q?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11263,6 +14657,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -11407,6 +14810,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_downloads_api_v1_downloads_get: {
+        parameters: {
+            query?: {
+                category?: "all" | "contacts" | "analytics" | "chat_history" | "campaigns";
+                status?: ("pending" | "processing" | "ready" | "failed" | "expired") | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadsPage"];
                 };
             };
             /** @description Validation Error */
@@ -11794,6 +15231,160 @@ export interface operations {
             };
         };
     };
+    receive_waha_webhook_api_v1_webhooks_waha_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookAckResponse"];
+                };
+            };
+        };
+    };
+    list_webhook_events_api_v1_webhooks_events_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by delivery status: received, processed, failed, duplicate. */
+                status?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookEventsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_webhook_dead_letters_api_v1_webhooks_dead_letter_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entry status: pending, replayed, discarded. */
+                status?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_dead_letter_api_v1_webhooks_dead_letter__entry_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_dead_letter_api_v1_webhooks_dead_letter__entry_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeadLetterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     send_message_api_v1_messages_send_post: {
         parameters: {
             query?: never;
@@ -11924,6 +15515,210 @@ export interface operations {
             };
         };
     };
+    list_reachability_api_v1_scan_reachability_get: {
+        parameters: {
+            query?: {
+                /** @description Filter to one verdict: reachable, unreachable, unknown. */
+                verdict?: ("reachable" | "unreachable" | "unknown") | null;
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+                /** @description Page size (default 50). */
+                limit?: number | null;
+                /** @description Opaque token from a prior next_cursor. */
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReachabilityPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reachability_counts_api_v1_scan_reachability_counts_get: {
+        parameters: {
+            query?: {
+                /** @description Match a contact's name or number. */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReachabilityCounts"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_status_api_v1_channels_whatsapp_qr_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    connect_api_v1_channels_whatsapp_qr_session_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    begin_pairing_api_v1_channels_whatsapp_qr_session_pair_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    get_qr_image_api_v1_channels_whatsapp_qr_session_qr_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/png": unknown;
+                };
+            };
+        };
+    };
+    reconnect_api_v1_channels_whatsapp_qr_session_reconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+        };
+    };
+    logout_api_v1_channels_whatsapp_qr_session_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppQrLogoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_v1_templates_get: {
         parameters: {
             query?: never;
@@ -11993,6 +15788,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobAcceptedResponse"];
+                };
+            };
+        };
+    };
+    template_usage_api_v1_templates_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateUsageListResponse"];
                 };
             };
         };
@@ -12094,7 +15909,14 @@ export interface operations {
     };
     preview_template_api_v1_templates__template_id__preview_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Sample values for the header's variables, in order. */
+                header?: string[] | null;
+                /** @description Sample values for the body's variables, in order. */
+                body?: string[] | null;
+                /** @description Sample values for the buttons that take one, in button order. */
+                button?: string[] | null;
+            };
             header?: never;
             path: {
                 template_id: string;
@@ -12156,7 +15978,12 @@ export interface operations {
     };
     list_campaigns_api_v1_campaigns_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by campaign name. */
+                q?: string | null;
+                /** @description Filter by campaign status. */
+                status?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12170,6 +15997,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12195,6 +16031,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CampaignResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaign_views_api_v1_campaigns_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignViewsResponse"];
+                };
+            };
+        };
+    };
+    create_campaign_view_api_v1_campaigns_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_view_api_v1_campaigns_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -12366,7 +16284,11 @@ export interface operations {
     };
     campaign_recipients_api_v1_campaigns__campaign_id__recipients_get: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: ("pending" | "queued" | "sent" | "delivered" | "read" | "failed" | "skipped" | "cancelled") | null;
+                limit?: number;
+                cursor?: string | null;
+            };
             header?: never;
             path: {
                 campaign_id: string;
@@ -12382,6 +16304,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecipientsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_campaign_results_export_api_v1_campaigns__campaign_id__exports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignResultsExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobAcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    campaign_results_export_progress_api_v1_campaigns__campaign_id__exports__export_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportProgressResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12616,6 +16605,152 @@ export interface operations {
             };
         };
     };
+    start_conversation_transcript_export_api_v1_conversation_transcripts_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationTranscriptExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobAcceptedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conversation_transcript_export_progress_api_v1_conversation_transcripts_export__export_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversation_history_views_api_v1_conversation_history_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationHistoryViewsResponse"];
+                };
+            };
+        };
+    };
+    create_conversation_history_view_api_v1_conversation_history_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationHistoryViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationHistoryViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_conversation_history_view_api_v1_conversation_history_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_conversations_api_v1_conversations_get: {
         parameters: {
             query?: {
@@ -12627,6 +16762,11 @@ export interface operations {
                 number?: string | null;
                 tag?: string[] | null;
                 q?: string | null;
+                from?: string | null;
+                to?: string | null;
+                campaign?: string | null;
+                has_media?: boolean;
+                has_audit?: boolean;
                 "filter[status][eq]"?: string | null;
                 "filter[assignee][eq]"?: string | null;
                 "filter[number][eq]"?: string | null;
@@ -12645,6 +16785,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conversation_category_counts_api_v1_conversations_counts_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationCategoryCounts"];
                 };
             };
             /** @description Validation Error */
@@ -12737,6 +16908,68 @@ export interface operations {
                 "application/json": components["schemas"]["ConversationAssignRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationStateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    intervene_conversation_api_v1_conversations__conversation_id__intervene_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationStateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_conversation_intervention_api_v1_conversations__conversation_id__resolve_intervention_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -13650,7 +17883,7 @@ export interface operations {
     list_notifications_api_v1_notifications_get: {
         parameters: {
             query?: {
-                type?: ("follow_up_due" | "release_date_due" | "case_assigned" | "case_status_changed") | null;
+                type?: ("follow_up_due" | "release_date_due" | "case_assigned" | "case_status_changed" | "automation_attention" | "report_ready") | null;
                 status?: ("unread" | "read" | "overdue" | "resolved") | null;
                 date_from?: string | null;
                 date_to?: string | null;
@@ -13671,6 +17904,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_notification_settings_api_v1_notifications_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
+                };
+            };
+        };
+    };
+    update_notification_settings_api_v1_notifications_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationSettings"];
                 };
             };
             /** @description Validation Error */
@@ -14210,6 +18496,88 @@ export interface operations {
             };
         };
     };
+    list_report_views_api_v1_analytics_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportViewsResponse"];
+                };
+            };
+        };
+    };
+    create_report_view_api_v1_analytics_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_report_view_api_v1_analytics_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_report_export_api_v1_analytics_reports_export_post: {
         parameters: {
             query?: never;
@@ -14261,6 +18629,302 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExportProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_report_schedules_api_v1_analytics_report_schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSchedulesResponse"];
+                };
+            };
+        };
+    };
+    create_report_schedule_api_v1_analytics_report_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_report_schedule_api_v1_analytics_report_schedules__schedule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_report_schedule_api_v1_analytics_report_schedules__schedule_id__delete: {
+        parameters: {
+            query: {
+                expected_row_version: number;
+            };
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_task_productivity_api_v1_analytics_task_productivity_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_reactivation_outcomes_api_v1_analytics_reactivation_outcomes_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_kyc_outcomes_api_v1_analytics_kyc_outcomes_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analytics_service_levels_api_v1_analytics_service_levels_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                preset?: ("today" | "yesterday" | "last_7d" | "last_30d" | "this_month" | "last_month" | "this_quarter") | null;
+                timezone?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_automation_handoff_api_v1_automations__automation_id__handoffs_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                automation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationHandoffResponse"];
                 };
             };
             /** @description Validation Error */
@@ -14743,6 +19407,88 @@ export interface operations {
             };
         };
     };
+    list_reactivation_views_api_v1_reactivation_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationViewsResponse"];
+                };
+            };
+        };
+    };
+    create_reactivation_view_api_v1_reactivation_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactivationViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactivationViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_reactivation_view_api_v1_reactivation_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_reactivation_pipeline_api_v1_reactivation_pipeline_get: {
         parameters: {
             query?: {
@@ -14753,6 +19499,7 @@ export interface operations {
                 owner_user_id?: string | null;
                 reminder_view?: ("upcoming" | "due_today" | "overdue") | null;
                 reminder_date?: string | null;
+                offset?: number;
                 limit?: number;
             };
             header?: never;
@@ -15227,6 +19974,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["KycOperationsResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_kyc_views_api_v1_kyc_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycViewsResponse"];
+                };
+            };
+        };
+    };
+    create_kyc_view_api_v1_kyc_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KycViewCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_kyc_view_api_v1_kyc_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

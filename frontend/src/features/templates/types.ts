@@ -6,6 +6,15 @@ export type TemplateList = components["schemas"]["TemplateListResponse"];
 export type TemplateCreateRequest = components["schemas"]["TemplateCreateRequest"];
 export type TemplateUpdateRequest = components["schemas"]["TemplateUpdateRequest"];
 export type TemplatePreview = components["schemas"]["TemplatePreviewResponse"];
+export type RenderedButton = components["schemas"]["RenderedButton"];
+export type PreviewExpects = components["schemas"]["PreviewExpects"];
+
+/** Sample values for one preview — positional, exactly as a send supplies them. */
+export interface PreviewValues {
+  header: string[];
+  body: string[];
+  buttons: string[];
+}
 export type TemplateVersion = components["schemas"]["TemplateVersionEntry"];
 export type TemplateVersions = components["schemas"]["TemplateVersionsResponse"];
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
@@ -92,3 +101,5 @@ export const DEFAULT_LIST_QUERY: TemplateListQuery = {
   sort: "-created_at",
   page: 1,
 };
+
+export type TemplateUsage = components["schemas"]["TemplateUsageResponse"];

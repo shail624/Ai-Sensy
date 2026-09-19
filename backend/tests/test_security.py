@@ -112,3 +112,30 @@ def test_ip_pack_handles_none_and_invalid() -> None:
     assert security.pack_ip(None) is None
     assert security.pack_ip("not-an-ip") is None
     assert security.unpack_ip(None) is None
+
+
+async def test_the_api_explorer_is_served_outside_production(client) -> None:
+    """Nothing in the product depends on it, but a developer's does."""
+    assert (await client.get("/docs")).status_code == 200
+    assert (await client.get("/redoc")).status_code == 200
+    assert (await client.get("/api/v1/openapi.json")).status_code == 200
+
+
+def test_production_does_not_publish_the_api_surface_unless_asked() -> None:
+    """`/docs`, `/redoc` and the schema were served to anyone who asked, in every environment.
+
+    No endpoint is reachable without a token, so this is a map rather than a breach — and handing
+    an anonymous visitor every path, payload and enum of a private operations platform is a map
+    worth not handing out. Publishing a reference for integrators stays possible and becomes a
+    deliberate act rather than the default.
+    """
+    from app.core.config import Settings
+
+    production = Settings(environment="production", secret_key="x" * 32)
+    assert production.serve_api_docs is False
+
+    # The explicit setting wins in both directions, so a team that wants a public reference says so.
+    published = Settings(environment="production", secret_key="x" * 32, api_docs_enabled=True)
+    assert published.serve_api_docs is True
+    withheld = Settings(environment="development", secret_key="x" * 32, api_docs_enabled=False)
+    assert withheld.serve_api_docs is False

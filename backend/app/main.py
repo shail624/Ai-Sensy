@@ -49,9 +49,17 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         debug=settings.debug,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url=f"{settings.api_v1_prefix}/openapi.json",
+        # Off in production unless `API_DOCS_ENABLED` turns them on. The explorer and the schema
+        # were served to anyone who asked, in every environment: no endpoint was reachable without
+        # a token, so this is a map rather than a breach — but handing an anonymous visitor every
+        # path, payload and enum of a private operations platform is a map worth not handing out.
+        # The frontend reads `frontend/openapi.json`, exported at build time, so nothing in the
+        # product depends on this being mounted.
+        docs_url="/docs" if settings.serve_api_docs else None,
+        redoc_url="/redoc" if settings.serve_api_docs else None,
+        openapi_url=(
+            f"{settings.api_v1_prefix}/openapi.json" if settings.serve_api_docs else None
+        ),
         lifespan=lifespan,
     )
 

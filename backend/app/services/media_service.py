@@ -14,7 +14,7 @@ import uuid as uuidlib
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.db.mixins import utcnow
 from app.models.media import MediaAsset
 from app.models.user import User
@@ -116,9 +116,40 @@ class MediaService:
             raise NotFoundError("Media asset not found.")
         return asset
 
-    async def signed_url(self, organization_id: int, public_id: uuidlib.UUID) -> tuple[str, int]:
-        """A signed, expiring URL for the asset (FR-MED-09). Returns ``(url, ttl)``."""
+    async def get_library_media(self, organization_id: int, public_id: uuidlib.UUID) -> MediaAsset:
+        """The same lookup, refusing an asset that is a customer document's stored file.
+
+        A document is built on a media asset and shares the upload endpoint, so one row can hold a
+        campaign image or somebody's Aadhaar scan. `documents:read` guards the document routes and
+        guards nothing here, which made the media API a second, unguarded way to the same bytes and
+        the same file name. It is refused rather than permission-checked: the document route already
+        exists, checks that permission, and records who read what — one door, guarded and logged,
+        beats two doors that have to agree forever.
+        """
         asset = await self.get_media(organization_id, public_id)
+        if await self._media.backs_a_document(asset.id):
+            raise ForbiddenError(
+                "This file is a customer document. Read it through the document it belongs to, "
+                "which checks documents:read and records the access."
+            )
+        return asset
+
+    async def signed_url(self, organization_id: int, public_id: uuidlib.UUID) -> tuple[str, int]:
+        """A signed, expiring URL for the asset (FR-MED-09). Returns ``(url, ttl)``.
+
+        Unguarded on purpose: `ContactDocumentService` calls this *after* checking `documents:read`
+        and recording the access. The media API uses `library_signed_url` instead.
+        """
+        asset = await self.get_media(organization_id, public_id)
+        ttl = settings.storage_signed_url_ttl_seconds
+        provider = get_provider(asset.storage_backend)
+        return provider.signed_url(asset.storage_key, media_id=asset.public_id, expires_in=ttl), ttl
+
+    async def library_signed_url(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> tuple[str, int]:
+        """What the media API mints: a signed URL for library media, never for a document."""
+        asset = await self.get_library_media(organization_id, public_id)
         ttl = settings.storage_signed_url_ttl_seconds
         provider = get_provider(asset.storage_backend)
         return provider.signed_url(asset.storage_key, media_id=asset.public_id, expires_in=ttl), ttl

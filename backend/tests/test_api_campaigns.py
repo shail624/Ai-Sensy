@@ -18,6 +18,7 @@ from app.models.campaign import (
     CampaignRecipient,
 )
 from app.models.contact import OPT_IN_OPTED_OUT, Contact
+from app.models.organization import Organization
 from app.models.template import TPL_APPROVED, MessageTemplate
 from tests.test_api_conversations import _rows
 from tests.test_api_messages import _headers
@@ -445,16 +446,103 @@ async def test_recipients_are_paginated_with_their_contact(
         await client.post(CAMPAIGNS_URL, headers=headers, json=_body(number_id, template_id, contacts))
     ).json()
 
-    resp = await client.get(f"{CAMPAIGNS_URL}/{created['id']}/recipients", headers=headers)
+    resp = await client.get(
+        f"{CAMPAIGNS_URL}/{created['id']}/recipients?limit=2", headers=headers
+    )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert len(body["data"]) == 3 and body["has_more"] is False
-    assert all(r["status"] == RECIPIENT_PENDING and r["wa_id"] for r in body["data"])
+    assert len(body["data"]) == 2 and body["has_more"] is True
+    assert body["page"] == {
+        "limit": 2,
+        "has_more": True,
+        "next_cursor": body["page"]["next_cursor"],
+        "prev_cursor": None,
+        "total": 3,
+    }
+    assert body["page"]["next_cursor"]
+    assert all(
+        r["status"] == RECIPIENT_PENDING
+        and r["wa_id"]
+        and r["contact_name"]
+        and r["retry_count"] == 0
+        and r["queued_at"] is None
+        for r in body["data"]
+    )
+
+    second = await client.get(
+        f"{CAMPAIGNS_URL}/{created['id']}/recipients",
+        headers=headers,
+        params={"limit": 2, "cursor": body["page"]["next_cursor"]},
+    )
+    assert second.status_code == 200, second.text
+    second_body = second.json()
+    assert len(second_body["data"]) == 1
+    assert second_body["page"] == {
+        "limit": 2,
+        "has_more": False,
+        "next_cursor": None,
+        "prev_cursor": None,
+        "total": 3,
+    }
+    assert {row["contact_id"] for row in body["data"]}.isdisjoint(
+        {row["contact_id"] for row in second_body["data"]}
+    )
 
     filtered = await client.get(
         f"{CAMPAIGNS_URL}/{created['id']}/recipients?status=sent", headers=headers
     )
     assert filtered.json()["data"] == []
+    assert filtered.json()["page"]["total"] == 0
+
+    invalid = await client.get(
+        f"{CAMPAIGNS_URL}/{created['id']}/recipients?status=unknown", headers=headers
+    )
+    assert invalid.status_code == 422
+
+    schema = (await client.get("/api/v1/openapi.json")).json()
+    parameters = schema["paths"][
+        "/api/v1/campaigns/{campaign_id}/recipients"
+    ]["get"]["parameters"]
+    assert {parameter["name"] for parameter in parameters} >= {
+        "campaign_id",
+        "status",
+        "limit",
+        "cursor",
+    }
+
+
+async def test_recipient_ledger_never_resolves_cross_tenant_contact_identity(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    headers, number_id, template_id, contacts = await _setup(
+        client, make_user, session_factory, monkeypatch
+    )
+    created = (
+        await client.post(CAMPAIGNS_URL, headers=headers, json=_body(number_id, template_id, contacts))
+    ).json()
+
+    async with session_factory() as session:
+        other = Organization(name="Other Tenant", slug="other-tenant-ledger")
+        session.add(other)
+        await session.flush()
+        foreign = Contact(
+            organization_id=other.id,
+            wa_id="919000000099",
+            phone_e164="+919000000099",
+            full_name="Must Not Leak",
+        )
+        session.add(foreign)
+        await session.flush()
+        recipient = (await session.scalars(select(CampaignRecipient))).first()
+        assert recipient is not None
+        recipient.contact_id = foreign.id
+        await session.commit()
+
+    response = await client.get(f"{CAMPAIGNS_URL}/{created['id']}/recipients", headers=headers)
+    assert response.status_code == 200, response.text
+    unresolved = next(row for row in response.json()["data"] if row["contact_id"] is None)
+    assert unresolved["contact_name"] is None
+    assert unresolved["wa_id"] is None
 
 
 # --- Audit & permissions -----------------------------------------------------

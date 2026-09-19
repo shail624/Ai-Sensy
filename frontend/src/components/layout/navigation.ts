@@ -2,6 +2,8 @@ import {
   BarChart3,
   Bot,
   Contact,
+  Download,
+  History,
   Inbox,
   LayoutDashboard,
   ListChecks,
@@ -14,16 +16,19 @@ import {
   Shield,
   SlidersHorizontal,
   Sparkles,
+  Tag,
   ScanSearch,
   Users,
   Workflow,
 } from "lucide-react";
 
-import { ADMIN_PERMISSIONS } from "@/features/admin/sections";
-import { SETTINGS_PERMISSIONS } from "@/features/settings/sections";
+import { ADMIN_PERMISSIONS, ADMIN_SECTIONS } from "@/features/admin/sections";
+import { SETTINGS_PERMISSIONS, SETTINGS_SECTIONS } from "@/features/settings/sections";
 
 export interface NavItem {
   label: string;
+  /** Familiar, short caption for the compact daily-work rail. */
+  railLabel?: string;
   path: string;
   /** Legacy catalogue flag retained while all registered destinations are real, routed surfaces. */
   available: boolean;
@@ -122,16 +127,16 @@ export function visibleCreateActions(hasPermission: (code: string) => boolean): 
 }
 
 /**
- * Keep the everyday customer-engagement loop visible. Every other entitled destination remains
- * available through the sidebar's More section and workspace search.
+ * Keep the AiSensy-style daily workspace visible in the rail. Configuration and the product's
+ * additional Vi operations remain available through the Manage section and workspace search.
  */
 export const PRIMARY_NAV_PATHS = [
   "/",
   "/inbox",
+  "/chat-history",
   "/contacts",
   "/campaigns",
-  "/templates",
-  "/analytics",
+  "/automation",
 ] as const;
 
 export function primaryNavItems(hasPermission: (code: string) => boolean): NavItem[] {
@@ -149,6 +154,61 @@ export function secondaryNavGroups(
   return groupedNavItems(hasPermission)
     .map(({ group, items }) => ({ group, items: items.filter((item) => !primary.has(item.path)) }))
     .filter(({ items }) => items.length > 0);
+}
+
+/** Direct entry points to existing settings; no duplicate services or placeholder destinations. */
+export function manageNavGroups(
+  hasPermission: (code: string) => boolean,
+): { group: string; items: NavItem[] }[] {
+  const visible = visibleNavItems(hasPermission);
+  const byPath = new Map(visible.map((item) => [item.path, item]));
+  const destination = (path: string, label?: string): NavItem[] => {
+    const item = byPath.get(path);
+    return item ? [{ ...item, label: label ?? item.label }] : [];
+  };
+  const setting = (key: string): NavItem[] => {
+    const section = SETTINGS_SECTIONS.find((item) => item.key === key);
+    return section && hasPermission(section.permission) ? [{
+      ...section, available: true, glyph: "S",
+      icon: key === "tags" ? Tag : key === "canned-messages" ? MessageSquareText : key === "user-attributes" ? SlidersHorizontal : Settings,
+      group: "Manage",
+    }] : [];
+  };
+  const team = ADMIN_SECTIONS.find((item) => item.key === "users")!;
+  const manage = [
+    ...destination("/templates", "Template Message"),
+    ...(hasPermission("settings:read") ? [
+      { label: "Opt-in Management", path: "/settings/application#consent", available: true,
+        glyph: "O", icon: Shield, group: "Manage", permission: "settings:read",
+        description: "Configure opt-in and opt-out keyword handling." },
+      { label: "Live Chat Settings", path: "/settings/application#inbox-policy", available: true,
+        glyph: "L", icon: Inbox, group: "Manage", permission: "settings:read",
+        description: "Routing, working hours, automatic replies and resolution." },
+    ] : []),
+    ...setting("user-attributes"),
+    ...setting("canned-messages"),
+    ...(hasPermission(team.permission) ? [{
+      ...team, label: "Team", available: true, glyph: "T", icon: Users, group: "Manage",
+    }] : []),
+    ...setting("tags"),
+    ...destination("/analytics"),
+  ];
+  const covered = new Set(["/templates", "/analytics", "/settings", "/admin"]);
+  const additional = secondaryNavGroups(hasPermission)
+    .map((group) => ({ ...group, items: group.items.filter((item) => !covered.has(item.path)) }))
+    .filter((group) => group.items.length > 0);
+  const configuration = [
+    ...["organization", "application", "flags", "preferences"].flatMap(setting),
+    ...ADMIN_SECTIONS.filter((section) => section.key !== "users" && hasPermission(section.permission))
+      .map((section) => ({ ...section,
+        description: section.key === "permissions" ? "Review the capabilities enforced by the platform." : section.description,
+        available: true, glyph: "A", icon: Shield, group: "Platform" })),
+  ];
+  return [
+    ...(manage.length ? [{ group: "Manage", items: manage }] : []),
+    ...additional,
+    ...(configuration.length ? [{ group: "Configuration", items: configuration }] : []),
+  ];
 }
 
 /** Nav groups in display order, each with the visible items that belong to it. */
@@ -180,6 +240,11 @@ export const navItems: NavItem[] = [
     description: "One shared team inbox for every conversation.",
   },
   {
+    label: "Chat History", railLabel: "History", path: "/chat-history", available: true, glyph: "Ch", icon: History,
+    group: "Workspace", permission: "inbox:read",
+    description: "Read-only conversation and message history, separate from live triage.",
+  },
+  {
     label: "Campaigns", path: "/campaigns", available: true, glyph: "Ca", icon: Megaphone,
     group: "Workspace", permission: "campaigns:read",
     description: "Build, schedule and monitor WhatsApp broadcasts.",
@@ -205,7 +270,7 @@ export const navItems: NavItem[] = [
     description: "Build dynamic audiences from live contact rules.",
   },
   {
-    label: "Automation", path: "/automation", available: true, glyph: "Au", icon: Bot,
+    label: "Automation", railLabel: "Flows", path: "/automation", available: true, glyph: "Au", icon: Bot,
     group: "Workspace", permission: "automations:read",
     description: "Build and publish governed, versioned workflow definitions.",
     maturity: "foundation",
@@ -224,6 +289,16 @@ export const navItems: NavItem[] = [
     label: "Tasks", path: "/tasks", available: true, glyph: "Tk", icon: ListChecks,
     group: "Tools", permission: "tasks:read",
     description: "Assign and track customer follow-up work.",
+  },
+  {
+    label: "Download Center", path: "/downloads", available: true, glyph: "Dl", icon: Download,
+    group: "Tools", anyPermission: [
+      "contacts:export",
+      "analytics:export",
+      "inbox:export",
+      "campaigns:export",
+    ],
+    description: "Track and securely download generated exports, reports and chat transcripts.",
   },
   {
     label: "Media", path: "/media", available: true, glyph: "M", icon: Image,

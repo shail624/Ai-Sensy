@@ -28,6 +28,8 @@ const ATTRIBUTES: AttributeDefinition[] = [
     enum_values: ["pending", "won"],
     is_indexed: true,
     is_pii: false,
+    is_required: false,
+    is_active: true,
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   },

@@ -75,6 +75,24 @@ def _campaign_graph(*, approval: bool) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+def _handoff_graph() -> dict:
+    return {
+        "nodes": [
+            {
+                "id": "trigger-1",
+                "kind": "trigger",
+                "config": {"event": "message.received"},
+            },
+            {
+                "id": "handoff-1",
+                "kind": "handoff",
+                "config": {"reason": "Customer requested a human agent"},
+            },
+        ],
+        "edges": [{"id": "edge-1", "source": "trigger-1", "target": "handoff-1"}],
+    }
+
+
 async def _create(client, headers, *, graph: dict | None = None, name: str = "Lead welcome"):
     body = {"name": name, "description": "A governed workflow draft"}
     if graph is not None:
@@ -213,6 +231,33 @@ async def test_campaign_definition_publishes_only_with_downstream_approval(clien
     assert validation.json() == {"valid": True, "issues": []}
     assert published.status_code == 200, published.text
     assert published.json()["status"] == "published"
+
+
+async def test_human_handoff_is_a_typed_publishable_node(
+    client, make_user
+) -> None:
+    owner = await _headers(client, make_user, email="handoff-node@automation.co", is_superuser=True)
+    flow = (await _create(client, owner, graph=_handoff_graph())).json()
+    published = await client.post(
+        f"{AUTOMATIONS}/{flow['id']}/publish", headers=owner, json={}
+    )
+
+    assert published.status_code == 200, published.text
+    node = published.json()["graph"]["nodes"][1]
+    assert node == {
+        "id": "handoff-1",
+        "kind": "handoff",
+        "label": None,
+        "config": {"reason": "Customer requested a human agent"},
+    }
+
+    blank = _handoff_graph()
+    blank["nodes"][1]["config"]["reason"] = "   "
+    _assert_problem(
+        await _create(client, owner, graph=blank, name="Blank handoff"),
+        422,
+        "validation_error",
+    )
 
 
 async def test_disable_enable_and_optimistic_concurrency(client, make_user) -> None:

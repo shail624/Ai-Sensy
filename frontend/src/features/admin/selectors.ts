@@ -8,6 +8,7 @@ import type {
   UserSort,
 } from "@/features/admin/types";
 import { actionEntity } from "@/features/admin/types";
+import { formatDateTime, UNKNOWN } from "@/lib/format";
 
 /** Rows per page for the client-side lists (see `api.ts` for why paging lives here). */
 export const PAGE_SIZE = 25;
@@ -208,6 +209,48 @@ export interface AuditChange {
  * Both sides are free-form objects on the wire, and either may be absent — a creation has no
  * `before`, a deletion no `after` — so the union of their keys is what makes a diff readable.
  */
+/** ISO-8601 with a date and a time, which is what every timestamp this trail records looks like. */
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+
+/**
+ * A snapshot key, read as a person would say it.
+ *
+ * The keys are the field names the services snapshot — `checklist_purpose`, `assigned_user_id`,
+ * `document_type`. Fine in a payload, and in a table headed "Field" they read as leaked internals.
+ * The trailing `_id` is dropped because the column beside it already shows the value.
+ */
+export function auditFieldLabel(field: string): string {
+  const words = field.replace(/_id$/, "").replace(/_/g, " ").trim();
+  if (!words) return field;
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * One snapshot value, read as a person would say it.
+ *
+ * `null` meant the string "null", a boolean meant "true", and a timestamp meant a raw ISO string —
+ * three things an investigator has to translate in their head on every row. Internal numeric ids
+ * are deliberately left as they are: turning `assigned_user_id: 42` into a name needs the API to
+ * carry that name, and inventing one here would be a guess presented as evidence.
+ */
+export function auditValueLabel(value: unknown): string {
+  if (value === undefined) return UNKNOWN;
+  if (value === null) return "Not set";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string") {
+    if (ISO_TIMESTAMP.test(value)) {
+      const formatted = formatDateTime(value);
+      if (formatted !== UNKNOWN) return formatted;
+    }
+    return value === "" ? "Empty" : value;
+  }
+  if (typeof value === "number") return value.toLocaleString();
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "None" : value.map((item) => auditValueLabel(item)).join(", ");
+  }
+  return JSON.stringify(value);
+}
+
 export function auditChanges(entry: AuditEntry): AuditChange[] {
   const before = (entry.before ?? {}) as Record<string, unknown>;
   const after = (entry.after ?? {}) as Record<string, unknown>;

@@ -1,7 +1,7 @@
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { OPERATIONS_SECTIONS } from "@/features/operations";
+import { OPERATIONS_SECTIONS } from "@/features/operations/sections";
 import { EmptyState } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 

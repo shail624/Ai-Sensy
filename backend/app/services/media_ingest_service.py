@@ -192,6 +192,10 @@ class MediaIngestService:
     async def _adapter_for(
         self, message: Message
     ) -> tuple[ChannelAdapter, Callable[[], Awaitable[None]]]:
+        if message.phone_number_id is None:
+            # Media is a Meta-only capability (QR-08); a channel-endpoint-owned message has no
+            # `phone_numbers` row to resolve here at all.
+            raise MediaUnavailable("the message's number is no longer connected")
         number = await self._numbers.get_by_id(message.phone_number_id)
         waba = await self._wabas.get_by_id(number.waba_id) if number else None
         if number is None or waba is None:

@@ -20,6 +20,8 @@ class AttributeDefinitionResponse(BaseModel):
     enum_values: list[str] | None
     is_indexed: bool
     is_pii: bool
+    is_required: bool
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 
@@ -33,6 +35,8 @@ class AttributeDefinitionResponse(BaseModel):
             enum_values=definition.enum_values_json,
             is_indexed=definition.is_indexed,
             is_pii=definition.is_pii,
+            is_required=definition.is_required,
+            is_active=definition.is_active,
             created_at=definition.created_at,
             updated_at=definition.updated_at,
         )
@@ -45,6 +49,8 @@ class AttributeDefinitionCreateRequest(BaseModel):
     enum_values: list[str] | None = None
     is_indexed: bool = False
     is_pii: bool = False
+    is_required: bool = False
+    is_active: bool = True
 
 
 class AttributeDefinitionUpdateRequest(BaseModel):
@@ -52,6 +58,8 @@ class AttributeDefinitionUpdateRequest(BaseModel):
     enum_values: list[str] | None = None
     is_indexed: bool | None = None
     is_pii: bool | None = None
+    is_required: bool | None = None
+    is_active: bool | None = None
 
 
 class ContactAttributesRequest(BaseModel):

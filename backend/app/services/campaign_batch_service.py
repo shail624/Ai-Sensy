@@ -73,7 +73,11 @@ class CampaignBatchService:
             "campaign_batches_planned",
             extra={
                 "campaign": campaign.id,
-                "created": len(created),
+                # Not "created": `logging.makeRecord` refuses any key that would overwrite a
+                # LogRecord attribute, and `created` is the record's own timestamp. It raises
+                # before any formatter runs, so this line killed the dispatch task outright on
+                # every worker running at INFO.
+                "batches_created": len(created),
                 "outstanding": len(outstanding),
             },
         )

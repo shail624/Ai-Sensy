@@ -333,3 +333,117 @@ def test_openapi_mounts_every_document_operation() -> None:
     for path, methods in expected.items():
         assert methods <= set(paths[path])
     assert sum(len(methods) for methods in expected.values()) == 9
+
+
+# --- DOC-01: the document is the only door to the document ---------------------------------------
+async def _custom_role(client, owner, name: str, permissions: list[str]) -> None:
+    role = await client.post("/api/v1/roles", headers=owner, json={"name": name})
+    assert role.status_code == 201, role.text
+    granted = await client.put(
+        f"/api/v1/roles/{role.json()['id']}/permissions",
+        headers=owner,
+        json={"permissions": permissions},
+    )
+    assert granted.status_code == 200, granted.text
+
+
+async def test_media_read_alone_cannot_reach_a_customers_identity_document(
+    client, make_user
+) -> None:
+    """A document is *built on* a media asset and shares the upload endpoint.
+
+    So one row in `media_assets` holds either a campaign image or somebody's Aadhaar scan, and
+    `documents:read` guarded the document routes while guarding nothing on the media routes. No
+    shipped role has `media:read` without `documents:read`, so nothing was exposed as installed —
+    but custom roles are a supported feature, and the moment somebody builds "Media librarian" the
+    second door opens onto every customer's identity file. Splitting the two permissions means
+    nothing if either one reaches the same bytes.
+    """
+    owner = await _headers(client, make_user, email="owner@docs.co", is_superuser=True)
+    contact_id = await _contact(client, owner)
+    media_id = await _media(client, owner, name="aadhaar.png")
+    document = (await _create(client, owner, contact_id, media_id)).json()
+
+    await _custom_role(client, owner, "media-librarian", ["media:read"])
+    created = await client.post(
+        "/api/v1/users",
+        headers=owner,
+        json={
+            "email": "librarian@docs.co",
+            "full_name": "Media Librarian",
+            "password": PASSWORD,
+            "roles": ["media-librarian"],
+        },
+    )
+    assert created.status_code == 201, created.text
+    librarian = await _login(client, "librarian@docs.co")
+
+    # The front door is shut, and always was.
+    assert (await client.get(f"{DOCS}/{document['id']}", headers=librarian)).status_code == 403
+
+    # The back door is shut too: not in the library, and not fetchable by id.
+    listed = await client.get("/api/v1/media", headers=librarian)
+    assert listed.status_code == 200
+    assert [asset["file_name"] for asset in listed.json()["data"]] == []
+    assert (await client.get(f"/api/v1/media/{media_id}", headers=librarian)).status_code == 403
+    refused = await client.get(f"/api/v1/media/{media_id}/content", headers=librarian)
+    assert refused.status_code == 403, refused.text
+    assert "url" not in refused.text
+
+
+async def test_the_owner_still_reads_the_document_through_the_document(client, make_user) -> None:
+    """The guard refuses a route, not a person: the governed path is unchanged."""
+    owner = await _headers(client, make_user, email="owner@docs.co", is_superuser=True)
+    contact_id = await _contact(client, owner)
+    media_id = await _media(client, owner)
+    document = (await _create(client, owner, contact_id, media_id)).json()
+
+    response = await client.get(
+        f"{DOCS}/{document['id']}/versions/{document['current_version']['id']}/content",
+        headers=owner,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["url"]
+
+
+async def test_reading_a_document_is_recorded_with_who_what_and_where(
+    client, make_user, session_factory
+) -> None:
+    """Every change to a document was audited and every read was not.
+
+    That is the wrong way round for somebody's Aadhaar: "who altered this record" is rarely the
+    question a compliance review opens with, and "who looked at this customer's identity document,
+    from where, and when" had no answer at all.
+    """
+    from sqlalchemy import select
+
+    from app.models.audit import AuditLog
+
+    owner = await _headers(client, make_user, email="owner@docs.co", is_superuser=True)
+    headers = owner | {"User-Agent": "ViDesk/3.0 (Windows)"}
+    contact_id = await _contact(client, headers)
+    media_id = await _media(client, headers, name="aadhaar.png")
+    document = (await _create(client, headers, contact_id, media_id)).json()
+
+    fetched = await client.get(
+        f"{DOCS}/{document['id']}/versions/{document['current_version']['id']}/content",
+        headers=headers,
+    )
+    assert fetched.status_code == 200, fetched.text
+
+    async with session_factory() as session:
+        rows = list((await session.scalars(select(AuditLog))).all())
+    entry = next(row for row in rows if row.action == "contact_document.accessed")
+
+    assert entry.entity_type == "contact_document"
+    assert entry.metadata_json == {
+        "document_type": "identity",
+        "version_no": 1,
+        "file_name": "aadhaar.png",
+    }
+    assert entry.user_agent == "ViDesk/3.0 (Windows)"
+    assert entry.ip_address is not None
+    # A signed URL is a credential for the bytes; recording it would make the trail a second copy
+    # of the thing it is protecting.
+    assert fetched.json()["url"] not in str(entry.metadata_json)

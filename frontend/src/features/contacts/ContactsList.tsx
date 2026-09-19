@@ -1,15 +1,17 @@
-import { Contact as ContactIcon, Upload } from "lucide-react";
+import { Contact as ContactIcon, Plus, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components/ui";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
 import { ImportWizard } from "@/features/contacts/ImportWizard";
+import { CreateContactDialog } from "@/features/contacts/CreateContactDialog";
 import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
+import { ContactSavedViews } from "@/features/contacts/ContactSavedViews";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
 import { useCustomAttributeDefinitions, useTags } from "@/features/customer-profile/api";
 import { useHasPermission } from "@/lib/auth";
@@ -29,7 +31,7 @@ function filtersToParams(filters: ContactFilters): URLSearchParams {
 /** A table-shaped skeleton so the page keeps its layout while the first page loads. */
 function LoadingRows(): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
           <Skeleton className="h-4 w-4" />
@@ -51,6 +53,9 @@ export function ContactsList(): JSX.Element {
   /** Room the docked bulk bar needs on phones — reported by the bar, which knows its own height. */
   const [dockedSpace, setDockedSpace] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
+  const canCreate = useHasPermission("contacts:write");
   const canImport = useHasPermission("contacts:import");
 
   const filters = useMemo<ContactFilters>(() => {
@@ -113,111 +118,103 @@ export function ContactsList(): JSX.Element {
   return (
     <PageContainer>
       <div style={{ paddingBottom: dockedSpace }}>
-      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
-      <PageHeader
-        eyebrow="Customer data"
-        title="Contacts"
-        description="Search, segment, and act on a complete customer record from one workspace."
-        meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
-        actions={canImport ? (
-          <Button
-            variant="secondary"
-            leftIcon={<Upload className="h-4 w-4" />}
-            onClick={() => setImporting(true)}
-          >
-            Import
-          </Button>
-        ) : undefined}
-      />
-
-      {importing ? (
-        <ImportWizard
-          onClose={() => {
-            setImporting(false);
-            void contacts.refetch();
-          }}
-        />
-      ) : null}
-
-      {/* Search + filters */}
-      <div className="mb-4">
-        <ContactsToolbar
-          filters={filters}
-          onChange={applyFilters}
-          tags={tags.data ?? []}
-          enumAttributes={enumAttributes}
-        />
-      </div>
-
-      {/* Bulk actions — docked to the bottom edge on phones (DS-14), inline from `md` up. */}
-      <BulkActionsBar
-        selectedIds={selectedIds}
-        onClear={() => setSelectedIds(new Set())}
-        rules={rules}
-        onDockedHeightChange={setDockedSpace}
-      />
-
-      {contacts.isLoading ? (
-        <LoadingRows />
-      ) : contacts.isError ? (
-        <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
-      ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface shadow-sm">
-          <EmptyState
-            icon={<ContactIcon className="h-6 w-6" />}
-            title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
-            description={
-              hasActiveFilters(filters)
-                ? "Try a broader search or clear the filters to see everyone."
-                : "Import a CSV or add your first customer to start reactivating."
-            }
-            action={
-              hasActiveFilters(filters) ? (
-                <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
-                  Clear filters
-                </Button>
-              ) : canImport ? (
-                // First run: the Design Book's own call to action (B3.1 "Empty").
-                <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
-                  Import your contacts
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
-      ) : (
-        <>
-          <ContactsTable
-            contacts={rows}
-            selectedIds={selectedIds}
-            onToggle={toggle}
-            onToggleAll={toggleAll}
-            reactivationKey={reactivationKey}
-          />
-          <nav aria-label="Pagination" className="mt-4 flex items-center justify-end gap-2">
+        <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
+        <PageHeader
+          eyebrow="Customer data"
+          title="Contacts"
+          description="Search, segment, and act on a complete customer record from one workspace."
+          meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
+          actions={<div className="flex flex-wrap gap-2">
+            {canCreate ? <Button variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => { setCreated(false); setCreating(true); }}>Add Contact</Button> : null}
+            {canImport ? (
             <Button
               variant="secondary"
-              size="sm"
-              disabled={!page?.prev_cursor}
-              onClick={() => {
+              leftIcon={<Upload className="h-4 w-4" />}
+              onClick={() => setImporting(true)}
+            >
+              Import
+            </Button>
+          ) : null}</div>}
+        />
+
+        {created ? <p role="status" className="mb-4 text-sm text-text-secondary">Contact created. Your current filters are preserved; clear them if the new contact is not visible.</p> : null}
+        {creating ? <CreateContactDialog onClose={() => setCreating(false)} onCreated={() => { setCreating(false); setCreated(true); }} /> : null}
+        {importing ? (
+          <ImportWizard
+            onClose={() => {
+              setImporting(false);
+              void contacts.refetch();
+            }}
+          />
+        ) : null}
+
+        <div className="mb-4 space-y-3">
+          <ContactsToolbar
+            filters={filters}
+            onChange={applyFilters}
+            tags={tags.data ?? []}
+            enumAttributes={enumAttributes}
+          />
+          <ContactSavedViews filters={filters} onApply={applyFilters} />
+        </div>
+
+        <BulkActionsBar
+          selectedIds={selectedIds}
+          onClear={() => setSelectedIds(new Set())}
+          rules={rules}
+          onDockedHeightChange={setDockedSpace}
+        />
+
+        {contacts.isLoading ? (
+          <LoadingRows />
+        ) : contacts.isError ? (
+          <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface shadow-sm">
+            <EmptyState
+              icon={<ContactIcon className="h-6 w-6" />}
+              title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
+              description={
+                hasActiveFilters(filters)
+                  ? "Try a broader search or clear the filters to see everyone."
+                  : "Import a CSV or add your first customer to start reactivating."
+              }
+              action={
+                hasActiveFilters(filters) ? (
+                  <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
+                    Clear filters
+                  </Button>
+                ) : canImport ? (
+                  <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
+                    Import your contacts
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ContactsTable
+              contacts={rows}
+              selectedIds={selectedIds}
+              onToggle={toggle}
+              onToggleAll={toggleAll}
+              reactivationKey={reactivationKey}
+            />
+            <Pagination
+              label="Contact pagination"
+              hasPrevious={Boolean(page?.prev_cursor)}
+              hasNext={Boolean(page?.next_cursor)}
+              onPrevious={() => {
                 if (page?.prev_cursor) goToCursor(page.prev_cursor);
               }}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!page?.next_cursor}
-              onClick={() => {
+              onNext={() => {
                 if (page?.next_cursor) goToCursor(page.next_cursor);
               }}
-            >
-              Next
-            </Button>
-          </nav>
-        </>
-      )}
+              summary={page?.total != null ? `${page.total.toLocaleString()} total contacts` : undefined}
+            />
+          </>
+        )}
       </div>
     </PageContainer>
   );

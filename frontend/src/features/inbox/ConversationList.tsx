@@ -1,8 +1,8 @@
-import { Check, Clock3, MessageCircle, Pin, PinOff } from "lucide-react";
+import { Check, Clock3, MessageCircle, Pin, PinOff, QrCode, ShieldCheck } from "lucide-react";
 
 import { TagChip } from "@/components/ui";
 import type { Conversation, ConversationStatus } from "@/features/inbox/types";
-import { STATUS_LABELS } from "@/features/inbox/types";
+import { connectorLabel, isWahaConversation, STATUS_LABELS } from "@/features/inbox/types";
 
 function relativeTime(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -92,6 +92,17 @@ export function ConversationList({
                   </div>
                   <p className="mt-0.5 truncate text-xs text-text-secondary">{conversation.last_message_preview ?? "No messages yet"}</p>
                   <div className="mt-2 flex min-h-5 items-center gap-1.5 overflow-hidden">
+                    <span
+                      title={connectorLabel(conversation)}
+                      className={`inline-flex shrink-0 items-center justify-center rounded-full p-0.5 ${isWahaConversation(conversation) ? "text-accent" : "text-text-disabled"}`}
+                    >
+                      {isWahaConversation(conversation) ? (
+                        <QrCode aria-hidden className="h-3 w-3" />
+                      ) : (
+                        <ShieldCheck aria-hidden className="h-3 w-3" />
+                      )}
+                      <span className="sr-only">{connectorLabel(conversation)}</span>
+                    </span>
                     <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-text-disabled">
                       <span className={`h-1.5 w-1.5 rounded-full ${conversation.status === "open" ? "bg-success" : "bg-text-disabled"}`} />
                       {STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status}

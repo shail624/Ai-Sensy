@@ -59,6 +59,26 @@ def _beat_schedule() -> dict[str, dict[str, object]]:
             "schedule": crontab(minute="*"),
             "options": {"queue": SCHEDULER_TICK, "expires": 55},
         },
+        "inbox-auto-resolve": {
+            "task": "app.crm.tasks.auto_resolve_inactive_conversations",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "automation-trigger-receipts": {
+            "task": "app.automation.tasks.dispatch_automation_trigger_receipts",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "automation-schedules": {
+            "task": "app.automation.tasks.dispatch_scheduled_automations",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
+        "analytics-report-schedules": {
+            "task": "app.analytics.tasks.dispatch_report_schedules",
+            "schedule": crontab(minute="*"),
+            "options": {"queue": SCHEDULER_TICK, "expires": 55},
+        },
         # Recompute the trailing 6 closed hours, absorbing late delivery receipts (Doc 15 §8.2).
         "analytics-rollup-incremental": {
             "task": "app.analytics.tasks.rollup_incremental",
@@ -133,6 +153,12 @@ def create_celery_app() -> Celery:
 
 
 celery_app = create_celery_app()
+
+# Registers the `worker_ready`/`worker_shutdown` handlers that publish this worker's heartbeat.
+# Imported for its side effect and after the app exists, the same way Celery signal modules are
+# normally wired. Without this import nothing writes the worker registry, and `GET /api/v1/queues`
+# reports an empty fleet however many workers are running.
+from app.queue import worker_heartbeat as _worker_heartbeat  # noqa: E402,F401
 
 
 def apply_queue_timeouts(task_name: str, queue_name: str) -> dict[str, int]:

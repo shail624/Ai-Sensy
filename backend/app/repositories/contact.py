@@ -50,12 +50,16 @@ class ContactRepository(BaseRepository[Contact]):
             raise BadRequestError(f"Cannot sort by {name!r}.")
         return name, descending
 
-    async def get_active_by_uuid(self, organization_id: int, public_id: bytes) -> Contact | None:
+    async def get_active_by_uuid(
+        self, organization_id: int, public_id: bytes, *, for_update: bool = False
+    ) -> Contact | None:
         stmt = select(Contact).where(
             Contact.organization_id == organization_id,
             Contact.uuid == public_id,
             Contact.deleted_at.is_(None),
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         return (await self.session.scalars(stmt)).first()
 
     async def get_active_by_wa_id(self, organization_id: int, wa_id: str) -> Contact | None:
@@ -121,9 +125,7 @@ class ContactRepository(BaseRepository[Contact]):
         )
         return [row for row in (await self.session.scalars(stmt)).all() if row is not None]
 
-    async def list_active_by_key(
-        self, organization_id: int, key: str, value: str
-    ) -> list[Contact]:
+    async def list_active_by_key(self, organization_id: int, key: str, value: str) -> list[Contact]:
         """Every live contact sharing ``value`` on ``key``, oldest first (the merge primary)."""
         column = self.dedup_column(key)
         stmt = (

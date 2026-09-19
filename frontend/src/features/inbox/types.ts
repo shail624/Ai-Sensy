@@ -3,6 +3,7 @@ import type { components } from "@/lib/api/schema";
 // Aliased from the generated OpenAPI schema — never hand-written.
 export type Conversation = components["schemas"]["ConversationResponse"];
 export type ConversationsPage = components["schemas"]["ConversationsPage"];
+export type ConversationCategoryCounts = components["schemas"]["ConversationCategoryCounts"];
 export type ConversationState = components["schemas"]["ConversationStateResponse"];
 export type Message = components["schemas"]["MessageResponse"];
 export type MessagesPage = components["schemas"]["ConversationMessagesPage"];
@@ -42,9 +43,35 @@ export interface InboxFilters {
   contact?: string;
   status?: string;
   assignee?: string;
+  /** Sending number's public id — the backend's `number` filter groups by this (Doc 04 §18.1). */
+  number?: string;
   tag?: string;
   q?: string;
+  /** Local calendar dates; API serialization turns Through into an exclusive next-day bound. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Public campaign id; matches threads containing at least one message from that campaign. */
+  campaign?: string;
+  hasMedia?: boolean;
+  hasAudit?: boolean;
 }
 
 /** Emoji offered by the reaction picker (the API accepts any single emoji). */
 export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+/**
+ * Which provider owns a conversation (QR-08) — display-only, the same field the server derives
+ * from durable ownership and never a value a client may set or trust for routing.
+ */
+export const CONNECTOR_LABELS: Record<string, string> = {
+  meta_cloud: "Official WhatsApp",
+  waha: "WhatsApp (QR)",
+};
+
+export function isWahaConversation(conversation: Conversation): boolean {
+  return conversation.connector_type === "waha";
+}
+
+export function connectorLabel(conversation: Conversation): string {
+  return CONNECTOR_LABELS[conversation.connector_type] ?? "WhatsApp";
+}

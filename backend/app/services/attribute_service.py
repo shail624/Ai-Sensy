@@ -95,6 +95,8 @@ class AttributeService:
         enum_values: list[str] | None,
         is_indexed: bool,
         is_pii: bool,
+        is_required: bool = False,
+        is_active: bool = True,
     ) -> CustomAttributeDefinition:
         self._validate_definition(data_type, enum_values)
         if await self._defs.get_by_key(organization_id, key_name) is not None:
@@ -107,6 +109,8 @@ class AttributeService:
             enum_values_json=enum_values,
             is_indexed=is_indexed,
             is_pii=is_pii,
+            is_required=is_required,
+            is_active=is_active,
         )
         await self._defs.add(definition)
         await self._audit.record(
@@ -130,6 +134,8 @@ class AttributeService:
         enum_values: list[str] | None,
         is_indexed: bool | None,
         is_pii: bool | None,
+        is_required: bool | None = None,
+        is_active: bool | None = None,
     ) -> CustomAttributeDefinition:
         """Update label / indexing / enum values (Doc 04 §14.4).
 
@@ -137,7 +143,12 @@ class AttributeService:
         stored value's column and any segment rule referencing the key.
         """
         definition = await self.get_definition(organization_id, public_id)
-        before = {"label": definition.label, "is_indexed": definition.is_indexed}
+        before = {
+            "label": definition.label,
+            "is_indexed": definition.is_indexed,
+            "is_required": definition.is_required,
+            "is_active": definition.is_active,
+        }
         if enum_values is not None:
             self._validate_definition(definition.data_type, enum_values)
             definition.enum_values_json = enum_values
@@ -147,6 +158,10 @@ class AttributeService:
             definition.is_indexed = is_indexed
         if is_pii is not None:
             definition.is_pii = is_pii
+        if is_required is not None:
+            definition.is_required = is_required
+        if is_active is not None:
+            definition.is_active = is_active
         await self._defs.flush()
         await self._audit.record(
             AuditAction.ATTRIBUTE_UPDATED,
@@ -155,7 +170,12 @@ class AttributeService:
             entity_type="custom_attribute",
             entity_id=definition.id,
             before=before,
-            after={"label": definition.label, "is_indexed": definition.is_indexed},
+            after={
+                "label": definition.label,
+                "is_indexed": definition.is_indexed,
+                "is_required": definition.is_required,
+                "is_active": definition.is_active,
+            },
         )
         await self._session.commit()
         return definition
@@ -216,6 +236,29 @@ class AttributeService:
             if definition is None:
                 errors.append(
                     {"field": key, "code": "unknown_attribute", "message": "no such attribute"}
+                )
+                continue
+            # This endpoint is a *partial* update — it writes the keys it is given and deletes the
+            # ones passed as null — so "required" cannot mean "every write must carry it" without
+            # breaking every partial update and every import. It means this one may not be cleared.
+            if definition.is_required and raw is None:
+                errors.append(
+                    {
+                        "field": key,
+                        "code": "attribute_required",
+                        "message": "this attribute is required and cannot be cleared",
+                    }
+                )
+                continue
+            # A retired attribute takes no new value. Clearing one is still allowed, so a field can
+            # be wound down and tidied up rather than deleted out from under its own history.
+            if not definition.is_active and raw is not None:
+                errors.append(
+                    {
+                        "field": key,
+                        "code": "attribute_retired",
+                        "message": "this attribute is retired and no longer accepts values",
+                    }
                 )
                 continue
             try:

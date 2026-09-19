@@ -16,6 +16,7 @@ import { SegmentDetail } from "@/features/segments/SegmentDetail";
 import { SegmentEditor } from "@/features/segments/SegmentEditor";
 import { SegmentList } from "@/features/segments/SegmentList";
 import {
+  AUDIENCE_PRESETS,
   audiencePresetIdForSegment,
   createAudiencePresetSeed,
 } from "@/features/segments/audiencePresets";
@@ -34,6 +35,9 @@ import {
 } from "@/features/segments/selectors";
 import type { AttributeDefinition, Segment, SegmentRule, Tag } from "@/features/segments/types";
 import {
+  FIELD_SOURCE_HINTS,
+  FIELD_SOURCE_LABELS,
+  FIELD_SOURCES,
   fieldsForSource,
   isStale,
   kindForDataType,
@@ -82,6 +86,8 @@ function attributeFixture(overrides: Partial<AttributeDefinition> = {}): Attribu
     enum_values: ["basic", "premium"],
     is_indexed: true,
     is_pii: false,
+    is_required: false,
+    is_active: true,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-01T10:00:00Z",
     ...overrides,
@@ -229,12 +235,64 @@ describe("audience presets", () => {
   it("offers each quick-start audience through the normal new-segment route", () => {
     withProviders(<AudiencePresetGallery />);
 
-    expect(screen.getAllByRole("link")).toHaveLength(4);
+    // Counted from the list rather than pinned to a number: the assertion that matters is that
+    // every preset is reachable, not how many there happen to be this month.
+    expect(screen.getAllByRole("link")).toHaveLength(AUDIENCE_PRESETS.length);
     expect(screen.getByRole("link", { name: /Recently engaged/ })).toHaveAttribute(
       "href",
       "/segments/new",
     );
-    expect(screen.getByText(/Dates are fixed/)).toBeInTheDocument();
+    expect(screen.getByText(/Date-based presets keep their visible cutoff/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Eligible for reactivation/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /KYC in progress/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Activation in progress/ })).toBeInTheDocument();
+  });
+
+  it("offers the reachability audiences the Scan screen produces", () => {
+    // The money pair: who a campaign can actually reach, and who it should stop paying to try.
+    withProviders(<AudiencePresetGallery />);
+
+    expect(screen.getByRole("link", { name: /Reachable on WhatsApp/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Not on WhatsApp/ })).toBeInTheDocument();
+  });
+
+  it("seeds them from the scan rule, not the weaker inbound-only signal", () => {
+    // `is_active_on_wa` is set only when a customer writes to us, so it misses everyone Meta
+    // delivered to who simply did not reply. The scan rule reads the delivery receipts.
+    const when = new Date("2026-07-30T12:34:56.789Z");
+    expect(createAudiencePresetSeed("whatsapp_reachable", when).rules).toEqual([
+      { group_index: 0, field_source: "scan", field_key: "reachability", operator: "eq", value: "reachable" },
+    ]);
+    expect(createAudiencePresetSeed("whatsapp_unreachable", when).rules).toEqual([
+      { group_index: 0, field_source: "scan", field_key: "reachability", operator: "eq", value: "unreachable" },
+    ]);
+  });
+
+  it("builds governed domain presets as ordinary server-owned rules", () => {
+    expect(createAudiencePresetSeed("reactivation_eligible").rules).toEqual([
+      expect.objectContaining({
+        field_source: "reactivation",
+        field_key: "eligibility_status",
+        operator: "eq",
+        value: "eligible",
+      }),
+    ]);
+    expect(createAudiencePresetSeed("kyc_pending").rules?.[0]).toMatchObject({
+      field_source: "kyc",
+      field_key: "status",
+      operator: "in",
+      value: ["pending", "documents_pending", "under_review"],
+    });
+    expect(createAudiencePresetSeed("activation_pending").rules?.[0]).toMatchObject({
+      field_source: "activation",
+      field_key: "status",
+      operator: "in",
+    });
+    expect(
+      audiencePresetIdForSegment(
+        segmentFixture({ rules: createAudiencePresetSeed("completed_customers").rules }),
+      ),
+    ).toBe("completed_customers");
   });
 
   it("opens a preset prefilled and creates it through the existing segment endpoint", async () => {
@@ -642,6 +700,38 @@ describe("RuleBuilder", () => {
     expect(within(value).getByRole("option", { name: "premium" })).toBeInTheDocument();
   });
 
+  it("offers governed KYC lifecycle choices without free text", () => {
+    renderBuilder([
+      {
+        index: 0,
+        rules: [
+          ruleFixture({ field_source: "kyc", field_key: "status", operator: "eq", value: "pending" }),
+        ],
+      },
+    ]);
+    const value = screen.getByLabelText("Value");
+    expect(within(value).getByRole("option", { name: "Under review" })).toBeInTheDocument();
+    expect(within(value).getByRole("option", { name: "Approved" })).toBeInTheDocument();
+  });
+
+  it("offers current Vi-domain sources and exact field vocabularies", () => {
+    expect(fieldsForSource("reactivation", [])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "stage" }),
+        expect.objectContaining({ key: "eligibility_status" }),
+      ]),
+    );
+    expect(fieldsForSource("document", [])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "status" }),
+        expect.objectContaining({ key: "document_type" }),
+      ]),
+    );
+    expect(fieldsForSource("activation", [])[0]?.choices?.map((choice) => choice.value)).toContain(
+      "completed",
+    );
+  });
+
   it("draws two inputs for a between range", () => {
     renderBuilder([
       { index: 0, rules: [ruleFixture({ field_key: "created_at", operator: "between", value: ["", ""] })] },
@@ -902,5 +992,30 @@ describe("navigation — segments entry", () => {
     expect(visibleNavItems((code) => code === "inbox:read").map((item) => item.path)).not.toContain(
       "/segments",
     );
+  });
+});
+
+describe("WhatsApp reachability as a segment rule (scope §13 'Create segment')", () => {
+  it("offers the verdict the Scan screen shows, in the same words", () => {
+    // An operator who reads "Not on WhatsApp" on the Scan screen has to find the same words here,
+    // or they cannot tell that the two describe one population.
+    const [field] = fieldsForSource("scan", []);
+
+    expect(field?.key).toBe("reachability");
+    expect(field?.choices?.map((choice) => choice.label)).toEqual([
+      "On WhatsApp",
+      "Not on WhatsApp",
+      "Never messaged",
+    ]);
+  });
+
+  it("is listed as a source an operator can pick", () => {
+    expect(FIELD_SOURCES).toContain("scan");
+    expect(FIELD_SOURCE_LABELS.scan).toBe("WhatsApp reachability");
+  });
+
+  it("says plainly that nothing is sent to produce it", () => {
+    // The compliance point, where somebody choosing the rule will actually read it.
+    expect(FIELD_SOURCE_HINTS.scan).toMatch(/nothing is sent/i);
   });
 });

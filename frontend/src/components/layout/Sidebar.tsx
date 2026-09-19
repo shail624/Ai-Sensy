@@ -1,262 +1,166 @@
-import { ChevronDown, LayoutGrid, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronDown, Settings, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import { useAuth } from "@/lib/auth";
 
-import { primaryNavItems, secondaryNavGroups, type NavItem } from "./navigation";
+import { manageNavGroups, primaryNavItems, type NavItem } from "./navigation";
 
 interface SidebarProps {
   collapsed: boolean;
   className?: string;
-  /** Called after a nav item is chosen — used to close the mobile drawer. */
   onNavigate?: () => void;
-  /** Present only in the mobile drawer, where an explicit close control is required. */
   onClose?: () => void;
 }
 
-type SecondaryGroup = ReturnType<typeof secondaryNavGroups>[number];
-type NavTone = "rail" | "panel";
-
 const GROUP_LABELS: Record<string, string> = {
-  Workspace: "Engagement",
-  Tools: "Workflow tools",
+  Workspace: "Vi & audience tools",
+  Tools: "Workspace tools",
   Platform: "Platform controls",
 };
 
-function isCurrentPath(pathname: string, path: string): boolean {
-  return path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(`${path}/`);
-}
-
-function NavEntry({
-  item,
-  collapsed,
-  onNavigate,
-  tone = "rail",
-}: {
-  item: NavItem;
-  collapsed: boolean;
-  onNavigate?: () => void;
-  tone?: NavTone;
-}): JSX.Element {
-  const Icon = item.icon;
-  const isRail = tone === "rail";
-  return (
-    <li>
-      <NavLink
-        to={item.path}
-        end={item.path === "/"}
-        onClick={onNavigate}
-        title={collapsed ? item.label : undefined}
-        className={({ isActive }) =>
-          `group relative flex min-h-10 items-center gap-3 rounded-xl px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-            collapsed ? "justify-center" : ""
-          } ${
-            isActive
-              ? isRail
-                ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)] shadow-sm"
-                : "bg-accent-soft text-accent"
-              : isRail
-                ? "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
-                : "text-text-secondary hover:bg-hover hover:text-text-primary"
-          }`
-        }
-      >
-        {({ isActive }) => (
-          <>
-            {isActive ? (
-              <span aria-hidden className={`absolute inset-y-1.5 left-0 w-1 rounded-r-full ${isRail ? "bg-[var(--color-nav-indicator)]" : "bg-accent"}`} />
-            ) : null}
-            <Icon
-              aria-hidden
-              className={`h-[18px] w-[18px] shrink-0 ${
-                isActive
-                  ? isRail ? "text-[var(--color-nav-indicator)]" : "text-accent"
-                  : isRail ? "text-[var(--color-nav-muted)] group-hover:text-[var(--color-nav-text)]" : "text-text-disabled group-hover:text-text-primary"
-              }`}
-            />
-            {!collapsed ? (
-              <>
-                <span className="flex-1 truncate">{item.label}</span>
-                {item.maturity ? (
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
-                      isRail
-                        ? "bg-white/10 text-[var(--color-nav-text)]"
-                        : "bg-surface-2 text-text-secondary"
-                    }`}
-                  >
-                    {item.maturity}
-                  </span>
-                ) : null}
-              </>
-            ) : null}
-          </>
-        )}
-      </NavLink>
-    </li>
-  );
-}
-
-function SecondaryGroupList({
-  groups,
-  onNavigate,
-  tone = "rail",
-}: {
-  groups: SecondaryGroup[];
-  onNavigate?: () => void;
-  tone?: NavTone;
-}): JSX.Element {
-  return (
-    <>
-      {groups.map((group) => (
-        <div key={group.group} className="mt-3 first:mt-0">
-          <p className={`px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] ${tone === "rail" ? "text-[var(--color-nav-muted)]" : "text-text-disabled"}`}>
-            {GROUP_LABELS[group.group] ?? group.group}
-          </p>
-          <ul className="space-y-0.5">
-            {group.items.map((item) => (
-              <NavEntry key={item.path} item={item} collapsed={false} onNavigate={onNavigate} tone={tone} />
-            ))}
-          </ul>
-        </div>
-      ))}
-    </>
-  );
+function matchesPath(pathname: string, path: string): boolean {
+  const base = path.split("#")[0]!;
+  return base === "/" ? pathname === "/" : pathname === base || pathname.startsWith(`${base}/`);
 }
 
 export function Sidebar({ collapsed, className, onNavigate, onClose }: SidebarProps): JSX.Element {
   const { hasPermission } = useAuth();
   const location = useLocation();
   const primary = primaryNavItems(hasPermission);
-  const secondaryGroups = secondaryNavGroups(hasPermission);
-  const secondary = secondaryGroups.flatMap((group) => group.items);
-  const secondaryActive = secondary.some((item) => isCurrentPath(location.pathname, item.path));
-  const [moreOpen, setMoreOpen] = useState(!collapsed && secondaryActive);
+  const groups = manageNavGroups(hasPermission);
+  const secondary = groups.flatMap((group) => group.items);
+  // Prefer the most specific destination, and match hash entry points independently.
+  const activeSecondary = secondary
+    .filter((item) => matchesPath(location.pathname, item.path)
+      && (!item.path.includes("#") || item.path.endsWith(location.hash) && Boolean(location.hash)))
+    .sort((a, b) => b.path.length - a.path.length)[0]?.path;
+  const [moreOpen, setMoreOpen] = useState(Boolean(activeSecondary));
+  const manageRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const panelId = onClose ? "mobile-manage-navigation" : "manage-navigation";
 
   useEffect(() => {
-    if (collapsed) {
-      setMoreOpen(false);
-      return;
-    }
-    if (secondaryActive) setMoreOpen(true);
-  }, [collapsed, secondaryActive]);
+    setMoreOpen(Boolean(activeSecondary));
+  }, [location.pathname, location.hash, activeSecondary]);
 
-  const handleSecondaryNavigate = (): void => {
-    if (collapsed) setMoreOpen(false);
-    onNavigate?.();
-  };
+  function closeManage(): void {
+    setMoreOpen(false);
+    manageRef.current?.focus();
+  }
+
+  function renderEntry(item: NavItem, panel = false): JSX.Element {
+    const Icon = item.icon;
+    const compact = collapsed && !panel;
+    const caption = compact ? item.railLabel ?? item.label : item.label;
+    return (
+      <li key={item.path}>
+        <NavLink
+          to={item.path}
+          end={item.path === "/"}
+          onClick={onNavigate}
+          aria-label={compact && item.railLabel ? `${caption} — ${item.label}` : undefined}
+          aria-current={panel ? activeSecondary === item.path ? "page" : false : undefined}
+          title={compact ? `${item.label}${item.maturity ? ` (${item.maturity})` : ""}` : undefined}
+          className={({ isActive }) => {
+            const active = panel ? activeSecondary === item.path : isActive;
+            return `group relative flex items-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+              compact ? "min-h-[68px] flex-col justify-center gap-1 px-1 py-2 text-center text-[11px] font-medium leading-tight"
+                : "min-h-11 gap-3 rounded-md px-3 py-2 text-sm font-medium"
+            } ${panel
+              ? active ? "bg-accent-soft text-accent" : "text-text-primary hover:bg-hover"
+              : active ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]" : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"}`;
+          }}
+        >
+          {({ isActive }) => <>
+            {(panel ? activeSecondary === item.path : isActive) && !panel ? (
+              <span aria-hidden className="absolute inset-y-2 left-0 w-0.5 bg-[var(--color-nav-indicator)]" />
+            ) : null}
+            <Icon aria-hidden className={`${compact ? "h-6 w-6" : "h-[18px] w-[18px]"} shrink-0`} />
+            <span className={compact ? "max-w-full break-words" : "min-w-0 flex-1"}>{caption}</span>
+            {item.maturity ? (
+              <span className={`${compact ? "text-[8px]" : "rounded px-1 text-[9px]"} uppercase tracking-wide`}>{item.maturity}</span>
+            ) : null}
+          </>}
+        </NavLink>
+      </li>
+    );
+  }
+
+  const manageContents = groups.map((group) => (
+    <div key={group.group} className="mt-5 first:mt-0">
+      {group.group !== "Manage" ? (
+        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+          {GROUP_LABELS[group.group] ?? group.group}
+        </p>
+      ) : null}
+      <ul className="space-y-1">{group.items.map((item) => renderEntry(item, true))}</ul>
+    </div>
+  ));
 
   return (
-    <nav
-      aria-label="Primary"
-      className={`relative z-40 flex-col border-r border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] transition-[width] duration-200 ${collapsed ? "w-[4.5rem]" : "w-64"} ${className ?? ""}`}
-    >
-      <div className="flex h-14 items-center gap-2.5 border-b border-[var(--color-nav-border)] px-3">
-        <span
-          aria-hidden
-          className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-extrabold tracking-tight text-white shadow-sm"
-        >
-          VR
-        </span>
-        {!collapsed ? (
-          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold tracking-tight text-[var(--color-nav-text)]">Vi Reactivation</span><span className="block truncate text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-nav-muted)]">Operations</span></span>
-        ) : null}
-        {onClose && !collapsed ? (
-          <button
-            type="button"
-            aria-label="Close navigation"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            <X aria-hidden className="h-4 w-4" />
-          </button>
-        ) : null}
-      </div>
+    <div className={`shrink-0 ${className ?? "flex"}`}>
+      <nav
+        aria-label="Primary"
+        className={`flex min-h-0 flex-col border-r border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] ${collapsed ? "w-[84px]" : "w-64 max-w-[85vw]"}`}
+      >
+        <div className={`flex h-14 shrink-0 items-center gap-2.5 border-b border-[var(--color-nav-border)] px-3 ${collapsed ? "justify-center" : ""}`}>
+          <span aria-hidden className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold text-white">VR</span>
+          {!collapsed ? <span className="min-w-0 flex-1 text-sm font-bold text-[var(--color-nav-text)]">Vi Reactivation</span> : null}
+          {onClose ? (
+            <button type="button" aria-label="Close navigation" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--color-nav-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <X aria-hidden className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
-        <ul className="space-y-0.5">
-          {primary.map((item) => (
-            <NavEntry key={item.path} item={item} collapsed={collapsed} onNavigate={onNavigate} />
-          ))}
-        </ul>
-
-        {secondary.length > 0 ? (
-          collapsed ? (
-            <div className="mt-2 border-t border-[var(--color-nav-border)] pt-2">
-              <button
-                type="button"
-                aria-expanded={moreOpen}
-                aria-controls="secondary-navigation"
-                title="More tools"
-                onClick={() => setMoreOpen((open) => !open)}
-                className={`relative flex min-h-10 w-full items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                  secondaryActive
-                    ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]"
-                    : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
-                }`}
-              >
-                <LayoutGrid aria-hidden className="h-[18px] w-[18px]" />
-                <span className="sr-only">More</span>
-                {secondaryActive ? (
-                  <span aria-hidden className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-[var(--color-nav-indicator)]" />
-                ) : null}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-2 border-t border-[var(--color-nav-border)] pt-2">
-              <button
-                type="button"
-                aria-expanded={moreOpen}
-                aria-controls="secondary-navigation"
-                onClick={() => setMoreOpen((open) => !open)}
-                className={`flex min-h-10 w-full items-center gap-3 rounded-xl px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                  secondaryActive
-                    ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]"
-                    : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)] hover:text-[var(--color-nav-text)]"
-                }`}
-              >
-                <LayoutGrid aria-hidden className="h-[18px] w-[18px] shrink-0" />
-                <span className="flex-1 text-left">More</span>
-                <ChevronDown
-                  aria-hidden
-                  className={`h-4 w-4 transition-transform ${moreOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {moreOpen ? (
-                <div id="secondary-navigation" className="mt-1 rounded-xl bg-[var(--color-nav-subtle)] p-1.5">
-                  <SecondaryGroupList groups={secondaryGroups} onNavigate={handleSecondaryNavigate} />
-                </div>
-              ) : null}
-            </div>
-          )
-        ) : null}
-      </div>
+        <div className={`min-h-0 flex-1 overflow-y-auto py-2 ${collapsed ? "" : "px-2"}`}>
+          <ul>{primary.map((item) => renderEntry(item))}</ul>
+          {secondary.length > 0 ? (
+            <button
+              ref={manageRef}
+              type="button"
+              aria-expanded={moreOpen}
+              aria-controls={panelId}
+              onClick={() => setMoreOpen((value) => !value)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowRight" && moreOpen && collapsed) {
+                  event.preventDefault();
+                  panelRef.current?.querySelector<HTMLElement>("a")?.focus();
+                }
+              }}
+              className={`flex w-full items-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${collapsed ? "min-h-[68px] flex-col justify-center gap-1 text-[11px]" : "min-h-11 gap-3 rounded-md px-3 text-sm"} ${moreOpen || activeSecondary ? "bg-[var(--color-nav-active-bg)] text-[var(--color-nav-text)]" : "text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)]"}`}
+            >
+              <Settings aria-hidden className={collapsed ? "h-6 w-6" : "h-[18px] w-[18px]"} />
+              <span>Manage</span>
+              {!collapsed ? <ChevronDown aria-hidden className={`ml-auto h-4 w-4 ${moreOpen ? "rotate-180" : ""}`} /> : null}
+            </button>
+          ) : null}
+          {!collapsed && moreOpen ? (
+            <div id={panelId} className="mt-2 rounded-md bg-surface p-2">{manageContents}</div>
+          ) : null}
+        </div>
+      </nav>
 
       {collapsed && moreOpen && secondary.length > 0 ? (
         <section
-          id="secondary-navigation"
-          aria-label="More tools"
-          className="absolute bottom-3 left-[calc(100%+0.5rem)] top-[4.25rem] z-50 w-72 overflow-y-auto rounded-2xl border border-border bg-surface p-3 shadow-lg"
+          ref={panelRef}
+          id={panelId}
+          aria-label="Manage"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") { event.preventDefault(); closeManage(); }
+          }}
+          className="flex w-64 min-h-0 flex-col border-r border-border bg-surface"
         >
-          <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary">More tools</h2>
-              <p className="mt-0.5 text-xs text-text-secondary">Advanced workspace and administration</p>
-            </div>
-            <button
-              type="button"
-              aria-label="Close more tools"
-              onClick={() => setMoreOpen(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-text-secondary hover:bg-hover hover:text-text-primary"
-            >
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+            <h2 className="text-lg font-semibold text-text-primary">Manage</h2>
+            <button type="button" aria-label="Close manage panel" onClick={closeManage} className="flex h-9 w-9 items-center justify-center rounded-md text-text-secondary hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
               <X aria-hidden className="h-4 w-4" />
             </button>
           </div>
-          <SecondaryGroupList groups={secondaryGroups} onNavigate={handleSecondaryNavigate} tone="panel" />
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">{manageContents}</div>
         </section>
       ) : null}
-    </nav>
+    </div>
   );
 }

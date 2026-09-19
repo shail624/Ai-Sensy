@@ -11,10 +11,15 @@ const SIZES = {
 } as const;
 
 // A small, stable palette — the same name always lands on the same colour, so a contact keeps its
-// identity across screens. Values are tuned for legible white text in both themes.
+// identity across screens.
+//
+// Every tone is the darkest-but-one step of the hue it started from, chosen so the white initials
+// on it clear 4.5:1. The previous set was described as "tuned for legible white text" and measured
+// between 2.15:1 and 4.47:1 — nine of the ten failed, the amber worst of all. Hue is preserved, so
+// a contact whose avatar was blue is still blue.
 const COLORS = [
-  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444",
-  "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#3b82f6",
+  "#6164f1", "#0b7caf", "#0c855d", "#a36907", "#e91414",
+  "#8452f5", "#e0177a", "#0e8376", "#c35305", "#1b6ef5",
 ];
 
 function initials(name: string): string {

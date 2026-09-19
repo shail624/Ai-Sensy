@@ -7,6 +7,7 @@ import { KycOperationsWorkspace } from "@/features/kyc/KycOperationsWorkspace";
 const mocks = vi.hoisted(() => ({
   permissions: { value: ["kyc:read", "kyc:write", "kyc:decide", "kyc:approve", "tasks:write", "documents:read", "users:read"] },
   state: { value: {} as Record<string, unknown> },
+  operationFilters: vi.fn(),
   refetch: vi.fn(),
   update: vi.fn(),
   setDocument: vi.fn(),
@@ -61,7 +62,13 @@ vi.mock("@/features/tasks/api", () => ({
 }));
 vi.mock("@/features/kyc/api", () => ({
   apiErrorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed",
-  useKycOperations: () => mocks.state.value,
+  useKycViews: () => ({ data: [], isLoading: false, isError: false }),
+  useCreateKycView: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  useDeleteKycView: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+  useKycOperations: (filters: unknown) => {
+    mocks.operationFilters(filters);
+    return mocks.state.value;
+  },
   useUpdateKycCase: () => ({ mutate: mocks.update, isPending: false, error: null }),
   useSetKycDocumentReference: () => ({ mutate: mocks.setDocument, isPending: false, error: null }),
   useCreateKycAppointment: () => ({ mutate: mocks.schedule, isPending: false, error: null }),
@@ -71,7 +78,13 @@ vi.mock("@/features/kyc/api", () => ({
 }));
 
 function ready(data = [card]) { return { data: { data, total: data.length }, isLoading: false, isError: false, isFetching: false, error: null, refetch: mocks.refetch }; }
-function renderWorkspace() { return render(<MemoryRouter><KycOperationsWorkspace /></MemoryRouter>); }
+function renderWorkspace(initialEntries = ["/kyc"]) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <KycOperationsWorkspace />
+    </MemoryRouter>,
+  );
+}
 
 beforeEach(() => {
   mocks.permissions.value = ["kyc:read", "kyc:write", "kyc:decide", "kyc:approve", "tasks:write", "documents:read", "users:read"];
@@ -86,8 +99,25 @@ describe("CORE-04 governed KYC workspace", () => {
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getAllByText("60%").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1/2 linked").length).toBeGreaterThan(0);
+    expect(screen.getByRole("tab", { name: "Pending" })).toBeInTheDocument();
     expect(container.querySelector(".md\\:hidden")).not.toBeNull();
     expect(screen.queryByText(/sample|mock lead/i)).not.toBeInTheDocument();
+  });
+
+  it("restores portable filters from the URL and keeps status changes shareable", () => {
+    renderWorkspace(["/kyc?q=Asha&status=under_review"]);
+    expect(mocks.operationFilters).toHaveBeenLastCalledWith({
+      q: "Asha",
+      kyc_status: ["under_review"],
+      limit: 200,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Documents" }));
+    expect(mocks.operationFilters).toHaveBeenLastCalledWith({
+      q: "Asha",
+      kyc_status: ["documents_pending"],
+      limit: 200,
+    });
   });
 
   it("opens the accessible drawer by keyboard and updates persisted verification checks", () => {

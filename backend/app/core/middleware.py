@@ -16,7 +16,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.logging import get_logger, request_id_ctx
+from app.core.logging import (
+    client_ip_ctx,
+    get_logger,
+    request_id_ctx,
+    user_agent_ctx,
+)
 
 REQUEST_ID_HEADER = "X-Request-Id"
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
@@ -44,6 +49,10 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         request_id = correlation_id(request.headers.get(REQUEST_ID_HEADER))
         token = request_id_ctx.set(request_id)
+        # The user agent is truncated to what the column holds: a header is attacker-controlled
+        # and unbounded, and an audit write must not fail because somebody sent a long one.
+        ip_token = client_ip_ctx.set(request.client.host if request.client else None)
+        agent_token = user_agent_ctx.set(request.headers.get("user-agent") or None)
         request.state.request_id = request_id
         started = time.perf_counter()
         status_code = 500
@@ -63,6 +72,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
                 },
             )
             request_id_ctx.reset(token)
+            client_ip_ctx.reset(ip_token)
+            user_agent_ctx.reset(agent_token)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

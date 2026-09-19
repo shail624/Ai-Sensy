@@ -2,6 +2,9 @@
 #
 # Ten services: mysql, redis, migrate (one-shot), api, three worker pools, beat, frontend, nginx.
 #
+# Three more sit behind profiles and never start with a plain `up -d`: `bootstrap` (§5, creates
+# the first owner), and `waha-preflight` + `waha` (the opt-in QR provider, ADR-0021 Class B).
+#
 # Two properties this file exists to guarantee:
 #   1. **Schema before traffic.** `migrate` runs to completion and exits; api/worker/beat all wait
 #      on `service_completed_successfully`, so no replica ever serves an older schema.
@@ -51,6 +54,11 @@ x-backend-env: &backend-env
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   CORS_ORIGINS: ${CORS_ORIGINS:-}
+  # `/docs`, `/redoc` and the OpenAPI schema. Defaulted to "false" rather than to an empty string:
+  # the setting is `bool | None`, and pydantic rejects "" outright, so passing an empty value would
+  # fail validation at import time and crash-loop every backend container. "false" is also what
+  # production already did implicitly, so an operator who never sets it sees no change.
+  API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_JSON: "true"
   STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
@@ -58,6 +66,20 @@ x-backend-env: &backend-env
   STORAGE_EXPORT_TTL_DAYS: ${STORAGE_EXPORT_TTL_DAYS:-7}
   META_APP_SECRET: ${META_APP_SECRET:?META_APP_SECRET is required}
   META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:?META_WEBHOOK_VERIFY_TOKEN is required}
+  # ---- QR provider (ADR-0021 Class B), optional ----------------------------------------------
+  # All four are empty by default, and the adapter treats "unconfigured" as disabled: with these
+  # unset the QR surface reports `configured=false` to every caller and registers no runtime, so
+  # the stack behaves exactly as it did before the provider existed. Set them only alongside
+  # `--profile waha`. The service address is the compose network name — never a public URL.
+  WAHA_BASE_URL: ${WAHA_BASE_URL:-}
+  WAHA_API_KEY: ${WAHA_API_KEY:-}
+  WAHA_SESSION_NAME: ${WAHA_SESSION_NAME:-}
+  # Signs inbound provider deliveries (raw-body SHA-512 HMAC, verified before parsing). Empty
+  # rejects every delivery rather than accepting unsigned ones — fail closed, never open.
+  WAHA_WEBHOOK_HMAC_SECRET: ${WAHA_WEBHOOK_HMAC_SECRET:-}
+  # The single organization the QR surface belongs to (ADR-0021: internal, self-hosted, one
+  # organization — not multi-tenant SaaS). Every other organization sees `configured=false`.
+  WAHA_ORGANIZATION_ID: ${WAHA_ORGANIZATION_ID:-}
 
 x-backend-common: &backend-common
   <<: *backend-image
@@ -128,6 +150,101 @@ services:
       timeout: 5s
       retries: 10
 
+  # ---- WAHA preflight (profile: waha) ---------------------------------------------------------
+  # The requirement that WAHA_API_KEY and WAHA_WEBHOOK_HMAC_SECRET are set when this profile is
+  # enabled used to be expressed as a Compose required-variable marker on the `waha` service
+  # itself. That cannot work: Compose interpolates every service in a manifest regardless of
+  # which profiles are active, so
+  # those markers aborted `build`, `up`, `ps` and `down` for the *whole stack* — including for the
+  # overwhelming majority of deployments that never enable the provider. `.env.production.example`
+  # ships both variables empty, so a first deploy that followed §2 and §3 verbatim failed at the
+  # build step with an error about an optional component it had not asked for.
+  #
+  # The check moves here instead of being dropped. This service is in the `waha` profile, so it
+  # runs only when the provider does, and `waha` waits on it completing successfully — an empty
+  # credential still refuses to start the provider, which is the property the `:?` was there for.
+  # It reuses the backend image rather than introducing another external one into a digest-pinned
+  # topology, and `$$VAR` defers expansion to the container's shell rather than to Compose.
+  waha-preflight:
+    <<: *backend-image
+    profiles: ["waha"]
+    restart: "no"
+    logging: *default-logging
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+      WAHA_WEBHOOK_HMAC_SECRET: ${WAHA_WEBHOOK_HMAC_SECRET:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        missing='';
+        [ -n "$$WAHA_API_KEY" ] || missing="$$missing WAHA_API_KEY";
+        [ -n "$$WAHA_WEBHOOK_HMAC_SECRET" ] || missing="$$missing WAHA_WEBHOOK_HMAC_SECRET";
+        if [ -n "$$missing" ]; then
+        echo "refusing to start the waha profile; unset or empty:$$missing" >&2;
+        exit 1;
+        fi;
+        echo 'waha preflight: required provider credentials are present'
+
+  # ---- QR provider (ADR-0021 Class B; optional, opt-in) --------------------------------------
+  #
+  # In the `waha` profile, so an operator who has not adopted the QR channel runs the exact stack
+  # they run today. Bring it up deliberately:
+  #
+  #     docker compose -f docker-compose.production.yml --env-file .env.production \
+  #       --profile waha up -d
+  #
+  # **Never published.** There is no `ports:` block, by design: WAHA's API is an unauthenticated
+  # WhatsApp bridge unless an API key is set, and even with one it must not be internet-reachable.
+  # Only the backend talks to it, over the compose network at `http://waha:3000`. Nginx does not
+  # proxy it, and no route to it exists from outside the bridge.
+  #
+  # Pinned by digest, not tag: the provider certification evidence
+  # (`docs/evidence/provider-evaluations/`) is for one immutable build, and a floating tag could be
+  # repointed upstream without notice — silently invalidating it.
+  waha:
+    image: devlikeapro/waha@sha256:33ecd1b782b2708db2ff1d366f51608889a036e76332dceae3fbbe3f10f2d75e
+    profiles: ["waha"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      # NOWEB is the certified engine. The adapter fails closed on any other
+      # (`WahaEngineNotApproved`), so this is pinned rather than left to an image default.
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:-}
+      # One deployment-wide signed route, internal to the Compose network. Per-session webhooks are
+      # intentionally absent: configuring both modes duplicates deliveries, while per-session HMAC
+      # config would persist the signing key in the session store. This key is dedicated to WAHA and
+      # must never reuse META_WEBHOOK_VERIFY_TOKEN or META_APP_SECRET.
+      WHATSAPP_HOOK_URL: http://api:8000/api/v1/webhooks/waha
+      WHATSAPP_HOOK_EVENTS: message,message.any,message.ack
+      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_SECRET:-}
+      # The certified sender retries every failure. Keep the observed 2026.7.2 defaults explicit so
+      # an upstream default change cannot silently alter delivery pressure or recovery timing.
+      WHATSAPP_HOOK_RETRIES_POLICY: constant
+      WHATSAPP_HOOK_RETRIES_DELAY_SECONDS: "2"
+      WHATSAPP_HOOK_RETRIES_ATTEMPTS: "15"
+    depends_on:
+      waha-preflight:
+        condition: service_completed_successfully
+    volumes:
+      # WhatsApp session state — `/app/.sessions/noweb/waha.sqlite3` (session registry) and
+      # `/app/.sessions/noweb/<session>/` (per-session store/config), verified against this exact
+      # digest. This volume is what makes a restart survivable: without it the provider comes back
+      # holding no session, answers `404 Session not found` for a connection the platform still
+      # records as paired, and the operator must re-scan (QR-09-D2). Treat it as stateful data:
+      # back it up with the database, and never prune it to "clean up disk".
+      - waha-sessions:/app/.sessions
+    healthcheck:
+      # The certified image contains curl but not wget. `/health` is API-key protected; `/ping` is
+      # the provider-owned, unauthenticated process/API liveness endpoint and deliberately says
+      # nothing about whether a WhatsApp account is paired (QR-06 provider-health semantics).
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--max-time", "5", "http://127.0.0.1:3000/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   # ---- Schema (one-shot, must finish before anything serves) --------------------------------
   migrate:
     <<: *backend-image
@@ -140,6 +257,35 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # ---- First-deploy bootstrap (profile: bootstrap) ---------------------------------------------
+  # Creates the first organization and Owner. A one-shot like `migrate`, but with its own
+  # environment block rather than a share of `x-backend-env`, because of OWNER_PASSWORD: putting a
+  # plaintext credential in the common anchor would place it in the environment of every api,
+  # worker and beat container for the entire life of the deployment, where `docker inspect` and
+  # /proc/<pid>/environ both expose it. Here it exists only in the container that consumes it, only
+  # while the command runs, and only when the profile is named explicitly.
+  #
+  # The owner values use `:-` and not `:?` deliberately. Compose interpolates every service in the
+  # file regardless of which profiles are active, so a required-variable marker here would abort
+  # `up -d` for the whole stack the moment §5 tells the operator to clear OWNER_* after bootstrap.
+  # `app.cli` already rejects an empty email or password with an explicit message.
+  bootstrap:
+    <<: *backend-image
+    restart: "no"
+    logging: *default-logging
+    profiles: ["bootstrap"]
+    command: ["python", "-m", "app.cli", "create-owner"]
+    environment:
+      <<: *backend-env
+      BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-Vi Reactivation Team}
+      BOOTSTRAP_ORG_SLUG: ${BOOTSTRAP_ORG_SLUG:-vi-reactivation}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      OWNER_FULL_NAME: ${OWNER_FULL_NAME:-Owner}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   # ---- API ------------------------------------------------------------------------------------
   api:
@@ -274,3 +420,4 @@ volumes:
   redis-data:
   media-data:
   beat-data:
+  waha-sessions:

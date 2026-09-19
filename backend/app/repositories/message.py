@@ -13,6 +13,16 @@ from app.repositories.base import BaseRepository
 class MessageRepository(BaseRepository[Message]):
     model = Message
 
+    async def lock_by_id(self, message_id: int) -> Message | None:
+        """Serialize delivery attempts for one durable outbound ledger row."""
+        stmt = (
+            select(Message)
+            .where(Message.id == message_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def get_for_org(self, organization_id: int, public_id: bytes) -> Message | None:
         """Fetch by public id, scoped to the tenant. Messages are never soft-deleted (Doc 03 §9.2)."""
         stmt = select(Message).where(
@@ -50,13 +60,87 @@ class MessageRepository(BaseRepository[Message]):
         rows = list((await self.session.scalars(stmt)).all())
         return rows[:limit], len(rows) > limit
 
-    async def get_by_wamid(self, wamid: str) -> Message | None:
-        """Lookup by the channel's message id — ``ix_msg_wamid`` (Doc 03 §9.2).
+    async def list_for_transcript(
+        self,
+        conversation_pk: int,
+        *,
+        limit: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        cursor: tuple[datetime, int] | None = None,
+    ) -> tuple[list[Message], bool]:
+        """Stream a thread oldest-first for a human-readable transcript.
+
+        The same ``(conversation_id, created_at)`` index and ``(created_at, id)`` keyset used by
+        the inbox read path keep this bounded. ``start`` is inclusive and ``end`` is exclusive.
+        """
+        clauses = [Message.conversation_id == conversation_pk]
+        if start is not None:
+            clauses.append(Message.created_at >= start)
+        if end is not None:
+            clauses.append(Message.created_at < end)
+        if cursor is not None:
+            c_created, c_id = cursor
+            clauses.append(
+                or_(
+                    Message.created_at > c_created,
+                    and_(Message.created_at == c_created, Message.id > c_id),
+                )
+            )
+        stmt = (
+            select(Message)
+            .where(*clauses)
+            .order_by(Message.created_at.asc(), Message.id.asc())
+            .limit(limit + 1)
+        )
+        rows = list((await self.session.scalars(stmt)).all())
+        return rows[:limit], len(rows) > limit
+
+    async def get_by_provider_message_id(
+        self, provider_message_id: str, *, phone_number_id: int
+    ) -> Message | None:
+        """Lookup by the channel's message id **within one endpoint** (ADR-0020 §"Message, media
+        and retry decision": "Provider message identity is scoped by connection/endpoint").
 
         Serves both webhook paths: the inbound idempotency key (Doc 06 §2.3) and the row a status
         callback advances.
+
+        ``phone_number_id`` is keyword-only and **required** on purpose. A provider message id is
+        unique only inside the endpoint that issued it — Meta's ``wamid`` happens to be globally
+        unique, but a QR/multi-device provider's id is session-scoped and may legitimately repeat
+        across endpoints (ADR-0020, Doc 33 §6.1 "Message identity"). Making the scope impossible to
+        omit is what prevents a second provider from resolving — or overwriting — another
+        endpoint's or another tenant's message. There is deliberately no unscoped variant.
+
+        ``phone_numbers.organization_id`` is ``NOT NULL``, so the endpoint transitively pins the
+        tenant; no separate organization filter is needed to make this tenant-safe.
+
+        Backed by ``ix_msg_endpoint_wamid (phone_number_id, wamid)`` (migration
+        ``0042_scope_provider_message_identity``). A unique index cannot express this rule: MySQL
+        requires every unique key on a partitioned table to contain the partition columns, and
+        ``messages`` is ``PARTITION BY RANGE COLUMNS(created_at)`` — so uniqueness is enforced by
+        this scoped read plus the persist-first ingestion path, not by a constraint.
         """
-        stmt = select(Message).where(Message.wamid == wamid)
+        stmt = select(Message).where(
+            Message.phone_number_id == phone_number_id,
+            Message.wamid == provider_message_id,
+        )
+        return (await self.session.scalars(stmt)).first()
+
+    async def get_by_provider_message_id_for_endpoint(
+        self, provider_message_id: str, *, channel_endpoint_id: int
+    ) -> Message | None:
+        """The channel-endpoint-scoped analogue of :meth:`get_by_provider_message_id` (QR-08).
+
+        Same rule, same reasoning, same deliberate absence of an unscoped variant — a WAHA provider
+        message id is session-scoped and may legitimately repeat across a different endpoint or
+        tenant, so this never searches beyond the one endpoint given (ADR-0020, Doc 33 §6.1).
+        Backed by ``ix_msg_channel_endpoint_wamid``.
+        """
+        stmt = select(Message).where(
+            Message.channel_endpoint_id == channel_endpoint_id,
+            Message.wamid == provider_message_id,
+        )
         return (await self.session.scalars(stmt)).first()
 
 

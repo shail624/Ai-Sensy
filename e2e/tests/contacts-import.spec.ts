@@ -9,9 +9,18 @@ function required(name: string): string {
 test("owner imports and finds a contact through the deployed stack", async ({ page }) => {
   const ownerEmail = required("E2E_OWNER_EMAIL");
   const ownerPassword = required("E2E_OWNER_PASSWORD");
+  // Unique per run. The import's default duplicate policy is "skip", so a fixed number imports one
+  // contact against a fresh stack and zero against a database that already holds it — the gate then
+  // fails on its own leftovers rather than on the product. Asserting "one imported" every time is
+  // the stronger claim, and it lets the gate be re-run against a long-lived environment.
+  //
   // Keep the search text alphabetic: the existing contacts UI intentionally routes any query
-  // containing digits to the phone-number field (buildRules.ts), not the name field.
-  const contactName = "Release Gate Contact";
+  // containing digits to the phone-number field (buildRules.ts), not the name field. The suffix is
+  // spelled in letters for that reason.
+  const DIGIT_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const stamp = Date.now().toString().slice(-7);
+  const contactName = `Release Gate Contact ${[...stamp].map((d) => DIGIT_WORDS[Number(d)]).join("")}`;
+  const contactPhone = `+1415${stamp}`;
   const serverErrors: string[] = [];
   page.on("response", (response) => {
     if (response.status() >= 500) serverErrors.push(`${response.status()} ${response.url()}`);
@@ -29,7 +38,7 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await page.getByLabel("Choose a CSV or Excel file").setInputFiles({
     name: "release-gate-contact.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from(`phone_e164,full_name\n+14155550123,${contactName}\n`, "utf8"),
+    buffer: Buffer.from(`phone_e164,full_name\n${contactPhone},${contactName}\n`, "utf8"),
   });
 
   await expect(page.getByText("2 columns", { exact: false })).toBeVisible();
@@ -66,8 +75,12 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await expect(page.getByRole("heading", { name: "Engagement funnel" })).toBeVisible();
 
   await page.goto("/reactivation");
-  await expect(page.getByRole("heading", { name: "Reactivation", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "One governed customer journey" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reactivation CRM", exact: true })).toBeVisible();
+  const reactivationSections = page.getByRole("navigation", { name: "Reactivation sections" });
+  await expect(reactivationSections.getByRole("link", { name: "Pipeline" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "KYC" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "Documents" })).toBeVisible();
+  await expect(reactivationSections.getByRole("link", { name: "Reports" })).toBeVisible();
 
   await page.goto("/automation");
   await expect(page.getByRole("heading", { name: "Automation", exact: true })).toBeVisible();
@@ -97,8 +110,11 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await page.getByLabel("Choose a CSV or Excel file").setInputFiles({
     name: "release-gate-trigger.csv",
     mimeType: "text/csv",
+    // Unique for the same reason, and it matters more here: the assertion below is that creating a
+    // contact fires the trigger. A duplicate number is skipped, no contact is created, no receipt
+    // appears — and the test reads as a broken automation rather than as a reused fixture.
     buffer: Buffer.from(
-      "phone_e164,full_name\n+14155550124,Automation Receipt Contact\n",
+      `phone_e164,full_name\n+1416${stamp},Automation Receipt Contact\n`,
       "utf8",
     ),
   });
@@ -111,7 +127,9 @@ test("owner imports and finds a contact through the deployed stack", async ({ pa
   await page.goto(automationUrl);
   await expect(page.getByRole("heading", { name: "Trigger receipts" })).toBeVisible();
   await expect(page.getByText("contact.created", { exact: true })).toBeVisible();
-  await expect(page.getByText("Evidence only. No action executed.")).toBeVisible();
+  await expect(
+    page.getByText("durably dispatched to their bounded live paths", { exact: false }),
+  ).toBeVisible();
 
   await page.goto("/scan");
   await expect(page.getByRole("heading", { name: "Scan Studio", exact: true })).toBeVisible();

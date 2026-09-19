@@ -3,11 +3,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
+  AttributeDefinition,
+  AttributeDefinitionCreateRequest,
+  AttributeDefinitionUpdateRequest,
   FeatureFlag,
   FeatureFlagPatchRequest,
+  InboxOperationsPolicy,
+  InboxOperationsUpdate,
   Organization,
   OrganizationUpdateRequest,
+  QuickReply,
+  QuickReplyCreateRequest,
+  QuickReplyUpdateRequest,
   Setting,
+  Tag,
+  TagCreateRequest,
+  TagUpdateRequest,
 } from "@/features/settings/types";
 
 // Shared error helper, re-exported for this feature's components (as the other features do).
@@ -18,9 +29,35 @@ export const settingsKeys = {
   all: ["settings"] as const,
   organization: ["settings", "organization"] as const,
   values: ["settings", "values"] as const,
+  inboxOperations: ["settings", "inbox-operations"] as const,
   flags: ["settings", "flags"] as const,
   preferences: ["settings", "preferences"] as const,
 };
+
+/**
+ * Tags are read here under the **same** key the contact and customer-profile hooks already use,
+ * rather than a settings-private one.
+ *
+ * One cache entry for one endpoint is what keeps this panel and the attach pickers from disagreeing:
+ * creating a tag here has to make it selectable on a contact without a reload. The campaign picker
+ * caches the same list under its own key, so writes invalidate that too.
+ */
+const TAGS_KEY = ["tags"] as const;
+const CAMPAIGN_PICKERS_KEY = ["campaigns", "pickers"] as const;
+
+/**
+ * The same key `inboxKeys.quickReplies` uses in `features/inbox/api.ts` — TanStack Query matches
+ * queries by key value, not by the reference that declared it, so this and the Message Composer's
+ * own read share one cache entry without either module importing the other.
+ */
+const QUICK_REPLIES_KEY = ["quick-replies"] as const;
+
+/**
+ * The same key `contactKeys.attributeDefinitions` uses in `customer-profile/api.ts`. The campaign
+ * picker's `[...campaignKeys.pickers(), "attributes"]` key shares the `CAMPAIGN_PICKERS_KEY` prefix
+ * above, so one invalidation list already reaches both existing consumers.
+ */
+const ATTRIBUTE_DEFINITIONS_KEY = ["custom-attributes"] as const;
 
 /**
  * The organization this platform runs for.
@@ -45,6 +82,15 @@ export function useSettings() {
   return useQuery({
     queryKey: settingsKeys.values,
     queryFn: async (): Promise<Setting[]> => unwrap(await api.GET("/api/v1/settings")),
+  });
+}
+
+/** Effective shared-inbox policy; readable by every authenticated inbox user. */
+export function useInboxOperations() {
+  return useQuery({
+    queryKey: settingsKeys.inboxOperations,
+    queryFn: async (): Promise<InboxOperationsPolicy> =>
+      unwrap(await api.GET("/api/v1/settings/inbox-operations")),
   });
 }
 
@@ -112,6 +158,15 @@ export function useUpdateSettings() {
   );
 }
 
+/** Validated operational policy; unlike the advanced store, every field has a real consumer. */
+export function useUpdateInboxOperations() {
+  return useSettingsMutation(
+    async (body: InboxOperationsUpdate): Promise<InboxOperationsPolicy> =>
+      unwrap(await api.PUT("/api/v1/settings/inbox-operations", { body })),
+    [settingsKeys.inboxOperations, settingsKeys.values],
+  );
+}
+
 /**
  * Toggle or re-describe a feature flag.
  *
@@ -138,5 +193,154 @@ export function useUpdatePreferences() {
     async (preferences: Record<string, unknown>): Promise<Record<string, unknown>> =>
       unwrap(await api.PUT("/api/v1/users/me/preferences", { body: { preferences } })).preferences,
     [settingsKeys.preferences],
+  );
+}
+
+/**
+ * Every tag in the organization, with the usage count the list endpoint computes.
+ *
+ * The endpoint returns the whole set — there is no server-side page, search or filter — so this
+ * panel narrows and pages the list it already holds rather than inventing query parameters the API
+ * does not accept.
+ */
+export function useTags() {
+  return useQuery({
+    queryKey: TAGS_KEY,
+    queryFn: async (): Promise<Tag[]> => unwrap(await api.GET("/api/v1/tags")),
+  });
+}
+
+export function useCreateTag() {
+  return useSettingsMutation(
+    async (body: TagCreateRequest): Promise<Tag> =>
+      unwrap(await api.POST("/api/v1/tags", { body })),
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+export function useUpdateTag() {
+  return useSettingsMutation(
+    async ({ id, body }: { id: string; body: TagUpdateRequest }): Promise<Tag> =>
+      unwrap(await api.PATCH("/api/v1/tags/{tag_id}", { params: { path: { tag_id: id } }, body })),
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * Deleting detaches the tag from every contact that carries it; the confirmation says so.
+ *
+ * The endpoint answers `204 No Content`, so the error is checked directly rather than through
+ * `unwrap` — `unwrap` treats an absent body as a failure, which is exactly what a successful delete
+ * returns.
+ */
+export function useDeleteTag() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/tags/{tag_id}", {
+        params: { path: { tag_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [TAGS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * The caller's personal quick replies plus every shared one — the same read the composer already
+ * issues, kept fresh here under the identical cache key.
+ */
+export function useQuickReplies() {
+  return useQuery({
+    queryKey: QUICK_REPLIES_KEY,
+    queryFn: async (): Promise<QuickReply[]> => unwrap(await api.GET("/api/v1/quick-replies")).data,
+  });
+}
+
+export function useCreateQuickReply() {
+  return useSettingsMutation(
+    async (body: QuickReplyCreateRequest): Promise<QuickReply> =>
+      unwrap(await api.POST("/api/v1/quick-replies", { body })),
+    [QUICK_REPLIES_KEY],
+  );
+}
+
+/** `shared` is fixed at creation — the update model carries no field for it (Doc 04 §18.2). */
+export function useUpdateQuickReply() {
+  return useSettingsMutation(
+    async ({ id, body }: { id: string; body: QuickReplyUpdateRequest }): Promise<QuickReply> =>
+      unwrap(
+        await api.PATCH("/api/v1/quick-replies/{quick_reply_id}", {
+          params: { path: { quick_reply_id: id } },
+          body,
+        }),
+      ),
+    [QUICK_REPLIES_KEY],
+  );
+}
+
+/** `204 No Content` on success, like tag deletion — `unwrap` would misread the empty body as a failure. */
+export function useDeleteQuickReply() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/quick-replies/{quick_reply_id}", {
+        params: { path: { quick_reply_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [QUICK_REPLIES_KEY],
+  );
+}
+
+/** Definitions only — the values a contact holds are read through the contact/customer-profile APIs. */
+export function useAttributeDefinitions() {
+  return useQuery({
+    queryKey: ATTRIBUTE_DEFINITIONS_KEY,
+    queryFn: async (): Promise<AttributeDefinition[]> =>
+      unwrap(await api.GET("/api/v1/custom-attributes")),
+  });
+}
+
+export function useCreateAttributeDefinition() {
+  return useSettingsMutation(
+    async (body: AttributeDefinitionCreateRequest): Promise<AttributeDefinition> =>
+      unwrap(await api.POST("/api/v1/custom-attributes", { body })),
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/** `key_name` and `data_type` are fixed at creation — the update model carries no field for either. */
+export function useUpdateAttributeDefinition() {
+  return useSettingsMutation(
+    async ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: AttributeDefinitionUpdateRequest;
+    }): Promise<AttributeDefinition> =>
+      unwrap(
+        await api.PATCH("/api/v1/custom-attributes/{attribute_id}", {
+          params: { path: { attribute_id: id } },
+          body,
+        }),
+      ),
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
+  );
+}
+
+/**
+ * `204 No Content` on success — checked directly rather than through `unwrap`, which would misread
+ * the empty body as a failure. Removing a definition also removes every contact's stored value for
+ * it; the confirmation states that plainly rather than only naming the definition.
+ */
+export function useDeleteAttributeDefinition() {
+  return useSettingsMutation(
+    async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/custom-attributes/{attribute_id}", {
+        params: { path: { attribute_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    [ATTRIBUTE_DEFINITIONS_KEY, CAMPAIGN_PICKERS_KEY],
   );
 }

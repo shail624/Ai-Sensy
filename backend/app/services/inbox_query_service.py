@@ -18,13 +18,16 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.capabilities import CONNECTOR_META_CLOUD
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.models.channel_connection import ChannelConnection, ChannelEndpoint
 from app.models.contact import Contact
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.tag import Tag
 from app.models.user import User
 from app.models.waba import PhoneNumber
+from app.repositories.campaign import CampaignRepository
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.conversation_tag import ConversationTagRepository
@@ -48,6 +51,10 @@ class ConversationListResult:
     assignees: dict[int, str]
     #: Active tags per conversation id (Doc 04 §18.1 v1.3), batch-resolved for the page.
     tags: dict[int, list[Tag]]
+    #: ``channel_endpoint_id`` -> the owning connection's ``connector_type`` (QR-08), for the
+    #: mixed-provider Inbox's channel badge. Meta threads need no entry here — their connector is
+    #: implied by ``phone_number_id`` being set.
+    endpoint_connectors: dict[int, str]
     has_more: bool
 
 
@@ -61,6 +68,8 @@ class ConversationDetail:
     assigned_to: str | None
     #: Active tags on the thread (Doc 04 §18.1 v1.3).
     tags: list[Tag]
+    #: The provider that owns this thread — ``"meta_cloud"`` or ``"waha"`` (QR-08).
+    connector_type: str
 
 
 @dataclass(slots=True)
@@ -76,12 +85,26 @@ class InboxQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._conversations = ConversationRepository(session)
+        self._campaigns = CampaignRepository(session)
         self._contacts = ContactRepository(session)
         self._messages = MessageRepository(session)
         self._users = UserRepository(session)
         self._numbers = PhoneNumberRepository(session)
         self._tags = TagRepository(session)
         self._conv_tags = ConversationTagRepository(session)
+
+    # --- Category counts -----------------------------------------------------
+    async def category_counts(
+        self, *, organization_id: int, viewer_id: int, q: str | None
+    ) -> tuple[int, int, int]:
+        """Active, requesting and intervened totals for the signed-in viewer.
+
+        Intervened resolves against ``viewer_id`` rather than a requested user, so the badge can
+        only ever describe the caller's own work.
+        """
+        return await self._conversations.category_counts(
+            organization_id, viewer_id=viewer_id, q=q
+        )
 
     # --- List ----------------------------------------------------------------
     async def list_conversations(
@@ -95,6 +118,11 @@ class InboxQueryService:
         assignee: str | None,
         number: str | None,
         tag: str | None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        campaign: str | None = None,
+        has_media: bool = False,
+        has_audit: bool = False,
         q: str | None,
     ) -> ConversationListResult:
         """The inbox list, filtered and searched as Doc 04 §18.1 defines, newest activity first."""
@@ -104,11 +132,18 @@ class InboxQueryService:
         contact_id, contact_impossible = await self._resolve_contact(organization_id, contact)
         phone_number_id, number_impossible = await self._resolve_number(organization_id, number)
         tag_id, tag_impossible = await self._resolve_tag(organization_id, tag)
+        campaign_id, campaign_impossible = await self._resolve_campaign(organization_id, campaign)
 
         # A filter that named a real-looking but non-existent assignee/number/tag matches nothing —
         # returned as an empty page, not an error: the query was valid, the target just isn't here.
-        if contact_impossible or assignee_impossible or number_impossible or tag_impossible:
-            return ConversationListResult([], {}, {}, {}, {}, has_more=False)
+        if (
+            contact_impossible
+            or assignee_impossible
+            or number_impossible
+            or tag_impossible
+            or campaign_impossible
+        ):
+            return ConversationListResult([], {}, {}, {}, {}, {}, has_more=False)
 
         conversations, has_more = await self._conversations.list_page(
             organization_id,
@@ -118,6 +153,11 @@ class InboxQueryService:
             unassigned=unassigned,
             phone_number_id=phone_number_id,
             tag_id=tag_id,
+            activity_from=date_from,
+            activity_to=date_to,
+            campaign_id=campaign_id,
+            has_media=has_media,
+            has_audit=has_audit,
             q=q,
             limit=limit,
             cursor=cursor,
@@ -125,8 +165,11 @@ class InboxQueryService:
         contacts = await self._contacts_for(conversations)
         numbers = await self._numbers_for(conversations)
         assignees = await self._assignees_for(conversations)
+        endpoint_connectors = await self._endpoint_connectors_for(conversations)
         tags = await self._conv_tags.tags_for_conversations([c.id for c in conversations])
-        return ConversationListResult(conversations, contacts, numbers, assignees, tags, has_more)
+        return ConversationListResult(
+            conversations, contacts, numbers, assignees, tags, endpoint_connectors, has_more
+        )
 
     async def _resolve_contact(
         self, organization_id: int, contact: str | None
@@ -167,9 +210,7 @@ class InboxQueryService:
             return None, True
         return found.id, False
 
-    async def _resolve_tag(
-        self, organization_id: int, tag: str | None
-    ) -> tuple[int | None, bool]:
+    async def _resolve_tag(self, organization_id: int, tag: str | None) -> tuple[int | None, bool]:
         """(tag_id, impossible) for the by-tag filter (Doc 04 §18.1 v1.3).
 
         A malformed uuid is a 400 (via ``_as_uuid``); a well-formed but unknown/foreign tag is
@@ -179,6 +220,18 @@ class InboxQueryService:
             return None, False
         found = await self._tags.get_active_by_uuid(
             organization_id, self._as_uuid(tag, "tag").bytes
+        )
+        if found is None:
+            return None, True
+        return found.id, False
+
+    async def _resolve_campaign(
+        self, organization_id: int, campaign: str | None
+    ) -> tuple[int | None, bool]:
+        if not campaign:
+            return None, False
+        found = await self._campaigns.get_active_by_uuid(
+            organization_id, self._as_uuid(campaign, "campaign").bytes
         )
         if found is None:
             return None, True
@@ -197,17 +250,26 @@ class InboxQueryService:
     ) -> ConversationDetail:
         conversation = await self._conversation(organization_id, public_id)
         contact = await self._session.get(Contact, conversation.contact_id)
-        number = await self._session.get(PhoneNumber, conversation.phone_number_id)
+        number = (
+            await self._session.get(PhoneNumber, conversation.phone_number_id)
+            if conversation.phone_number_id is not None
+            else None
+        )
         assigned_to = await self._assignee_public_id(conversation)
         tags = (await self._conv_tags.tags_for_conversations([conversation.id])).get(
             conversation.id, []
         )
+        connector_type = CONNECTOR_META_CLOUD
+        if conversation.channel_endpoint_id is not None:
+            connectors = await self._endpoint_connectors_for([conversation])
+            connector_type = connectors.get(conversation.channel_endpoint_id, connector_type)
         return ConversationDetail(
             conversation=conversation,
             contact=contact,
             phone_number_public_id=number.public_id if number is not None else None,
             assigned_to=assigned_to,
             tags=tags,
+            connector_type=connector_type,
         )
 
     # --- Message history -----------------------------------------------------
@@ -226,9 +288,7 @@ class InboxQueryService:
         return MessagePage(conversation.public_id, messages, has_more)
 
     # --- Batch resolution ----------------------------------------------------
-    async def _contacts_for(
-        self, conversations: list[Conversation]
-    ) -> dict[int, Contact]:
+    async def _contacts_for(self, conversations: list[Conversation]) -> dict[int, Contact]:
         ids = {c.contact_id for c in conversations}
         if not ids:
             return {}
@@ -236,13 +296,25 @@ class InboxQueryService:
         return {c.id: c for c in rows}
 
     async def _numbers_for(self, conversations: list[Conversation]) -> dict[int, str]:
-        ids = {c.phone_number_id for c in conversations}
+        ids = {c.phone_number_id for c in conversations if c.phone_number_id is not None}
         if not ids:
             return {}
         rows = (
             await self._session.scalars(select(PhoneNumber).where(PhoneNumber.id.in_(ids)))
         ).all()
         return {n.id: n.public_id for n in rows}
+
+    async def _endpoint_connectors_for(self, conversations: list[Conversation]) -> dict[int, str]:
+        """``channel_endpoint_id`` -> the owning connection's ``connector_type`` (QR-08)."""
+        ids = {c.channel_endpoint_id for c in conversations if c.channel_endpoint_id is not None}
+        if not ids:
+            return {}
+        stmt = (
+            select(ChannelEndpoint.id, ChannelConnection.connector_type)
+            .join(ChannelConnection, ChannelConnection.id == ChannelEndpoint.connection_id)
+            .where(ChannelEndpoint.id.in_(ids))
+        )
+        return {row.id: row.connector_type for row in await self._session.execute(stmt)}
 
     async def _assignees_for(self, conversations: list[Conversation]) -> dict[int, str]:
         ids = {c.assigned_user_id for c in conversations if c.assigned_user_id is not None}
@@ -257,9 +329,7 @@ class InboxQueryService:
         user = await self._users.get_by_id(conversation.assigned_user_id)
         return user.public_id if user is not None else None
 
-    async def _conversation(
-        self, organization_id: int, public_id: uuidlib.UUID
-    ) -> Conversation:
+    async def _conversation(self, organization_id: int, public_id: uuidlib.UUID) -> Conversation:
         conversation = await self._conversations.get_active_by_uuid(
             organization_id, public_id.bytes
         )

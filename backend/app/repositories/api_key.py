@@ -55,3 +55,14 @@ class ApiKeyRepository(BaseRepository[ApiKey]):
         if api_key.revoked_at is None:
             api_key.revoked_at = now
             await self.session.flush()
+
+    async def replace_secret(self, api_key: ApiKey, *, key_prefix: str, key_hash: str) -> None:
+        """Swap the stored secret in place, keeping the row's identity, name and scopes.
+
+        The previous hash is overwritten rather than retained: there is one secret per key, so the
+        old one stops authenticating the moment this flushes. A grace period would need a second
+        stored hash and is deliberately not implied here.
+        """
+        api_key.key_prefix = key_prefix
+        api_key.key_hash = key_hash
+        await self.session.flush()

@@ -47,18 +47,32 @@ PREVIEW_LENGTH = 255
 
 
 class Conversation(IntPKMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, VersionMixin, Base):
-    """A thread between one of our numbers and one contact (Doc 03 §9.1)."""
+    """A thread between one of our endpoints and one contact (Doc 03 §9.1; ADR-0020).
+
+    Owned by exactly one of a Meta ``phone_numbers`` row or a provider-neutral
+    ``channel_endpoints`` row (QR-08) — never both, never neither (``ck_conv_endpoint_owner``).
+    Each provider keeps its own thread per contact rather than sharing one (ADR-0020 "Separate
+    conversations, unified customer"): provider rules, sender identity and health differ, so a
+    WAHA conversation and a Meta conversation with the same contact are two rows, not one.
+    """
 
     __tablename__ = "conversations"
     __table_args__ = (
         # One thread per (number, contact) — the constraint that makes upsert-on-inbound safe
         # under concurrent deliveries (Doc 06 §9.4: the data layer is the ultimate guard).
         Index("uq_conv_number_contact", "phone_number_id", "contact_id", unique=True),
+        # The same guarantee for a channel-endpoint-owned (WAHA) thread (QR-08).
+        Index("uq_conv_endpoint_contact", "channel_endpoint_id", "contact_id", unique=True),
         Index("ix_conv_org_status", "organization_id", "status", "last_message_at"),
         Index("ix_conv_assignee", "assigned_user_id", "status"),
         Index("ix_conv_window", "is_window_open", "window_expires_at"),
         CheckConstraint(
             "status IN ('open','pending','resolved','snoozed')", name="ck_conv_status"
+        ),
+        CheckConstraint(
+            "(phone_number_id IS NOT NULL AND channel_endpoint_id IS NULL) OR "
+            "(phone_number_id IS NULL AND channel_endpoint_id IS NOT NULL)",
+            name="ck_conv_endpoint_owner",
         ),
         MYSQL_TABLE_ARGS,
     )
@@ -68,10 +82,17 @@ class Conversation(IntPKMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, Versi
         ForeignKey("organizations.id", name="fk_conv_org", ondelete="RESTRICT"),
         nullable=False,
     )
-    phone_number_id: Mapped[int] = mapped_column(
+    #: Set for a Meta-owned thread; ``NULL`` for a channel-endpoint-owned one (QR-08).
+    phone_number_id: Mapped[int | None] = mapped_column(
         big_id(),
         ForeignKey("phone_numbers.id", name="fk_conv_number", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+    )
+    #: Set for a provider-neutral (WAHA) thread; ``NULL`` for a Meta-owned one (QR-08).
+    channel_endpoint_id: Mapped[int | None] = mapped_column(
+        big_id(),
+        ForeignKey("channel_endpoints.id", name="fk_conv_channel_endpoint", ondelete="RESTRICT"),
+        nullable=True,
     )
     contact_id: Mapped[int] = mapped_column(
         big_id(),

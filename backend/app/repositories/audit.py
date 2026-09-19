@@ -6,6 +6,7 @@ deleted), so no mutation helpers are exposed.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import func, or_, select
@@ -35,6 +36,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         action: str | None,
         date_from: datetime | None,
         date_to: datetime | None,
+        actions: Sequence[str] | None = None,
     ) -> list[ColumnElement[bool]]:
         # The org's own events plus system events (organization_id IS NULL).
         clauses: list[ColumnElement[bool]] = [
@@ -46,6 +48,10 @@ class AuditRepository(BaseRepository[AuditLog]):
             clauses.append(AuditLog.entity_type == entity_type)
         if action:
             clauses.append(AuditLog.action == action)
+        if actions:
+            # A set of actions that form one story — sign-ins, say, where a failure and a lockout
+            # matter as much as a success. Distinct from `action`, which pins exactly one.
+            clauses.append(AuditLog.action.in_(tuple(actions)))
         if date_from is not None:
             clauses.append(AuditLog.created_at >= date_from)
         if date_to is not None:
@@ -61,6 +67,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         actor_user_id: int | None = None,
         entity_type: str | None = None,
         action: str | None = None,
+        actions: Sequence[str] | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
     ) -> tuple[list[AuditLog], bool]:
@@ -70,6 +77,7 @@ class AuditRepository(BaseRepository[AuditLog]):
             actor_user_id=actor_user_id,
             entity_type=entity_type,
             action=action,
+            actions=actions,
             date_from=date_from,
             date_to=date_to,
         )
@@ -97,6 +105,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         actor_user_id: int | None = None,
         entity_type: str | None = None,
         action: str | None = None,
+        actions: Sequence[str] | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
     ) -> int:
@@ -105,6 +114,7 @@ class AuditRepository(BaseRepository[AuditLog]):
             actor_user_id=actor_user_id,
             entity_type=entity_type,
             action=action,
+            actions=actions,
             date_from=date_from,
             date_to=date_to,
         )
