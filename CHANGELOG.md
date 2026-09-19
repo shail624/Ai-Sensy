@@ -1,5 +1,55 @@
 # Changelog
 
+## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
+
+The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two
+archives extract to the Git-ignored `.reference/aisensy/` and nothing from them is staged, bundled
+or imported — verified with `git status` after extraction. The `.json` files beside each image are a
+manifest (label, source URL, capture time, and Windows paths to the originals); the MHTML and
+rendered HTML those paths name are **not in the archives**, so the reference material here is
+screenshots only. There is no reference markup on this machine to copy from even by accident.
+
+`0001_live_chat_active_full.png` was compared against the running Live Chat screen, signed in
+against the built bundle.
+
+### Most of the screen already matched
+
+Three columns, the three tab names in the same order, the dark strip they sit on, `Chat Profile`
+anchored right, and the `Search name or mobile number` placeholder — all already in place from
+UI-REF-02 and UI-REF-04. The differences are small and local, which is worth recording plainly: the
+gap between this product and the reference on this screen was never structural.
+
+### What changed
+
+The count moved inside the tab label. The reference reads `ACTIVE (0)`; this read `ACTIVE` followed
+by a separate pill. It now reads `ACTIVE (0)`.
+
+The accessible name is deliberately untouched — `12 in Active` before and after. A pill and a
+parenthesis are the same announcement to a screen reader, and `inbox-counts.test.tsx` asserts on
+that name rather than on the decoration, so its three count assertions and its "omitted while the
+read is in flight" case all still hold **without being edited**. A parity change that had required
+rewriting those tests would have been the wrong change.
+
+### Still different on this screen
+
+| Reference | Here | Note |
+|---|---|---|
+| Filter is an icon alone | A `Filters` button with a text label | Straightforward |
+| A `◀` control collapses the list column | Absent | Straightforward |
+| Search carries a filled circular button | Leading icon only | Straightforward |
+| Empty list shows an illustration | Text only | Needs an original illustration |
+| Conversation pane carries a patterned ground | Plain | Needs an original pattern |
+
+The last two are reference *assets*. They are not copied. Matching them means an original
+illustration and an original pattern in the same position — the arrangement is the owner's
+direction, the artwork cannot be.
+
+### Scope
+
+33 of the 130 captured states belong to Ads Manager, WA Payments, Integrations and Developer, which
+`REPOSITORY_RULES.md` excludes and the UI-REF-01 direction confirms are not reinstated by navigation
+parity. 97 states remain in scope.
+
 ## DEPLOY-03 — the first deploy, executed on a real machine (2026-09-18)
 
 DEPLOY-01 and DEPLOY-02 were repaired here and proven by rendering the manifest, because this

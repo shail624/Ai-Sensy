@@ -175,16 +175,16 @@ export function ConversationFilters({
               }`}
             >
               {quickInbox.label}
+              {/* The count sits inside the label as `ACTIVE (0)` rather than in a separate pill,
+                  matching the reference tab strip the owner supplied. The accessible name is
+                  unchanged — a pill and a parenthesis read the same to a screen reader, and the
+                  count tests assert on that name rather than on the decoration around it. */}
               {quickInbox.count === undefined ? null : (
                 <span
                   aria-label={`${quickInbox.count} in ${quickInbox.label}`}
-                  className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[var(--color-nav-text)] text-[var(--color-nav-active-bg)]"
-                      : "bg-[var(--color-nav-hover)] text-[var(--color-nav-text)]"
-                  }`}
+                  className="ml-1.5 font-semibold tabular-nums"
                 >
-                  {quickInbox.count}
+                  ({quickInbox.count})
                 </span>
               )}
             </button>

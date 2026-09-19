@@ -1,5 +1,23 @@
 # Module Status
 
+## UI-REF-05 — Live Chat tab strip (2026-09-19)
+
+The owner supplied the capture archive (130 unique states, 203 screenshots, screenshots only — the
+MHTML/HTML the manifest names are not in it). Extracted to Git-ignored `.reference/aisensy/`;
+`git status` clean afterwards, nothing staged or bundled.
+
+Compared `0001_live_chat_active_full.png` against the running screen. Three columns, tab names and
+order, the dark strip, `Chat Profile` and the search placeholder already matched. Changed one thing:
+the count now sits inside the label as `ACTIVE (0)` instead of in a separate pill. The accessible
+name is unchanged, so the count tests pass unmodified.
+
+PASS: 1,011 frontend tests / 61 files, TypeScript and ESLint clean; verified in a signed-in browser
+against the production build.
+PENDING – Owner acceptance: filter control, collapse control, search button, empty-list
+illustration and conversation-pane ground still differ. The last two are reference assets — matched
+by position with original artwork, never copied.
+No completion percentage increase.
+
 ## DEPLOY-03 — first deploy executed on a real host (2026-09-18)
 
 The owner ran the repaired procedure on Windows (Docker 29.7.2, Compose v5.3.1). Build, migrate to
