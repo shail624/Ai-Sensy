@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
+
+Repository-validated follow-up to UI-REF-05. Compact filtering, filled search action, desktop list
+collapse/restore, original empty-list artwork and an original conversation-ground pattern are
+complete. The milestone changes no feature authority and does not increase Inbox's 98% estimate.
+Authenticated populated-flow and host/browser acceptance remain in REL-01/REL-03.
+
 ## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
 
 The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two

@@ -1,5 +1,14 @@
 # Validation Results
 
+## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
+
+- PASS: focused Inbox regression, 33/33.
+- PASS: full frontend, 61 files / 1,012 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: no backend, OpenAPI, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: local preview reached `/login`; no authenticated local session
+  was available for representative-data visual/browser acceptance.
+
 ## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
 
 The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two

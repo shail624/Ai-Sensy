@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
+
+Closed the five empty-screen differences recorded by UI-REF-05 with original implementation:
+compact accessible filtering, a filled search action, desktop list collapse/restore, an original
+empty-list graphic and an original token-driven conversation ground. Existing Inbox behavior and
+all excluded-surface boundaries are unchanged. PASS: 1,012 frontend tests, TypeScript, ESLint and
+production build. Authenticated populated visual acceptance remains pending.
+
 ## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
 
 The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two

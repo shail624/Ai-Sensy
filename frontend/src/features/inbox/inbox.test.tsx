@@ -279,6 +279,27 @@ describe("ConversationFilters", () => {
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
     expect(screen.getByLabelText("Assignee")).toBeInTheDocument();
   });
+
+  it("exposes compact reference controls without hiding their accessible purpose", () => {
+    const onToggleList = vi.fn();
+    withProviders(
+      <ConversationFilters
+        filters={{}}
+        onChange={vi.fn()}
+        tags={[]}
+        savedViews={[]}
+        onSaveView={vi.fn()}
+        onDeleteView={vi.fn()}
+        currentUserId="u1"
+        onToggleList={onToggleList}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Search conversations" })).toBeInTheDocument();
+    expect(within(screen.getByRole("button", { name: "Filters" })).queryByText("Filters")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse conversation list" }));
+    expect(onToggleList).toHaveBeenCalledOnce();
+  });
 });
 
 describe("MessageBubble", () => {

@@ -1,5 +1,14 @@
 # Project State
 
+## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
+
+Latest local milestone branch: `codex/ui-ref-06`, based on GitHub `main` at `7639380`. The five
+UI-REF-05 empty-screen differences are implemented with original UI: icon-only filtering, filled
+search action, desktop list collapse, governed empty-state artwork and a token-driven conversation
+ground. PASS: 1,012 frontend tests, lint, TypeScript and production build. No backend/API/migration
+change and no completion-percentage increase. Authenticated populated preview and host acceptance
+remain pending.
+
 ## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
 
 The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two

@@ -1,5 +1,7 @@
 import {
   BookmarkPlus,
+  ChevronLeft,
+  ChevronRight,
   Inbox,
   Radio,
   Search,
@@ -24,6 +26,8 @@ interface Props {
   onDeleteView: (id: string) => void;
   currentUserId?: string;
   showProfileLabel?: boolean;
+  listCollapsed?: boolean;
+  onToggleList?: () => void;
 }
 
 /** Simple triage first; the complete filter and saved-view toolkit remains one click away. */
@@ -36,6 +40,8 @@ export function ConversationFilters({
   onDeleteView,
   currentUserId,
   showProfileLabel = true,
+  listCollapsed = false,
+  onToggleList,
 }: Props): JSX.Element {
   const users = useAssignableUsers();
   const [viewName, setViewName] = useState("");
@@ -114,7 +120,7 @@ export function ConversationFilters({
         </span>
       </div>
 
-      <div className="flex w-full max-w-xl gap-2 p-3">
+      <div className="flex w-full max-w-xl items-center gap-2 p-3">
         <Input
           ref={searchRef}
           id="inbox-search"
@@ -123,18 +129,26 @@ export function ConversationFilters({
           onChange={(event) => onChange({ ...filters, q: event.target.value || undefined })}
           placeholder="Search name or mobile number"
           aria-label="Search conversations"
-          leadingIcon={<Search aria-hidden className="h-4 w-4" />}
           trailingAction={
             filters.q ? (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => onChange({ ...filters, q: undefined })}
-                className="rounded-md p-1.5 text-text-disabled hover:bg-hover hover:text-text-primary"
+                className="rounded-full bg-accent p-1.5 text-accent-fg hover:opacity-90"
               >
                 <X aria-hidden className="h-3.5 w-3.5" />
               </button>
-            ) : null
+            ) : (
+              <button
+                type="button"
+                aria-label="Search conversations"
+                onClick={() => searchRef.current?.focus()}
+                className="rounded-full bg-accent p-1.5 text-accent-fg hover:opacity-90"
+              >
+                <Search aria-hidden className="h-3.5 w-3.5" />
+              </button>
+            )
           }
           containerClassName="min-w-0 flex-1"
         />
@@ -145,16 +159,28 @@ export function ConversationFilters({
           aria-expanded={filtersOpen}
           aria-controls="advanced-inbox-filters"
           onClick={() => setFiltersOpen((open) => !open)}
-          leftIcon={<SlidersHorizontal aria-hidden className="h-4 w-4" />}
-          className="shrink-0 px-3 text-xs"
+          aria-label="Filters"
+          title="Filters"
+          className="shrink-0 px-2.5"
         >
-          Filters
+          <SlidersHorizontal aria-hidden className="h-4 w-4" />
           {advancedFilterCount > 0 ? (
-            <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-accent-fg">
+            <span className="sr-only">
               {advancedFilterCount}
             </span>
           ) : null}
         </Button>
+        {onToggleList ? (
+          <button
+            type="button"
+            onClick={onToggleList}
+            aria-label={listCollapsed ? "Expand conversation list" : "Collapse conversation list"}
+            title={listCollapsed ? "Expand conversation list" : "Collapse conversation list"}
+            className="hidden rounded-control p-2 text-text-secondary hover:bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus lg:inline-flex"
+          >
+            {listCollapsed ? <ChevronRight aria-hidden className="h-4 w-4" /> : <ChevronLeft aria-hidden className="h-4 w-4" />}
+          </button>
+        ) : null}
       </div>
 
       <div className="flex items-stretch bg-[var(--color-nav-bg)] text-[var(--color-nav-text)]" aria-label="Live Chat views">

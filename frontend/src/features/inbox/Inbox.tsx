@@ -1,4 +1,4 @@
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, MessageCircleMore, MessagesSquare, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -50,6 +50,7 @@ export function Inbox(): JSX.Element {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selection, setSelection] = useState<string[]>([]);
+  const [listCollapsed, setListCollapsed] = useState(false);
   const filters = useMemo(() => readFilters(searchParams), [searchParams]);
   const cursor = searchParams.get("cursor");
   const selectedId = searchParams.get("conversation");
@@ -105,12 +106,14 @@ export function Inbox(): JSX.Element {
           onDeleteView={preferences.deleteView}
           currentUserId={user?.id}
           showProfileLabel={!selectedId}
+          listCollapsed={listCollapsed}
+          onToggleList={() => setListCollapsed((collapsed) => !collapsed)}
         />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <div
-        className={`${selectedId ? "hidden lg:flex" : "flex"} min-h-0 w-full flex-1 flex-col border-b border-border bg-surface lg:w-[360px] lg:flex-none lg:border-b-0 lg:border-r`}
+        className={`${selectedId ? "hidden lg:flex" : "flex"} ${listCollapsed ? "lg:hidden" : ""} min-h-0 w-full flex-1 flex-col border-b border-border bg-surface lg:w-[360px] lg:flex-none lg:border-b-0 lg:border-r`}
       >
 
         {selection.length > 0 ? (
@@ -219,6 +222,7 @@ export function Inbox(): JSX.Element {
             <EmptyState
               title="No conversations"
               description="Nothing matches these filters. Try clearing a filter or changing your search."
+              icon={<MessagesSquare aria-hidden className="h-7 w-7" />}
             />
           ) : (
             <ConversationList
@@ -270,10 +274,18 @@ export function Inbox(): JSX.Element {
           </div>
         ) : (
           <div className="flex h-full min-h-0">
-          <div className="flex min-w-0 flex-1 items-center justify-center bg-accent-soft/30 p-6">
+          <div
+            className="flex min-w-0 flex-1 items-center justify-center bg-accent-soft/30 p-6"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 13%, transparent) 1px, transparent 1.5px)",
+              backgroundSize: "26px 26px",
+            }}
+          >
             <EmptyState
               title="Select a conversation"
               description="Choose a conversation to read, collaborate, and reply."
+              icon={<MessageCircleMore aria-hidden className="h-7 w-7" />}
             />
           </div>
           <aside aria-label="Chat profile" className="hidden w-72 shrink-0 border-l border-border bg-surface p-6 xl:block">

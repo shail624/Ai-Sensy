@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
+
+Inbox remains **98%**. The five empty-screen visual/control differences carried by UI-REF-05 are
+closed with original, accessible implementation. PASS: 1,012 frontend tests, TypeScript, ESLint and
+production build. Remaining Inbox work is unchanged: populated authenticated visual/browser
+acceptance, target-host concurrency and the previously recorded advanced execution/SLA boundaries.
+
 ## UI-REF-05 — Live Chat tab strip (2026-09-19)
 
 The owner supplied the capture archive (130 unique states, 203 screenshots, screenshots only — the

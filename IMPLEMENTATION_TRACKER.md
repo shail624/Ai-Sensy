@@ -1,5 +1,12 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-06 — COMPLETE, repository validated (2026-09-20)
+
+Implemented the five approved Live Chat empty-screen refinements carried by UI-REF-05. No backend,
+contract, migration, RBAC or feature-scope change. PASS: focused Inbox 33/33; full frontend 61
+files / 1,012 tests; TypeScript, ESLint and build. PENDING – Host Machine Validation: authenticated
+populated visual/browser acceptance. Design record: Document 75.
+
 ## UI-REF-05 — Live Chat tab strip, against the real capture (2026-09-19)
 
 The owner supplied the capture archive directly: **130 unique states, 203 screenshots**. The two
