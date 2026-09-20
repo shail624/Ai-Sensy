@@ -1,5 +1,12 @@
 # Changelog
 
+## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
+
+Added a permission-aware Contacts Actions menu matching the observed workflow: operators can
+export the complete current filtered view without first selecting rows and open the existing
+Download Center as export history. Selection-only edits remain in the bulk bar; no fake Lists,
+ads or import-history surface was added. PASS: 1,016 frontend tests, TypeScript, ESLint and build.
+
 ## UI-REF-07 — daily navigation parity (2026-09-20)
 
 Compared the authenticated reference navigation and moved two existing, permitted capabilities

@@ -1,5 +1,12 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-08 — COMPLETE, repository validated (2026-09-20)
+
+Contacts now provides page-level Actions for current-view export and export-history discovery,
+reusing the governed rule-based export and Download Center authorities. Permission filtering,
+selection-only bulk actions and honest absent-surface boundaries remain intact. PASS: focused 19,
+full frontend 1,016, TypeScript, ESLint and build. Design record: Document 78.
+
 ## UI-REF-07 — COMPLETE, repository validated (2026-09-20)
 
 Authenticated reference navigation was rechecked. Segments and the existing Developer/API surface

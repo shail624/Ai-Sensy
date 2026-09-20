@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
+
+Current milestone branch `codex/ui-ref-08-contacts-parity`, based on approved main `97ac07b`.
+Authenticated reference comparison added the missing Contacts Actions entry while reusing real
+filtered export and Download Center behavior. PASS: 1,016 frontend tests, TypeScript, ESLint and
+production build. Contacts remains 98% and overall completion remains approximately 88.0%; this
+closes an interaction/discovery difference rather than adding domain scope.
+
 ## UI-REF-07 — daily navigation parity (2026-09-20)
 
 Current milestone branch `codex/ui-ref-07-navigation-parity`, based on approved main `ff4a88d`.

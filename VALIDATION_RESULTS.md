@@ -1,5 +1,15 @@
 # Validation Results
 
+## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
+
+- PASS: focused Contacts actions/filter/bulk regression, 19/19.
+- PASS: full frontend, 62 files / 1,016 tests.
+- PASS: TypeScript and ESLint.
+- PASS: production build.
+- PASS: no backend, OpenAPI, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated representative-data desktop/mobile visual and
+  export/download navigation acceptance.
+
 ## UI-REF-07 — daily navigation parity (2026-09-20)
 
 - PASS: focused layout/navigation, 34/34.

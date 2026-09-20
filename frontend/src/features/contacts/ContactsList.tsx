@@ -12,6 +12,7 @@ import { CreateContactDialog } from "@/features/contacts/CreateContactDialog";
 import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
 import { ContactSavedViews } from "@/features/contacts/ContactSavedViews";
+import { ContactsActions } from "@/features/contacts/ContactsActions";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
 import { useCustomAttributeDefinitions, useTags } from "@/features/customer-profile/api";
 import { useHasPermission } from "@/lib/auth";
@@ -134,7 +135,9 @@ export function ContactsList(): JSX.Element {
             >
               Import
             </Button>
-          ) : null}</div>}
+          ) : null}
+            <ContactsActions rules={rules} />
+          </div>}
         />
 
         {created ? <p role="status" className="mb-4 text-sm text-text-secondary">Contact created. Your current filters are preserved; clear them if the new contact is not visible.</p> : null}

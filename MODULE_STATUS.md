@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
+
+Contacts remains **98%**. Its header now follows the observed Add / Import / Actions workflow;
+Actions provides real current-filter export and export-history discovery without requiring a fake
+selection. Overall canonical average remains approximately 88.0%. Remaining Contacts work is the
+recorded representative-data/browser/production-scale acceptance, not a rebuild.
+
 ## UI-REF-07 — daily navigation parity (2026-09-20)
 
 Navigation parity improved without changing module percentages. Segments and Developer are direct

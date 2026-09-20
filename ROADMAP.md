@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
+
+Repository validated. Contacts now exposes current-view export and export history through the
+observed page-level Actions pattern while preserving explicit-ID bulk edits and server-rule export
+truth. Import history, static Lists and ads remain absent because no real approved destination
+exists. Detailed Contacts comparison continues only through representative-data host acceptance.
+
 ## UI-REF-07 — daily navigation parity (2026-09-20)
 
 Repository validated. The authenticated reference navigation now maps more closely to real product
