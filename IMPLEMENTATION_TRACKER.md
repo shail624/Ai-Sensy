@@ -1,5 +1,13 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-09 — COMPLETE, repository validated (2026-09-20)
+
+Campaigns now exposes URL-backed All/Scheduled shortcuts, refresh, existing report-download
+discovery and a clearer launch action. The full lifecycle filter remains available and all
+existing behavior is reused. Broadcast/API/QR and excluded commercial surfaces remain absent
+because they have no approved authority. PASS: focused Campaigns 64, full frontend 1,017,
+TypeScript, ESLint and build. Design record: Document 79.
+
 ## UI-REF-08 — COMPLETE, repository validated (2026-09-20)
 
 Contacts now provides page-level Actions for current-view export and export-history discovery,

@@ -8,7 +8,7 @@ import { CampaignList } from "./CampaignList";
 
 const get = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api/client", () => ({ api: { GET: get } }));
-vi.mock("@/lib/auth", () => ({ useHasPermission: () => false }));
+vi.mock("@/lib/auth", () => ({ useHasPermission: () => true }));
 
 function wrapper({ children }: PropsWithChildren) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -20,6 +20,44 @@ beforeEach(() => {
 });
 
 describe("campaign server filters", () => {
+  it("offers truthful campaign shortcuts, refresh and report-download discovery", async () => {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/campaigns?q=Alpha"]}><CampaignList /></MemoryRouter></QueryClientProvider>);
+    await screen.findByText("No campaigns match these filters");
+
+    expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("link", { name: "Report downloads" })).toHaveAttribute(
+      "href",
+      "/downloads?category=campaigns",
+    );
+    expect(screen.getByRole("link", { name: "Launch campaign" })).toHaveAttribute(
+      "href",
+      "/campaigns/new",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Scheduled" }));
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith("/api/v1/campaigns", {
+        params: { query: { q: "Alpha", status: "scheduled" } },
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Scheduled" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    const refreshButton = await screen.findByRole("button", { name: "Refresh" });
+    const callsBeforeRefresh = get.mock.calls.length;
+    fireEvent.click(refreshButton);
+    await waitFor(() => expect(get.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
+
+    fireEvent.click(screen.getByRole("tab", { name: "All" }));
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith("/api/v1/campaigns", {
+        params: { query: { q: "Alpha" } },
+      }),
+    );
+  });
+
   it("wires URL filters to the server and distinguishes no matches from an empty registry", async () => {
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/campaigns?q=Alpha&status=draft"]}><CampaignList /></MemoryRouter></QueryClientProvider>);
     await screen.findByText("No campaigns match these filters");

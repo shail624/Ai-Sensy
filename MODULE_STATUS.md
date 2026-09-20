@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-09 — Campaign list controls (2026-09-20)
+
+Campaigns remains **98%**. The list now presents truthful All/Scheduled shortcuts, refresh,
+permission-aware report-download discovery and a clear launch action while retaining its richer
+status lifecycle and saved views. Overall canonical average remains approximately 88.0%.
+Unsupported API-triggered/QR origins and duplicate Broadcast semantics are not shown as fake tabs.
+
 ## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
 
 Contacts remains **98%**. Its header now follows the observed Add / Import / Actions workflow;

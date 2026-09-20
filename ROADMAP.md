@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-09 — Campaign list controls (2026-09-20)
+
+Repository validated. Campaigns now matches the supported reference workflow with direct
+All/Scheduled selection, refresh, report-download history and one launch action. Existing domain
+behavior remains authoritative. API-triggered campaigns and QR attribution stay gated future
+milestones rather than empty navigation; Broadcast is not duplicated from All.
+
 ## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
 
 Repository validated. Contacts now exposes current-view export and export history through the

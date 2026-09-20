@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-09 — Campaign list controls (2026-09-20)
+
+Aligned the Campaign list's supported interactions with the authenticated reference: truthful
+All/Scheduled status shortcuts, explicit refresh, permission-aware campaign report-download
+history, and a single Launch campaign action. Existing search/status/sort, saved views and
+execution behavior are unchanged; unsupported Broadcast/API/QR tabs were not fabricated. PASS:
+1,017 frontend tests, TypeScript, ESLint and production build.
+
 ## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
 
 Added a permission-aware Contacts Actions menu matching the observed workflow: operators can

@@ -1,5 +1,15 @@
 # Validation Results
 
+## UI-REF-09 — Campaign list controls (2026-09-20)
+
+- PASS: focused Campaign regression, 5 files / 64 tests.
+- PASS: full frontend, 62 files / 1,017 tests.
+- PASS: TypeScript and ESLint.
+- PASS: production build.
+- PASS: no backend, OpenAPI, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated representative-data desktop/mobile visual and
+  campaign/download navigation acceptance.
+
 ## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
 
 - PASS: focused Contacts actions/filter/bulk regression, 19/19.

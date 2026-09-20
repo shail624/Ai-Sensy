@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-09 — Campaign list controls (2026-09-20)
+
+Current milestone branch `codex/ui-ref-09-campaigns-parity`, based on approved main `06770cc`.
+The Campaign list now provides supported reference-style category shortcuts and actions while
+reusing real status, refresh and Download Center authorities. PASS: 1,017 frontend tests,
+TypeScript, ESLint and production build. Campaigns remains 98% and overall completion remains
+approximately 88.0%; this is interaction/discovery parity, not additional domain capability.
+
 ## UI-REF-08 — Contacts actions and export discovery (2026-09-20)
 
 Current milestone branch `codex/ui-ref-08-contacts-parity`, based on approved main `97ac07b`.

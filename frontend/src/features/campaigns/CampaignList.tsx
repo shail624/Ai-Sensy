@@ -49,6 +49,7 @@ export function CampaignList(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("campaigns:write");
+  const canExport = useHasPermission("campaigns:export");
 
   const campaigns = useCampaigns(true, { q: query.q || undefined, status: query.status || undefined });
   const page = useMemo(
@@ -78,16 +79,63 @@ export function CampaignList(): JSX.Element {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border">
+          <div role="tablist" aria-label="Campaign categories" className="flex items-center gap-1">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={query.status === ""}
+              className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                query.status === ""
+                  ? "border-accent text-text-primary"
+                  : "border-transparent text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => apply({ ...query, status: "", page: 1 })}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={query.status === "scheduled"}
+              className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                query.status === "scheduled"
+                  ? "border-accent text-text-primary"
+                  : "border-transparent text-text-secondary hover:text-text-primary"
+              }`}
+              onClick={() => apply({ ...query, status: "scheduled", page: 1 })}
+            >
+              Scheduled
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pb-2">
+            <button
+              type="button"
+              className={BUTTON_CLASS}
+              disabled={campaigns.isFetching}
+              onClick={() => void campaigns.refetch()}
+            >
+              {campaigns.isFetching ? "Refreshing…" : "Refresh"}
+            </button>
+            {canExport ? (
+              <Link to="/downloads?category=campaigns" className={BUTTON_CLASS}>
+                Report downloads
+              </Link>
+            ) : null}
+            {canWrite ? (
+              <Link
+                to="/campaigns/new"
+                className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              >
+                Launch campaign
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
         <CampaignFilters filters={query} onChange={apply} />
-        {canWrite ? (
-          <Link
-            to="/campaigns/new"
-            className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            New campaign
-          </Link>
-        ) : null}
       </div>
 
       <CampaignSavedViews query={query} onApply={apply} />
