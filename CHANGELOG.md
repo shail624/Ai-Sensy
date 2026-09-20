@@ -1,5 +1,14 @@
 # Changelog
 
+## GSHEET-03 — combine matching Google Sheet tabs during contact import (2026-09-20)
+
+The existing contact import wizard can now stage up to ten named Sheet tabs as one import when
+their headers match. It reuses the established mapping, deduplication, queue, progress, error and
+audit path, rejects mismatched headers before job creation, and preserves legacy single-tab API
+compatibility. No migration or new endpoint was added; OpenAPI remains 247 paths.
+PASS: 1,763 applicable backend tests and 1,013 frontend tests plus static and production-build
+gates. Live Google, MySQL and Redis host evidence remains pending.
+
 ## GSHEET-02 — queued contact export to a new Sheet tab (2026-09-20)
 
 Added Google Sheets as a governed destination in the existing contact export workflow. Each queued

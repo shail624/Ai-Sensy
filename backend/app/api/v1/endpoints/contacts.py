@@ -453,12 +453,13 @@ async def stage_google_sheet(
         organization_id=actor.organization_id,
         actor=actor,
         spreadsheet_id=payload.spreadsheet_id,
-        tab=payload.tab,
+        tabs=payload.selected_tabs(),
     )
     return GoogleSheetStageResponse(
         upload_id=uuidlib.UUID(staged.asset.public_id),
         rows=staged.row_count,
         columns=staged.column_count,
+        tabs=payload.selected_tabs(),
     )
 
 

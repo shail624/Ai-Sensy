@@ -6,7 +6,7 @@ import uuid as uuidlib
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.models.job_records import DEDUP_SKIP, ImportJob
 
@@ -90,7 +90,7 @@ class ImportProgressResponse(BaseModel):
 
 
 class GoogleSheetStageRequest(BaseModel):
-    """``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet."""
+    """Pull one or more identically-shaped tabs in, importing nothing yet."""
 
     #: Google's own id alphabet. Constrained here because this string is interpolated into the
     #: Sheets URL: a mangled paste that still contains a slash would address a different endpoint
@@ -104,7 +104,26 @@ class GoogleSheetStageRequest(BaseModel):
     ]
     #: Deliberately unconstrained beyond a length: a tab may be called anything a person can type,
     #: including spaces, slashes and other scripts. Correct URL encoding is the reader's job.
-    tab: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+    tab: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
+    ] = None
+    tabs: list[
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+    ] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def _one_tab_shape(self) -> GoogleSheetStageRequest:
+        if self.tab and self.tabs:
+            raise ValueError("send tab or tabs, not both")
+        if not self.tab and not self.tabs:
+            raise ValueError("at least one tab is required")
+        selected = [self.tab] if self.tab else self.tabs
+        if len(set(selected)) != len(selected):
+            raise ValueError("tab names must be unique")
+        return self
+
+    def selected_tabs(self) -> list[str]:
+        return [self.tab] if self.tab is not None else self.tabs
 
 
 class GoogleSheetStageResponse(BaseModel):
@@ -121,3 +140,4 @@ class GoogleSheetStageResponse(BaseModel):
     upload_id: uuidlib.UUID
     rows: int
     columns: int
+    tabs: list[str]

@@ -244,7 +244,7 @@ export function useStartContactImport() {
 }
 
 /**
- * Pull a Google Sheet tab in as an upload.
+ * Pull one or more identically-shaped Google Sheet tabs in as one upload.
  *
  * Returns the same `upload_id` a file upload does, so everything after this — inspect, mapping,
  * dedup, start, progress — is the wizard's existing path unchanged. A sheet is a source of rows,
@@ -254,14 +254,14 @@ export function useStageGoogleSheet() {
   return useMutation({
     mutationFn: async ({
       spreadsheetId,
-      tab,
+      tabs,
     }: {
       spreadsheetId: string;
-      tab: string;
-    }): Promise<{ upload_id: string; rows: number; columns: number }> =>
+      tabs: string[];
+    }): Promise<{ upload_id: string; rows: number; columns: number; tabs: string[] }> =>
       unwrap(
         await api.POST("/api/v1/contacts/import/google-sheet", {
-          body: { spreadsheet_id: spreadsheetId, tab },
+          body: { spreadsheet_id: spreadsheetId, tabs },
         }),
       ),
   });

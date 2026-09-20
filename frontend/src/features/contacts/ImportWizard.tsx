@@ -173,13 +173,18 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
       setFileError("Paste the sheet's link, or the id from between '/d/' and the next '/'.");
       return;
     }
-    if (!sheetTab.trim()) {
-      setFileError("Name the tab to import, exactly as it appears at the bottom of the sheet.");
+    const tabs = [...new Set(sheetTab.split(/[,\n]/).map((tab) => tab.trim()).filter(Boolean))];
+    if (tabs.length === 0) {
+      setFileError("Name at least one tab exactly as it appears at the bottom of the sheet.");
+      return;
+    }
+    if (tabs.length > 10) {
+      setFileError("Choose no more than 10 tabs in one import.");
       return;
     }
     setFormat("csv");
     try {
-      const staged = await stageSheet.mutateAsync({ spreadsheetId: id, tab: sheetTab.trim() });
+      const staged = await stageSheet.mutateAsync({ spreadsheetId: id, tabs });
       setUploadId(staged.upload_id);
       const found = await inspect.mutateAsync({ uploadId: staged.upload_id, format: "csv" });
       if (found.errors.length > 0) {
@@ -190,7 +195,7 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
         rows: found.sample_row.length > 0 ? [found.sample_row] : [],
         rowCount: staged.rows,
         truncated: false,
-        sheetName: sheetTab.trim(),
+        sheetName: staged.tabs.join(", "),
         rowCountEstimated: false,
       };
       setPreview(parsed);
@@ -296,8 +301,8 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
           <div className="rounded-xl border border-border bg-surface-2 p-4">
             <p className="text-sm font-medium text-text-primary">Or pull from a Google Sheet</p>
             <p className="mt-1 text-xs text-text-secondary">
-              Share the sheet with this platform&rsquo;s Google service account first, as Viewer. The tab
-              is read once, as it is now — no live link is kept.
+              Share the sheet with this platform&rsquo;s Google service account first, as Editor. Tabs
+              are read once and combined only when their header rows match.
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-[2fr_1fr_auto]">
               <Input
@@ -307,8 +312,8 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
                 onChange={(event: ChangeEvent<HTMLInputElement>) => setSheetId(event.target.value)}
               />
               <Input
-                aria-label="Tab name"
-                placeholder="Tab name"
+                aria-label="Tab names"
+                placeholder="Tabs, separated by commas"
                 value={sheetTab}
                 onChange={(event: ChangeEvent<HTMLInputElement>) => setSheetTab(event.target.value)}
               />
@@ -318,7 +323,7 @@ export function ImportWizard({ onClose }: Props): JSX.Element {
                 disabled={stageSheet.isPending || inspecting}
                 onClick={() => void acceptSheet()}
               >
-                {stageSheet.isPending ? "Reading sheet…" : "Read tab"}
+                {stageSheet.isPending ? "Reading sheet…" : "Read tabs"}
               </Button>
             </div>
           </div>

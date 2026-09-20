@@ -227,6 +227,75 @@ async def test_staging_a_tab_returns_an_upload_the_import_flow_accepts(
     assert inspected.json()["headers"] == ["Phone", "Name"]
 
 
+async def test_multiple_tabs_with_the_same_header_become_one_staged_upload(
+    client, make_user, monkeypatch, service_account_json
+) -> None:
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    from app.services import google_sheet_import_service as module
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "ya29.fake"})
+        name = request.url.path.rsplit("/", 1)[-1]
+        person = "Asha" if name == "Leads" else "Ravi"
+        return httpx.Response(200, json={"values": [["Phone", "Name"], ["+919876543210", person]]})
+
+    original = module.GoogleSheetsClient
+    monkeypatch.setattr(
+        module,
+        "GoogleSheetsClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler)),
+    )
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    headers = await _headers(client, "ops@vi.co")
+
+    staged = await client.post(
+        STAGE_URL,
+        headers=headers,
+        json={"spreadsheet_id": "sheet-id", "tabs": ["Leads", "Renewals"]},
+    )
+
+    assert staged.status_code == 200, staged.text
+    assert staged.json()["tabs"] == ["Leads", "Renewals"]
+    assert staged.json()["rows"] == 3
+    inspected = await client.post(
+        "/api/v1/contacts/import/inspect",
+        headers=headers,
+        json={"upload_id": staged.json()["upload_id"], "format": "csv"},
+    )
+    assert inspected.json()["headers"] == ["Phone", "Name"]
+    assert inspected.json()["estimated_rows"] == 2
+
+
+async def test_multiple_tabs_must_share_the_same_header(
+    client, make_user, monkeypatch, service_account_json
+) -> None:
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    from app.services import google_sheet_import_service as module
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "ya29.fake"})
+        name = request.url.path.rsplit("/", 1)[-1]
+        header = ["Phone", "Name"] if name == "Leads" else ["Mobile", "Customer"]
+        return httpx.Response(200, json={"values": [header, ["+919876543210", "Asha"]]})
+
+    original = module.GoogleSheetsClient
+    monkeypatch.setattr(
+        module,
+        "GoogleSheetsClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler)),
+    )
+    await make_user(email="ops@vi.co", password=PASSWORD, is_superuser=True)
+    refused = await client.post(
+        STAGE_URL,
+        headers=await _headers(client, "ops@vi.co"),
+        json={"spreadsheet_id": "sheet-id", "tabs": ["Leads", "Renewals"]},
+    )
+    assert refused.status_code == 422
+    assert "same header row" in refused.text
+
+
 async def test_an_empty_tab_is_refused_rather_than_staged(
     client, make_user, monkeypatch, service_account_json
 ) -> None:

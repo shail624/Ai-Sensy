@@ -1,5 +1,14 @@
 # Project State
 
+## GSHEET-03 — multi-tab Google Sheet contact import (2026-09-20)
+
+Current milestone branch `codex/gsheet-03-multi-tab-import`, based on main `ff4a88d`. Operators can
+combine up to ten identically shaped Google Sheet tabs into one governed contact import. The old
+single-tab request remains compatible; no database migration or new route was introduced. Google
+Sheets advances from 70% to 82%; canonical average advances from approximately 88.0% to 88.4%.
+PASS: 1,763 applicable backend and 1,013 frontend tests plus static/build gates. Scheduled re-sync
+and live provider commissioning remain pending.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 Current milestone branch `codex/gsheet-02-contact-export`, based on main `32fb4b2`. A filtered

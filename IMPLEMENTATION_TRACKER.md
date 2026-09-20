@@ -1,5 +1,13 @@
 # Implementation Tracker (canonical)
 
+## GSHEET-03 — COMPLETE, repository validated (2026-09-20)
+
+Contact import now combines one to ten explicitly named Google Sheet tabs when their headers are
+identical, then uses the existing staged contact-import pipeline. Header mismatch, duplicate tabs,
+mixed legacy/new request shapes and combined row limits are enforced before import execution.
+No migration; OpenAPI 247. Design record: Document 77. Live owner Google validation remains
+pending. PASS: applicable backend 1,763, frontend 1,013, static checks and production build.
+
 ## GSHEET-02 — COMPLETE, repository validated (2026-09-20)
 
 Contact export now offers Google Sheets and creates one new dated tab per queued export, per owner

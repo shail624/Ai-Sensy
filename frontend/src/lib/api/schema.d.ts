@@ -7137,13 +7137,15 @@ export interface components {
         };
         /**
          * GoogleSheetStageRequest
-         * @description ``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet.
+         * @description Pull one or more identically-shaped tabs in, importing nothing yet.
          */
         GoogleSheetStageRequest: {
             /** Spreadsheet Id */
             spreadsheet_id: string;
             /** Tab */
-            tab: string;
+            tab?: string | null;
+            /** Tabs */
+            tabs?: string[];
         };
         /**
          * GoogleSheetStageResponse
@@ -7170,6 +7172,8 @@ export interface components {
             rows: number;
             /** Columns */
             columns: number;
+            /** Tabs */
+            tabs: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {

@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## GSHEET-03 — multi-tab Google Sheet contact import (2026-09-20)
+
+Repository validated. The existing import source now accepts up to ten explicit tab
+names, requires identical headers, and combines their rows before entering the established contact
+import pipeline. Google Sheets is 82%; scheduled re-sync and live credential/share commissioning
+remain.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 Repository validated. The owner chose a new tab for every export. The existing queued contact

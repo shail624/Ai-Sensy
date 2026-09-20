@@ -181,7 +181,8 @@ authorization safeguards remain preserved and must not be deleted or rewritten.
   `webhook_events` cannot carry as a plain unique key).
 - Google Sheets: GSHEET-01 imports a tab through the existing contact-import pipeline. GSHEET-02
   exports a filtered contact view through the existing queue into a new dated, retry-safe tab.
-  Remaining: owner credential/live-share commissioning, scheduled re-sync and multi-tab batches.
+  GSHEET-03 combines up to ten identically shaped tabs into one governed import. Remaining: owner
+  credential/live-share commissioning and scheduled re-sync.
 
 ### Chat History
 

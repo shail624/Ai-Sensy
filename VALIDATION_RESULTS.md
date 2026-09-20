@@ -1,5 +1,18 @@
 # Validation Results
 
+## GSHEET-03 — multi-tab Google Sheet contact import (2026-09-20)
+
+- PASS: 22 focused Google Sheet backend tests.
+- PASS: focused contact import UI, 16/16.
+- PASS: frontend 61 files / 1,013 tests.
+- PASS: Ruff; strict mypy across 332 backend files; TypeScript; ESLint.
+- PASS: OpenAPI/generated TypeScript synchronized at 247 paths.
+- PASS: applicable backend 1,763 passed / 6 MySQL-only skipped / 6 known Redis-dependent tests
+  deselected because MySQL and Redis are unavailable on this host.
+- PASS: frontend production build.
+- PENDING – Host Machine Validation: real service-account authorization and representative shared
+  Sheet with multiple tabs; MySQL and Redis-backed checks.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 - PASS: 38 focused Google/export/migration tests.

@@ -24685,19 +24685,35 @@
             "title": "Spreadsheet Id"
           },
           "tab": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Tab"
+          },
+          "tabs": {
+            "items": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Tabs"
           }
         },
         "type": "object",
         "required": [
-          "spreadsheet_id",
-          "tab"
+          "spreadsheet_id"
         ],
         "title": "GoogleSheetStageRequest",
-        "description": "``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet."
+        "description": "Pull one or more identically-shaped tabs in, importing nothing yet."
       },
       "GoogleSheetStageResponse": {
         "properties": {
@@ -24718,13 +24734,21 @@
           "columns": {
             "type": "integer",
             "title": "Columns"
+          },
+          "tabs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tabs"
           }
         },
         "type": "object",
         "required": [
           "upload_id",
           "rows",
-          "columns"
+          "columns",
+          "tabs"
         ],
         "title": "GoogleSheetStageResponse",
         "description": "The staged sheet, as an upload the normal import flow already understands.\n\n``upload_id`` is the same identifier ``/contacts/import/inspect`` and ``/contacts/import``\ntake, which is the point: a sheet reaches contacts through the one import pipeline, with the\nsame mapping step, dedup strategy, per-row error report and audit trail as a CSV. The row and\ncolumn counts are returned so the operator can tell at a glance whether they pulled the tab\nthey meant to."

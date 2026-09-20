@@ -46,9 +46,18 @@ vi.mock("@/lib/api/client", () => {
     if (path === "/api/v1/media/upload") return { data: { id: "media-1", media_type: "document" } };
     if (path === "/api/v1/contacts/import/inspect") return { data: inspection.value };
     if (path === "/api/v1/contacts/import/google-sheet") {
+      const tabs = init.body.tabs as string[];
       return sheetStage.value.error
         ? { error: sheetStage.value.error }
-        : { data: { type: "google_sheet_staged", upload_id: "media-sheet", rows: 2, columns: 2 } };
+        : {
+            data: {
+              type: "google_sheet_staged",
+              upload_id: "media-sheet",
+              tabs,
+              rows: 2,
+              columns: 2,
+            },
+          };
     }
     return { data: { job: { id: "i1", type: "import", status: "queued", poll_url: "/x" } } };
   };
@@ -296,18 +305,23 @@ describe("ImportWizard", () => {
   });
 
   // --- Google Sheet source -----------------------------------------------------------------
-  it("reads a tab and moves to mapping, the same as an uploaded file", async () => {
+  it("reads multiple matching tabs and moves to mapping, the same as an uploaded file", async () => {
     // The point of the design: a sheet is another source of rows, not a second import path.
     renderWizard();
     fireEvent.change(screen.getByLabelText("Google Sheet link or id"), {
       target: { value: "https://docs.google.com/spreadsheets/d/1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh/edit" },
     });
-    fireEvent.change(screen.getByLabelText("Tab name"), { target: { value: "Leads" } });
-    fireEvent.click(dialog().getByRole("button", { name: "Read tab" }));
+    fireEvent.change(screen.getByLabelText("Tab names"), {
+      target: { value: "Leads, Renewals" },
+    });
+    fireEvent.click(dialog().getByRole("button", { name: "Read tabs" }));
 
     await waitFor(() => expect(screen.getByText("Phone Number")).toBeInTheDocument());
     const staged = posts.find((post) => post.path === "/api/v1/contacts/import/google-sheet");
-    expect(staged?.body).toEqual({ spreadsheet_id: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh", tab: "Leads" });
+    expect(staged?.body).toEqual({
+      spreadsheet_id: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh",
+      tabs: ["Leads", "Renewals"],
+    });
   });
 
   it("accepts a bare sheet id as well as a pasted link", async () => {
@@ -315,8 +329,8 @@ describe("ImportWizard", () => {
     fireEvent.change(screen.getByLabelText("Google Sheet link or id"), {
       target: { value: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh" },
     });
-    fireEvent.change(screen.getByLabelText("Tab name"), { target: { value: "Leads" } });
-    fireEvent.click(dialog().getByRole("button", { name: "Read tab" }));
+    fireEvent.change(screen.getByLabelText("Tab names"), { target: { value: "Leads" } });
+    fireEvent.click(dialog().getByRole("button", { name: "Read tabs" }));
 
     await waitFor(() =>
       expect(posts.some((post) => post.path === "/api/v1/contacts/import/google-sheet")).toBe(true),
@@ -328,8 +342,8 @@ describe("ImportWizard", () => {
     fireEvent.change(screen.getByLabelText("Google Sheet link or id"), {
       target: { value: "my sheet" },
     });
-    fireEvent.change(screen.getByLabelText("Tab name"), { target: { value: "Leads" } });
-    fireEvent.click(dialog().getByRole("button", { name: "Read tab" }));
+    fireEvent.change(screen.getByLabelText("Tab names"), { target: { value: "Leads" } });
+    fireEvent.click(dialog().getByRole("button", { name: "Read tabs" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("/d/");
     expect(posts.some((post) => post.path === "/api/v1/contacts/import/google-sheet")).toBe(false);
@@ -340,7 +354,7 @@ describe("ImportWizard", () => {
     fireEvent.change(screen.getByLabelText("Google Sheet link or id"), {
       target: { value: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh" },
     });
-    fireEvent.click(dialog().getByRole("button", { name: "Read tab" }));
+    fireEvent.click(dialog().getByRole("button", { name: "Read tabs" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("tab");
     expect(posts.some((post) => post.path === "/api/v1/contacts/import/google-sheet")).toBe(false);
@@ -354,8 +368,8 @@ describe("ImportWizard", () => {
     fireEvent.change(screen.getByLabelText("Google Sheet link or id"), {
       target: { value: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh" },
     });
-    fireEvent.change(screen.getByLabelText("Tab name"), { target: { value: "Leads" } });
-    fireEvent.click(dialog().getByRole("button", { name: "Read tab" }));
+    fireEvent.change(screen.getByLabelText("Tab names"), { target: { value: "Leads" } });
+    fireEvent.click(dialog().getByRole("button", { name: "Read tabs" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("not shared with");
   });

@@ -55,7 +55,7 @@ class GoogleSheetImportService:
         organization_id: int,
         actor: User,
         spreadsheet_id: str,
-        tab: str,
+        tabs: list[str],
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> SheetImportSource:
         """Fetch a tab and store it as an uploaded CSV, ready for the normal import flow.
@@ -70,7 +70,7 @@ class GoogleSheetImportService:
             # every new installation takes first, where the message it replaced is the instruction
             # for how to finish setting the feature up.
             client = GoogleSheetsClient(transport=transport)
-            rows = await client.fetch_rows(spreadsheet_id, tab)
+            fetched = [(tab, await client.fetch_rows(spreadsheet_id, tab)) for tab in tabs]
         except GoogleSheetsNotConfigured as exc:
             raise ValidationError(
                 str(exc),
@@ -84,15 +84,29 @@ class GoogleSheetImportService:
                 errors=[{"field": "spreadsheet_id", "code": "unreadable", "message": str(exc)}],
             ) from exc
 
-        if not rows:
-            raise ValidationError(
-                f"Tab {tab!r} has no rows.",
-                errors=[{"field": "tab", "code": "empty", "message": "the tab contains no data"}],
-            )
+        for tab, rows in fetched:
+            if not rows:
+                raise ValidationError(
+                    f"Tab {tab!r} has no rows.",
+                    errors=[{"field": "tabs", "code": "empty", "message": f"{tab!r} contains no data"}],
+                )
+
+        header = fetched[0][1][0]
+        for tab, rows in fetched[1:]:
+            if rows[0] != header:
+                raise ValidationError(
+                    f"Tab {tab!r} has different columns.",
+                    errors=[{
+                        "field": "tabs",
+                        "code": "header_mismatch",
+                        "message": f"{tab!r} must use the same header row as {tabs[0]!r}",
+                    }],
+                )
+        rows = [header, *(row for _, tab_rows in fetched for row in tab_rows[1:])]
         if len(rows) > MAX_ROWS:
             raise ValidationError(
-                f"Tab {tab!r} has {len(rows)} rows, more than the {MAX_ROWS} this import accepts.",
-                errors=[{"field": "tab", "code": "too_large", "message": f"limit {MAX_ROWS} rows"}],
+                f"The selected tabs have {len(rows)} rows, more than the {MAX_ROWS} this import accepts.",
+                errors=[{"field": "tabs", "code": "too_large", "message": f"combined limit {MAX_ROWS} rows"}],
             )
 
         buffer = io.StringIO()
@@ -107,7 +121,7 @@ class GoogleSheetImportService:
             data=buffer.getvalue().encode("utf-8"),
             media_type=MEDIA_DOCUMENT,
             mime_type="text/csv",
-            file_name=f"{tab}.csv",
+            file_name=f"google-sheets-{len(tabs)}-tabs.csv",
         )
         return SheetImportSource(
             asset=asset, row_count=len(rows), column_count=len(rows[0]) if rows else 0
