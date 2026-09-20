@@ -448,7 +448,7 @@ class BusinessEventService:
         conversation_id: int,
         source_message_id: int,
     ) -> BusinessEvent | None:
-        for kind in ("welcome", "off_hours"):
+        for kind in ("consent_opt_in", "consent_opt_out", "welcome", "off_hours"):
             event_id = self.automatic_reply_event_id(
                 organization_id=organization_id,
                 conversation_id=conversation_id,

@@ -265,16 +265,16 @@ class InboxOperationsService:
         content: dict[str, Any],
         occurred_at: datetime,
         policy: InboxOperationsResponse | None = None,
-    ) -> bool:
-        """Apply an exact configured keyword to the contact, inside the inbound transaction."""
+    ) -> str | None:
+        """Apply an exact configured keyword and return only a newly recorded target state."""
         if message_type != "text":
-            return False
+            return None
         policy = policy or await self.get(contact.organization_id)
         if not policy.consent.enabled:
-            return False
+            return None
         body = content.get("body")
         if not isinstance(body, str):
-            return False
+            return None
         keyword = " ".join(body.strip().upper().split())
         target: str | None = None
         if keyword in policy.consent.opt_in_keywords:
@@ -282,7 +282,7 @@ class InboxOperationsService:
         elif keyword in policy.consent.opt_out_keywords:
             target = OPT_IN_OPTED_OUT
         if target is None or target == contact.opt_in_status:
-            return False
+            return None
 
         previous = contact.opt_in_status
         contact.opt_in_status = target
@@ -308,7 +308,31 @@ class InboxOperationsService:
             after={"opt_in_status": target},
             metadata={"source": "inbound_keyword", "keyword": keyword},
         )
-        return True
+        return target
+
+    @staticmethod
+    def consent_reply_decision(
+        *,
+        policy: InboxOperationsResponse,
+        consent_status: str | None,
+        occurred_at: datetime,
+        now: datetime | None = None,
+    ) -> AutomaticReplyDecision | None:
+        """Choose an acknowledgement only after a fresh consent transition was recorded."""
+        if consent_status is None:
+            return None
+        evaluated_at = now or utcnow()
+        age = evaluated_at - occurred_at
+        if age > AUTO_REPLY_MAX_AGE or age < -AUTO_REPLY_FUTURE_TOLERANCE:
+            return None
+        consent = policy.consent
+        if consent_status == OPT_IN_OPTED_IN and consent.opt_in_response_enabled:
+            return AutomaticReplyDecision(kind="consent_opt_in", body=consent.opt_in_response_body)
+        if consent_status == OPT_IN_OPTED_OUT and consent.opt_out_response_enabled:
+            return AutomaticReplyDecision(
+                kind="consent_opt_out", body=consent.opt_out_response_body
+            )
+        return None
 
     @staticmethod
     def automatic_reply_decision(

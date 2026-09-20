@@ -1,5 +1,14 @@
 # Project State
 
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Current milestone branch `codex/core-12-consent-acknowledgements`, based on approved main
+`ba06a53`. The existing inbound rule path now records a real consent transition and accepts one
+idempotent acknowledgement before the inbound transaction commits; actual provider dispatch stays
+post-commit. Settings, OpenAPI and generated frontend types are synchronized at 247 paths. Inbox
+remains 98% and overall completion remains approximately 88.0%; production Redis/MySQL evidence
+and the separate blocked-state product decision remain open.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 Current milestone branch `codex/ui-ref-10-template-create-parity`, based on approved main

@@ -21962,6 +21962,28 @@
             "type": "array",
             "maxItems": 20,
             "title": "Opt Out Keywords"
+          },
+          "opt_in_response_enabled": {
+            "type": "boolean",
+            "title": "Opt In Response Enabled",
+            "default": false
+          },
+          "opt_in_response_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Opt In Response Body",
+            "default": ""
+          },
+          "opt_out_response_enabled": {
+            "type": "boolean",
+            "title": "Opt Out Response Enabled",
+            "default": false
+          },
+          "opt_out_response_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Opt Out Response Body",
+            "default": ""
           }
         },
         "type": "object",

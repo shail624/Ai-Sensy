@@ -6174,6 +6174,26 @@ export interface components {
             opt_in_keywords?: string[];
             /** Opt Out Keywords */
             opt_out_keywords?: string[];
+            /**
+             * Opt In Response Enabled
+             * @default false
+             */
+            opt_in_response_enabled: boolean;
+            /**
+             * Opt In Response Body
+             * @default
+             */
+            opt_in_response_body: string;
+            /**
+             * Opt Out Response Enabled
+             * @default false
+             */
+            opt_out_response_enabled: boolean;
+            /**
+             * Opt Out Response Body
+             * @default
+             */
+            opt_out_response_body: string;
         };
         /**
          * ContactAttributesRequest

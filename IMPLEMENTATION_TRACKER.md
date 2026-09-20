@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## CORE-12 — COMPLETE, repository validated (2026-09-20)
+
+Actual opt-in and opt-out keyword transitions can now produce independently configured, durable
+acknowledgements. The existing event-ledger idempotency is reused; withdrawal is committed before
+delivery and cannot be reversed by send failure. No blocked state or new subsystem was introduced.
+PASS: focused backend 43, frontend settings 105, full frontend 1,019, static analysis and build.
+Full backend: 1,762 passed / 6 MySQL-only skipped / 6 Redis-environment failures. Design record:
+Document 81.
+
 ## UI-REF-10 — COMPLETE, repository validated (2026-09-20)
 
 New/clone Template creation now opens directly around the original split editor and live preview;

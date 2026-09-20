@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Repository validated. The existing inbound rule evaluator now handles the consent effect and an
+optional post-record acknowledgement as one idempotent workflow. Opt-in and opt-out copy are
+configured independently, duplicate deliveries cannot create duplicate replies, and send failure
+cannot undo withdrawal. Live Redis/MySQL acceptance remains a release-validation item; operational
+blocking remains a separate unresolved product-model decision.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 Repository validated. The permitted Template-create reference is represented by the existing

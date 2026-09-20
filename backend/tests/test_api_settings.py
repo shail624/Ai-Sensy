@@ -69,6 +69,10 @@ async def test_inbox_operations_defaults_are_available_to_every_authenticated_us
             "enabled": False,
             "opt_in_keywords": ["START", "YES"],
             "opt_out_keywords": ["STOP", "UNSUBSCRIBE"],
+            "opt_in_response_enabled": False,
+            "opt_in_response_body": "",
+            "opt_out_response_enabled": False,
+            "opt_out_response_body": "",
         },
         "working_hours": {
             "enabled": False,
@@ -119,6 +123,10 @@ async def test_inbox_operations_update_is_validated_normalized_and_audited(
             "enabled": True,
             "opt_in_keywords": [" start ", "YES", "yes"],
             "opt_out_keywords": [" stop ", "unsubscribe"],
+            "opt_in_response_enabled": True,
+            "opt_in_response_body": "  You are subscribed.  ",
+            "opt_out_response_enabled": True,
+            "opt_out_response_body": "  You are unsubscribed.  ",
         },
         "working_hours": {
             "enabled": True,
@@ -153,6 +161,8 @@ async def test_inbox_operations_update_is_validated_normalized_and_audited(
     assert body["auto_mark_read"] is False
     assert body["consent"]["opt_in_keywords"] == ["START", "YES"]
     assert body["consent"]["opt_out_keywords"] == ["STOP", "UNSUBSCRIBE"]
+    assert body["consent"]["opt_in_response_body"] == "You are subscribed."
+    assert body["consent"]["opt_out_response_body"] == "You are unsubscribed."
     assert body["working_hours"]["days"][0]["end"] == "06:00"
     assert body["automatic_replies"]["welcome_body"] == "Thanks for contacting us."
     assert body["auto_resolve"] == {"enabled": True, "inactive_after_hours": 48}

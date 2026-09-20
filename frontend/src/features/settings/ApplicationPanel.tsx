@@ -48,6 +48,10 @@ interface OperationsDraft {
   consentEnabled: boolean;
   optInKeywords: string;
   optOutKeywords: string;
+  optInResponseEnabled: boolean;
+  optInResponseBody: string;
+  optOutResponseEnabled: boolean;
+  optOutResponseBody: string;
   workingHoursEnabled: boolean;
   workingDays: WorkingDay[];
   welcomeEnabled: boolean;
@@ -64,6 +68,10 @@ const DEFAULT_DRAFT: OperationsDraft = {
   consentEnabled: false,
   optInKeywords: "START, YES",
   optOutKeywords: "STOP, UNSUBSCRIBE",
+  optInResponseEnabled: false,
+  optInResponseBody: "",
+  optOutResponseEnabled: false,
+  optOutResponseBody: "",
   workingHoursEnabled: false,
   workingDays: defaultWorkingDays(),
   welcomeEnabled: false,
@@ -82,6 +90,10 @@ function policyDraft(policy: InboxOperationsPolicy | undefined): OperationsDraft
     consentEnabled: policy.consent?.enabled ?? false,
     optInKeywords: (policy.consent?.opt_in_keywords ?? ["START", "YES"]).join(", "),
     optOutKeywords: (policy.consent?.opt_out_keywords ?? ["STOP", "UNSUBSCRIBE"]).join(", "),
+    optInResponseEnabled: policy.consent?.opt_in_response_enabled ?? false,
+    optInResponseBody: policy.consent?.opt_in_response_body ?? "",
+    optOutResponseEnabled: policy.consent?.opt_out_response_enabled ?? false,
+    optOutResponseBody: policy.consent?.opt_out_response_body ?? "",
     workingHoursEnabled: policy.working_hours?.enabled ?? false,
     workingDays: policy.working_hours?.days ?? defaultWorkingDays(),
     welcomeEnabled: policy.automatic_replies?.welcome_enabled ?? false,
@@ -153,6 +165,14 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
       setValidation(`“${overlap}” cannot be both an opt-in and opt-out keyword.`);
       return;
     }
+    if (draft.optInResponseEnabled && !draft.optInResponseBody.trim()) {
+      setValidation("An enabled opt-in response needs message text.");
+      return;
+    }
+    if (draft.optOutResponseEnabled && !draft.optOutResponseBody.trim()) {
+      setValidation("An enabled opt-out response needs message text.");
+      return;
+    }
     if (draft.workingHoursEnabled && !draft.workingDays.some((day) => day.enabled)) {
       setValidation("Working hours need at least one enabled day.");
       return;
@@ -193,6 +213,10 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         enabled: draft.consentEnabled,
         opt_in_keywords: optIn,
         opt_out_keywords: optOut,
+        opt_in_response_enabled: draft.optInResponseEnabled,
+        opt_in_response_body: draft.optInResponseBody.trim(),
+        opt_out_response_enabled: draft.optOutResponseEnabled,
+        opt_out_response_body: draft.optOutResponseBody.trim(),
       },
       working_hours: {
         enabled: draft.workingHoursEnabled,
@@ -339,6 +363,69 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             }
           />
         </Field>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {(
+          [
+            [
+              "opt-in",
+              "Opt-in acknowledgement",
+              draft.optInResponseEnabled,
+              draft.optInResponseBody,
+            ],
+            [
+              "opt-out",
+              "Opt-out acknowledgement",
+              draft.optOutResponseEnabled,
+              draft.optOutResponseBody,
+            ],
+          ] as const
+        ).map(([kind, label, enabled, body]) => (
+          <div key={kind} className="rounded-xl border border-border bg-surface-2 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                aria-label={`Send ${kind} acknowledgement`}
+                checked={enabled}
+                disabled={!canManage || !draft.consentEnabled}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    ...(kind === "opt-in"
+                      ? { optInResponseEnabled: event.target.checked }
+                      : { optOutResponseEnabled: event.target.checked }),
+                  }))
+                }
+                className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-text-primary">{label}</span>
+                <span className="mt-1 block text-xs text-text-secondary">
+                  Sent only after the consent change is recorded. A delivery failure never
+                  reverses it.
+                </span>
+              </span>
+            </label>
+            <textarea
+              aria-label={`${label} message`}
+              value={body}
+              maxLength={1000}
+              disabled={!canManage || !draft.consentEnabled || !enabled}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  ...(kind === "opt-in"
+                    ? { optInResponseBody: event.target.value }
+                    : { optOutResponseBody: event.target.value }),
+                }))
+              }
+              className="mt-3 min-h-24 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+              placeholder="Enter the confirmation message"
+            />
+            <p className="mt-1 text-right text-xs text-text-disabled">{body.length}/1,000</p>
+          </div>
+        ))}
       </div>
 
       <WorkingHoursEditor

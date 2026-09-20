@@ -1,5 +1,17 @@
 # Validation Results
 
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+- PASS: focused backend settings/conversation regression, 43 tests.
+- PASS: focused frontend settings regression, 105 tests.
+- PASS: full frontend, 63 files / 1,019 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths; no migration delta.
+- PASS: full backend reached 1,762 passed and 6 MySQL-only skipped.
+- FAIL (environment, unrelated to this milestone): 6 existing campaign/journey tests could not
+  connect to Redis at `127.0.0.1:6379`; the same host limitation is already recorded for GSHEET-02.
+- PENDING – Host Machine Validation: live Redis post-commit delivery and MySQL transaction evidence.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 - PASS: focused Template/page regression, 4 files / 62 tests.

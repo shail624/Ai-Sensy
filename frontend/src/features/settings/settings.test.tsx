@@ -94,6 +94,10 @@ function inboxOperationsFixture(
       enabled: false,
       opt_in_keywords: ["START", "YES"],
       opt_out_keywords: ["STOP", "UNSUBSCRIBE"],
+      opt_in_response_enabled: false,
+      opt_in_response_body: "",
+      opt_out_response_enabled: false,
+      opt_out_response_body: "",
     },
     working_hours: {
       enabled: false,
@@ -557,6 +561,10 @@ describe("ApplicationPanel", () => {
             enabled: true,
             opt_in_keywords: ["JOIN", "YES"],
             opt_out_keywords: ["STOP", "LEAVE"],
+            opt_in_response_enabled: false,
+            opt_in_response_body: "",
+            opt_out_response_enabled: false,
+            opt_out_response_body: "",
           },
           working_hours: {
             enabled: false,
@@ -583,6 +591,28 @@ describe("ApplicationPanel", () => {
         },
       }),
     );
+  });
+
+  it("saves consent acknowledgement messages with the keyword policy", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />);
+
+    fireEvent.click(await screen.findByLabelText("Recognize consent keywords"));
+    fireEvent.click(screen.getByLabelText("Send opt-out acknowledgement"));
+    fireEvent.change(screen.getByLabelText("Opt-out acknowledgement message"), {
+      target: { value: "You will no longer receive messages." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbox policy" }));
+
+    await waitFor(() => {
+      const write = writes.find((entry) => entry.path === "/api/v1/settings/inbox-operations");
+      const body = write?.body as { consent?: Record<string, unknown> };
+      expect(body.consent).toMatchObject({
+        enabled: true,
+        opt_out_response_enabled: true,
+        opt_out_response_body: "You will no longer receive messages.",
+      });
+    });
   });
 
   it("persists working hours and guarded customer replies", async () => {

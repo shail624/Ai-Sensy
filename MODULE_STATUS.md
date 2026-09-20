@@ -1,5 +1,13 @@
 # Module Status
 
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Inbox remains **98%**. Its consent-keyword evaluator now supports independently configured opt-in
+and opt-out acknowledgements with durable, duplicate-safe acceptance and post-commit delivery.
+Consent failure semantics are closed without introducing or silently deciding a separate blocked
+state. Overall canonical average remains approximately 88.0%; live Redis/MySQL acceptance and the
+blocked-state decision remain outside this repository-only milestone.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 Templates remains **98%**. Its existing editor/live-preview capability is now the immediate visual

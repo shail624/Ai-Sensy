@@ -1,5 +1,15 @@
 # Changelog
 
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Added independently configurable opt-in and opt-out acknowledgement messages to the existing
+inbound consent-keyword evaluator. Consent is recorded before provider delivery, duplicate webhook
+processing recovers the same durable reply, and the opt-out bypass is restricted to the withdrawal
+acknowledgement itself. OpenAPI remains 247 paths. PASS: focused backend 43, focused frontend 105,
+full frontend 1,019, Ruff, strict mypy, TypeScript, ESLint and production build. The full backend
+run passed 1,762 with 6 MySQL-only skips; 6 pre-existing Redis-dependent campaign tests failed
+because Redis was unavailable on this host.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 Kept the existing template editor and live preview visually primary by moving the Vi AI template
