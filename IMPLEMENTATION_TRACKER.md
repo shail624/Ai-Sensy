@@ -1,5 +1,13 @@
 # Implementation Tracker (canonical)
 
+## GSHEET-02 — COMPLETE, repository validated (2026-09-20)
+
+Contact export now offers Google Sheets and creates one new dated tab per queued export, per owner
+decision. Existing filter truth, queue, tenant/RBAC/audit and progress authorities are reused.
+Migration 0069; OpenAPI 247. PASS: focused backend 38, applicable backend 1,761, frontend 1,013,
+Ruff, strict mypy, TypeScript, ESLint, migration round-trip and production build. Live Google/MySQL/
+Redis commissioning is pending. Design record: Document 76.
+
 ## UI-REF-06 — COMPLETE, repository validated (2026-09-20)
 
 Implemented the five approved Live Chat empty-screen refinements carried by UI-REF-05. No backend,

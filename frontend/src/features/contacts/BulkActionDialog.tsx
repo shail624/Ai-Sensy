@@ -35,7 +35,7 @@ const TITLES: Record<BulkMode, string> = {
   add_to_campaign: "Add to a campaign",
 };
 
-const EXPORT_FORMATS = ["csv", "xlsx", "json"] as const;
+const EXPORT_FORMATS = ["csv", "xlsx", "json", "google_sheet"] as const;
 
 /** `audience_ref` is an open object in the contract, so read the list defensively. */
 function existingContactIds(audienceRef: Record<string, unknown> | null | undefined): string[] {
@@ -72,6 +72,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
   const [attributeKey, setAttributeKey] = useState("");
   const [attributeValue, setAttributeValue] = useState("");
   const [format, setFormat] = useState<string>("csv");
+  const [spreadsheetId, setSpreadsheetId] = useState("");
   const [bulkId, setBulkId] = useState<string | null>(null);
   const [exportId, setExportId] = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState("");
@@ -101,7 +102,14 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
       return;
     }
     if (mode === "export") {
-      startExport.mutate({ format, rules }, { onSuccess: (accepted) => setExportId(accepted.job.id) });
+      startExport.mutate(
+        {
+          format,
+          rules,
+          spreadsheetId: format === "google_sheet" ? spreadsheetId.trim() : undefined,
+        },
+        { onSuccess: (accepted) => setExportId(accepted.job.id) },
+      );
       return;
     }
     if (mode === "add_to_campaign") {
@@ -131,7 +139,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
   /** The confirm button stays disabled until the operation has everything it needs. */
   const ready =
     mode === "delete" ||
-    mode === "export" ||
+    (mode === "export" ? format !== "google_sheet" || Boolean(spreadsheetId.trim()) : false) ||
     (mode === "add_to_campaign" ? Boolean(campaignId) : false) ||
     (mode === "set_attributes" ? Boolean(attributeKey && attributeValue) : selectedTags.length > 0);
 
@@ -164,6 +172,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
           status={exportJob.data?.status}
           rowCount={exportJob.data?.row_count ?? null}
           downloadUrl={exportJob.data?.download_url ?? null}
+          googleSheet={exportJob.data?.format === "google_sheet"}
           onDone={finish}
         />
       ) : (
@@ -322,7 +331,7 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
           )}
 
           {mode === "export" && (
-            <div>
+            <div className="space-y-3">
               <label htmlFor="bulk-format" className="mb-1 block text-xs font-semibold text-text-secondary">
                 Format
               </label>
@@ -334,10 +343,31 @@ export function BulkActionDialog({ mode, ids, rules, onClose, onCompleted }: Pro
               >
                 {EXPORT_FORMATS.map((value) => (
                   <option key={value} value={value}>
-                    {value.toUpperCase()}
+                    {value === "google_sheet" ? "Google Sheets" : value.toUpperCase()}
                   </option>
                 ))}
               </select>
+              {format === "google_sheet" ? (
+                <div>
+                  <label htmlFor="google-spreadsheet-id" className="mb-1 block text-xs font-semibold text-text-secondary">
+                    Google Sheet link or ID
+                  </label>
+                  <input
+                    id="google-spreadsheet-id"
+                    value={spreadsheetId}
+                    onChange={(event) => {
+                      const value = event.target.value.trim();
+                      const match = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/.exec(value);
+                      setSpreadsheetId(match?.[1] ?? value);
+                    }}
+                    placeholder="Paste the Google Sheet link"
+                    className={FIELD}
+                  />
+                  <p className="mt-1 text-xs text-text-secondary">
+                    A new dated tab will be created. Existing tabs will not be replaced.
+                  </p>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -447,11 +477,13 @@ function ExportResult({
   status,
   rowCount,
   downloadUrl,
+  googleSheet,
   onDone,
 }: {
   status: string | undefined;
   rowCount: number | null;
   downloadUrl: string | null;
+  googleSheet: boolean;
   onDone: () => void;
 }): JSX.Element {
   if (status === "failed") {
@@ -463,6 +495,18 @@ function ExportResult({
         <Button block onClick={onDone}>
           Close
         </Button>
+      </div>
+    );
+  }
+
+  if (googleSheet && status === "ready") {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-text-secondary">
+          {rowCount != null ? `${rowCount.toLocaleString()} contacts` : "Your contacts"} were added
+          to a new tab in Google Sheets.
+        </p>
+        <Button block onClick={onDone}>Done</Button>
       </div>
     );
   }

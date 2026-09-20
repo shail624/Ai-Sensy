@@ -1,5 +1,11 @@
 # Final Product Implementation Roadmap
 
+## GSHEET-02 — Google Sheets contact export (2026-09-20)
+
+Repository validated. The owner chose a new tab for every export. The existing queued contact
+export now supports that destination with bounded writes and retry-safe tab ownership. Google
+Sheets is 70%; scheduled re-sync, multi-tab batches and live credential commissioning remain.
+
 ## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
 
 Repository-validated follow-up to UI-REF-05. Compact filtering, filled search action, desktop list

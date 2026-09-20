@@ -245,6 +245,35 @@ describe("BulkActionsBar", () => {
     });
   });
 
+  it("exports to a new Google Sheet tab without accepting an empty destination", async () => {
+    renderBar();
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.change(dialog().getByLabelText("Format"), {
+      target: { value: "google_sheet" },
+    });
+
+    const submit = dialog().getByRole("button", { name: "Export" });
+    expect(submit).toBeDisabled();
+    fireEvent.change(dialog().getByLabelText("Google Sheet link or ID"), {
+      target: {
+        value: "https://docs.google.com/spreadsheets/d/1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh/edit",
+      },
+    });
+    expect(dialog().getByText(/new dated tab/i)).toBeInTheDocument();
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toEqual({
+      path: "/api/v1/contacts/export",
+      body: {
+        format: "google_sheet",
+        match_type: "all",
+        rules: RULES,
+        spreadsheet_id: "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh",
+      },
+    });
+  });
+
   it("offers only draft campaigns and merges the selection into the audience", async () => {
     renderBar();
     fireEvent.click(screen.getByRole("button", { name: "Campaign" }));

@@ -1,5 +1,13 @@
 # Changelog
 
+## GSHEET-02 — queued contact export to a new Sheet tab (2026-09-20)
+
+Added Google Sheets as a governed destination in the existing contact export workflow. Each queued
+job creates a new dated, job-owned tab and streams the filtered contact set in bounded batches;
+retries reuse only that tab and never overwrite an operator tab. Migration head is 0069; OpenAPI
+remains 247 paths. PASS: 1,761 applicable backend tests and 1,013 frontend tests. Live Google,
+Redis and MySQL host evidence remains pending.
+
 ## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
 
 Closed the five empty-screen differences recorded by UI-REF-05 with original implementation:

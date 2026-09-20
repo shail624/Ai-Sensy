@@ -556,6 +556,7 @@ async def start_export(
         file_format=payload.format,
         match_type=payload.match_type,
         rules=[r.model_dump() for r in payload.rules],
+        spreadsheet_id=payload.spreadsheet_id,
         dispatch=lambda export_id, task_id: run_contact_export.apply_async(
             args=[export_id], task_id=task_id
         ),

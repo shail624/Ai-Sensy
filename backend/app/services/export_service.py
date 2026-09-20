@@ -33,9 +33,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
+from app.crm.csv_io import EXPORT_COLUMNS, neutralize_formula
 from app.crm.formats import CONTENT_TYPES, EXPORT_FORMATS, export_writer
 from app.crm.segment_compiler import AttributeSpec, compile_rules, validate_rule
 from app.db.mixins import utcnow
+from app.integrations.google_sheets import GoogleSheetsClient
 from app.models.campaign import RECIPIENT_STATUSES, Campaign, CampaignRecipient
 from app.models.contact import Contact
 from app.models.conversation import Conversation
@@ -222,16 +224,18 @@ class ExportService:
         match_type: str,
         rules: list[dict[str, Any]],
         dispatch: Callable[[str, str], Any],
+        spreadsheet_id: str | None = None,
     ) -> ExportJob:
         """Record the export and enqueue it. Never reads contacts inline."""
-        if file_format not in SUPPORTED_FORMATS:
+        supported = (*SUPPORTED_FORMATS, "google_sheet")
+        if file_format not in supported:
             raise ValidationError(
                 "Unsupported export format.",
                 errors=[
                     {
                         "field": "format",
                         "code": "unsupported",
-                        "message": f"supported: {list(SUPPORTED_FORMATS)}",
+                        "message": f"supported: {list(supported)}",
                     }
                 ],
             )
@@ -254,7 +258,11 @@ class ExportService:
             actor=actor,
             entity=ENTITY_CONTACTS,
             file_format=file_format,
-            filters_json={"match_type": match_type, "rules": rules},
+            filters_json={
+                "match_type": match_type,
+                "rules": rules,
+                **({"spreadsheet_id": spreadsheet_id} if spreadsheet_id else {}),
+            },
             task_name="app.crm.tasks.run_contact_export",
             audit_after={"format": file_format, "rules": len(rules)},
             dispatch=dispatch,
@@ -731,6 +739,55 @@ class ExportService:
             cursor = (batch[-1].created_at, batch[-1].id)
         return written
 
+    async def _write_contacts_to_google_sheet(self, job: ExportJob) -> int:
+        """Stream contacts into a deterministic, retry-safe new tab in bounded batches."""
+        filters = job.filters_json or {}
+        spreadsheet_id = filters.get("spreadsheet_id")
+        if not isinstance(spreadsheet_id, str):
+            raise ValidationError("Google Sheets export has no spreadsheet destination.")
+
+        tab = f"Contacts {job.created_at:%Y-%m-%d %H%M} {job.public_id}"
+        client = GoogleSheetsClient()
+        resume = filters.get("google_tab_created") is True
+        await client.ensure_export_tab(spreadsheet_id, tab, resume=resume)
+        if not resume:
+            job.filters_json = {
+                **filters,
+                "google_tab_created": True,
+                "google_tab_name": tab,
+            }
+            await self._exports.flush()
+            await self._session.commit()
+        await client.write_rows(spreadsheet_id, tab, 1, [list(EXPORT_COLUMNS)])
+
+        condition = compile_rules(
+            organization_id=job.organization_id,
+            match_type=filters.get("match_type", MATCH_ALL),
+            rules=filters.get("rules", []),
+            attributes=await self._specs(job.organization_id),
+        )
+        cursor: tuple[Any, int] | None = None
+        written = 0
+        while True:
+            batch, has_more = await self._evaluator.paginate_matching(
+                job.organization_id, condition, limit=_BATCH, cursor=cursor
+            )
+            if not batch:
+                break
+            rows = [
+                [neutralize_formula(self._row(contact)[column]) for column in EXPORT_COLUMNS]
+                for contact in batch
+            ]
+            await client.write_rows(spreadsheet_id, tab, written + 2, rows)
+            written += len(batch)
+            job.row_count = written
+            await self._exports.flush()
+            await self._session.commit()
+            if not has_more:
+                break
+            cursor = (batch[-1].created_at, batch[-1].id)
+        return written
+
     @staticmethod
     def _utc_text(value: Any) -> str:
         if value is None:
@@ -879,19 +936,27 @@ class ExportService:
                     campaign=campaign,
                     recipient_status=recipient_status,
                 )
+            elif job.entity == ENTITY_CONTACTS and job.format == "google_sheet":
+                writer = None
+                written = await self._write_contacts_to_google_sheet(job)
             elif job.entity == ENTITY_CONTACTS:
                 writer = export_writer(job.format)
                 written = await self._write_contacts(job, writer)
             else:
                 raise ValidationError("Unknown export entity.")
 
-            key = f"org-{job.organization_id}/exports/{job.public_id}.{job.format}"
-            await get_provider(settings.storage_backend).put(
-                key, writer.finish(), content_type=CONTENT_TYPES[job.format]
-            )
-            job.storage_key = key
+            if writer is not None:
+                key = f"org-{job.organization_id}/exports/{job.public_id}.{job.format}"
+                await get_provider(settings.storage_backend).put(
+                    key, writer.finish(), content_type=CONTENT_TYPES[job.format]
+                )
+                job.storage_key = key
             job.row_count = written
-            job.expires_at = utcnow() + timedelta(days=settings.storage_export_ttl_days)
+            job.expires_at = (
+                None
+                if job.format == "google_sheet"
+                else utcnow() + timedelta(days=settings.storage_export_ttl_days)
+            )
             job.status = STATUS_READY
         except Exception:
             job.status = STATUS_FAILED

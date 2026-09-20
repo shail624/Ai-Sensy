@@ -91,7 +91,7 @@ older schema.
 docker compose -f docker-compose.production.yml --env-file .env.production up migrate
 ```
 
-Expect `alembic upgrade head` to finish at **`0068_attribute_required_and_active`** and the
+Expect `alembic upgrade head` to finish at **`0069_google_sheet_export_format`** and the
 container to exit 0. Re-running is a no-op. Confirm the head against the repository rather
 than against this line — `ls backend/alembic/versions | tail -1` is the authority, and a
 release that adds a migration moves it.

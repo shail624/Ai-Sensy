@@ -102,7 +102,9 @@ class ExportJob(IntPKMixin, UUIDMixin, Base):
     __tablename__ = "exports"
     __table_args__ = (
         Index("ix_exports_org", "organization_id", "status", "created_at"),
-        CheckConstraint("format IN ('csv','xlsx','json','pdf')", name="ck_exports_format"),
+        CheckConstraint(
+            "format IN ('csv','xlsx','json','pdf','google_sheet')", name="ck_exports_format"
+        ),
         MYSQL_TABLE_ARGS,
     )
 

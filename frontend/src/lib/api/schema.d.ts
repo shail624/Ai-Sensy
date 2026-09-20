@@ -7073,6 +7073,8 @@ export interface components {
             match_type: string;
             /** Rules */
             rules?: components["schemas"]["SegmentRuleModel"][];
+            /** Spreadsheet Id */
+            spreadsheet_id?: string | null;
         };
         /**
          * ExportProgressResponse

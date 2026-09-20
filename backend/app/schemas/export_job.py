@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.api.pagination import Page
 from app.models.job_records import ExportJob
@@ -20,6 +20,23 @@ class ExportCreateRequest(BaseModel):
     format: str = "csv"
     match_type: str = MATCH_ALL
     rules: list[SegmentRuleModel] = Field(default_factory=list)
+    spreadsheet_id: Annotated[
+        str | None,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=120,
+            pattern=r"^[A-Za-z0-9_-]+$",
+        ),
+    ] = None
+
+    @model_validator(mode="after")
+    def _google_sheet_destination(self) -> ExportCreateRequest:
+        if self.format == "google_sheet" and not self.spreadsheet_id:
+            raise ValueError("spreadsheet_id is required for a Google Sheets export")
+        if self.format != "google_sheet" and self.spreadsheet_id is not None:
+            raise ValueError("spreadsheet_id is only valid for a Google Sheets export")
+        return self
 
 
 def _naive_utc(value: datetime | None) -> datetime | None:

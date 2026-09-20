@@ -205,7 +205,7 @@ class Settings(BaseSettings):
     google_service_account_json: str = ""
     #: Read-only by intent: this integration imports *from* a sheet and never writes back, so the
     #: narrower scope is the one to request. Widening it is an owner decision, not a config tweak.
-    google_sheets_scope: str = "https://www.googleapis.com/auth/spreadsheets.readonly"
+    google_sheets_scope: str = "https://www.googleapis.com/auth/spreadsheets"
     google_sheets_timeout_seconds: float = 30.0
 
     # ---- Development-only preview fixtures (`python -m app.cli seed-dev-fixtures`) -------

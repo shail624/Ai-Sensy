@@ -154,6 +154,7 @@ export function isSettled(progress: BulkProgress | undefined): boolean {
 export interface ContactExportInput {
   format: string;
   rules: SegmentRule[];
+  spreadsheetId?: string;
 }
 
 /**
@@ -162,10 +163,15 @@ export interface ContactExportInput {
  */
 export function useStartContactExport() {
   return useMutation({
-    mutationFn: async ({ format, rules }: ContactExportInput): Promise<JobAccepted> =>
+    mutationFn: async ({ format, rules, spreadsheetId }: ContactExportInput): Promise<JobAccepted> =>
       unwrap(
         await api.POST("/api/v1/contacts/export", {
-          body: { format, match_type: "all", rules },
+          body: {
+            format,
+            match_type: "all",
+            rules,
+            spreadsheet_id: spreadsheetId,
+          },
         }),
       ),
   });
@@ -183,7 +189,9 @@ export function useContactExport(exportId: string | null) {
       ),
     enabled: Boolean(exportId),
     refetchInterval: (query) =>
-      query.state.data?.download_url || query.state.data?.status === "failed" ? false : POLL_MS,
+      query.state.data?.status === "ready" || query.state.data?.status === "failed"
+        ? false
+        : POLL_MS,
   });
 }
 

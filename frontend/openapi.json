@@ -24480,6 +24480,20 @@
             },
             "type": "array",
             "title": "Rules"
+          },
+          "spreadsheet_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spreadsheet Id"
           }
         },
         "type": "object",

@@ -93,6 +93,34 @@ async def test_short_rows_are_padded_to_the_widest(monkeypatch, service_account_
     assert rows == [["Phone", "Name", "Status"], ["9876543210", "", ""]]
 
 
+async def test_export_creates_a_new_tab_and_writes_raw_rows(
+    monkeypatch, service_account_json
+) -> None:
+    monkeypatch.setattr(settings, "google_service_account_json", service_account_json)
+    seen: list[tuple[str, str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "oauth2.googleapis.com":
+            return httpx.Response(200, json={"access_token": "ya29.fake"})
+        body = json.loads(request.content) if request.content else None
+        seen.append((request.method, str(request.url), body))
+        if request.method == "GET":
+            return httpx.Response(200, json={"sheets": []})
+        return httpx.Response(200, json={})
+
+    sheets = GoogleSheetsClient(transport=httpx.MockTransport(handler))
+    await sheets.ensure_export_tab("sheet-id", "Contacts 2026")
+    await sheets.write_rows("sheet-id", "Contacts 2026", 1, [["name"], ["=unsafe"]])
+
+    assert seen[0][0] == "GET"
+    assert seen[1][0] == "POST" and seen[1][2] == {
+        "requests": [{"addSheet": {"properties": {"title": "Contacts 2026"}}}]
+    }
+    assert seen[2][0] == "PUT"
+    assert "valueInputOption=RAW" in seen[2][1]
+    assert seen[2][2] == {"majorDimension": "ROWS", "values": [["name"], ["=unsafe"]]}
+
+
 async def test_a_sheet_not_shared_with_the_robot_names_the_address_to_share_with(
     monkeypatch, service_account_json
 ) -> None:

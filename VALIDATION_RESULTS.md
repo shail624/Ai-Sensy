@@ -1,5 +1,19 @@
 # Validation Results
 
+## GSHEET-02 — Google Sheets contact export (2026-09-20)
+
+- PASS: 38 focused Google/export/migration tests.
+- PASS: migration upgrade/downgrade/re-upgrade; one head at `0069_google_sheet_export_format`.
+- PASS: Ruff; strict mypy across 332 backend files; OpenAPI/generated TypeScript synchronized at
+  247 paths.
+- PASS: frontend 61 files / 1,013 tests, TypeScript, ESLint and production build.
+- PASS: applicable backend 1,761 passed / 6 MySQL-only skipped / 6 Redis-dependent deselected.
+- FAIL (environment, unfiltered run): 6 pre-existing campaign/journey tests could not connect to
+  Redis; Docker is not running on this host. All other tests were 1,760 passed, with the one
+  milestone-owned deployment-head assertion corrected and included in the applicable rerun.
+- PENDING – Host Machine Validation: live Google Editor share/write, MySQL 0069 up/down/up, Redis
+  full-suite rerun.
+
 ## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
 
 - PASS: focused Inbox regression, 33/33.

@@ -80,6 +80,22 @@ async def test_export_returns_202_with_job_and_poll_url(client, make_user) -> No
     assert progress["download_url"] is None
 
 
+async def test_google_sheet_export_requires_and_records_a_destination(client, make_user) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+
+    missing = await client.post(
+        "/api/v1/contacts/export", headers=h, json={"format": "google_sheet"}
+    )
+    assert missing.status_code == 422
+
+    export_id = await _start(
+        client, h, format="google_sheet", spreadsheet_id="safe-sheet-id"
+    )
+    progress = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()
+    assert progress["format"] == "google_sheet"
+
+
 async def test_export_validation_422_and_unknown_job_404(client, make_user) -> None:
     await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
     h = await _headers(client, "owner@vi.co")
@@ -179,6 +195,39 @@ async def test_export_streams_in_batches_without_materialising(
 
     assert job.row_count == 3
     assert len(calls) == 2 and calls[0] is None and calls[1] is not None
+
+
+async def test_google_sheet_export_creates_one_retry_safe_tab_and_streams_rows(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(
+        client, h, format="google_sheet", spreadsheet_id="safe-sheet-id"
+    )
+    calls: list[tuple] = []
+
+    class FakeSheets:
+        async def ensure_export_tab(self, spreadsheet_id, tab, *, resume=False):
+            calls.append(("tab", spreadsheet_id, tab, resume))
+
+        async def write_rows(self, spreadsheet_id, tab, start_row, rows):
+            calls.append(("rows", spreadsheet_id, tab, start_row, rows))
+
+    monkeypatch.setattr("app.services.export_service.GoogleSheetsClient", FakeSheets)
+    async with session_factory() as session:
+        job = await ExportService(session).run(export_id)
+    async with session_factory() as session:
+        retried = await ExportService(session).run(export_id)
+
+    assert job.status == STATUS_READY and job.row_count == 3
+    assert retried.status == STATUS_READY and retried.row_count == 3
+    assert job.storage_key is None and job.expires_at is None
+    assert calls[0][0] == "tab" and calls[0][3] is False
+    assert calls[1][3] == 1 and calls[1][4][0] == list(EXPORT_COLUMNS)
+    assert calls[2][3] == 2 and len(calls[2][4]) == 3
+    assert [call[3] for call in calls if call[0] == "tab"] == [False, True]
 
 
 async def test_expired_export_hides_download_url(client, make_user, session_factory) -> None:

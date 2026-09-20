@@ -1,5 +1,14 @@
 # Project State
 
+## GSHEET-02 — Google Sheets contact export (2026-09-20)
+
+Current milestone branch `codex/gsheet-02-contact-export`, based on main `32fb4b2`. A filtered
+contact export can now create a fresh dated tab in an operator-supplied Google Sheet through the
+existing queue and progress contract. Migration head 0069; OpenAPI remains 247. PASS: 1,761
+applicable backend and 1,013 frontend tests plus static/build gates. Google Sheets advances from
+55% to 70%; canonical average advances from 87.5% to approximately 88.0%. Live provider and host
+commissioning remain pending.
+
 ## UI-REF-06 — Live Chat controls and empty states (2026-09-20)
 
 Latest local milestone branch: `codex/ui-ref-06`, based on GitHub `main` at `7639380`. The five
