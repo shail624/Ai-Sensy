@@ -6,6 +6,8 @@ No network: every Meta call is served by an ``httpx.MockTransport`` (Doc 10 §8)
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -106,6 +108,7 @@ def test_meta_declares_the_capabilities_doc7_assigns_it() -> None:
         Capability.INTERACTIVE,
         Capability.TEMPLATE,
         Capability.REACTION,  # added by Doc 07 §5.2a (v1.1) — outbound reactions
+        Capability.READ_RECEIPTS,
         Capability.BULK,
         Capability.CAMPAIGNS,
     ):
@@ -113,6 +116,29 @@ def test_meta_declares_the_capabilities_doc7_assigns_it() -> None:
     # Not in Meta's column — the CRM must not offer them.
     for capability in (Capability.LOCATION, Capability.CONTACT, Capability.CALLS):
         assert not adapter.supports(capability)
+
+
+@pytest.mark.anyio
+async def test_meta_marks_provider_message_read() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return _json({"success": True})
+
+    adapter = _adapter(handler)
+    await adapter.mark_read("wamid.INBOUND")
+    await adapter.close()
+
+    assert captured == {
+        "path": f"/v21.0/{NUMBER}/messages",
+        "json": {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": "wamid.INBOUND",
+        },
+    }
 
 
 async def test_undeclared_capability_raises_not_supported() -> None:

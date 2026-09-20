@@ -170,6 +170,7 @@ class InboxOperationsSettings(BaseModel):
 
     assignment_mode: Literal["manual", "least_open"] = "manual"
     auto_mark_read: bool = True
+    send_read_receipts: bool = True
     consent: ConsentKeywordSettings = Field(default_factory=ConsentKeywordSettings)
     working_hours: WorkingHoursSettings = Field(default_factory=WorkingHoursSettings)
     automatic_replies: AutomaticReplySettings = Field(default_factory=AutomaticReplySettings)

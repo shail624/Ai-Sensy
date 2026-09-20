@@ -1,5 +1,15 @@
 # Implementation Tracker (canonical)
 
+## CORE-14 — COMPLETE, repository validated (2026-09-20)
+
+The existing mark-read action can now emit a real Meta read receipt under an independent
+organization setting. Capability checks keep unsupported connectors truthful; provider failure
+preserves local unread state and retrying an already-completed local action remains a no-op.
+Existing business hours and automatic replies were verified and not rebuilt. PASS: focused backend
+59, focused frontend 108, full frontend 1,020, Ruff, strict mypy, TypeScript, ESLint and build. Full
+backend: 1,767 passed / 6 MySQL-only skipped / 6 Redis-environment failures. Design record:
+Document 83.
+
 ## CORE-13 — COMPLETE, repository validated (2026-09-20)
 
 Tags now own optional normalized exact-match keywords, and the shared inbound evaluator applies

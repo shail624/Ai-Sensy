@@ -1,5 +1,17 @@
 # Validation Results
 
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+- PASS: focused backend settings/read-state/channel regression, 59 tests.
+- PASS: focused frontend settings/inbox-policy regression, 2 files / 108 tests.
+- PASS: full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths; no migration delta.
+- PASS: full backend reached 1,767 passed and 6 MySQL-only skipped.
+- FAIL (environment, unrelated to CORE-14): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: live Meta read acknowledgement, MySQL and Redis acceptance.
+
 ## CORE-13 — first-message tag rules (2026-09-20)
 
 - PASS: focused backend tag/inbound/migration/deployment-contract regression, 52 tests.

@@ -25682,6 +25682,11 @@
             "title": "Auto Mark Read",
             "default": true
           },
+          "send_read_receipts": {
+            "type": "boolean",
+            "title": "Send Read Receipts",
+            "default": true
+          },
           "consent": {
             "$ref": "#/components/schemas/ConsentKeywordSettings"
           },
@@ -25738,6 +25743,11 @@
           "auto_mark_read": {
             "type": "boolean",
             "title": "Auto Mark Read",
+            "default": true
+          },
+          "send_read_receipts": {
+            "type": "boolean",
+            "title": "Send Read Receipts",
             "default": true
           },
           "consent": {

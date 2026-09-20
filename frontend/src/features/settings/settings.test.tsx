@@ -90,6 +90,7 @@ function inboxOperationsFixture(
   return {
     assignment_mode: "manual",
     auto_mark_read: true,
+    send_read_receipts: true,
     consent: {
       enabled: false,
       opt_in_keywords: ["START", "YES"],
@@ -544,6 +545,7 @@ describe("ApplicationPanel", () => {
       target: { value: "least_open" },
     });
     fireEvent.click(screen.getByLabelText("Clear unread on open"));
+    fireEvent.click(screen.getByLabelText("Send read receipts to customers"));
     fireEvent.click(screen.getByLabelText("Recognize consent keywords"));
     fireEvent.change(screen.getByLabelText("Opt-in keywords"), {
       target: { value: "JOIN, YES" },
@@ -559,6 +561,7 @@ describe("ApplicationPanel", () => {
         body: {
           assignment_mode: "least_open",
           auto_mark_read: false,
+          send_read_receipts: false,
           consent: {
             enabled: true,
             opt_in_keywords: ["JOIN", "YES"],

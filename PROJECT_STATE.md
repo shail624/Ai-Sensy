@@ -1,5 +1,13 @@
 # Project State
 
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Current milestone branch `codex/core-14-read-receipt-policy`, based on approved CORE-13 commit
+`b1f883e`. Inbox business hours and auto-responses were already complete; the remaining provider
+read-receipt behavior is now implemented with a separate policy, Meta capability and failure-safe
+ordering. OpenAPI remains 247 paths with no migration delta. Inbox remains 98% and overall
+completion remains approximately 88.0%; live Meta/Redis/MySQL acceptance remains release work.
+
 ## CORE-13 — first-message tag rules (2026-09-20)
 
 Current milestone branch `codex/core-13-first-message-tagging`, based on approved CORE-12 commit

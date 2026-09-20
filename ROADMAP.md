@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Repository validated. The inbox now distinguishes automatic local unread clearing from the
+organization's decision to notify a supported provider. Meta implements the capability, failures
+do not create false local success, and unsupported connectors remain local-only. Business hours
+and automatic replies were already present and were not reconstructed. Live Meta/Redis/MySQL
+acceptance remains release-validation work.
+
 ## CORE-13 — first-message tag rules (2026-09-20)
 
 Repository validated. CORE-13 reuses CORE-12's inbound evaluation path for a second effect type:

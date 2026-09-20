@@ -65,6 +65,7 @@ async def test_inbox_operations_defaults_are_available_to_every_authenticated_us
     assert response.json() == {
         "assignment_mode": "manual",
         "auto_mark_read": True,
+        "send_read_receipts": True,
         "consent": {
             "enabled": False,
             "opt_in_keywords": ["START", "YES"],
@@ -119,6 +120,7 @@ async def test_inbox_operations_update_is_validated_normalized_and_audited(
     payload = {
         "assignment_mode": "least_open",
         "auto_mark_read": False,
+        "send_read_receipts": False,
         "consent": {
             "enabled": True,
             "opt_in_keywords": [" start ", "YES", "yes"],
@@ -159,6 +161,7 @@ async def test_inbox_operations_update_is_validated_normalized_and_audited(
     assert body["configured"] is True
     assert body["assignment_mode"] == "least_open"
     assert body["auto_mark_read"] is False
+    assert body["send_read_receipts"] is False
     assert body["consent"]["opt_in_keywords"] == ["START", "YES"]
     assert body["consent"]["opt_out_keywords"] == ["STOP", "UNSUBSCRIBE"]
     assert body["consent"]["opt_in_response_body"] == "You are subscribed."

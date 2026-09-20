@@ -45,6 +45,7 @@ import { formatCount } from "@/lib/format";
 interface OperationsDraft {
   assignmentMode: "manual" | "least_open";
   autoMarkRead: boolean;
+  sendReadReceipts: boolean;
   consentEnabled: boolean;
   optInKeywords: string;
   optOutKeywords: string;
@@ -65,6 +66,7 @@ interface OperationsDraft {
 const DEFAULT_DRAFT: OperationsDraft = {
   assignmentMode: "manual",
   autoMarkRead: true,
+  sendReadReceipts: true,
   consentEnabled: false,
   optInKeywords: "START, YES",
   optOutKeywords: "STOP, UNSUBSCRIBE",
@@ -87,6 +89,7 @@ function policyDraft(policy: InboxOperationsPolicy | undefined): OperationsDraft
   return {
     assignmentMode: policy.assignment_mode,
     autoMarkRead: policy.auto_mark_read,
+    sendReadReceipts: policy.send_read_receipts,
     consentEnabled: policy.consent?.enabled ?? false,
     optInKeywords: (policy.consent?.opt_in_keywords ?? ["START", "YES"]).join(", "),
     optOutKeywords: (policy.consent?.opt_out_keywords ?? ["STOP", "UNSUBSCRIBE"]).join(", "),
@@ -209,6 +212,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
     const body: InboxOperationsUpdate = {
       assignment_mode: draft.assignmentMode,
       auto_mark_read: draft.autoMarkRead,
+      send_read_receipts: draft.sendReadReceipts,
       consent: {
         enabled: draft.consentEnabled,
         opt_in_keywords: optIn,
@@ -304,6 +308,29 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
               Opening a conversation clears its shared unread counter. Turn this off when teams
               want unread state changed only by a deliberate action.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex min-h-40 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface-2 p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
+          <input
+            type="checkbox"
+            aria-label="Send read receipts to customers"
+            checked={draft.sendReadReceipts}
+            disabled={!canManage}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, sendReadReceipts: event.target.checked }))
+            }
+            className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <CheckCheck aria-hidden className="h-4 w-4 text-accent" />
+              Send read receipts to customers
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
+              When an unread conversation is marked read, notify supported WhatsApp providers.
+              Local unread state still works for connectors without this capability.
             </span>
           </span>
         </label>

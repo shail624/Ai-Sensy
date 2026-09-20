@@ -1,5 +1,14 @@
 # Changelog
 
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Added an independent organization policy for provider read receipts, a capability-gated Meta Cloud
+implementation, and retry-safe inbox orchestration that never reports local success after provider
+failure. Existing business-hours, automatic-reply and shared unread behavior remains intact.
+OpenAPI remains 247 paths and no migration is required. PASS: focused backend 59, focused frontend
+108, full frontend 1,020, static analysis and production build. Full backend passed 1,767 with 6
+MySQL-only skips; 6 pre-existing Redis-dependent campaign tests remain host-environment failures.
+
 ## CORE-13 — first-message tag rules (2026-09-20)
 
 Added exact-match first-message rules to organization tags. Matching the first accepted inbound

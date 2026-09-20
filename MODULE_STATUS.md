@@ -1,5 +1,13 @@
 # Module Status
 
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Inbox remains **98%**. Marking an unread Meta conversation read can now send the real provider
+acknowledgement under a separate organization policy, while unsupported connectors keep honest
+local-only behavior. Existing auto-responses and business hours were verified as complete and left
+unchanged. Overall canonical average remains approximately 88.0%; production-provider and host
+acceptance remain outside repository-only completion.
+
 ## CORE-13 — first-message tag rules (2026-09-20)
 
 Inbox and Contacts remain **98%**. Operators can now configure exact first-message matching on a

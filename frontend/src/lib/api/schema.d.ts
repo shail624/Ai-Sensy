@@ -7545,6 +7545,11 @@ export interface components {
              * @default true
              */
             auto_mark_read: boolean;
+            /**
+             * Send Read Receipts
+             * @default true
+             */
+            send_read_receipts: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
@@ -7572,6 +7577,11 @@ export interface components {
              * @default true
              */
             auto_mark_read: boolean;
+            /**
+             * Send Read Receipts
+             * @default true
+             */
+            send_read_receipts: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
