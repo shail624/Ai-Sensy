@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## CORE-15 — COMPLETE, repository validated (2026-09-20)
+
+Reconciliation confirmed the unified personal history, permission/owner scoping, status discovery,
+keyset pagination and signed downloads already exist. The remaining retention-authorization gap is
+closed: link TTL cannot exceed artifact retention and the byte-serving route revokes previously
+issued links after retention. No parallel history system was added. PASS: full backend 1,769 with
+6 MySQL-only skips; full frontend 1,020 plus static checks/build. Six unrelated Redis-dependent
+campaign tests remain host-limited. Design record: Document 84.
+
 ## CORE-14 — COMPLETE, repository validated (2026-09-20)
 
 The existing mark-read action can now emit a real Meta read receipt under an independent

@@ -1,5 +1,12 @@
 # Module Status
 
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Download Center advances **90% → 92%**. Its existing unified personal history remains canonical;
+artifact links now cannot outlive durable retention, including links issued before expiry. Remaining
+work concerns approved source families and real object-storage/host acceptance, not another page or
+job subsystem. Overall canonical average remains approximately 88.0%.
+
 ## CORE-14 — governed provider read receipts (2026-09-20)
 
 Inbox remains **98%**. Marking an unread Meta conversation read can now send the real provider

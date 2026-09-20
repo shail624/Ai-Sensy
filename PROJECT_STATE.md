@@ -1,5 +1,13 @@
 # Project State
 
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Current milestone branch `codex/core-15-download-center-reconciliation`, based on CORE-14 commit
+`47ffcef`. The earlier Download Center implementation was verified as the canonical unified export
+history; CORE-15 closes its durable-retention authorization edge without API, schema or frontend
+delta. Download Center advances **90% → 92%** and overall completion remains approximately 88.0%;
+remaining percentage is source-family and target-host acceptance work, not another history page.
+
 ## CORE-14 — governed provider read receipts (2026-09-20)
 
 Current milestone branch `codex/core-14-read-receipt-policy`, based on approved CORE-13 commit

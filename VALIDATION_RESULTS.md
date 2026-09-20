@@ -1,5 +1,18 @@
 # Validation Results
 
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+- PASS: focused export, Download Center and analytics backend regression, 63 tests.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: full backend reached 1,769 passed and 6 MySQL-only skipped.
+- PASS: unchanged full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: signed-link lifetime is capped by durable retention.
+- PASS: a valid previously issued link returns gone after durable retention expires.
+- PASS: no OpenAPI, generated-client, migration or frontend-source delta; contract remains 247 paths.
+- FAIL (environment, unrelated to CORE-15): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: object-storage presigned URL and retention acceptance.
+
 ## CORE-14 — governed provider read receipts (2026-09-20)
 
 - PASS: focused backend settings/read-state/channel regression, 59 tests.

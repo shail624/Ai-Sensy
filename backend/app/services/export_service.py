@@ -511,13 +511,17 @@ class ExportService:
         """Signed, expiring link to the artifact once ready (FR-MED-09 access rules)."""
         if not job.storage_key or job.status != STATUS_READY:
             return None
-        if job.expires_at and job.expires_at <= utcnow():
+        now = utcnow()
+        if job.expires_at and job.expires_at <= now:
             return None
+        ttl = settings.storage_signed_url_ttl_seconds
+        if job.expires_at is not None:
+            ttl = min(ttl, max(0, int((job.expires_at - now).total_seconds())))
         provider = get_provider(settings.storage_backend)
         return provider.signed_url(
             job.storage_key,
             media_id=f"export-{job.public_id}",
-            expires_in=settings.storage_signed_url_ttl_seconds,
+            expires_in=ttl,
         )
 
     # --- Worker path ---------------------------------------------------------

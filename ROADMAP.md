@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Repository implemented. Reconciliation found the unified Download Center and job-artifact discovery
+already delivered. CORE-15 closes the remaining retention boundary: signed links are capped and
+revalidated against the durable export expiry. No duplicate page, table, queue or navigation was
+created. Additional artifact families remain separate approved-source milestones.
+
 ## CORE-14 — governed provider read receipts (2026-09-20)
 
 Repository validated. The inbox now distinguishes automatic local unread clearing from the

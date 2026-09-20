@@ -1,5 +1,14 @@
 # Changelog
 
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Reconciled the previously delivered unified Download Center instead of rebuilding it. Signed export
+links are now capped by durable artifact retention, and the public signature-authenticated download
+target rechecks retention so an already-issued link cannot outlive the artifact. No API, migration
+or frontend change was required. PASS: focused backend 63, full backend 1,769 with 6 MySQL-only
+skips, and full frontend 1,020 plus static checks/build. The same 6 Redis-dependent campaign tests
+remain host-environment failures.
+
 ## CORE-14 — governed provider read receipts (2026-09-20)
 
 Added an independent organization policy for provider read receipts, a capability-gated Meta Cloud

@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
+from datetime import UTC, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pytest
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.crm.csv_io import EXPORT_COLUMNS
 from app.db.mixins import utcnow
-from app.models.job_records import STATUS_READY
+from app.models.job_records import STATUS_READY, ExportJob
 from app.services.export_service import ExportService
 from app.storage.base import get_provider
 
@@ -244,6 +246,26 @@ async def test_expired_export_hides_download_url(client, make_user, session_fact
         assert await service.download_url(job) is None
 
 
+async def test_signed_link_is_capped_by_artifact_retention(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    monkeypatch.setattr(settings, "storage_signed_url_ttl_seconds", 300)
+
+    async with session_factory() as session:
+        service = ExportService(session)
+        job = await service.run(export_id)
+        job.expires_at = utcnow() + timedelta(seconds=10)
+        retention_epoch = int(job.expires_at.replace(tzinfo=UTC).timestamp())
+        url = await service.download_url(job)
+
+    signed_expiry = int(parse_qs(urlparse(url or "").query)["expires"][0])
+    assert signed_expiry <= retention_epoch
+
+
 async def test_export_is_retry_safe(client, make_user, session_factory) -> None:
     """Re-running regenerates the artifact rather than duplicating rows (Doc 06 §8)."""
     await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
@@ -326,3 +348,30 @@ async def test_export_download_url_expires(client, make_user, session_factory, m
     resp = await client.get(url)
     assert resp.status_code == 410, resp.text
     assert resp.json()["code"] == "gone"
+
+
+async def test_export_retention_revokes_an_already_signed_link(
+    client, make_user, session_factory
+) -> None:
+    """Artifact retention remains authoritative after a short-lived link has been issued."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    async with session_factory() as session:
+        await ExportService(session).run(export_id)
+
+    url = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()["download_url"]
+    # Resolve directly because the public download route is intentionally signature-authenticated.
+    async with session_factory() as session:
+        row = (
+            await session.scalars(
+                select(ExportJob).where(ExportJob.uuid == uuid.UUID(export_id).bytes)
+            )
+        ).one()
+        row.expires_at = utcnow() - timedelta(seconds=1)
+        await session.commit()
+
+    response = await client.get(url)
+    assert response.status_code == 410, response.text
+    assert response.json()["code"] == "gone"
