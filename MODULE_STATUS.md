@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-07 — daily navigation parity (2026-09-20)
+
+Navigation parity improved without changing module percentages. Segments and Developer are direct
+daily rail destinations when permitted; the compact rail and adjacent Manage panel retain original
+Vi styling with closer hierarchy and motion. Overall canonical average remains approximately
+88.0%. AI Agent, Lists and excluded commercial surfaces are not represented as fake tabs.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 Google Sheets advances **55% → 70%**. Operators can export a server-filtered contact view to a

@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-07 — daily navigation parity (2026-09-20)
+
+Repository validated. The authenticated reference navigation now maps more closely to real product
+destinations: Segments is visible beside Contacts and Developer links directly to existing API
+credentials. Detailed permitted-screen comparison continues as separate one-screen-family
+milestones; AI Agent, Lists and excluded commercial modules stay absent until independently
+approved and backed by real capability.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 Repository validated. The owner chose a new tab for every export. The existing queued contact

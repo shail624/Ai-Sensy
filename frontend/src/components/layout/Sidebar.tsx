@@ -102,7 +102,7 @@ export function Sidebar({ collapsed, className, onNavigate, onClose }: SidebarPr
     <div className={`shrink-0 ${className ?? "flex"}`}>
       <nav
         aria-label="Primary"
-        className={`flex min-h-0 flex-col border-r border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] ${collapsed ? "w-[84px]" : "w-64 max-w-[85vw]"}`}
+        className={`flex min-h-0 flex-col border-r border-[var(--color-nav-border)] bg-[var(--color-nav-bg)] transition-[width] duration-200 motion-reduce:transition-none ${collapsed ? "w-[84px]" : "w-64 max-w-[85vw]"}`}
       >
         <div className={`flex h-14 shrink-0 items-center gap-2.5 border-b border-[var(--color-nav-border)] px-3 ${collapsed ? "justify-center" : ""}`}>
           <span aria-hidden className="brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold text-white">VR</span>
@@ -150,7 +150,7 @@ export function Sidebar({ collapsed, className, onNavigate, onClose }: SidebarPr
           onKeyDown={(event) => {
             if (event.key === "Escape") { event.preventDefault(); closeManage(); }
           }}
-          className="flex w-64 min-h-0 flex-col border-r border-border bg-surface"
+          className="flex w-64 min-h-0 flex-col border-r border-border bg-surface shadow-[8px_0_24px_rgba(0,0,0,0.08)]"
         >
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
             <h2 className="text-lg font-semibold text-text-primary">Manage</h2>

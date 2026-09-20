@@ -49,7 +49,7 @@ function renderAt(ui: React.ReactElement, path = "/") {
 describe("Sidebar", () => {
   it("keeps AiSensy-style daily destinations visible and places configuration under Manage", () => {
     renderAt(<Sidebar collapsed={false} />);
-    for (const label of ["Dashboard", "Live Chat", "Chat History", "Contacts", "Campaigns", "Automation"]) {
+    for (const label of ["Dashboard", "Live Chat", "Chat History", "Contacts", "Segments", "Campaigns", "Automation", "Developer"]) {
       expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
     }
     expect(screen.queryByRole("link", { name: /media/i })).not.toBeInTheDocument();
@@ -59,6 +59,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Live Chat Settings" })).toHaveAttribute("href", "/settings/application#inbox-policy");
     expect(screen.getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("href", "/settings/application#consent");
     expect(screen.getByRole("link", { name: "Analytics" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Developer" })).toHaveAttribute("href", "/operations/api");
     expect(screen.getAllByText("foundation")).toHaveLength(1);
     expect(screen.getByText("future")).toBeInTheDocument();
   });
@@ -93,6 +94,8 @@ describe("Sidebar", () => {
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Flows")).toBeInTheDocument();
+    expect(screen.getByText("Segments")).toBeInTheDocument();
+    expect(screen.getByText("Developer")).toBeInTheDocument();
     expect(screen.getByTitle("Contacts")).toBeInTheDocument();
   });
 

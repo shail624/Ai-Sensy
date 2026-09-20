@@ -1,5 +1,12 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-07 — COMPLETE, repository validated (2026-09-20)
+
+Authenticated reference navigation was rechecked. Segments and the existing Developer/API surface
+are now direct permission-aware daily destinations; rail expansion motion and Manage separation
+are refined. AI Agent, standalone Lists and excluded commercial modules remain honestly absent.
+PASS: focused 34, full frontend 1,013, TypeScript, ESLint and build. Design record: Document 77.
+
 ## GSHEET-02 — COMPLETE, repository validated (2026-09-20)
 
 Contact export now offers Google Sheets and creates one new dated tab per queued export, per owner

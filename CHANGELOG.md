@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-07 — daily navigation parity (2026-09-20)
+
+Compared the authenticated reference navigation and moved two existing, permitted capabilities
+into the daily rail: Segments beside Contacts and a permission-gated Developer entry to the real
+API credential surface. Added reduced-motion-safe rail width animation and clearer Manage-panel
+separation. No fake AI/List tab or excluded commercial surface was introduced. PASS: 1,013
+frontend tests, TypeScript, ESLint and production build.
+
 ## GSHEET-02 — queued contact export to a new Sheet tab (2026-09-20)
 
 Added Google Sheets as a governed destination in the existing contact export workflow. Each queued

@@ -1,5 +1,15 @@
 # Validation Results
 
+## UI-REF-07 — daily navigation parity (2026-09-20)
+
+- PASS: focused layout/navigation, 34/34.
+- PASS: full frontend, 61 files / 1,013 tests.
+- PASS: TypeScript and ESLint.
+- PASS: production build.
+- PASS: no backend, OpenAPI, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local desktop/mobile visual comparison with
+  representative permissions and populated data.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 - PASS: 38 focused Google/export/migration tests.

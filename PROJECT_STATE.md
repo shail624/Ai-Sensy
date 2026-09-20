@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-07 — daily navigation parity (2026-09-20)
+
+Current milestone branch `codex/ui-ref-07-navigation-parity`, based on approved main `ff4a88d`.
+The daily rail now exposes real Segments and Developer destinations observed in the authenticated
+reference, while preserving RBAC, Vi extensions and excluded-surface rules. PASS: 1,013 frontend
+tests, TypeScript, ESLint and production build. Overall completion remains approximately 88.0%;
+this is navigation refinement, not new domain capability.
+
 ## GSHEET-02 — Google Sheets contact export (2026-09-20)
 
 Current milestone branch `codex/gsheet-02-contact-export`, based on main `32fb4b2`. A filtered

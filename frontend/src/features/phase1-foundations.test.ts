@@ -27,13 +27,14 @@ describe("Phase 1 information architecture", () => {
 
   it("keeps the AiSensy-style daily tabs visible without removing entitled destinations", () => {
     expect(primaryNavItems(() => true).map((item) => item.label)).toEqual([
-      "Dashboard", "Live Chat", "Chat History", "Contacts", "Campaigns", "Automation",
+      "Dashboard", "Live Chat", "Chat History", "Contacts", "Segments", "Campaigns", "Automation", "Developer",
     ]);
     const secondary = secondaryNavGroups(() => true).flatMap((group) => group.items);
     expect(secondary.map((item) => item.label)).toContain("Media");
     expect(secondary.map((item) => item.label)).toContain("Download Center");
     expect(secondary.map((item) => item.label)).toContain("Templates");
     expect(secondary.map((item) => item.label)).toContain("Settings");
+    expect(secondary.map((item) => item.label)).not.toContain("Developer");
   });
 
   it("exposes reference-aligned Manage entries only to entitled users", () => {

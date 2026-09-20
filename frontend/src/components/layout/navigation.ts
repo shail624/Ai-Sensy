@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bot,
   Contact,
+  Code2,
   Download,
   History,
   Inbox,
@@ -135,8 +136,10 @@ export const PRIMARY_NAV_PATHS = [
   "/inbox",
   "/chat-history",
   "/contacts",
+  "/segments",
   "/campaigns",
   "/automation",
+  "/operations/api",
 ] as const;
 
 export function primaryNavItems(hasPermission: (code: string) => boolean): NavItem[] {
@@ -325,6 +328,11 @@ export const navItems: NavItem[] = [
     label: "Operations", path: "/operations", available: true, glyph: "Op", icon: SlidersHorizontal,
     group: "Platform", anyPermission: ["system:read", "apikeys:manage", "waba:read"],
     description: "System health, queues, jobs, APIs and webhook operations.",
+  },
+  {
+    label: "Developer", path: "/operations/api", available: true, glyph: "Dv", icon: Code2,
+    group: "Platform", permission: "apikeys:manage",
+    description: "Manage project API credentials from a direct developer entry point.",
   },
   {
     label: "Admin", path: "/admin", available: true, glyph: "Ad", icon: Shield,
