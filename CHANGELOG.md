@@ -1,5 +1,13 @@
 # Changelog
 
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Reconciled the complete existing Chat History workflow against the authenticated reference. Added
+the missing compact contact-avatar hierarchy and stronger selected-row emphasis without inventing
+a message-count fact the API does not provide. PASS: focused Chat History 41, full frontend 1,020,
+focused backend history/transcript/fixture regression 48, static analysis and production build. No
+backend, API, migration or permission delta.
+
 ## CORE-15 — Download Center retention authorization (2026-09-20)
 
 Reconciled the previously delivered unified Download Center instead of rebuilding it. Signed export

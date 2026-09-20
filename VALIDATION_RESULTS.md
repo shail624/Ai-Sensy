@@ -1,5 +1,17 @@
 # Validation Results
 
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+- PASS: authenticated reference History list/search/selection structure inspected read-only.
+- PASS: existing functional scope reconciled; no duplicate backend or UI subsystem introduced.
+- PASS: decorative identity and selected-row state remain keyboard/screen-reader compatible.
+- PASS: focused Chat History UI, 41 tests; complete frontend, 63 files / 1,020 tests.
+- PASS: focused history/view/transcript/representative-fixture backend regression, 48 tests.
+- PASS: TypeScript, ESLint, production build, Ruff and strict mypy across 332 backend source files.
+- PASS: no OpenAPI, migration, generated-client, permission or backend-source delta.
+- PENDING – Host Machine Validation: local authenticated preview could not proceed because MySQL
+  was unavailable; browser matrix, production-scale query and owner acceptance remain open.
+
 ## CORE-15 — Download Center retention authorization (2026-09-20)
 
 - PASS: focused export, Download Center and analytics backend regression, 63 tests.

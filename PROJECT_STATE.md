@@ -1,5 +1,14 @@
 # Project State
 
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Current milestone branch `codex/core-10-chat-history-acceptance`, based on CORE-15 commit `b4e1954`.
+Authenticated AiSensy History inspection confirmed the existing list/detail/search pattern and
+identified only a compact identity-hierarchy difference, now closed in the original design system.
+Chat History advances **88% → 90%** and overall completion remains approximately 88.0%. Local
+representative-data preview remains host-blocked by unavailable MySQL; no false host validation is
+claimed.
+
 ## CORE-15 — Download Center retention authorization (2026-09-20)
 
 Current milestone branch `codex/core-15-download-center-reconciliation`, based on CORE-14 commit

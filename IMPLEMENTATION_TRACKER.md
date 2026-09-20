@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## CORE-10 — COMPLETE, repository validated (2026-09-20)
+
+The existing dedicated History route, advanced filters, bounded message history, shared views,
+audit/Live Chat handoffs and transcript exports were reconciled rather than rebuilt. Authenticated
+reference inspection informed the remaining avatar/selection hierarchy update; unsupported count
+badges were deliberately not fabricated. Live MySQL/browser-matrix and target-scale acceptance
+remain release gates. PASS: focused Chat History 41, full frontend 1,020, focused backend 48,
+TypeScript, ESLint, Ruff, strict mypy and production build. Design record: Document 85.
+
 ## CORE-15 — COMPLETE, repository validated (2026-09-20)
 
 Reconciliation confirmed the unified personal history, permission/owner scoping, status discovery,
