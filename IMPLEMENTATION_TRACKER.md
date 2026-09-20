@@ -1,5 +1,12 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-10 — COMPLETE, repository validated (2026-09-20)
+
+New/clone Template creation now opens directly around the original split editor and live preview;
+the Vi AI helper is still available as an optional disclosure instead of displacing the primary
+job. TTL and excluded billing surfaces remain absent. PASS: focused 62, full frontend 1,018,
+TypeScript, ESLint and build. Design record: Document 80.
+
 ## UI-REF-09 — COMPLETE, repository validated (2026-09-20)
 
 Campaigns now exposes URL-backed All/Scheduled shortcuts, refresh, existing report-download

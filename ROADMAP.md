@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-10 — Template creation focus (2026-09-20)
+
+Repository validated. The permitted Template-create reference is represented by the existing
+category/language/content editor and live preview, now visually primary. The optional Vi AI helper
+no longer pushes that workflow down. TTL stays gated and commercial billing/credit content stays
+excluded.
+
 ## UI-REF-09 — Campaign list controls (2026-09-20)
 
 Repository validated. Campaigns now matches the supported reference workflow with direct

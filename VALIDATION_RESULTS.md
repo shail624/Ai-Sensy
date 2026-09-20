@@ -1,5 +1,15 @@
 # Validation Results
 
+## UI-REF-10 — Template creation focus (2026-09-20)
+
+- PASS: focused Template/page regression, 4 files / 62 tests.
+- PASS: full frontend, 63 files / 1,018 tests.
+- PASS: TypeScript and ESLint.
+- PASS: production build.
+- PASS: no backend, OpenAPI, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated representative-data desktop/mobile visual
+  acceptance of the template editor and live preview.
+
 ## UI-REF-09 — Campaign list controls (2026-09-20)
 
 - PASS: focused Campaign regression, 5 files / 64 tests.

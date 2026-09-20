@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-10 — Template creation focus (2026-09-20)
+
+Current milestone branch `codex/ui-ref-10-template-create-parity`, based on approved main
+`aaac14a`. Reference review showed the remaining Campaign creation captures are gated API/QR or
+excluded ads surfaces; no fake paths were added. The next permitted Manage capture informed a
+focused Template create/clone hierarchy. PASS: 1,018 frontend tests, TypeScript, ESLint and build.
+Templates remains 98% and overall completion remains approximately 88.0%.
+
 ## UI-REF-09 — Campaign list controls (2026-09-20)
 
 Current milestone branch `codex/ui-ref-09-campaigns-parity`, based on approved main `06770cc`.

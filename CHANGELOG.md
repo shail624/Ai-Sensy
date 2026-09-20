@@ -1,5 +1,12 @@
 # Changelog
 
+## UI-REF-10 — Template creation focus (2026-09-20)
+
+Kept the existing template editor and live preview visually primary by moving the Vi AI template
+helper into an accessible, closed-by-default optional disclosure. No template capability was
+removed and TTL/billing surfaces were not invented. PASS: 1,018 frontend tests, TypeScript,
+ESLint and production build.
+
 ## UI-REF-09 — Campaign list controls (2026-09-20)
 
 Aligned the Campaign list's supported interactions with the authenticated reference: truthful

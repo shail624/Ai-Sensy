@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-10 — Template creation focus (2026-09-20)
+
+Templates remains **98%**. Its existing editor/live-preview capability is now the immediate visual
+focus on new and cloned templates, with the Vi AI helper retained behind an optional disclosure.
+Overall canonical average remains approximately 88.0%. Template TTL remains gated; billing and
+commercial credit surfaces remain excluded.
+
 ## UI-REF-09 — Campaign list controls (2026-09-20)
 
 Campaigns remains **98%**. The list now presents truthful All/Scheduled shortcuts, refresh,
