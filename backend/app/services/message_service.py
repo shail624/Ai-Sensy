@@ -201,7 +201,11 @@ class MessageService:
             occurred_at=occurred_at,
             policy=policy,
         )
-        conversation, opened_new_window = await self._conversations.open_for_inbound_with_window(
+        (
+            conversation,
+            opened_new_window,
+            is_first_inbound,
+        ) = await self._conversations.open_for_inbound_with_window(
             number=number, contact=contact, occurred_at=occurred_at
         )
         # The conversation lock closes the race between the optimistic lookup above and another
@@ -227,6 +231,19 @@ class MessageService:
         )
         await self._messages.add(stored)
         await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
         await self._conversations.record_inbound_message(
             conversation,
             preview=ConversationService.preview_of(message.message_type, message.content),
@@ -352,6 +369,7 @@ class MessageService:
         (
             conversation,
             opened_new_window,
+            is_first_inbound,
         ) = await self._conversations.open_for_inbound_endpoint_with_window(
             endpoint=endpoint, contact=contact, occurred_at=occurred_at
         )
@@ -375,6 +393,19 @@ class MessageService:
         )
         await self._messages.add(stored)
         await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
         await self._conversations.record_inbound_message(
             conversation,
             preview=ConversationService.preview_of(message.message_type, message.content),

@@ -144,6 +144,8 @@ function tagFixture(overrides: Partial<Tag> = {}): Tag {
     color: "#1F6FEB",
     description: "Prepaid reactivation cohort.",
     usage_count: 3,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
@@ -820,7 +822,33 @@ describe("TagsPanel", () => {
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]?.path).toBe("/api/v1/tags");
-    expect(writes[0]?.body).toEqual({ name: "Winback", color: null, description: null });
+    expect(writes[0]?.body).toEqual({
+      name: "Winback",
+      color: null,
+      description: null,
+      first_message_enabled: false,
+      first_message_keywords: [],
+    });
+  });
+
+  it("configures exact-match first-message tagging on the tag itself", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Interested" } });
+    fireEvent.click(screen.getByLabelText("Apply on matching first message"));
+    fireEvent.change(screen.getByLabelText("First-message keywords"), {
+      target: { value: " interested, CALL ME " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toMatchObject({
+      name: "Interested",
+      first_message_enabled: true,
+      first_message_keywords: ["interested", "CALL ME"],
+    });
   });
 
   it("refuses a colour the server would reject, before sending it", async () => {

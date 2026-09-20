@@ -24,6 +24,7 @@ from app.models.business_event import (
     BUSINESS_EVENT_AUTOMATION_SCHEDULED,
     BUSINESS_EVENT_CONTACT_CREATED,
     BUSINESS_EVENT_CONVERSATION_AUTO_RESOLVED,
+    BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED,
     BUSINESS_EVENT_LEAD_STAGE_CHANGED,
     BUSINESS_EVENT_MESSAGE_RECEIVED,
     BUSINESS_EVENT_REACTIVATION_TRANSITIONED,
@@ -44,6 +45,7 @@ from app.repositories.business_event import (
 CONTACT_CREATED_SCHEMA = "internal://events/contact.created/v1"
 CONTACT_EVENT_NAMESPACE = uuidlib.UUID("4798466e-7955-49ae-841d-288cf7e009ec")
 AUTOMATIC_REPLY_EVENT_NAMESPACE = uuidlib.UUID("880cc1df-9bba-4ec6-93de-ed5e9cf43682")
+FIRST_MESSAGE_TAG_EVENT_NAMESPACE = uuidlib.UUID("d6d1c85a-9330-4d4c-9403-4b870ca118e2")
 AUTO_RESOLVE_EVENT_NAMESPACE = uuidlib.UUID("130a33c6-b5a6-4fe6-bc5b-79d0185da67a")
 MESSAGE_RECEIVED_EVENT_NAMESPACE = uuidlib.UUID("72ba5e9d-9629-4aac-a503-c60986b2f1a4")
 AUTOMATION_SCHEDULE_EVENT_NAMESPACE = uuidlib.UUID("0f5a84cb-f9fc-43ba-a111-ec4fc78c29b7")
@@ -181,6 +183,35 @@ class BusinessEventService:
         await self._session.flush()
         return event, await self.receipt_dispatches_for_event(
             message.organization_id, event_id
+        )
+
+    async def record_first_message_tag_applied(
+        self,
+        *,
+        message: Message,
+        contact: Contact,
+        tag_public_id: str,
+        occurred_at: datetime,
+    ) -> BusinessEvent:
+        """Record one deterministic first-message tag effect on the existing event ledger."""
+        event_id = uuidlib.uuid5(
+            FIRST_MESSAGE_TAG_EVENT_NAMESPACE,
+            f"{message.organization_id}:{message.public_id}:{tag_public_id}",
+        )
+        return await self.record_domain_event(
+            organization_id=message.organization_id,
+            event_id=event_id,
+            event_type=BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED,
+            actor_id=None,
+            subject_type="contact",
+            subject_id=contact.id,
+            contact_id=contact.id,
+            occurred_at=occurred_at,
+            source="inbox_operations",
+            payload={
+                "source_message_id": message.public_id,
+                "tag_id": tag_public_id,
+            },
         )
 
     async def receipt_dispatches_for_message(

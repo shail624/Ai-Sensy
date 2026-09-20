@@ -21,6 +21,7 @@ from app.models.audit import ACTOR_SYSTEM
 from app.models.contact import OPT_IN_OPTED_IN, OPT_IN_OPTED_OUT, Contact
 from app.models.contact_event import EVENT_OPTIN_CHANGED
 from app.models.conversation import CONV_OPEN, CONV_PENDING, CONV_RESOLVED, Conversation
+from app.models.tag import Tag
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
@@ -36,6 +37,7 @@ from app.schemas.settings import (
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
+from app.services.tag_service import TagService
 
 INBOX_OPERATIONS_KEY = "inbox.operations.v1"
 AUTO_REPLY_MAX_AGE = timedelta(minutes=10)
@@ -63,6 +65,7 @@ class InboxOperationsService:
         self._events = ContactEventService(session)
         self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
+        self._tags = TagService(session)
 
     async def get(self, organization_id: int) -> InboxOperationsResponse:
         row = await self._settings.get_org_setting(organization_id, INBOX_OPERATIONS_KEY)
@@ -309,6 +312,31 @@ class InboxOperationsService:
             metadata={"source": "inbound_keyword", "keyword": keyword},
         )
         return target
+
+    async def apply_first_message_tag_rules(
+        self,
+        *,
+        contact: Contact,
+        message_type: str,
+        content: dict[str, Any],
+        is_first_inbound: bool,
+    ) -> list[Tag]:
+        """Apply exact-match tag rules only to a conversation's first accepted inbound text."""
+        if not is_first_inbound or message_type != "text":
+            return []
+        body = content.get("body")
+        if not isinstance(body, str):
+            return []
+        keyword = " ".join(body.strip().upper().split())
+        if not keyword:
+            return []
+        applied = []
+        for tag in await self._tags.list_tags(contact.organization_id):
+            if not tag.first_message_enabled or keyword not in tag.first_message_keywords_json:
+                continue
+            if await self._tags.apply_system_tag_to_contact(contact=contact, tag=tag):
+                applied.append(tag)
+        return applied
 
     @staticmethod
     def consent_reply_decision(

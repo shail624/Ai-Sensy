@@ -44,10 +44,19 @@ interface EditorState {
   name: string;
   color: string;
   description: string;
+  firstMessageEnabled: boolean;
+  firstMessageKeywords: string;
 }
 
 function emptyEditor(): EditorState {
-  return { tag: null, name: "", color: "", description: "" };
+  return {
+    tag: null,
+    name: "",
+    color: "",
+    description: "",
+    firstMessageEnabled: false,
+    firstMessageKeywords: "",
+  };
 }
 
 function editorFor(tag: Tag): EditorState {
@@ -56,7 +65,16 @@ function editorFor(tag: Tag): EditorState {
     name: tag.name,
     color: tag.color ?? "",
     description: tag.description ?? "",
+    firstMessageEnabled: tag.first_message_enabled,
+    firstMessageKeywords: tag.first_message_keywords.join(", "),
   };
+}
+
+function keywordList(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -99,7 +117,12 @@ export function TagsPanel(): JSX.Element {
   const nameError = editor ? validateTagName(editor.name) : null;
   const colorError = editor ? validateTagColor(editor.color) : null;
   const descriptionError = editor ? validateTagDescription(editor.description) : null;
-  const editorValid = !nameError && !colorError && !descriptionError;
+  const firstMessageKeywords = editor ? keywordList(editor.firstMessageKeywords) : [];
+  const ruleError =
+    editor?.firstMessageEnabled && firstMessageKeywords.length === 0
+      ? "Add at least one exact-match keyword."
+      : null;
+  const editorValid = !nameError && !colorError && !descriptionError && !ruleError;
   const saving = create.isPending || update.isPending;
 
   // A changed filter has to return to the first page, or the results can land outside the view.
@@ -115,6 +138,8 @@ export function TagsPanel(): JSX.Element {
       name: editor.name.trim(),
       color: editor.color.trim() === "" ? null : editor.color.trim(),
       description: editor.description.trim() === "" ? null : editor.description.trim(),
+      first_message_enabled: editor.firstMessageEnabled,
+      first_message_keywords: firstMessageKeywords,
     };
 
     if (editor.tag) {
@@ -251,6 +276,12 @@ export function TagsPanel(): JSX.Element {
                           {tag.description}
                         </p>
                       ) : null}
+                      {tag.first_message_enabled ? (
+                        <p className="mt-1 text-xs font-medium text-accent">
+                          First-message rule · {formatCount(tag.first_message_keywords.length)} exact
+                          {tag.first_message_keywords.length === 1 ? " match" : " matches"}
+                        </p>
+                      ) : null}
                     </td>
 
                     <td className="px-3 py-2 align-top">
@@ -377,6 +408,45 @@ export function TagsPanel(): JSX.Element {
                 onChange={(event) => setEditor({ ...editor, description: event.target.value })}
               />
             </Field>
+
+            <div className="rounded-xl border border-border bg-surface-2 p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  aria-label="Apply on matching first message"
+                  checked={editor.firstMessageEnabled}
+                  onChange={(event) =>
+                    setEditor({ ...editor, firstMessageEnabled: event.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-text-primary">
+                    Apply on matching first message
+                  </span>
+                  <span className="mt-1 block text-xs text-text-secondary">
+                    Applies this tag once when a contact&apos;s first inbound message exactly matches.
+                  </span>
+                </span>
+              </label>
+              <Field
+                htmlFor="tag-first-message-keywords"
+                label="First-message keywords"
+                description="Comma-separated; matching ignores case and surrounding spaces."
+                error={ruleError}
+              >
+                <Input
+                  id="tag-first-message-keywords"
+                  value={editor.firstMessageKeywords}
+                  disabled={!editor.firstMessageEnabled}
+                  invalid={ruleError !== null}
+                  placeholder="INTERESTED, RECHARGE"
+                  onChange={(event) =>
+                    setEditor({ ...editor, firstMessageKeywords: event.target.value })
+                  }
+                />
+              </Field>
+            </div>
 
             <div>
               <p className="mb-1.5 text-xs font-semibold text-text-secondary">Preview</p>

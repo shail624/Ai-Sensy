@@ -1,5 +1,13 @@
 # Project State
 
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Current milestone branch `codex/core-13-first-message-tagging`, based on approved CORE-12 commit
+`70f598e`. Tag create/edit now configures exact first-message keywords; Meta and provider-neutral
+inbound paths reuse one evaluator and the existing durable event ledger. Migration head advances to
+`0070_tag_first_message_rules`; OpenAPI remains 247 paths. Inbox and Contacts remain 98%, and
+overall completion remains approximately 88.0%; MySQL/Redis host validation remains pending.
+
 ## CORE-12 — consent keyword acknowledgements (2026-09-20)
 
 Current milestone branch `codex/core-12-consent-acknowledgements`, based on approved main

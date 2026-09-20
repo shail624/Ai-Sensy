@@ -41,6 +41,7 @@ from app.services.message_service import (
 )
 from app.services.webhook_service import WebhookService
 from tests.test_api_webhooks import (  # one Meta delivery shape, defined in one place
+    PASSWORD,
     WAMID,
     _delivery,
     _events,
@@ -310,6 +311,84 @@ async def test_consent_keyword_acknowledgement_is_durable_and_idempotent(
         "consent_opt_out",
         "consent_opt_in",
     ]
+
+
+async def test_first_inbound_exact_match_applies_tags_once_and_only_on_the_first_message(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.business_event import (
+        BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED,
+        BusinessEvent,
+    )
+    from app.models.contact_event import EVENT_TAG_ADDED, ContactEvent
+    from app.models.tag import Tag
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": "owner@vi.co", "password": PASSWORD}
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    for name, keyword in (("Interested", "INTERESTED"), ("Later", "LATER")):
+        created = await client.post(
+            "/api/v1/tags",
+            headers=headers,
+            json={
+                "name": name,
+                "first_message_enabled": True,
+                "first_message_keywords": [keyword],
+            },
+        )
+        assert created.status_code == 201
+
+    first_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.FIRST-TAG", body="  interested  ")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(first_routed[0])
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(first_routed[0])
+    assert duplicate["status"] == DUPLICATE
+    assert duplicate["message_pk"] == first["message_pk"]
+
+    second_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.SECOND-TAG", body="LATER")]),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(second_routed[-1])
+
+    async with session_factory() as session:
+        tags = list((await session.scalars(select(Tag).order_by(Tag.name))).all())
+        tag_events = list(
+            (
+                await session.scalars(
+                    select(ContactEvent).where(ContactEvent.event_type == EVENT_TAG_ADDED)
+                )
+            ).all()
+        )
+        business_events = list(
+            (
+                await session.scalars(
+                    select(BusinessEvent).where(
+                        BusinessEvent.event_type == BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED
+                    )
+                )
+            ).all()
+        )
+    assert [(tag.name, tag.usage_count) for tag in tags] == [
+        ("Interested", 1),
+        ("Later", 0),
+    ]
+    assert len(tag_events) == 1
+    assert len(business_events) == 1
+    assert business_events[0].payload_json["tag_id"] == tags[0].public_id
 
 
 async def test_least_open_policy_assigns_a_new_thread_to_an_eligible_user(

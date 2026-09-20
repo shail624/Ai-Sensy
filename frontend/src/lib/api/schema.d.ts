@@ -10110,6 +10110,13 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+            /**
+             * First Message Enabled
+             * @default false
+             */
+            first_message_enabled: boolean;
+            /** First Message Keywords */
+            first_message_keywords?: string[];
         };
         /** TagNode */
         TagNode: {
@@ -10141,6 +10148,10 @@ export interface components {
             description: string | null;
             /** Usage Count */
             usage_count: number;
+            /** First Message Enabled */
+            first_message_enabled: boolean;
+            /** First Message Keywords */
+            first_message_keywords: string[];
             /**
              * Created At
              * Format: date-time
@@ -10172,6 +10183,10 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+            /** First Message Enabled */
+            first_message_enabled?: boolean | null;
+            /** First Message Keywords */
+            first_message_keywords?: string[] | null;
         };
         /**
          * TaskBulkDeleteRequest

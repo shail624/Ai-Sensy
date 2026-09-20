@@ -1,5 +1,12 @@
 # Module Status
 
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Inbox and Contacts remain **98%**. Operators can now configure exact first-message matching on a
+tag, and both supported inbound providers apply it once with governed counter, timeline, audit and
+event-ledger effects. Overall canonical average remains approximately 88.0%. Remaining work is
+host validation and separately approved advanced rule scope—not reconstruction of tags or Inbox.
+
 ## CORE-12 — consent keyword acknowledgements (2026-09-20)
 
 Inbox remains **98%**. Its consent-keyword evaluator now supports independently configured opt-in

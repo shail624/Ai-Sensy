@@ -11,6 +11,8 @@ function tagFixture(): Tag {
     color: null,
     description: null,
     usage_count: 0,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   };

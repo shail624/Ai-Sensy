@@ -1,5 +1,15 @@
 # Implementation Tracker (canonical)
 
+## CORE-13 — COMPLETE, repository validated (2026-09-20)
+
+Tags now own optional normalized exact-match keywords, and the shared inbound evaluator applies
+matching tags only on the channel conversation's first accepted inbound text. The canonical tag
+authority preserves counter/timeline/audit behavior and the existing immutable ledger supplies a
+deterministic effect record. PASS: focused backend 52, focused frontend 191, full frontend 1,020,
+Ruff, strict mypy, TypeScript, ESLint and build. Composite applicable backend evidence is 1,764
+passing; 6 Redis-dependent campaign checks remain host-limited. Migration 0070. Design record:
+Document 82.
+
 ## CORE-12 — COMPLETE, repository validated (2026-09-20)
 
 Actual opt-in and opt-out keyword transitions can now produce independently configured, durable

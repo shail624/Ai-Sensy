@@ -1,5 +1,22 @@
 # Validation Results
 
+## CORE-13 — first-message tag rules (2026-09-20)
+
+- PASS: focused backend tag/inbound/migration/deployment-contract regression, 52 tests.
+- PASS: focused frontend Tags and generated-type consumers, 4 files / 191 tests.
+- PASS: full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: SQLite migration chain/reversibility checks; one linear head at
+  `0070_tag_first_message_rules`.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths.
+- PASS: full backend reached 1,763 passed and 6 MySQL-only skipped; the single milestone-owned
+  deployment-head assertion was corrected and passed in the 52-test rerun, yielding 1,764
+  applicable passing checks as composite evidence.
+- FAIL (environment, unrelated to CORE-13): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: MySQL 0070 upgrade/downgrade/re-upgrade and live Redis inbound
+  processing.
+
 ## CORE-12 — consent keyword acknowledgements (2026-09-20)
 
 - PASS: focused backend settings/conversation regression, 43 tests.

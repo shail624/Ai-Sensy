@@ -32780,6 +32780,19 @@
               }
             ],
             "title": "Description"
+          },
+          "first_message_enabled": {
+            "type": "boolean",
+            "title": "First Message Enabled",
+            "default": false
+          },
+          "first_message_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "First Message Keywords"
           }
         },
         "type": "object",
@@ -32869,6 +32882,17 @@
             "type": "integer",
             "title": "Usage Count"
           },
+          "first_message_enabled": {
+            "type": "boolean",
+            "title": "First Message Enabled"
+          },
+          "first_message_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "First Message Keywords"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -32887,6 +32911,8 @@
           "color",
           "description",
           "usage_count",
+          "first_message_enabled",
+          "first_message_keywords",
           "created_at",
           "updated_at"
         ],
@@ -32960,6 +32986,32 @@
               }
             ],
             "title": "Description"
+          },
+          "first_message_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Message Enabled"
+          },
+          "first_message_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Message Keywords"
           }
         },
         "type": "object",

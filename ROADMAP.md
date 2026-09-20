@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Repository validated. CORE-13 reuses CORE-12's inbound evaluation path for a second effect type:
+applying configured organization tags on an exact first-message match. The rule is attached to the
+tag, duplicate-safe and provider-neutral, with no parallel rule engine. Tag groups, journey
+inclusion, substring/AI classification and later-message triggers remain outside this milestone.
+MySQL 0070 and live Redis execution remain release-validation work.
+
 ## CORE-12 — consent keyword acknowledgements (2026-09-20)
 
 Repository validated. The existing inbound rule evaluator now handles the consent effect and an

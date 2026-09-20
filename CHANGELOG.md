@@ -1,5 +1,16 @@
 # Changelog
 
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Added exact-match first-message rules to organization tags. Matching the first accepted inbound
+text now attaches configured contact tags through the canonical tag authority, maintains usage,
+timeline and audit records, and records a deterministic effect on the existing business-event
+ledger. Migration head is `0070_tag_first_message_rules`; OpenAPI remains 247 paths. PASS: focused
+backend 52, focused frontend 191, full frontend 1,020, static analysis and production build. The
+full backend run passed 1,763 with 6 MySQL-only skips; its one milestone-owned deployment-head
+assertion was corrected and passed on rerun, while 6 pre-existing Redis-dependent campaign tests
+remain host-environment failures.
+
 ## CORE-12 — consent keyword acknowledgements (2026-09-20)
 
 Added independently configurable opt-in and opt-out acknowledgement messages to the existing

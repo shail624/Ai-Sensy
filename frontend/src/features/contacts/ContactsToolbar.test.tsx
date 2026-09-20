@@ -13,6 +13,8 @@ const TAGS: Tag[] = [
     color: "#ff0000",
     description: null,
     usage_count: 3,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   },
