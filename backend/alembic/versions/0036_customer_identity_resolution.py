@@ -189,13 +189,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_identity_recommendations_org_conflict_status",
-        table_name="identity_merge_recommendations",
-    )
+    # Table drops remove their indexes; retaining them until then prevents
+    # MySQL from losing indexes it selected to support foreign keys.
     op.drop_table("identity_merge_recommendations")
-    op.drop_index("ix_identity_conflicts_org_status_created", table_name="identity_conflicts")
     op.drop_table("identity_conflicts")
-    op.drop_index("ix_contact_identities_org_endpoint", table_name="contact_identities")
-    op.drop_index("ix_contact_identities_org_contact_created", table_name="contact_identities")
     op.drop_table("contact_identities")

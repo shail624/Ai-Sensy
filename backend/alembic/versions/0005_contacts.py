@@ -88,13 +88,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for index in (
-        "ix_contacts_name",
-        "ix_contacts_email",
-        "ix_contacts_last_inbound",
-        "ix_contacts_org_optin",
-        "ix_contacts_org_created",
-        "uq_contacts_org_waid",
-    ):
-        op.drop_index(index, table_name="contacts")
     op.drop_table("contacts")

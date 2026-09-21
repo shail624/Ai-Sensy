@@ -57,5 +57,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_qr_org_owner", table_name="quick_replies")
+    # The table drop removes this index; retain it until then because MySQL
+    # uses it to support the organization foreign key.
     op.drop_table("quick_replies")

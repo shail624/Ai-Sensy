@@ -179,24 +179,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_msh_status", table_name="message_status_history")
-    op.drop_index("ix_msh_wamid", table_name="message_status_history")
-    op.drop_index("ix_msh_message", table_name="message_status_history")
     op.drop_table("message_status_history")
-
-    for index in (
-        "ix_msg_status",
-        "ix_msg_contact",
-        "ix_msg_campaign",
-        "ix_msg_org_created",
-        "ix_msg_wamid",
-        "ix_msg_conversation",
-    ):
-        op.drop_index(index, table_name="messages")
     op.drop_table("messages")
-
-    op.drop_index("ix_conv_window", table_name="conversations")
-    op.drop_index("ix_conv_assignee", table_name="conversations")
-    op.drop_index("ix_conv_org_status", table_name="conversations")
-    op.drop_index("uq_conv_number_contact", table_name="conversations")
     op.drop_table("conversations")

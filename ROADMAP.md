@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
+
+Repository validated. The 0001→0070 chain now passes a real MySQL 8 install, total rollback and
+reinstall with a dedicated regression test. No head-schema or product-contract expansion was made.
+The next milestone is authenticated representative-data desktop/mobile browser acceptance; it is
+not started here.
+
 ## UI-REF-18 — Developer API Keys focus (2026-09-21)
 
 Repository validated. Project API credentials now carry the authenticated reference's applicable

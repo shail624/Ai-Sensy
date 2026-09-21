@@ -96,7 +96,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_kyc_document_ref_org_case", table_name="kyc_document_references")
+    # The table drop removes this index; keeping it until then avoids removing
+    # an index MySQL may be using for a foreign key.
     op.drop_table("kyc_document_references")
     with op.batch_alter_table("tasks") as batch:
         batch.drop_index("ix_tasks_organization_reference_status_due")

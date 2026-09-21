@@ -52,5 +52,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_convtag_tag", table_name="conversation_tags")
+    # The table drop removes this index; retain it until then because MySQL
+    # uses it to support the tag foreign key.
     op.drop_table("conversation_tags")

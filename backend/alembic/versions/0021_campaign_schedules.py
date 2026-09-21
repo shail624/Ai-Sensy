@@ -63,6 +63,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_csched_campaign", table_name="campaign_schedules")
-    op.drop_index("ix_csched_next", table_name="campaign_schedules")
     op.drop_table("campaign_schedules")

@@ -200,25 +200,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_media_channel_references_expiry",
-        table_name="media_channel_references",
-    )
-    op.drop_index(
-        "ix_media_channel_references_org_endpoint",
-        table_name="media_channel_references",
-    )
-    op.drop_index(
-        "ix_media_channel_references_org_asset",
-        table_name="media_channel_references",
-    )
+    # Dropping each table also drops its indexes. Explicitly removing the
+    # organization-leading indexes first is unsafe on MySQL because it may use
+    # them to enforce the table's foreign keys.
     op.drop_table("media_channel_references")
-    op.drop_index(
-        "ix_channel_sync_checkpoints_connection_endpoint",
-        table_name="channel_sync_checkpoints",
-    )
-    op.drop_index(
-        "ix_channel_sync_checkpoints_org_status",
-        table_name="channel_sync_checkpoints",
-    )
     op.drop_table("channel_sync_checkpoints")

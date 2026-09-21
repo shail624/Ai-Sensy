@@ -72,6 +72,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_ratecard_lookup", table_name="rate_cards")
-    op.drop_index("uq_ratecard_slot", table_name="rate_cards")
     op.drop_table("rate_cards")

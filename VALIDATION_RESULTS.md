@@ -1,5 +1,17 @@
 # Validation Results
 
+## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
+
+- PASS: disposable MySQL 8 fresh 0001→0070 upgrade.
+- PASS: complete 0070→base downgrade.
+- PASS: complete base→0070 re-upgrade on the same disposable database.
+- PASS: dedicated live-MySQL head→base→head regression, 1 test.
+- PASS: complete backend suite, 1,781 passed; one non-product pytest-cache permission warning.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: no product API, OpenAPI, generated-client, permission or frontend behavior delta.
+
 ## UI-REF-18 — Developer API Keys focus (2026-09-21)
 
 - PASS: authenticated AiSensy Developer Hub inspected read-only.

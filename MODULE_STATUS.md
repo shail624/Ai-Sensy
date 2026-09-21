@@ -1,5 +1,13 @@
 # Module Status
 
+## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
+
+Deployment and database readiness advance: the full production migration chain is now proven
+installable, completely reversible and reinstallable on disposable MySQL 8. Product-module
+completion percentages remain unchanged because this milestone repairs release safety rather than
+adding user-visible capability. Overall canonical completion remains approximately 88.0%; local
+authenticated visual/browser acceptance is next.
+
 ## UI-REF-18 — Developer API Keys focus (2026-09-21)
 
 Developer and Administration remain at their existing completion percentages. Project API keys now

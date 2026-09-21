@@ -156,16 +156,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for index in (
-        "ix_crecip_batch",
-        "ix_crecip_wamid",
-        "ix_crecip_status_created",
-        "ix_crecip_campaign_status",
-        "uq_crecip_campaign_contact",
-    ):
-        op.drop_index(index, table_name="campaign_recipients")
     op.drop_table("campaign_recipients")
-    op.drop_index("ix_campaigns_number", table_name="campaigns")
-    op.drop_index("ix_campaigns_template", table_name="campaigns")
-    op.drop_index("ix_campaigns_org_status", table_name="campaigns")
     op.drop_table("campaigns")

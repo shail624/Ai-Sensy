@@ -1,5 +1,14 @@
 # Changelog
 
+## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
+
+Validated the complete migration chain on disposable MySQL 8 and repaired MySQL-specific upgrade
+and rollback failures without changing the resulting head schema. Migration 0070 now declares the
+existing JSON type during nullability alteration; rollback dependency order is safe for foreign
+keys; and table-removal migrations no longer remove MySQL-selected backing indexes prematurely.
+PASS: fresh base→head→base→head cycle, dedicated live-MySQL regression, full backend 1,781 tests,
+Ruff, strict mypy, full frontend 1,022 tests, TypeScript, ESLint and production build.
+
 ## UI-REF-18 — Developer API Keys focus (2026-09-21)
 
 Compared the authenticated Developer Hub and made the direct credential entry a focused Developer

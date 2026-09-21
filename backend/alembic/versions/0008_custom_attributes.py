@@ -107,13 +107,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for index in (
-        "ix_cav_attr_datetime",
-        "ix_cav_attr_number",
-        "ix_cav_attr_string",
-        "uq_cav_contact_attr",
-    ):
-        op.drop_index(index, table_name="contact_attribute_values")
     op.drop_table("contact_attribute_values")
-    op.drop_index("uq_cad_org_key", table_name="custom_attribute_definitions")
     op.drop_table("custom_attribute_definitions")

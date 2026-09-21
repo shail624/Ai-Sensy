@@ -120,7 +120,8 @@ def downgrade() -> None:
             "(reference_type = 'kyc_case' AND reference_id IS NOT NULL)",
         )
 
-    op.drop_index("ix_reactivation_label_org_label_case", table_name="reactivation_case_labels")
+    # The table drop also removes its index; keep the organization-leading
+    # index until then because MySQL may use it for the organization foreign key.
     op.drop_table("reactivation_case_labels")
 
     with op.batch_alter_table("reactivation_cases") as batch:

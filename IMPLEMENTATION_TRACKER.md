@@ -1,5 +1,15 @@
 # Implementation Tracker (canonical)
 
+## ACCEPT-01 — COMPLETE, repository validated (2026-09-21)
+
+- Docker-backed disposable MySQL 8 validation reproduced one upgrade defect and multiple rollback
+  ordering defects that SQLite could not expose.
+- The complete 0001→0070 chain now passes base→head→base→head on a fresh database.
+- A live-MySQL regression permanently covers the full round trip.
+- PASS: full backend 1,781 tests plus the new focused live-MySQL test; Ruff and strict mypy.
+- PASS: full frontend 63 files / 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – next milestone: authenticated representative-data browser/mobile acceptance matrix.
+
 ## UI-REF-18 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Developer Hub and approved captures 0070–0073 inspected read-only.

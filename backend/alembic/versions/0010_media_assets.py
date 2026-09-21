@@ -75,6 +75,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_media_type", table_name="media_assets")
-    op.drop_index("uq_media_org_sha", table_name="media_assets")
     op.drop_table("media_assets")

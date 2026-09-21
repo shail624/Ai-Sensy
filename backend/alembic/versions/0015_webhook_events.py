@@ -90,9 +90,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_whdl_status", table_name="webhook_dead_letter")
     op.drop_table("webhook_dead_letter")
-    op.drop_index("ix_whe_number", table_name="webhook_events")
-    op.drop_index("ix_whe_event", table_name="webhook_events")
-    op.drop_index("ix_whe_status", table_name="webhook_events")
     op.drop_table("webhook_events")

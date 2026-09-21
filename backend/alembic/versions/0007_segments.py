@@ -86,7 +86,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_segrules_segment", table_name="segment_rules")
     op.drop_table("segment_rules")
-    op.drop_index("uq_segments_org_name", table_name="segments")
     op.drop_table("segments")

@@ -183,7 +183,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     codes = [row["code"] for row in _NEW_PERMISSIONS]
     op.execute(_permissions.delete().where(_permissions.c.code.in_(codes)))
-    op.drop_index("ix_channel_sessions_lease", table_name="channel_sessions")
-    op.drop_index("ix_channel_sessions_connection_current", table_name="channel_sessions")
-    op.drop_index("ix_channel_sessions_org_state", table_name="channel_sessions")
+    # The table drop removes its indexes. Keeping the indexes until then avoids
+    # removing indexes that MySQL selected to enforce this table's foreign keys.
     op.drop_table("channel_sessions")

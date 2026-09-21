@@ -76,8 +76,10 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table("automation_trigger_receipts") as batch:
         batch.drop_constraint("ck_automation_trigger_receipts_status", type_="check")
-        batch.drop_constraint("uq_automation_trigger_receipts_run", type_="unique")
+        # MySQL uses the unique run_id index to support this foreign key, so
+        # remove the dependent constraint before removing its backing index.
         batch.drop_constraint("fk_automation_trigger_receipts_run", type_="foreignkey")
+        batch.drop_constraint("uq_automation_trigger_receipts_run", type_="unique")
         batch.drop_column("processed_at")
         batch.drop_column("processing_started_at")
         batch.drop_column("run_id")

@@ -90,6 +90,20 @@ def downgrade() -> None:
         "ix_reactivation_views_org_visibility_created",
         table_name="reactivation_views",
     )
+    # Keep an explicit organization-leading index in place while replacing the
+    # workspace-aware unique constraint. MySQL may otherwise treat that unique
+    # constraint as the supporting index for the organization foreign key and
+    # reject its removal with error 1553.
+    op.create_index(
+        "ix_reactivation_views_org_visibility_created",
+        "reactivation_views",
+        ["organization_id", "visibility", "created_at"],
+    )
+    op.create_index(
+        "ix_reactivation_views_org_creator",
+        "reactivation_views",
+        ["organization_id", "created_by_user_id"],
+    )
     with op.batch_alter_table("reactivation_views") as batch_op:
         batch_op.drop_constraint(
             "uq_reactivation_views_scope_creator_name",
@@ -102,14 +116,4 @@ def downgrade() -> None:
         batch_op.drop_constraint("ck_reactivation_views_workspace", type_="check")
         batch_op.drop_column("workspace")
 
-    op.create_index(
-        "ix_reactivation_views_org_visibility_created",
-        "reactivation_views",
-        ["organization_id", "visibility", "created_at"],
-    )
-    op.create_index(
-        "ix_reactivation_views_org_creator",
-        "reactivation_views",
-        ["organization_id", "created_by_user_id"],
-    )
     op.execute(_permissions.delete().where(_permissions.c.code == _PERMISSION["code"]))

@@ -54,6 +54,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_cbatch_status", table_name="campaign_batches")
-    op.drop_index("uq_cbatch_campaign_idx", table_name="campaign_batches")
     op.drop_table("campaign_batches")

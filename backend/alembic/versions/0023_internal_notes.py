@@ -57,5 +57,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_note_conversation", table_name="internal_notes")
     op.drop_table("internal_notes")

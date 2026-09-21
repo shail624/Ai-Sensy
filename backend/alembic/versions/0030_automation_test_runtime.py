@@ -121,10 +121,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_automation_step_attempts_run_started", table_name="automation_step_attempts"
-    )
+    # Table drops remove their indexes. Keep those indexes until drop time so
+    # MySQL can continue using them to enforce the tables' foreign keys.
     op.drop_table("automation_step_attempts")
-    op.drop_index("ix_automation_runs_org_status_created", table_name="automation_runs")
-    op.drop_index("ix_automation_runs_flow_created", table_name="automation_runs")
     op.drop_table("automation_runs")

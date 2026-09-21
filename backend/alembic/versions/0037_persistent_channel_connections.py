@@ -255,11 +255,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_channel_secrets_org_connection_status", table_name="channel_secrets")
+    # Each table drop removes its indexes. Retaining them until that point is
+    # required on MySQL when an index is also supporting a foreign key.
     op.drop_table("channel_secrets")
-    op.drop_index("ix_channel_endpoints_connection_default", table_name="channel_endpoints")
-    op.drop_index("ix_channel_endpoints_org_active", table_name="channel_endpoints")
     op.drop_table("channel_endpoints")
-    op.drop_index("ix_channel_connections_org_state", table_name="channel_connections")
-    op.drop_index("ix_channel_connections_org_active", table_name="channel_connections")
     op.drop_table("channel_connections")

@@ -158,15 +158,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_lead_stages_pipeline_position", table_name="lead_stages")
-    op.drop_index("uq_lead_stages_pipeline_name", table_name="lead_stages")
     op.drop_table("lead_stages")
-    op.drop_index("uq_lead_pipelines_org_name", table_name="lead_pipelines")
     op.drop_table("lead_pipelines")
-    op.drop_index("ix_cevents_org_type", table_name="contact_events")
-    op.drop_index("ix_cevents_contact", table_name="contact_events")
     op.drop_table("contact_events")
-    op.drop_index("ix_ct_tag", table_name="contact_tags")
     op.drop_table("contact_tags")
-    op.drop_index("uq_tags_org_name", table_name="tags")
     op.drop_table("tags")

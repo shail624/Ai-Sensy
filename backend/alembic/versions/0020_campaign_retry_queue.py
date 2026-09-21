@@ -55,6 +55,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_cretry_campaign", table_name="campaign_retry_queue")
-    op.drop_index("ix_cretry_due", table_name="campaign_retry_queue")
     op.drop_table("campaign_retry_queue")

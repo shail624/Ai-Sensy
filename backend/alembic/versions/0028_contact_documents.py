@@ -191,14 +191,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     codes = [row["code"] for row in _NEW_PERMISSIONS]
     op.execute(_permissions.delete().where(_permissions.c.code.in_(codes)))
-    op.drop_index(
-        "ix_contact_document_events_document_created", table_name="contact_document_events"
-    )
+    # Table drops remove their indexes; retaining them until then prevents
+    # MySQL from losing indexes it selected to support foreign keys.
     op.drop_table("contact_document_events")
-    op.drop_index(
-        "ix_contact_document_versions_document_created", table_name="contact_document_versions"
-    )
     op.drop_table("contact_document_versions")
-    op.drop_index("ix_contact_documents_org_status_expiry", table_name="contact_documents")
-    op.drop_index("ix_contact_documents_org_contact_updated", table_name="contact_documents")
     op.drop_table("contact_documents")

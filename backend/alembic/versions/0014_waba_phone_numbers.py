@@ -108,10 +108,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_phone_org", table_name="phone_numbers")
-    op.drop_index("ix_phone_waba", table_name="phone_numbers")
-    op.drop_index("uq_phone_metaid", table_name="phone_numbers")
     op.drop_table("phone_numbers")
-    op.drop_index("ix_waba_org", table_name="whatsapp_business_accounts")
-    op.drop_index("uq_waba_metaid", table_name="whatsapp_business_accounts")
     op.drop_table("whatsapp_business_accounts")

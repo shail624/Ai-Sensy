@@ -29,7 +29,14 @@ def upgrade() -> None:
     tags = sa.table("tags", sa.column("first_message_keywords_json", sa.JSON()))
     op.execute(tags.update().values(first_message_keywords_json=[]))
     with op.batch_alter_table("tags") as batch:
-        batch.alter_column("first_message_keywords_json", nullable=False)
+        # MySQL renders ALTER COLUMN as MODIFY and therefore requires the current type. Omitting
+        # it works on SQLite but makes a clean MySQL upgrade fail after the preceding ADD COLUMN
+        # statements have already committed.
+        batch.alter_column(
+            "first_message_keywords_json",
+            existing_type=sa.JSON(),
+            nullable=False,
+        )
 
 
 def downgrade() -> None:

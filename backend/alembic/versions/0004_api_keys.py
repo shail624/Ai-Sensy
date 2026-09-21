@@ -56,5 +56,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_apikeys_org", table_name="api_keys")
     op.drop_table("api_keys")

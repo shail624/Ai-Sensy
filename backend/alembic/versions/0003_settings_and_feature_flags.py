@@ -68,5 +68,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("feature_flags")
-    op.drop_index("ix_settings_org", table_name="settings")
     op.drop_table("settings")

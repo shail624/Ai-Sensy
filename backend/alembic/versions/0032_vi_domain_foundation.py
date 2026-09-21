@@ -484,18 +484,19 @@ def downgrade() -> None:
         event_types.delete().where(event_types.c.event_type.in_([row[0] for row in _EVENT_TYPES]))
     )
     op.execute(permissions.delete().where(permissions.c.code.in_([row[0] for row in _PERMISSIONS])))
-    for table, indexes in (
-        ("sla_events", ["ix_sla_event_org_type_due", "ix_sla_event_entity_created"]),
-        ("sla_policies", ["ix_sla_policy_org_active"]),
-        ("activation_records", ["ix_activation_org_status_updated"]),
-        ("sim_order_events", ["ix_sim_order_event_order_created"]),
-        ("sim_orders", ["ix_sim_order_org_status_updated"]),
-        ("kyc_decisions", ["ix_kyc_decision_case_created"]),
-        ("kyc_cases", ["ix_kyc_org_status_updated"]),
-        ("eligibility_checks", ["ix_eligibility_case_created"]),
-        ("reactivation_stage_events", ["ix_reactivation_stage_case_created"]),
-        ("reactivation_cases", ["ix_reactivation_org_stage_updated"]),
+    # Drop child tables before their parents. Each table drop removes its own
+    # indexes; retaining them until then is required when MySQL selected an
+    # index to enforce one of the table's foreign keys.
+    for table in (
+        "sla_events",
+        "sla_policies",
+        "activation_records",
+        "sim_order_events",
+        "sim_orders",
+        "kyc_decisions",
+        "kyc_cases",
+        "eligibility_checks",
+        "reactivation_stage_events",
+        "reactivation_cases",
     ):
-        for index in indexes:
-            op.drop_index(index, table_name=table)
         op.drop_table(table)

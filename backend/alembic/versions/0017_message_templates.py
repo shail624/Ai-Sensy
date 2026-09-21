@@ -108,9 +108,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("uq_tplver_template_ver", table_name="template_versions")
     op.drop_table("template_versions")
-    op.drop_index("ix_tpl_category", table_name="message_templates")
-    op.drop_index("ix_tpl_org_status", table_name="message_templates")
-    op.drop_index("uq_tpl_waba_name_lang", table_name="message_templates")
     op.drop_table("message_templates")

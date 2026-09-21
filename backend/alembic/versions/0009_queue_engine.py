@@ -84,9 +84,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for index in ("ix_dl_queue", "ix_dl_fingerprint", "ix_dl_status"):
-        op.drop_index(index, table_name="dead_letter")
     op.drop_table("dead_letter")
-    op.drop_index("ix_job_ref", table_name="job_metadata")
-    op.drop_index("ix_job_status", table_name="job_metadata")
     op.drop_table("job_metadata")

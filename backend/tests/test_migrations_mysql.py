@@ -202,7 +202,7 @@ def _point_settings_at(monkeypatch: pytest.MonkeyPatch, db_name: str) -> None:
     asyncio.run(dispose_engine())
 
 
-def _current_version(db_name: str) -> str:
+def _current_version(db_name: str) -> str | None:
     conn = pymysql.connect(
         host=_ROOT_HOST, port=_ROOT_PORT, user="root", password=_ROOT_PASSWORD, database=db_name
     )
@@ -212,8 +212,7 @@ def _current_version(db_name: str) -> str:
             row = cur.fetchone()
     finally:
         conn.close()
-    assert row is not None
-    return row[0]
+    return None if row is None else row[0]
 
 
 def _version_column_type(db_name: str) -> str:
@@ -267,6 +266,27 @@ def test_fresh_mysql_database_upgrades_base_to_head(
 
     command.upgrade(cfg, "head")
 
+    assert _current_version(throwaway_database) == _current_migration_head()
+    assert _version_column_type(throwaway_database) == "varchar(255)"
+    asyncio.run(dispose_engine())
+
+
+@_live_mysql_required
+def test_fresh_mysql_database_round_trips_head_base_head(
+    throwaway_database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every revision is reversible on MySQL, including indexes that MySQL selects as
+    backing indexes for foreign-key constraints."""
+    _point_settings_at(monkeypatch, throwaway_database)
+    cfg = _alembic_config()
+
+    command.upgrade(cfg, "head")
+    assert _current_version(throwaway_database) == _current_migration_head()
+
+    command.downgrade(cfg, "base")
+    assert _current_version(throwaway_database) is None
+
+    command.upgrade(cfg, "head")
     assert _current_version(throwaway_database) == _current_migration_head()
     assert _version_column_type(throwaway_database) == "varchar(255)"
     asyncio.run(dispose_engine())

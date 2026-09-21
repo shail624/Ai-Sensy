@@ -56,5 +56,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_exports_org", table_name="exports")
     op.drop_table("exports")

@@ -1,5 +1,13 @@
 # Project State
 
+## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
+
+Repository complete for this milestone. The production database chain now installs from zero,
+rolls back completely and reinstalls on real disposable MySQL 8. The repaired operations preserve
+the same head schema and affect no product API or UI. Full backend and frontend validation is
+green. Overall product completion remains approximately 88%; the next release gate is the
+authenticated populated browser/mobile matrix, not another migration repair.
+
 ## UI-REF-18 — Developer API Keys focus (2026-09-21)
 
 Repository complete. The direct Developer entry now matches the authenticated reference's
