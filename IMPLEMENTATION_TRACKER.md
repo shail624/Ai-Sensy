@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-14 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy New Canned Message and approved capture 0051 inspected read-only.
+- The existing text editor now shows the exact message body in a live preview.
+- Shortcut, title, personal/shared ownership and insert-without-send behavior remain canonical.
+- Unsupported media/message types and gated variable substitution remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-13 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy User Attributes and approved captures 0048–0050 inspected read-only.

@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Compared the authenticated New Canned Message workflow and added a truthful live preview of the
+message body. Existing shortcut, title and personal/shared scope remain intact, and the empty state
+clarifies that selecting a saved reply inserts text without sending. Unsupported media types and
+gated variable substitution were not faked. PASS: focused 130 and full frontend 1,021 tests,
+TypeScript, ESLint and production build.
+
 ## UI-REF-13 — User Attributes focus (2026-09-21)
 
 Compared the authenticated User Attributes screen and aligned the existing typed contact-field

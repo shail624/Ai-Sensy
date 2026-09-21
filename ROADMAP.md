@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Repository validated. The existing Canned Message editor now carries the authenticated reference's
+applicable live-preview interaction while preserving richer personal/shared ownership and truthful
+composer insertion behavior. Unsupported message types and variable substitution remain absent.
+The next permitted Manage comparison is Team; it is not started by this milestone.
+
 ## UI-REF-13 — User Attributes focus (2026-09-21)
 
 Repository validated. The existing typed contact-attribute workspace now carries the authenticated

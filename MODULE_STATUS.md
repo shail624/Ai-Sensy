@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Settings and Inbox remain at their existing completion percentages. Canned Message creation now
+provides a truthful live body preview while retaining personal/shared ownership and composer
+insertion semantics. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
 ## UI-REF-13 — User Attributes focus (2026-09-21)
 
 Contacts and Settings remain at their existing completion percentages. User Attributes now uses a

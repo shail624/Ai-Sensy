@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+- PASS: authenticated AiSensy New Canned Message screen inspected read-only.
+- PASS: focused Settings regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,021 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing ownership, validation and insert-without-send behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## UI-REF-13 — User Attributes focus (2026-09-21)
 
 - PASS: authenticated AiSensy User Attributes inspected read-only.

@@ -1195,6 +1195,7 @@ describe("CannedMessagesPanel", () => {
     fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
     fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    expect(screen.getByLabelText("Message preview")).toHaveTextContent("Hi there!");
     fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
 
     await waitFor(() => expect(writes).toHaveLength(1));

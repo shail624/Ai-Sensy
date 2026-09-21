@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Repository complete. Canned Message creation now includes the authenticated reference's applicable
+live-preview interaction while preserving the richer personal/shared reply contract and truthful
+insert-without-send behavior. No unsupported message type or substitution control was introduced.
+Full frontend is green at 63 files / 1,021 tests; overall canonical completion remains
+approximately 88% because this is acceptance refinement.
+
 ## UI-REF-13 — User Attributes focus (2026-09-21)
 
 Repository complete. User Attributes now matches the authenticated reference's applicable toolbar
