@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Repository validated. The existing typed contact-attribute workspace now carries the authenticated
+reference's applicable search/filter/add hierarchy with original components and richer governed
+states preserved. Meta Lead Form attributes and advertising remain excluded. The next permitted
+Manage comparison is Canned Messages; it is not started by this milestone.
+
 ## UI-REF-12 — Live Chat Settings focus (2026-09-21)
 
 Repository validated. The existing Live Chat policy now appears as a dedicated Manage workspace

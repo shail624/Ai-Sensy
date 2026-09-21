@@ -1523,7 +1523,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "New attribute" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Add attribute" }).length).toBeGreaterThan(0);
   });
 
   it("shows a clean read-only empty state, with no create action, without contacts:write", async () => {
@@ -1532,7 +1532,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add attribute" })).not.toBeInTheDocument();
     expect(screen.getAllByText(/contacts write permission/).length).toBeGreaterThan(0);
   });
 
@@ -1592,7 +1592,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
     fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
@@ -1644,7 +1644,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "ssn" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "SSN" } });
     fireEvent.click(screen.getByLabelText(/Personally identifiable information/));
@@ -1667,7 +1667,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     expect(screen.queryByLabelText("Choices")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
@@ -1696,7 +1696,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     const submit = screen.getByRole("button", { name: "Create attribute" });
 
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
@@ -1731,7 +1731,7 @@ describe("UserAttributesPanel", () => {
     };
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Duplicate" } });
     fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
@@ -1877,7 +1877,7 @@ describe("UserAttributesPanel", () => {
       attributeDefinitionFixture({ id: "a2", key_name: "region", label: "Region", data_type: "string" }),
     ];
 
-    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New attribute" }));
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Add attribute" }));
     fireEvent.change(within(settingsPanel).getByLabelText("Key name"), { target: { value: "region" } });
     fireEvent.change(within(settingsPanel).getByLabelText("Label"), { target: { value: "Region" } });
     fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create attribute" }));
@@ -1893,7 +1893,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     await screen.findByText("Plan");
-    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add attribute" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit Plan" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Plan" })).not.toBeInTheDocument();
     expect(screen.getByText(/contacts write permission/)).toBeInTheDocument();

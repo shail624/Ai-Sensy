@@ -1,5 +1,15 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-13 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy User Attributes and approved captures 0048–0050 inspected read-only.
+- Existing typed definitions, validation, status flags and per-record writes remain canonical.
+- Search, type filter and Add attribute now form one compact action row; creation wording and table
+  hierarchy are aligned without reducing the richer domain contract.
+- Meta Lead Form attributes, ads and launch shortcuts remain absent rather than empty/fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-12 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Live Chat Settings and approved capture 0047 inspected read-only.

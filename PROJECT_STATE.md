@@ -1,5 +1,12 @@
 # Project State
 
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Repository complete. User Attributes now matches the authenticated reference's applicable toolbar
+and creation hierarchy while preserving the product's richer typed contact-field contract. No Meta
+Lead Form or advertising surface was introduced. Full frontend is green at 63 files / 1,021 tests;
+overall canonical completion remains approximately 88% because this is acceptance refinement.
+
 ## UI-REF-12 — Live Chat Settings focus (2026-09-21)
 
 Repository complete. The real Live Chat policy now has a dedicated Manage presentation aligned to

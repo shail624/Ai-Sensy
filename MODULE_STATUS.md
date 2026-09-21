@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Contacts and Settings remain at their existing completion percentages. User Attributes now uses a
+closer compact action hierarchy while retaining typed validation, lifecycle and security metadata
+beyond the reference. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
 ## UI-REF-12 — Live Chat Settings focus (2026-09-21)
 
 Inbox and Settings remain at their existing completion percentages. Live Chat configuration now

@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Compared the authenticated User Attributes screen and aligned the existing typed contact-field
+workspace around a compact search, type-filter and Add attribute toolbar. Creation language and
+table headings now follow the observed task hierarchy while richer validation, lifecycle and
+security facts remain intact. The Meta Lead Form-specific tab was not faked. PASS: focused 130 and
+full frontend 1,021 tests, TypeScript, ESLint and production build.
+
 ## UI-REF-12 — Live Chat Settings focus (2026-09-21)
 
 Compared the authenticated reference and made the existing Live Chat policy a dedicated Manage
