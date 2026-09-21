@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Repository validated. The existing Tags workspace now carries the authenticated reference's
+applicable first-message table hierarchy with real exact-match rule data and maintained usage.
+Unsupported categories/groups and excluded commercial surfaces remain absent. The next permitted
+Manage comparison is Notification Preferences; it is not started by this milestone.
+
 ## UI-REF-15 — Team Management focus (2026-09-21)
 
 Repository validated. The existing governed account workspace now carries the authenticated

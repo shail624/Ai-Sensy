@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+- PASS: authenticated AiSensy Tags screen inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing usage, exact-match, CRUD and permission behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## UI-REF-15 — Team Management focus (2026-09-21)
 
 - PASS: authenticated AiSensy Team Members screen inspected read-only.

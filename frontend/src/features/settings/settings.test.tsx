@@ -817,10 +817,16 @@ describe("TagsPanel", () => {
   });
 
   it("lists tags with the usage count the read returns", async () => {
-    responses["/api/v1/tags"] = [tagFixture()];
+    responses["/api/v1/tags"] = [
+      tagFixture({ first_message_enabled: true, first_message_keywords: ["INTERESTED", "CALL ME"] }),
+    ];
     withProviders(<TagsPanel />);
 
     expect(await screen.findByText("Prepaid")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Tag name" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "First message" })).toBeInTheDocument();
+    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    expect(screen.getByText("2 exact matches")).toBeInTheDocument();
     expect(screen.getByText("3 contacts")).toBeInTheDocument();
     expect(screen.getByText("Prepaid reactivation cohort.")).toBeInTheDocument();
   });

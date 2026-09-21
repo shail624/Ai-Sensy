@@ -251,7 +251,10 @@ export function TagsPanel(): JSX.Element {
               <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
                 <tr>
                   <th scope="col" className="px-3 py-2">
-                    Tag
+                    Tag name
+                  </th>
+                  <th scope="col" className="hidden px-3 py-2 md:table-cell">
+                    First message
                   </th>
                   <th scope="col" className="px-3 py-2">
                     Usage
@@ -276,12 +279,20 @@ export function TagsPanel(): JSX.Element {
                           {tag.description}
                         </p>
                       ) : null}
+                    </td>
+
+                    <td className="hidden px-3 py-2 align-top md:table-cell">
                       {tag.first_message_enabled ? (
-                        <p className="mt-1 text-xs font-medium text-accent">
-                          First-message rule · {formatCount(tag.first_message_keywords.length)} exact
-                          {tag.first_message_keywords.length === 1 ? " match" : " matches"}
-                        </p>
-                      ) : null}
+                        <div className="space-y-1">
+                          <Badge tone="accent">Enabled</Badge>
+                          <p className="text-xs text-text-secondary">
+                            {formatCount(tag.first_message_keywords.length)} exact
+                            {tag.first_message_keywords.length === 1 ? " match" : " matches"}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-disabled">Not configured</span>
+                      )}
                     </td>
 
                     <td className="px-3 py-2 align-top">

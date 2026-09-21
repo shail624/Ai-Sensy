@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Compared the authenticated Tags workspace and separated Tag name and First message into clear table
+columns. Each row now exposes its real first-message rule state and exact-match count while existing
+usage, editing, deletion and permission behavior remains intact. Unsupported categories/groups and
+excluded launch or billing surfaces were not faked. PASS: focused 130 and full frontend 1,022 tests,
+TypeScript, ESLint and production build.
+
 ## UI-REF-15 — Team Management focus (2026-09-21)
 
 Compared the authenticated Team Members workflow and aligned the existing governed user workspace

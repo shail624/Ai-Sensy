@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Repository complete. Tags now matches the authenticated reference's applicable first-message table
+hierarchy using real rule data, while preserving richer maintained usage and governed CRUD. No fake
+category/group or excluded commercial surface was introduced. Full frontend is green at 63 files /
+1,022 tests; overall canonical completion remains approximately 88% because this is acceptance
+refinement.
+
 ## UI-REF-15 — Team Management focus (2026-09-21)
 
 Repository complete. Team administration now matches the authenticated reference's applicable

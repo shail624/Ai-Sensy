@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Contacts and Settings remain at their existing completion percentages. Tag rows now expose the real
+first-message rule state and keyword count in a dedicated column while maintained usage and CRUD
+remain intact. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
 ## UI-REF-15 — Team Management focus (2026-09-21)
 
 Team and Administration remain at their existing completion percentages. The account workspace now

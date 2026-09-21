@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-16 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Tags and approved capture 0054 inspected read-only.
+- Tag name and First message are now separate table facts with truthful rule state and match count.
+- Maintained usage, exact-match behavior, CRUD and permission gates remain canonical.
+- Unsupported category/group and excluded commercial surfaces remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-15 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Team Members and approved captures 0052–0053 inspected read-only.
