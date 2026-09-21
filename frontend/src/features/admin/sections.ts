@@ -17,10 +17,10 @@ export interface AdminSection {
 export const ADMIN_SECTIONS: AdminSection[] = [
   {
     key: "users",
-    label: "Users",
+    label: "Team Members",
     path: "/admin/users",
     permission: "users:read",
-    description: "Accounts, their roles, and whether they can sign in.",
+    description: "Add teammates, assign their access and control whether they can sign in.",
   },
   {
     key: "roles",

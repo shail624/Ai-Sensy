@@ -118,7 +118,7 @@ export function UserFormDialog({ user, onClose }: Props): JSX.Element {
   }
 
   return (
-    <Modal title={editing ? `Edit ${user.full_name}` : "New user"} onClose={onClose}>
+    <Modal title={editing ? `Edit ${user.full_name}` : "Create Team Member"} onClose={onClose}>
       <div className="space-y-3">
         <div>
           <label htmlFor="user-email" className={LABEL_CLASS}>
@@ -256,7 +256,7 @@ export function UserFormDialog({ user, onClose }: Props): JSX.Element {
             disabled={pending}
             className="rounded-md bg-accent px-3 py-1 text-sm text-accent-fg disabled:opacity-50"
           >
-            {pending ? "Saving…" : editing ? "Save changes" : "Create user"}
+            {pending ? "Saving…" : editing ? "Save changes" : "Create team member"}
           </button>
         </div>
       </div>

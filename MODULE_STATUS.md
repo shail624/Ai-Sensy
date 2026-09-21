@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Team and Administration remain at their existing completion percentages. The account workspace now
+uses direct team-management hierarchy while retaining custom roles, permissions and explicit
+enable/disable safeguards beyond the reference. Overall canonical average remains approximately
+88.0%; authenticated local visual/browser acceptance remains open.
+
 ## UI-REF-14 — Canned Message preview (2026-09-21)
 
 Settings and Inbox remain at their existing completion percentages. Canned Message creation now

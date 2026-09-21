@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Repository complete. Team administration now matches the authenticated reference's applicable
+title and creation hierarchy while retaining stronger custom-role, permission and account-lifecycle
+controls. No excluded buying/billing surface or unsupported invitation flow was introduced. Full
+frontend is green at 63 files / 1,022 tests; overall canonical completion remains approximately
+88% because this is acceptance refinement.
+
 ## UI-REF-14 — Canned Message preview (2026-09-21)
 
 Repository complete. Canned Message creation now includes the authenticated reference's applicable

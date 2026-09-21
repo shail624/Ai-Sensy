@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Repository validated. The existing governed account workspace now carries the authenticated
+reference's applicable Team Members and add-member hierarchy while preserving richer custom roles,
+permissions and lifecycle safeguards. Paid quotas, billing and invitations remain absent. The next
+permitted Manage comparison is Tags; it is not started by this milestone.
+
 ## UI-REF-14 — Canned Message preview (2026-09-21)
 
 Repository validated. The existing Canned Message editor now carries the authenticated reference's

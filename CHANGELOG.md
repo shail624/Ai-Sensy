@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Compared the authenticated Team Members workflow and aligned the existing governed user workspace
+around a direct Team Members heading, task description and Add team member creation action. Custom
+roles, permission gates, enable/disable safeguards and account concurrency remain intact. Paid seat
+quota, billing, launch cards, invitations and SSO were not faked. PASS: focused 72 and full frontend
+1,022 tests, TypeScript, ESLint and production build.
+
 ## UI-REF-14 — Canned Message preview (2026-09-21)
 
 Compared the authenticated New Canned Message workflow and added a truthful live preview of the

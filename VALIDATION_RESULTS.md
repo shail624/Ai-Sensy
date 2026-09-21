@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+- PASS: authenticated AiSensy Team Members screen inspected read-only.
+- PASS: focused Administration/navigation regression, 2 files / 72 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing custom-role, permission, lifecycle and concurrency behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## UI-REF-14 — Canned Message preview (2026-09-21)
 
 - PASS: authenticated AiSensy New Canned Message screen inspected read-only.
