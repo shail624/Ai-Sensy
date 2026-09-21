@@ -1,5 +1,13 @@
 # Module Status
 
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Dashboard, Inbox, Chat History, Contacts, Campaigns, Analytics, Download Center, Automation,
+Settings/Tags and Developer are now locally host-validated with authentication and representative
+data or truthful empty states. Module completion percentages remain unchanged; this milestone
+converts the prior host-validation caveat into passing local evidence. Overall canonical completion
+remains approximately 88.0%; target-host and real-provider acceptance remain open.
+
 ## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
 
 Deployment and database readiness advance: the full production migration chain is now proven

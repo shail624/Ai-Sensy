@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Local host acceptance is complete across the primary desktop and mobile workspaces using governed
+representative fixtures and disposable MySQL/Redis. The next release work is environment-specific:
+target-host deployment, real WhatsApp/provider credentials and data, production observability and
+owner UAT. Those are not started or simulated by this milestone.
+
 ## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
 
 Repository validated. The 0001→0070 chain now passes a real MySQL 8 install, total rollback and

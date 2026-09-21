@@ -1,5 +1,13 @@
 # Changelog
 
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Validated the application with repository-owned representative fixtures on the disposable local
+MySQL/Redis stack. Dashboard, Live Chat, Chat History, Contacts, Campaigns, Analytics, Download
+Center, Automation, Tags and Developer Hub loaded under a real Owner session. Desktop and 390×844
+mobile checks passed with no document-level horizontal overflow; conversation list/detail drill-in
+worked at both breakpoints. No product code change was required.
+
 ## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
 
 Validated the complete migration chain on disposable MySQL 8 and repaired MySQL-specific upgrade

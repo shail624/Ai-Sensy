@@ -1,5 +1,13 @@
 # Project State
 
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Host validation is complete for the local representative-data milestone. The core desktop and
+mobile workspaces load and remain usable against real local MySQL/Redis services, including
+conversation and history drill-in. The checked empty states are truthful rather than placeholders.
+Overall canonical completion remains approximately 88%; remaining release work depends on target
+hosting, real provider/data integrations and owner acceptance rather than another local preview.
+
 ## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
 
 Repository complete for this milestone. The production database chain now installs from zero,

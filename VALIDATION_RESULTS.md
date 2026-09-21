@@ -1,5 +1,19 @@
 # Validation Results
 
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+- PASS: local MySQL and Redis healthy; backend and frontend started successfully.
+- PASS: repository-owned fixtures created 31 contacts, 30 conversations, 191 messages, 4 tags,
+  2 agents, 1 WhatsApp account and 2 phone numbers in a disposable development database.
+- PASS: authenticated Dashboard, Live Chat, Chat History, Contacts, Campaigns, Analytics,
+  Download Center, Automation, Tags and Developer Hub routes.
+- PASS: Live Chat and Chat History list-to-detail interaction with representative messages.
+- PASS: desktop 1440×900 and mobile 390×844 matrix; no checked route had document-level
+  horizontal overflow.
+- PASS: no application/API console error observed. Local Vite hot-reload WebSocket warning is a
+  development-browser transport warning; production build validation remains green from ACCEPT-01.
+- PASS: no source-code, API-contract, migration, permission or dependency delta.
+
 ## ACCEPT-01 — MySQL migration reversibility (2026-09-21)
 
 - PASS: disposable MySQL 8 fresh 0001→0070 upgrade.
