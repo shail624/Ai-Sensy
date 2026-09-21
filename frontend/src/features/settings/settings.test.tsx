@@ -502,6 +502,21 @@ describe("ApplicationPanel", () => {
     expect(screen.getAllByText("Customer preview")).toHaveLength(2);
   });
 
+  it("focuses Live Chat policy without unrelated consent or advanced controls", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />, "/settings/application#inbox-policy");
+
+    expect(await screen.findByText("Live Chat behavior")).toBeInTheDocument();
+    expect(screen.getByLabelText("Clear unread on open")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send read receipts to customers")).toBeInTheDocument();
+    expect(screen.getByLabelText("Use organization working hours")).toBeInTheDocument();
+    expect(screen.getByText("Automatic conversation resolution")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Live Chat settings" })).toBeEnabled();
+    expect(screen.queryByLabelText("Recognize consent keywords")).not.toBeInTheDocument();
+    expect(screen.queryByText("New conversation routing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Advanced organization settings")).not.toBeInTheDocument();
+  });
+
   it("separates the two scopes and makes system settings read-only", async () => {
     responses["/api/v1/settings"] = [
       settingFixture({ key: "org.key", scope: "organization" }),

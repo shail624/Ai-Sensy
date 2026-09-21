@@ -1,5 +1,16 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-12 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Live Chat Settings and approved capture 0047 inspected read-only.
+- Existing read-state, automatic-reply, working-hours and auto-resolution behavior remains the sole
+  authority; no endpoint, model or policy was duplicated.
+- The Manage deep link now hides unrelated routing, consent and advanced-store controls and uses a
+  contextual Live Chat save action.
+- Unsupported typing indicators, ads and AI launch shortcuts remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-11 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Opt-in Management and approved captures 0045/0046 inspected read-only.

@@ -1,5 +1,12 @@
 # Project State
 
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Repository complete. The real Live Chat policy now has a dedicated Manage presentation aligned to
+the authenticated reference's applicable information hierarchy. No unsupported typing-indicator
+control or excluded launch surface was invented. Full frontend is green at 63 files / 1,021 tests;
+overall canonical completion remains approximately 88% because this is acceptance refinement.
+
 ## UI-REF-11 — Opt-in Management focus (2026-09-21)
 
 Repository complete. The existing real consent-keyword and acknowledgement behavior now has a

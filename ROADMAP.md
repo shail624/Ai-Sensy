@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Repository validated. The existing Live Chat policy now appears as a dedicated Manage workspace
+with read-state, automated-reply, working-hours and inactivity-resolution hierarchy aligned to the
+authenticated reference. Unsupported typing indicators and excluded launch surfaces remain absent.
+The next permitted Manage comparison is User Attributes; it is not started by this milestone.
+
 ## UI-REF-11 — Opt-in Management focus (2026-09-21)
 
 Repository validated. The existing exact-match consent engine now appears as a dedicated Manage

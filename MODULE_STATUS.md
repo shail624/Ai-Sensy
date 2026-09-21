@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Inbox and Settings remain at their existing completion percentages. Live Chat configuration now
+leads with its real read-state, automated-reply, hours and resolution controls without unrelated
+application settings. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
 ## UI-REF-11 — Opt-in Management focus (2026-09-21)
 
 Settings and Inbox remain at their existing completion percentages. The real consent workflow is

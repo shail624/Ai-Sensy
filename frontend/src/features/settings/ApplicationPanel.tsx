@@ -137,6 +137,7 @@ function toEntry(setting: Setting, canManage: boolean): KeyValueEntry {
 function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Element {
   const { hash } = useLocation();
   const consentOnly = hash === "#consent";
+  const liveChatOnly = hash === "#inbox-policy";
   const policy = useInboxOperations();
   const update = useUpdateInboxOperations();
   const [draft, setDraft] = useState<OperationsDraft>(DEFAULT_DRAFT);
@@ -251,9 +252,11 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
   return (
     <div id="inbox-policy" tabIndex={-1} className="scroll-mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
     <Section
-      title={consentOnly ? "Consent keyword rules" : "Inbox operations"}
+      title={consentOnly ? "Consent keyword rules" : liveChatOnly ? "Live Chat behavior" : "Inbox operations"}
       description={consentOnly
         ? "Control the exact messages that record customer opt-in and opt-out choices."
+        : liveChatOnly
+          ? "Manage read state, automated replies, working hours and inactive conversations."
         : "Organization-wide rules consumed by new conversations and inbound messages."}
       icon={consentOnly
         ? <ShieldCheck aria-hidden className="h-4 w-4" />
@@ -264,8 +267,8 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         </Badge>
       }
     >
-      {!consentOnly ? <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface-2 p-4">
+      {!consentOnly ? <div className={`grid gap-4 ${liveChatOnly ? "lg:grid-cols-2" : "xl:grid-cols-3"}`}>
+        {!liveChatOnly ? <div className="rounded-xl border border-border bg-surface-2 p-4">
           <div className="mb-3 flex items-start gap-3">
             <Route aria-hidden className="mt-0.5 h-4 w-4 text-accent" />
             <div>
@@ -292,7 +295,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               <option value="least_open">Balance by open workload</option>
             </Select>
           </Field>
-        </div>
+        </div> : null}
 
         <label className="flex min-h-40 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface-2 p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
           <input
@@ -340,7 +343,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
           </span>
         </label>
 
-        <div className="rounded-xl border border-border bg-surface-2 p-4">
+        {!liveChatOnly ? <div className="rounded-xl border border-border bg-surface-2 p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
@@ -363,7 +366,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               </span>
             </span>
           </label>
-        </div>
+        </div> : null}
       </div> : null}
 
       {consentOnly ? <div
@@ -395,7 +398,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         </label>
       </div> : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      {!liveChatOnly ? <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Field
           htmlFor="opt-in-keywords"
           label="Opt-in keywords"
@@ -423,10 +426,10 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               setDraft((current) => ({ ...current, optOutKeywords: event.target.value }))
             }
           />
-        </Field>
-      </div>
+          </Field>
+        </div> : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      {!liveChatOnly ? <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {(
           [
             [
@@ -493,7 +496,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             <p className="mt-1 text-right text-xs text-text-disabled">{body.length}/1,000</p>
           </div>
         ))}
-      </div>
+      </div> : null}
 
       {!consentOnly ? <WorkingHoursEditor
         disabled={!canManage}
@@ -564,7 +567,11 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             loading={update.isPending}
             onClick={save}
           >
-            {consentOnly ? "Save consent settings" : "Save inbox policy"}
+            {consentOnly
+              ? "Save consent settings"
+              : liveChatOnly
+                ? "Save Live Chat settings"
+                : "Save inbox policy"}
           </Button>
         ) : null}
       </div>
@@ -577,6 +584,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
 export function ApplicationPanel(): JSX.Element {
   const { hash } = useLocation();
   const consentOnly = hash === "#consent";
+  const focusedPolicy = consentOnly || hash === "#inbox-policy";
   const canManage = useHasPermission("settings:manage");
   const settings = useSettings();
   const update = useUpdateSettings();
@@ -611,7 +619,7 @@ export function ApplicationPanel(): JSX.Element {
     <div className="space-y-4">
       <OperationalPolicyPanel canManage={canManage} />
 
-      {!consentOnly ? <Section
+      {!focusedPolicy ? <Section
         title="Advanced organization settings"
         description="Additional deployment-specific values that do not yet have a dedicated control."
       >
@@ -628,7 +636,7 @@ export function ApplicationPanel(): JSX.Element {
         />
       </Section> : null}
 
-      {!consentOnly ? <Section title="System settings">
+      {!focusedPolicy ? <Section title="System settings">
         {systemEntries.length === 0 ? (
           <p className="text-sm text-text-disabled">
             No system-scoped settings are stored. These come from the server&apos;s own
@@ -648,7 +656,7 @@ export function ApplicationPanel(): JSX.Element {
         )}
       </Section> : null}
 
-      {!consentOnly ? <Section title="System information">
+      {!focusedPolicy ? <Section title="System information">
         <dl>
           <DefinitionRow label="Settings stored">{formatCount(all.length)}</DefinitionRow>
           <DefinitionRow label="Organization-scoped">
