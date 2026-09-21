@@ -1,5 +1,12 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Repository validated. Existing real personal notification controls now carry the authenticated
+reference's applicable dedicated-workspace hierarchy without fake sound, push or device enrolment.
+Billing and marketplace captures 0056–0069 remain excluded. The next permitted reference comparison
+is Developer API keys; it is not started by this milestone.
+
 ## UI-REF-16 — Tags first-message column (2026-09-21)
 
 Repository validated. The existing Tags workspace now carries the authenticated reference's

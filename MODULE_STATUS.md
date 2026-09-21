@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Notifications and Settings remain at their existing completion percentages. Personal category
+controls now lead a dedicated server-synced workspace while the advanced preference store remains
+available. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
 ## UI-REF-16 — Tags first-message column (2026-09-21)
 
 Contacts and Settings remain at their existing completion percentages. Tag rows now expose the real

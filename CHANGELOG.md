@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Compared the authenticated Notification Preferences screen and promoted the existing real per-user
+notification-category controls into a dedicated personal settings workspace. The advanced
+server-synced preference store remains available below the primary controls. Unsupported sound,
+push and device enrolment were not faked. PASS: focused 139 and full frontend 1,022 tests,
+TypeScript, ESLint and production build.
+
 ## UI-REF-16 — Tags first-message column (2026-09-21)
 
 Compared the authenticated Tags workspace and separated Tag name and First message into clear table

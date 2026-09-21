@@ -759,8 +759,11 @@ describe("FeatureFlagsPanel", () => {
 describe("PreferencesPanel", () => {
   it("edits the user's own store", async () => {
     responses["/api/v1/users/me/preferences"] = { preferences: { density: "compact" } };
+    responses["/api/v1/notifications/settings"] = { muted_types: [] };
     withProviders(<PreferencesPanel />);
 
+    expect(await screen.findByText("Notification categories")).toBeInTheDocument();
+    expect(await screen.findByRole("checkbox", { name: "Follow-up due" })).toBeChecked();
     fireEvent.change(await screen.findByLabelText("Value of density"), {
       target: { value: "comfortable" },
     });
@@ -772,6 +775,7 @@ describe("PreferencesPanel", () => {
 
   it("says where the theme actually lives, so its absence is not a surprise", async () => {
     responses["/api/v1/users/me/preferences"] = { preferences: {} };
+    responses["/api/v1/notifications/settings"] = { muted_types: [] };
     withProviders(<PreferencesPanel />);
     expect(await screen.findByText(/kept in this browser instead/)).toBeInTheDocument();
   });

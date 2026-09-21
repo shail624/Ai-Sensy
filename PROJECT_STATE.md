@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Repository complete. Real per-user notification-category controls now have the dedicated workspace
+observed in the authenticated reference while the advanced personal store remains available. No
+fake sound, push or device enrolment was introduced. Full frontend is green at 63 files / 1,022
+tests; overall canonical completion remains approximately 88% because this is acceptance
+refinement.
+
 ## UI-REF-16 — Tags first-message column (2026-09-21)
 
 Repository complete. Tags now matches the authenticated reference's applicable first-message table

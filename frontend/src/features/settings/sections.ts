@@ -65,10 +65,10 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   },
   {
     key: "preferences",
-    label: "My preferences",
+    label: "Notification Preferences",
     path: "/settings/preferences",
     permission: "auth:self",
-    description: "Your own settings, stored against your account.",
+    description: "Choose the operational updates shown in your personal notification centre.",
   },
 ];
 

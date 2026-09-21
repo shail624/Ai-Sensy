@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+- PASS: authenticated AiSensy Notification Preferences inspected read-only.
+- PASS: focused Settings/notifications/navigation regression, 3 files / 139 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing immediate save, hidden-item retention and personal-store behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## UI-REF-16 — Tags first-message column (2026-09-21)
 
 - PASS: authenticated AiSensy Tags screen inspected read-only.

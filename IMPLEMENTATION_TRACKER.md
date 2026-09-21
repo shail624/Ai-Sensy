@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-17 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Notification Preferences and approved capture 0055 inspected read-only.
+- Real per-user category controls now lead a dedicated Notification Preferences workspace.
+- Existing immediate save, hidden-item retention and advanced personal store remain canonical.
+- Unsupported sound, browser push and device enrolment remain absent rather than fake.
+- PASS: focused 139 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-16 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Tags and approved capture 0054 inspected read-only.
