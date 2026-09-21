@@ -1,5 +1,14 @@
 # Project State
 
+## REL-02A — Local release certification (2026-09-21)
+
+The repository's complete deployed quality profile is green after closing fixed-package security
+findings in both deployable runtime images. A disposable production-like stack passed browser,
+accessibility, contact import, performance, observability and Redis-degradation checks. Functional
+scope remains approximately 88% because the remaining approved work is not replaced by local
+certification: large-scale/restore evidence, real provider and Vi data, and target-host owner UAT
+remain open. No exact AiSensy branding or excluded advertising/payment surface is claimed.
+
 ## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
 
 Host validation is complete for the local representative-data milestone. The core desktop and

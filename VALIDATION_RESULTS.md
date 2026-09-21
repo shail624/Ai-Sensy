@@ -1,5 +1,18 @@
 # Validation Results
 
+## REL-02A — Local release certification (2026-09-21)
+
+- PASS: complete backend, 1,782 tests; Ruff, strict mypy and OpenAPI drift.
+- PASS: complete frontend, 63 files / 1,022 tests; TypeScript, ESLint and production build.
+- PASS: backend/frontend/browser dependency audits and tracked-source security scan.
+- PASS: backend/frontend high/critical image scans; CycloneDX SBOMs generated.
+- PASS: production Compose/release/image contracts and certified WAHA runtime probes.
+- PASS: isolated stack browser suite, 5/5 (light, dark, mobile, login, contact import/search).
+- PASS: performance p95 6.1 ms / 30 reads / 300 ms budget.
+- PASS: Redis-down readiness degradation and correlated/redacted runtime logging.
+- PASS: focused quality-tool regression, 19 tests (workspace basetemp used after host temp ACL).
+- PENDING: off-host restore, million-contact/load/stress/spike/soak and target-host/provider UAT.
+
 ## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
 
 - PASS: local MySQL and Redis healthy; backend and frontend started successfully.

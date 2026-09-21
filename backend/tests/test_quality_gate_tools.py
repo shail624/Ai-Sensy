@@ -354,6 +354,8 @@ def test_deployed_stack_environment_satisfies_every_required_compose_variable() 
     )
 
     assert release_contract.required_variables(compose_text) <= environment.keys()
+    assert environment["RATE_LIMIT_AUTH_MAX"] == "100"
+    assert "RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}" in compose_text
 
 
 def test_required_variables_ignores_markers_written_inside_comments() -> None:

@@ -24,6 +24,10 @@ FROM python:3.13.14-alpine3.24@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
+# The digest keeps the base reproducible, while Alpine security fixes can land after that
+# snapshot. Apply the repository's current patched packages during the release build so a
+# known-fixed OpenSSL or util-linux CVE cannot survive solely because the base is pinned.
+RUN apk upgrade --no-cache
 # Non-root runtime user (Doc 08 §26 — least privilege / container hardening).
 RUN addgroup -S app && adduser -S -G app -h /app app
 

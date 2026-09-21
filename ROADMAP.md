@@ -2992,6 +2992,11 @@ remain authoritative.
 | REL-02 — Security, resilience, and capacity certification | Prove scale and failure behavior after feature completion. | SAST/dependency/image scans, SBOM, backup/restore, Redis/Celery/provider loss, load/stress/spike/soak, 1M-contact target, bundle/query optimization. | Existing quality/deployment scripts; focused fixes; evidence artifacts/docs. | Full static/pre-merge/release/deployed gates; chaos/recovery/performance lab. | All repository gates pass; capacity budgets and recovery objectives have reproducible evidence; no known high/critical release blocker. | +0 | None unless an additive performance index is reviewed |
 | REL-03 — Target-host commissioning and final acceptance | Close environment-only evidence and release the complete private platform. | TLS/host hardening, secrets, migrations, owner bootstrap, MySQL/Redis/Celery/nginx health, monitoring/log shipping/alerts/synthetics, UAT, restore and rollback rehearsal. | Deployment configuration/runbooks; final governance ledgers; release notes/tag. | Target-host smoke/E2E; alerts/dead-man; restore/rollback; acceptance checklist. | Every `VALIDATION_RESULTS.md` item is `PASS`, every module is 100% or explicitly owner-deferred, final scope traceability is complete, and owner approves release. | +0 | Upgrade through final additive head |
 
+REL-02 local checkpoint (REL-02A, 2026-09-21): full deployed quality profile, security scans,
+SBOMs, production images/topology, authenticated accessibility/browser flows, Redis degradation,
+observability and latency canary pass. Off-host restore and approved capacity/stress/spike/soak lab
+evidence remain open; target-host/provider/owner evidence belongs to REL-03.
+
 ## Scope traceability
 
 | Final-scope area | Roadmap coverage |

@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## REL-02A — COMPLETE, local release certification (2026-09-21)
+
+- Backend and frontend runtime images now consume fixed Alpine packages during release builds.
+- Production auth remains 10 requests / 5 minutes; only the disposable crawler receives 100.
+- PASS: complete deployed quality profile, 1,782 backend and 1,022 frontend tests.
+- PASS: blocking source/dependency/image scans and deployable-image SBOM generation.
+- PASS: isolated stack, five browser journeys, p95 canary, observability and Redis degradation.
+- PENDING — off-host restore, large-scale stress/spike/soak and target-host/provider/owner evidence.
+
 ## ACCEPT-02 — COMPLETE, host validated (2026-09-21)
 
 - Disposable local MySQL/Redis stack populated through the governed development fixture command.

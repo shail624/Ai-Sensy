@@ -1,5 +1,13 @@
 # Module Status
 
+## REL-02A — Local release certification (2026-09-21)
+
+Deployment/security readiness now has passing local evidence for full code suites, deployable
+images, source/dependency/image scanning, SBOMs, the production topology, authenticated browser
+flows, accessibility, Redis degradation, observability and a latency canary. User-facing module
+percentages remain unchanged because this is release evidence rather than invented feature scope.
+Capacity/restore lab evidence and target-host/provider acceptance remain open.
+
 ## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
 
 Dashboard, Inbox, Chat History, Contacts, Campaigns, Analytics, Download Center, Automation,

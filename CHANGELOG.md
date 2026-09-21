@@ -1,5 +1,13 @@
 # Changelog
 
+## REL-02A — Local release certification (2026-09-21)
+
+Closed the local production-security blocker by applying current Alpine security updates in both
+digest-pinned runtime images. Added a disposable-gate-only auth allowance for the hard-navigation
+accessibility crawler while preserving the production default. PASS: full deployed profile,
+1,782 backend tests, 1,022 frontend tests, source/dependency/image scans, SBOMs, production image
+contracts, five browser journeys, Redis degradation, log correlation and 6.1 ms p95 canary.
+
 ## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
 
 Validated the application with repository-owned representative fixtures on the disposable local
