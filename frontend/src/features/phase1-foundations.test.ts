@@ -23,6 +23,11 @@ describe("Phase 1 information architecture", () => {
   it("keeps technical controls out of the business workspace", () => {
     expect(navItems.find((item) => item.label === "Operations")?.group).toBe("Platform");
     expect(navItems.find((item) => item.label === "Admin")?.group).toBe("Platform");
+    expect(OPERATIONS_SECTIONS.find((section) => section.key === "api")).toMatchObject({
+      label: "Project API keys",
+      path: "/operations/api",
+      permission: "apikeys:manage",
+    });
   });
 
   it("keeps the AiSensy-style daily tabs visible without removing entitled destinations", () => {

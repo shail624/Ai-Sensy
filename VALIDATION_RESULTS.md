@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+- PASS: authenticated AiSensy Developer Hub inspected read-only.
+- PASS: focused foundations/Admin/Operations regression, 3 files / 103 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing credential security, lifecycle, audit and permission behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## UI-REF-17 — Notification Preferences focus (2026-09-21)
 
 - PASS: authenticated AiSensy Notification Preferences inspected read-only.

@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Developer and Administration remain at their existing completion percentages. Project API keys now
+open in a focused Developer Hub while credential security, state and audit behavior remain intact.
+Overall canonical average remains approximately 88.0%; authenticated local visual/browser
+acceptance remains open.
+
 ## UI-REF-17 — Notification Preferences focus (2026-09-21)
 
 Notifications and Settings remain at their existing completion percentages. Personal category

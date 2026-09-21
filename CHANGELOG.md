@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Compared the authenticated Developer Hub and made the direct credential entry a focused Developer
+Hub with Project API keys context and a Create API key action. Existing one-time secret, scopes,
+expiry, state, rotation/revocation and audit behavior remains intact. API campaigns, outbound
+project webhooks and a competing documentation contract were not faked. PASS: focused 103 and full
+frontend 1,022 tests, TypeScript, ESLint and production build.
+
 ## UI-REF-17 — Notification Preferences focus (2026-09-21)
 
 Compared the authenticated Notification Preferences screen and promoted the existing real per-user

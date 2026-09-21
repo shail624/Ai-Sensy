@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Repository validated. Project API credentials now carry the authenticated reference's applicable
+focused Developer Hub hierarchy while the generated contract and richer credential lifecycle stay
+authoritative. API campaigns and outbound project webhooks remain gated. Captures 0056–0069 remain
+excluded and the approved 73-screen comparison set is now exhausted; the next acceptance step is
+the authenticated local populated visual/browser matrix, not another reference screen.
+
 ## UI-REF-17 — Notification Preferences focus (2026-09-21)
 
 Repository validated. Existing real personal notification controls now carry the authenticated

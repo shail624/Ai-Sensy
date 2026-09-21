@@ -73,7 +73,7 @@ export function ApiKeysPanel(): JSX.Element {
             onClick={() => setCreating(true)}
             className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
-            New API key
+            Create API key
           </button>
         ) : null}
       </div>
@@ -275,7 +275,7 @@ function ApiKeyDialog({ rotating, onClose, onIssued }: DialogProps): JSX.Element
   }
 
   return (
-    <Modal title={rotating ? `Rotate "${rotating.name}"` : "New API key"} onClose={onClose}>
+    <Modal title={rotating ? `Rotate "${rotating.name}"` : "Create API key"} onClose={onClose}>
       <div className="space-y-3">
         {rotating ? (
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary">

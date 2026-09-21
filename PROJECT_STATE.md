@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Repository complete. The direct Developer entry now matches the authenticated reference's
+applicable focused-hub hierarchy while retaining richer governed credential security and lifecycle
+facts. No API-campaign, outbound-webhook or duplicate-contract surface was introduced. Full
+frontend is green at 63 files / 1,022 tests; overall canonical completion remains approximately
+88% because this is acceptance refinement.
+
 ## UI-REF-17 — Notification Preferences focus (2026-09-21)
 
 Repository complete. Real per-user notification-category controls now have the dedicated workspace

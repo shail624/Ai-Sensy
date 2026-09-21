@@ -1,5 +1,14 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-18 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Developer Hub and approved captures 0070–0073 inspected read-only.
+- The direct Developer entry now opens a focused Project API keys workspace.
+- Existing credential security, lifecycle, audit and permission behavior remains canonical.
+- API campaigns, outbound project webhooks and duplicate API documentation remain absent.
+- PASS: focused 103 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## UI-REF-17 — COMPLETE, repository validated (2026-09-21)
 
 - Authenticated AiSensy Notification Preferences and approved capture 0055 inspected read-only.
