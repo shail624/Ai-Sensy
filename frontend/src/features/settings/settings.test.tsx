@@ -495,7 +495,11 @@ describe("ApplicationPanel", () => {
     withProviders(<ApplicationPanel />, "/settings/application#consent");
     const control = await screen.findByLabelText("Recognize consent keywords");
     await waitFor(() => expect(control.closest("#consent")).toHaveFocus());
-    expect(screen.getByRole("button", { name: "Save inbox policy" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save consent settings" })).toBeEnabled();
+    expect(screen.queryByText("New conversation routing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Automatic conversation resolution")).not.toBeInTheDocument();
+    expect(screen.queryByText("Advanced organization settings")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Customer preview")).toHaveLength(2);
   });
 
   it("separates the two scopes and makes system settings read-only", async () => {

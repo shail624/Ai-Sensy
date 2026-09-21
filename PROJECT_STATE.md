@@ -1,5 +1,13 @@
 # Project State
 
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Repository complete. The existing real consent-keyword and acknowledgement behavior now has a
+dedicated Manage presentation aligned to the authenticated reference's information hierarchy.
+Unrelated settings no longer bury the workflow. No excluded reference feature or fake control was
+added. Full frontend remains green at 63 files / 1,020 tests; overall canonical completion remains
+approximately 88% because this is acceptance refinement, not a new product capability.
+
 ## CORE-10 — Chat History reference acceptance (2026-09-20)
 
 Current milestone branch `codex/core-10-chat-history-acceptance`, based on CORE-15 commit `b4e1954`.

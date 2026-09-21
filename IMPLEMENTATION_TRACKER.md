@@ -1,5 +1,17 @@
 # Implementation Tracker (canonical)
 
+## UI-REF-11 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Opt-in Management and approved captures 0045/0046 inspected read-only.
+- Existing exact-match consent policy remains the sole backend authority; no subsystem was rebuilt.
+- The Manage deep link now opens a focused consent workspace with paired keyword controls,
+  independent acknowledgement controls, customer previews and a contextual save action.
+- Unrelated Inbox/application settings are hidden only at the consent deep link and remain available
+  on their existing route.
+- Ads, premium report/download, AI launch and unsupported API-campaign controls remain absent.
+- PASS: focused 129 and full frontend 1,020 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
 ## CORE-10 — COMPLETE, repository validated (2026-09-20)
 
 The existing dedicated History route, advanced filters, bounded message history, shared views,

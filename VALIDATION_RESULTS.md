@@ -1,5 +1,16 @@
 # Validation Results
 
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+- PASS: authenticated AiSensy Opt-in Management inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 129 tests.
+- PASS: complete frontend, 63 files / 1,020 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing policy, validation, permission and audit behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
 ## CORE-10 — Chat History reference acceptance (2026-09-20)
 
 - PASS: authenticated reference History list/search/selection structure inspected read-only.

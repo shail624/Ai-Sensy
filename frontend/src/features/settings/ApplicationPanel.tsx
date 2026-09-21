@@ -1,4 +1,4 @@
-import { CheckCheck, Route, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { CheckCheck, MessageSquareText, Route, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -136,6 +136,7 @@ function toEntry(setting: Setting, canManage: boolean): KeyValueEntry {
 
 function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Element {
   const { hash } = useLocation();
+  const consentOnly = hash === "#consent";
   const policy = useInboxOperations();
   const update = useUpdateInboxOperations();
   const [draft, setDraft] = useState<OperationsDraft>(DEFAULT_DRAFT);
@@ -250,16 +251,20 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
   return (
     <div id="inbox-policy" tabIndex={-1} className="scroll-mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
     <Section
-      title="Inbox operations"
-      description="Organization-wide rules consumed by new conversations and inbound messages."
-      icon={<SlidersHorizontal aria-hidden className="h-4 w-4" />}
+      title={consentOnly ? "Consent keyword rules" : "Inbox operations"}
+      description={consentOnly
+        ? "Control the exact messages that record customer opt-in and opt-out choices."
+        : "Organization-wide rules consumed by new conversations and inbound messages."}
+      icon={consentOnly
+        ? <ShieldCheck aria-hidden className="h-4 w-4" />
+        : <SlidersHorizontal aria-hidden className="h-4 w-4" />}
       action={
         <Badge tone={policy.data?.configured ? "success" : "neutral"}>
           {policy.data?.configured ? "Configured" : "Using safe defaults"}
         </Badge>
       }
     >
-      <div className="grid gap-4 xl:grid-cols-3">
+      {!consentOnly ? <div className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface-2 p-4">
           <div className="mb-3 flex items-start gap-3">
             <Route aria-hidden className="mt-0.5 h-4 w-4 text-accent" />
@@ -335,7 +340,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
           </span>
         </label>
 
-        <div id="consent" tabIndex={-1} className="scroll-mt-4 rounded-xl border border-border bg-surface-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+        <div className="rounded-xl border border-border bg-surface-2 p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
@@ -359,13 +364,42 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             </span>
           </label>
         </div>
-      </div>
+      </div> : null}
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      {consentOnly ? <div
+        id="consent"
+        tabIndex={-1}
+        className="scroll-mt-4 rounded-xl border border-border bg-surface-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:p-5"
+      >
+        <label className="flex cursor-pointer items-start justify-between gap-4">
+          <span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <ShieldCheck aria-hidden className="h-4 w-4 text-accent" />
+              Recognize consent keywords
+            </span>
+            <span className="mt-1 block max-w-2xl text-xs leading-relaxed text-text-secondary">
+              Exact whole-message matches update the contact&apos;s consent record. A sentence that merely
+              contains a keyword is ignored.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            aria-label="Recognize consent keywords"
+            checked={draft.consentEnabled}
+            disabled={!canManage}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, consentEnabled: event.target.checked }))
+            }
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+          />
+        </label>
+      </div> : null}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Field
           htmlFor="opt-in-keywords"
           label="Opt-in keywords"
-          description="Comma-separated; matching ignores case and surrounding spaces."
+          description="Messages that record permission to contact this person. Separate entries with commas."
         >
           <Input
             id="opt-in-keywords"
@@ -379,7 +413,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         <Field
           htmlFor="opt-out-keywords"
           label="Opt-out keywords"
-          description="Keep at least one opt-out keyword whenever consent handling is enabled."
+          description="Messages that record withdrawal. Matching ignores case and surrounding spaces."
         >
           <Input
             id="opt-out-keywords"
@@ -392,7 +426,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         </Field>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {(
           [
             [
@@ -409,7 +443,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             ],
           ] as const
         ).map(([kind, label, enabled, body]) => (
-          <div key={kind} className="rounded-xl border border-border bg-surface-2 p-4">
+          <div key={kind} className="rounded-xl border border-border bg-surface-2 p-4 sm:p-5">
             <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
@@ -434,28 +468,34 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
                 </span>
               </span>
             </label>
-            <textarea
-              aria-label={`${label} message`}
-              value={body}
-              maxLength={1000}
-              disabled={!canManage || !draft.consentEnabled || !enabled}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  ...(kind === "opt-in"
-                    ? { optInResponseBody: event.target.value }
-                    : { optOutResponseBody: event.target.value }),
-                }))
-              }
-              className="mt-3 min-h-24 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
-              placeholder="Enter the confirmation message"
-            />
+            <div className="mt-4 rounded-xl border border-border bg-surface p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium text-text-secondary">
+                <MessageSquareText aria-hidden className="h-4 w-4 text-accent" />
+                Customer preview
+              </div>
+              <textarea
+                aria-label={`${label} message`}
+                value={body}
+                maxLength={1000}
+                disabled={!canManage || !draft.consentEnabled || !enabled}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    ...(kind === "opt-in"
+                      ? { optInResponseBody: event.target.value }
+                      : { optOutResponseBody: event.target.value }),
+                  }))
+                }
+                className="min-h-24 w-full resize-y rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+                placeholder="Enter the confirmation message"
+              />
+            </div>
             <p className="mt-1 text-right text-xs text-text-disabled">{body.length}/1,000</p>
           </div>
         ))}
       </div>
 
-      <WorkingHoursEditor
+      {!consentOnly ? <WorkingHoursEditor
         disabled={!canManage}
         timezone={policy.data?.organization_timezone ?? "UTC"}
         enabled={draft.workingHoursEnabled}
@@ -491,9 +531,9 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         onOffHoursBodyChange={(body) =>
           setDraft((current) => ({ ...current, offHoursBody: body }))
         }
-      />
+      /> : null}
 
-      <AutoResolveEditor
+      {!consentOnly ? <AutoResolveEditor
         disabled={!canManage}
         enabled={draft.autoResolveEnabled}
         inactiveAfterHours={draft.inactiveAfterHours}
@@ -503,7 +543,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         onInactiveAfterHoursChange={(hours) =>
           setDraft((current) => ({ ...current, inactiveAfterHours: hours }))
         }
-      />
+      /> : null}
 
       {validation ? (
         <p role="alert" className="mt-3 text-xs text-danger">{validation}</p>
@@ -524,7 +564,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             loading={update.isPending}
             onClick={save}
           >
-            Save inbox policy
+            {consentOnly ? "Save consent settings" : "Save inbox policy"}
           </Button>
         ) : null}
       </div>
@@ -535,6 +575,8 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
 
 /** Operational policy first; the generic store remains available for advanced deployments. */
 export function ApplicationPanel(): JSX.Element {
+  const { hash } = useLocation();
+  const consentOnly = hash === "#consent";
   const canManage = useHasPermission("settings:manage");
   const settings = useSettings();
   const update = useUpdateSettings();
@@ -569,7 +611,7 @@ export function ApplicationPanel(): JSX.Element {
     <div className="space-y-4">
       <OperationalPolicyPanel canManage={canManage} />
 
-      <Section
+      {!consentOnly ? <Section
         title="Advanced organization settings"
         description="Additional deployment-specific values that do not yet have a dedicated control."
       >
@@ -584,9 +626,9 @@ export function ApplicationPanel(): JSX.Element {
           emptyDescription="Add a deployment-specific key only when a module documents that it consumes it."
           note="The validated inbox policy is reserved and cannot be bypassed from this advanced editor."
         />
-      </Section>
+      </Section> : null}
 
-      <Section title="System settings">
+      {!consentOnly ? <Section title="System settings">
         {systemEntries.length === 0 ? (
           <p className="text-sm text-text-disabled">
             No system-scoped settings are stored. These come from the server&apos;s own
@@ -604,9 +646,9 @@ export function ApplicationPanel(): JSX.Element {
             note="Read-only. These values are set on the server."
           />
         )}
-      </Section>
+      </Section> : null}
 
-      <Section title="System information">
+      {!consentOnly ? <Section title="System information">
         <dl>
           <DefinitionRow label="Settings stored">{formatCount(all.length)}</DefinitionRow>
           <DefinitionRow label="Organization-scoped">
@@ -619,7 +661,7 @@ export function ApplicationPanel(): JSX.Element {
           Secret settings are never returned. Operational inbox behavior is modelled above; other
           advanced keys only have an effect when a platform module explicitly consumes them.
         </p>
-      </Section>
+      </Section> : null}
     </div>
   );
 }

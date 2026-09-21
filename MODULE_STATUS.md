@@ -1,5 +1,12 @@
 # Module Status
 
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Settings and Inbox remain at their existing completion percentages. The real consent workflow is
+now a focused Manage screen with close permitted hierarchy parity: paired keyword controls,
+independent acknowledgements, customer previews and a contextual save action. Overall canonical
+average remains approximately 88.0%; authenticated local visual/browser acceptance remains open.
+
 ## CORE-10 — Chat History reference acceptance (2026-09-20)
 
 Chat History advances **88% → 90%**. Its complete read-only workflow now carries the compact

@@ -1,5 +1,13 @@
 # Final Product Implementation Roadmap
 
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Repository validated. The existing exact-match consent engine now appears as a dedicated Manage
+workspace with the keyword, acknowledgement and customer-preview hierarchy observed in the
+authenticated reference. Ads, premium reports, AI launch shortcuts and unsupported API-campaign
+controls remain absent. The next permitted Manage comparison is Live Chat Settings; it is not
+started by this milestone.
+
 ## CORE-10 — Chat History reference acceptance (2026-09-20)
 
 Repository complete. The previously delivered History route, query extensions, shared views and

@@ -1,5 +1,13 @@
 # Changelog
 
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Compared the authenticated AiSensy Opt-in Management workflow and made the existing consent controls
+a dedicated Manage workspace. Opt-in/out keywords, independent acknowledgement toggles, editable
+customer previews and the single governed save action now carry the same clear hierarchy without
+copying excluded ads, premium reports or unsupported API-campaign controls. PASS: focused 129 and
+full frontend 1,020 tests, TypeScript, ESLint and production build. No backend or contract delta.
+
 ## CORE-10 — Chat History reference acceptance (2026-09-20)
 
 Reconciled the complete existing Chat History workflow against the authenticated reference. Added
