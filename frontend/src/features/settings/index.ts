@@ -1,5 +1,6 @@
 export { OrganizationPanel } from "./OrganizationPanel";
 export { ApplicationPanel } from "./ApplicationPanel";
+export { OptInManagement } from "./OptInManagement";
 export { FeatureFlagsPanel, FlagStateChip } from "./FeatureFlagsPanel";
 export { PreferencesPanel } from "./PreferencesPanel";
 export { TagsPanel } from "./TagsPanel";

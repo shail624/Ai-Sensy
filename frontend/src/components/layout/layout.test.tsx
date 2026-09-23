@@ -57,7 +57,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Template Message" })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Live Chat Settings" })).toHaveAttribute("href", "/settings/application#inbox-policy");
-    expect(screen.getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("href", "/settings/application#consent");
+    expect(screen.getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("href", "/opt-in");
     expect(screen.getByRole("link", { name: "Analytics" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Developer" })).toHaveAttribute("href", "/operations/api");
     expect(screen.getAllByText("foundation")).toHaveLength(1);
@@ -113,7 +113,7 @@ describe("Sidebar", () => {
   });
 
   it("keeps Manage beside the page on direct deep links and selects only the matching section", () => {
-    renderAt(<Sidebar collapsed />, "/settings/application#consent");
+    renderAt(<Sidebar collapsed />, "/opt-in");
     const panel = screen.getByRole("region", { name: "Manage" });
     expect(within(panel).getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("aria-current", "page");
     expect(within(panel).getByRole("link", { name: "Live Chat Settings" })).not.toHaveAttribute("aria-current", "page");

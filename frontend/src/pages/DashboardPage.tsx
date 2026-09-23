@@ -60,7 +60,7 @@ function QuickActions(): JSX.Element | null {
             <li key={action.path}>
               <Link
                 to={action.path}
-                className="group flex h-full flex-col gap-1.5 rounded-lg border border-[#f0f0f0] p-3 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-transparent hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:border-border"
+                className="group flex h-full flex-col gap-1.5 rounded-[8px] border border-[#f0f0f0] p-3 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-transparent hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:border-border"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ebf5f3] text-[var(--color-nav-bg)] dark:bg-accent-soft dark:text-accent">
                   <Icon aria-hidden className="h-4 w-4" />

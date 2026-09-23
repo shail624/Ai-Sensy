@@ -182,7 +182,7 @@ export function manageNavGroups(
   const manage = [
     ...destination("/templates", "Template Message"),
     ...(hasPermission("settings:read") ? [
-      { label: "Opt-in Management", path: "/settings/application#consent", available: true,
+      { label: "Opt-in Management", path: "/opt-in", available: true,
         glyph: "O", icon: Shield, group: "Manage", permission: "settings:read",
         description: "Configure opt-in and opt-out keyword handling." },
       { label: "Live Chat Settings", path: "/settings/application#inbox-policy", available: true,

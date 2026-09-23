@@ -1,5 +1,25 @@
 # Project State
 
+## UI-AIS-02 — Manage → Opt-in Management matched to the AiSensy reference (2026-09-24)
+
+Second Manage page of the screen-by-screen reference match (UI-AIS-01). The reference was only
+viewed; its Configure dialog was opened and cancelled.
+
+- Opt-in Management now has its own page (`/opt-in`, `settings:read`) with the reference layout:
+  60px `ManagePageHeader`, a consent switch card, then Opt-out and Opt-in cards with one 200x42
+  field per keyword, Add more, Save Settings, and a Configure (pencil) dialog at 959px whose saved
+  text shows in a WhatsApp-bubble preview. The old `/settings/application#consent` view still works.
+- Same data and endpoint as before (the inbox operations policy); a save sends every non-consent
+  field back unchanged, verified by test. Validation is identical to the combined form's.
+- Fixed: this project's `rounded-lg` is 12px while the reference uses 8px; the new Dashboard, Live
+  Chat and Opt-in surfaces now use 8px.
+- Not built (no backend capability, so not faked): API Campaign Opt-out toggle, template-based
+  responses, and the Opt-in/out report download. The reference's guide and promo cards are its own
+  content.
+- PASS: frontend 65 files / 1,040 tests, TypeScript, ESLint, production build. Backend unchanged
+  since UI-AIS-01 (1,786 passed).
+- No module percentage change.
+
 ## UI-AIS-01 — Dashboard, Live Chat and the Manage column matched to the AiSensy reference (2026-09-24)
 
 The owner asked for the app to match the logged-in AiSensy reference screen by screen. Each screen

@@ -1,5 +1,5 @@
 /** Shared AiSensy-reference surfaces for the dashboard cards (white, 8px radius, soft glow). */
-export const DASH_CARD = "rounded-lg bg-surface shadow-card";
+export const DASH_CARD = "rounded-[8px] bg-surface shadow-card";
 
 /** Dark teal compact action — AiSensy's "Setup" / "Buy More" button (31px tall, 6px radius). */
 export const DASH_PRIMARY_BUTTON =

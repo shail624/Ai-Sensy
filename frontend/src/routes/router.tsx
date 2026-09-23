@@ -35,6 +35,7 @@ const AdminPage = lazyNamed(() => import("@/pages/AdminPage"), "AdminPage");
 const AnalyticsPage = lazyNamed(() => import("@/pages/AnalyticsPage"), "AnalyticsPage");
 const AutomationPage = lazyNamed(() => import("@/pages/AutomationPage"), "AutomationPage");
 const BroadcastsPage = lazyNamed(() => import("@/pages/BroadcastsPage"), "BroadcastsPage");
+const OptInPage = lazyNamed(() => import("@/pages/OptInPage"), "OptInPage");
 const CampaignCreatePage = lazyNamed(() => import("@/pages/CampaignCreatePage"), "CampaignCreatePage");
 const CampaignDetailPage = lazyNamed(() => import("@/pages/CampaignDetailPage"), "CampaignDetailPage");
 const CampaignEditPage = lazyNamed(() => import("@/pages/CampaignEditPage"), "CampaignEditPage");
@@ -365,6 +366,12 @@ export const router = createBrowserRouter([
                 children: [{ index: true, element: lazyElement(AuditPanel) }],
               },
             ],
+          },
+          {
+            // Manage → Opt-in Management: the consent slice of the inbox policy on its own page.
+            path: "opt-in",
+            element: <RequirePermission code="settings:read" />,
+            children: [{ index: true, element: lazyElement(OptInPage) }],
           },
           {
             // Each section carries the permission its own endpoints enforce. Preferences is on

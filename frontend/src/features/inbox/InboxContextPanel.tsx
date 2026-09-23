@@ -82,7 +82,7 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-2 gap-y-1 rounded-lg bg-[#ebf5f3] p-4 text-xs dark:bg-accent-soft">
+        <dl className="grid grid-cols-2 gap-x-2 gap-y-1 rounded-[8px] bg-[#ebf5f3] p-4 text-xs dark:bg-accent-soft">
           {facts.map(([label, value]) => (
             <div key={label} className="contents">
               <dt className="text-[#4a4a4a] dark:text-text-secondary">{label}</dt>

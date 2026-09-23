@@ -101,7 +101,7 @@ function StepAccordion({ step, next, defaultOpen }: { step: SetupStep; next: boo
   const bodyId = useId();
   const Icon = step.icon;
   return (
-    <div className={`rounded-lg border border-transparent pb-2 pl-4 pt-2 transition-colors duration-150 ${next ? DASH_SOFT : "bg-surface"}`}>
+    <div className={`rounded-[8px] border border-transparent pb-2 pl-4 pt-2 transition-colors duration-150 ${next ? DASH_SOFT : "bg-surface"}`}>
       <button
         type="button"
         aria-expanded={open}
@@ -163,13 +163,13 @@ export function SetupChecklist({ steps }: { steps: SetupStep[] }): JSX.Element {
 
       {next ? (
         <div>
-          <p className={`ml-1.5 inline-block rounded-t-lg px-3 pt-1 text-xs font-semibold leading-[17px] text-[#247309] dark:text-success-on-soft ${DASH_SOFT}`}>
+          <p className={`ml-1.5 inline-block rounded-t-[8px] px-3 pt-1 text-xs font-semibold leading-[17px] text-[#247309] dark:text-success-on-soft ${DASH_SOFT}`}>
             NEXT
           </p>
           <StepAccordion key={next.key} step={next} next defaultOpen />
         </div>
       ) : (
-        <p className={`flex items-center gap-2 rounded-lg p-2.5 text-[15px] font-semibold text-[#2f4f4f] dark:text-text-primary ${DASH_SOFT}`}>
+        <p className={`flex items-center gap-2 rounded-[8px] p-2.5 text-[15px] font-semibold text-[#2f4f4f] dark:text-text-primary ${DASH_SOFT}`}>
           <Check aria-hidden className="h-5 w-5 text-[#27c152]" />
           Your workspace is fully set up.
         </p>
