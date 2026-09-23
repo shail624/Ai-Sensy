@@ -36,7 +36,7 @@ if "%APP_PASS%"=="" (
 echo Passwords mil gaye. MySQL user reset ho raha hai...
 echo.
 
-docker compose -f docker-compose.production.yml exec mysql ^
+docker exec wa-platform-mysql-1 ^
     mysql -u root -p%ROOT_PASS% -e ^
     "ALTER USER '%APP_USER%'@'%%' IDENTIFIED BY '%APP_PASS%'; FLUSH PRIVILEGES; SELECT 'Password reset OK' AS status;"
 
