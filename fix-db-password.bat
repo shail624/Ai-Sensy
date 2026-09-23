@@ -1,40 +1,57 @@
 @echo off
-title Fix DB Password
+title Fix DB Password - Auto
 color 0E
-
-echo ============================================
-echo  Database Password Fix
-echo ============================================
-echo.
-echo Pehle apna .env.production file kholo.
-echo Notepad mein: C:\Users\Admin\Documents\Claude Code\Ai Sensy Project\.env.production
-echo.
-echo Yahan se 2 values chahiye:
-echo   DB_ROOT_PASSWORD=????
-echo   DB_PASSWORD=????
-echo.
-
 cd /d "%~dp0"
 
-set /p ROOT_PASS=DB_ROOT_PASSWORD ka value type karo:
+echo ============================================
+echo  Vi Platform - Database Password Auto-Fix
+echo ============================================
 echo.
-set /p APP_PASS=DB_PASSWORD ka value type karo:
+echo .env.production se passwords padh raha hoon...
+
+:: Read DB_ROOT_PASSWORD, DB_USER, DB_PASSWORD from .env.production
+set ROOT_PASS=
+set APP_USER=
+set APP_PASS=
+
+for /f "usebackq tokens=1,* delims==" %%a in (".env.production") do (
+    if "%%a"=="DB_ROOT_PASSWORD" set "ROOT_PASS=%%b"
+    if "%%a"=="DB_USER"          set "APP_USER=%%b"
+    if "%%a"=="DB_PASSWORD"      set "APP_PASS=%%b"
+)
+
+if "%ROOT_PASS%"=="" (
+    color 0C
+    echo ERROR: DB_ROOT_PASSWORD nahi mila .env.production mein.
+    pause
+    exit /b 1
+)
+if "%APP_PASS%"=="" (
+    color 0C
+    echo ERROR: DB_PASSWORD nahi mila .env.production mein.
+    pause
+    exit /b 1
+)
+
+echo Passwords mil gaye. MySQL user reset ho raha hai...
 echo.
 
-echo Fixing password...
-docker compose -f docker-compose.production.yml exec mysql mysql -u root -p%ROOT_PASS% -e "ALTER USER 'wa_app'@'%%' IDENTIFIED BY '%APP_PASS%'; FLUSH PRIVILEGES;"
+docker compose -f docker-compose.production.yml exec mysql ^
+    mysql -u root -p%ROOT_PASS% -e ^
+    "ALTER USER '%APP_USER%'@'%%' IDENTIFIED BY '%APP_PASS%'; FLUSH PRIVILEGES; SELECT 'Password reset OK' AS status;"
 
 if %errorlevel% neq 0 (
     color 0C
     echo.
-    echo ERROR: Root password galat hai ya MySQL band hai.
-    echo DB_ROOT_PASSWORD dobara check karo.
+    echo ERROR: MySQL reset fail hua.
+    echo Possible reason: MySQL abhi bhi start ho raha hai, ya DB_ROOT_PASSWORD galat hai.
+    echo 30 second baad dobara try karo.
     pause
     exit /b 1
 )
 
 echo.
-echo Password fix ho gaya! Ab migration chala raha hoon...
+echo Password reset ho gaya! Migration chala raha hoon...
 echo.
 
 docker compose -f docker-compose.production.yml --env-file .env.production up migrate
@@ -42,13 +59,20 @@ docker compose -f docker-compose.production.yml --env-file .env.production up mi
 if %errorlevel% neq 0 (
     color 0C
     echo.
-    echo Migration fail hui. Upar ki output copy karo aur Claude ko bhejo.
+    echo Migration fail hui. Upar ka output copy karo aur Claude ko bhejo.
     pause
     exit /b 1
 )
 
 echo.
+color 0A
 echo ============================================
-echo  DONE! Ab redeploy.bat dobara chalao.
+echo  COMPLETE! Ab services restart ho rahi hain.
 echo ============================================
+echo.
+
+docker compose -f docker-compose.production.yml --env-file .env.production up -d
+
+echo.
+echo Sab ho gaya. Browser mein reload karo: http://localhost
 pause
