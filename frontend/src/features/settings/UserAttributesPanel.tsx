@@ -181,15 +181,14 @@ export function UserAttributesPanel(): JSX.Element {
 
   const newAttributeButton = canManage ? (
     <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => openEditor(emptyEditor())}>
-      New attribute
+      Add attribute
     </Button>
   ) : null;
 
   return (
     <Section
       title="User Attributes"
-      description="Typed custom fields available on every contact, campaign audience and segment."
-      action={newAttributeButton}
+      description="Typed contact fields available to profiles, campaign audiences and segments."
     >
       <p className="mb-3 text-sm text-text-secondary">
         {all.length === 0
@@ -223,6 +222,7 @@ export function UserAttributesPanel(): JSX.Element {
                 </option>
               ))}
             </Select>
+            {newAttributeButton}
           </FilterBar>
         </div>
       ) : null}
@@ -259,8 +259,8 @@ export function UserAttributesPanel(): JSX.Element {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
               <tr>
-                <th scope="col" className="px-3 py-2">Key name</th>
-                <th scope="col" className="px-3 py-2">Label</th>
+                <th scope="col" className="px-3 py-2">Attribute key</th>
+                <th scope="col" className="px-3 py-2">Display label</th>
                 <th scope="col" className="px-3 py-2">Type</th>
                 <th scope="col" className="hidden px-3 py-2 md:table-cell">Indexed</th>
                 <th scope="col" className="hidden px-3 py-2 md:table-cell">PII</th>
@@ -362,7 +362,7 @@ export function UserAttributesPanel(): JSX.Element {
 
       {editor ? (
         <Modal
-          title={editor.definition ? `Edit ${editor.definition.label}` : "New user attribute"}
+          title={editor.definition ? `Edit ${editor.definition.label}` : "Add user attribute"}
           onClose={() => setEditor(null)}
         >
           <form

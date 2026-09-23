@@ -43,6 +43,8 @@ async def create_tag(
         name=payload.name,
         color=payload.color,
         description=payload.description,
+        first_message_enabled=payload.first_message_enabled,
+        first_message_keywords=payload.first_message_keywords,
     )
     return TagResponse.from_tag(tag)
 
@@ -61,6 +63,8 @@ async def update_tag(
         name=payload.name,
         color=payload.color,
         description=payload.description,
+        first_message_enabled=payload.first_message_enabled,
+        first_message_keywords=payload.first_message_keywords,
     )
     return TagResponse.from_tag(tag)
 

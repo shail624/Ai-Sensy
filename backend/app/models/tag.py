@@ -7,7 +7,7 @@ index ``(tag_id, contact_id)`` is essential for "all contacts with tag X" (segme
 
 from __future__ import annotations
 
-from sqlalchemy import CHAR, Column, ForeignKey, Index, String, Table
+from sqlalchemy import CHAR, JSON, Boolean, Column, ForeignKey, Index, String, Table
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -57,6 +57,10 @@ class Tag(IntPKMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     color: Mapped[str | None] = mapped_column(CHAR(7), nullable=True)  # '#RRGGBB'
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     usage_count: Mapped[int] = mapped_column(int_id(), nullable=False, default=0)
+    first_message_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    first_message_keywords_json: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     created_by: Mapped[int | None] = mapped_column(big_id(), nullable=True)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid

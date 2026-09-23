@@ -47,6 +47,8 @@ class Capability(StrEnum):
     LOCATION = "location"
     CONTACT = "contact"
     REACTION = "reaction"
+    #: Provider acknowledgement that an inbound message was read by an operator.
+    READ_RECEIPTS = "read_receipts"
     #: Throughput sending — the flag Doc 07 §5.2 uses to distinguish Meta from a manual connector.
     BULK = "bulk"
     #: Drives whether the CRM offers Broadcast at all (§5.2).

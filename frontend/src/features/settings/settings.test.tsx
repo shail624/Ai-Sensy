@@ -90,10 +90,15 @@ function inboxOperationsFixture(
   return {
     assignment_mode: "manual",
     auto_mark_read: true,
+    send_read_receipts: true,
     consent: {
       enabled: false,
       opt_in_keywords: ["START", "YES"],
       opt_out_keywords: ["STOP", "UNSUBSCRIBE"],
+      opt_in_response_enabled: false,
+      opt_in_response_body: "",
+      opt_out_response_enabled: false,
+      opt_out_response_body: "",
     },
     working_hours: {
       enabled: false,
@@ -140,6 +145,8 @@ function tagFixture(overrides: Partial<Tag> = {}): Tag {
     color: "#1F6FEB",
     description: "Prepaid reactivation cohort.",
     usage_count: 3,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-20T10:00:00Z",
     ...overrides,
@@ -488,7 +495,26 @@ describe("ApplicationPanel", () => {
     withProviders(<ApplicationPanel />, "/settings/application#consent");
     const control = await screen.findByLabelText("Recognize consent keywords");
     await waitFor(() => expect(control.closest("#consent")).toHaveFocus());
-    expect(screen.getByRole("button", { name: "Save inbox policy" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save consent settings" })).toBeEnabled();
+    expect(screen.queryByText("New conversation routing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Automatic conversation resolution")).not.toBeInTheDocument();
+    expect(screen.queryByText("Advanced organization settings")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Customer preview")).toHaveLength(2);
+  });
+
+  it("focuses Live Chat policy without unrelated consent or advanced controls", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />, "/settings/application#inbox-policy");
+
+    expect(await screen.findByText("Live Chat behavior")).toBeInTheDocument();
+    expect(screen.getByLabelText("Clear unread on open")).toBeInTheDocument();
+    expect(screen.getByLabelText("Send read receipts to customers")).toBeInTheDocument();
+    expect(screen.getByLabelText("Use organization working hours")).toBeInTheDocument();
+    expect(screen.getByText("Automatic conversation resolution")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Live Chat settings" })).toBeEnabled();
+    expect(screen.queryByLabelText("Recognize consent keywords")).not.toBeInTheDocument();
+    expect(screen.queryByText("New conversation routing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Advanced organization settings")).not.toBeInTheDocument();
   });
 
   it("separates the two scopes and makes system settings read-only", async () => {
@@ -538,6 +564,7 @@ describe("ApplicationPanel", () => {
       target: { value: "least_open" },
     });
     fireEvent.click(screen.getByLabelText("Clear unread on open"));
+    fireEvent.click(screen.getByLabelText("Send read receipts to customers"));
     fireEvent.click(screen.getByLabelText("Recognize consent keywords"));
     fireEvent.change(screen.getByLabelText("Opt-in keywords"), {
       target: { value: "JOIN, YES" },
@@ -553,10 +580,15 @@ describe("ApplicationPanel", () => {
         body: {
           assignment_mode: "least_open",
           auto_mark_read: false,
+          send_read_receipts: false,
           consent: {
             enabled: true,
             opt_in_keywords: ["JOIN", "YES"],
             opt_out_keywords: ["STOP", "LEAVE"],
+            opt_in_response_enabled: false,
+            opt_in_response_body: "",
+            opt_out_response_enabled: false,
+            opt_out_response_body: "",
           },
           working_hours: {
             enabled: false,
@@ -583,6 +615,28 @@ describe("ApplicationPanel", () => {
         },
       }),
     );
+  });
+
+  it("saves consent acknowledgement messages with the keyword policy", async () => {
+    responses["/api/v1/settings"] = [];
+    withProviders(<ApplicationPanel />);
+
+    fireEvent.click(await screen.findByLabelText("Recognize consent keywords"));
+    fireEvent.click(screen.getByLabelText("Send opt-out acknowledgement"));
+    fireEvent.change(screen.getByLabelText("Opt-out acknowledgement message"), {
+      target: { value: "You will no longer receive messages." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save inbox policy" }));
+
+    await waitFor(() => {
+      const write = writes.find((entry) => entry.path === "/api/v1/settings/inbox-operations");
+      const body = write?.body as { consent?: Record<string, unknown> };
+      expect(body.consent).toMatchObject({
+        enabled: true,
+        opt_out_response_enabled: true,
+        opt_out_response_body: "You will no longer receive messages.",
+      });
+    });
   });
 
   it("persists working hours and guarded customer replies", async () => {
@@ -705,8 +759,11 @@ describe("FeatureFlagsPanel", () => {
 describe("PreferencesPanel", () => {
   it("edits the user's own store", async () => {
     responses["/api/v1/users/me/preferences"] = { preferences: { density: "compact" } };
+    responses["/api/v1/notifications/settings"] = { muted_types: [] };
     withProviders(<PreferencesPanel />);
 
+    expect(await screen.findByText("Notification categories")).toBeInTheDocument();
+    expect(await screen.findByRole("checkbox", { name: "Follow-up due" })).toBeChecked();
     fireEvent.change(await screen.findByLabelText("Value of density"), {
       target: { value: "comfortable" },
     });
@@ -718,6 +775,7 @@ describe("PreferencesPanel", () => {
 
   it("says where the theme actually lives, so its absence is not a surprise", async () => {
     responses["/api/v1/users/me/preferences"] = { preferences: {} };
+    responses["/api/v1/notifications/settings"] = { muted_types: [] };
     withProviders(<PreferencesPanel />);
     expect(await screen.findByText(/kept in this browser instead/)).toBeInTheDocument();
   });
@@ -763,10 +821,16 @@ describe("TagsPanel", () => {
   });
 
   it("lists tags with the usage count the read returns", async () => {
-    responses["/api/v1/tags"] = [tagFixture()];
+    responses["/api/v1/tags"] = [
+      tagFixture({ first_message_enabled: true, first_message_keywords: ["INTERESTED", "CALL ME"] }),
+    ];
     withProviders(<TagsPanel />);
 
     expect(await screen.findByText("Prepaid")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Tag name" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "First message" })).toBeInTheDocument();
+    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    expect(screen.getByText("2 exact matches")).toBeInTheDocument();
     expect(screen.getByText("3 contacts")).toBeInTheDocument();
     expect(screen.getByText("Prepaid reactivation cohort.")).toBeInTheDocument();
   });
@@ -790,7 +854,33 @@ describe("TagsPanel", () => {
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]?.path).toBe("/api/v1/tags");
-    expect(writes[0]?.body).toEqual({ name: "Winback", color: null, description: null });
+    expect(writes[0]?.body).toEqual({
+      name: "Winback",
+      color: null,
+      description: null,
+      first_message_enabled: false,
+      first_message_keywords: [],
+    });
+  });
+
+  it("configures exact-match first-message tagging on the tag itself", async () => {
+    responses["/api/v1/tags"] = [];
+    withProviders(<TagsPanel />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "New tag" }))[0]!);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Interested" } });
+    fireEvent.click(screen.getByLabelText("Apply on matching first message"));
+    fireEvent.change(screen.getByLabelText("First-message keywords"), {
+      target: { value: " interested, CALL ME " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create tag" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toMatchObject({
+      name: "Interested",
+      first_message_enabled: true,
+      first_message_keywords: ["interested", "CALL ME"],
+    });
   });
 
   it("refuses a colour the server would reject, before sending it", async () => {
@@ -1115,6 +1205,7 @@ describe("CannedMessagesPanel", () => {
     fireEvent.change(screen.getByLabelText("Shortcut"), { target: { value: "hi" } });
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Greeting" } });
     fireEvent.change(screen.getByLabelText("Body"), { target: { value: "Hi there!" } });
+    expect(screen.getByLabelText("Message preview")).toHaveTextContent("Hi there!");
     fireEvent.click(screen.getByRole("button", { name: "Create canned message" }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -1443,7 +1534,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "New attribute" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Add attribute" }).length).toBeGreaterThan(0);
   });
 
   it("shows a clean read-only empty state, with no create action, without contacts:write", async () => {
@@ -1452,7 +1543,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     expect(await screen.findByText("No user attributes yet")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add attribute" })).not.toBeInTheDocument();
     expect(screen.getAllByText(/contacts write permission/).length).toBeGreaterThan(0);
   });
 
@@ -1512,7 +1603,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "region" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
     fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
@@ -1564,7 +1655,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "ssn" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "SSN" } });
     fireEvent.click(screen.getByLabelText(/Personally identifiable information/));
@@ -1587,7 +1678,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     expect(screen.queryByLabelText("Choices")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
@@ -1616,7 +1707,7 @@ describe("UserAttributesPanel", () => {
     responses["/api/v1/custom-attributes"] = [];
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     const submit = screen.getByRole("button", { name: "Create attribute" });
 
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Region" } });
@@ -1651,7 +1742,7 @@ describe("UserAttributesPanel", () => {
     };
     withProviders(<UserAttributesPanel />);
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "New attribute" }))[0]!);
+    fireEvent.click((await screen.findAllByRole("button", { name: "Add attribute" }))[0]!);
     fireEvent.change(screen.getByLabelText("Key name"), { target: { value: "plan" } });
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "Duplicate" } });
     fireEvent.click(screen.getByRole("button", { name: "Create attribute" }));
@@ -1797,7 +1888,7 @@ describe("UserAttributesPanel", () => {
       attributeDefinitionFixture({ id: "a2", key_name: "region", label: "Region", data_type: "string" }),
     ];
 
-    fireEvent.click(within(settingsPanel).getByRole("button", { name: "New attribute" }));
+    fireEvent.click(within(settingsPanel).getByRole("button", { name: "Add attribute" }));
     fireEvent.change(within(settingsPanel).getByLabelText("Key name"), { target: { value: "region" } });
     fireEvent.change(within(settingsPanel).getByLabelText("Label"), { target: { value: "Region" } });
     fireEvent.click(within(settingsPanel).getByRole("button", { name: "Create attribute" }));
@@ -1813,7 +1904,7 @@ describe("UserAttributesPanel", () => {
     withProviders(<UserAttributesPanel />);
 
     await screen.findByText("Plan");
-    expect(screen.queryByRole("button", { name: "New attribute" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add attribute" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit Plan" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Plan" })).not.toBeInTheDocument();
     expect(screen.getByText(/contacts write permission/)).toBeInTheDocument();

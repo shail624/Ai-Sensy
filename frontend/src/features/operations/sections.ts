@@ -48,10 +48,10 @@ export const OPERATIONS_SECTIONS: OperationsSection[] = [
   },
   {
     key: "api",
-    label: "API",
+    label: "Project API keys",
     path: "/operations/api",
     permission: "apikeys:manage",
-    description: "Audited API credentials for trusted integrations.",
+    description: "Create, monitor and revoke audited credentials for trusted integrations.",
   },
   {
     key: "webhooks",

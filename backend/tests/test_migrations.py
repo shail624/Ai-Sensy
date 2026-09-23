@@ -149,7 +149,7 @@ def test_migrations_upgrade_downgrade_roundtrip(tmp_path: Path, monkeypatch) -> 
         count = con.execute("SELECT COUNT(*) FROM permissions").fetchone()[0]
         assert count == len(PERMISSION_CATALOG)
         version = con.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert version == "0070_phone_quality_unknown"
+        assert version == "0071_tag_first_message_rules"
         export_schema = con.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='exports'"
         ).fetchone()[0]
@@ -404,7 +404,7 @@ def test_single_migration_head() -> None:
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(_alembic_config())
-    assert script.get_heads() == ["0070_phone_quality_unknown"]
+    assert script.get_heads() == ["0071_tag_first_message_rules"]
 
 
 def test_revision_chain_is_linear() -> None:

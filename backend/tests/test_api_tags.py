@@ -46,6 +46,38 @@ async def test_tag_validation_and_duplicates(client, make_user) -> None:
     assert (
         await client.post("/api/v1/tags", headers=h, json={"name": "x", "color": "green"})
     ).status_code == 422
+    assert (
+        await client.post(
+            "/api/v1/tags",
+            headers=h,
+            json={"name": "lead", "first_message_enabled": True},
+        )
+    ).status_code == 422
+
+
+async def test_first_message_rule_is_normalized_and_editable(client, make_user) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    created = await client.post(
+        "/api/v1/tags",
+        headers=h,
+        json={
+            "name": "interested",
+            "first_message_enabled": True,
+            "first_message_keywords": [" interested ", "INTERESTED", "call me"],
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["first_message_keywords"] == ["INTERESTED", "CALL ME"]
+
+    disabled = await client.patch(
+        f"/api/v1/tags/{created.json()['id']}",
+        headers=h,
+        json={"first_message_enabled": False, "first_message_keywords": []},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["first_message_enabled"] is False
+    assert disabled.json()["first_message_keywords"] == []
 
 
 async def test_attach_and_detach_tags(client, make_user) -> None:

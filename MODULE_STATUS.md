@@ -1,5 +1,14 @@
 # Module Status
 
+## REVIEW-02 — integrating the 16-commit `codex/rel-02-local-certification` branch (2026-09-23)
+
+Reviewed and integrated CORE-10, CORE-12 through CORE-15, UI-REF-11 through UI-REF-18, ACCEPT-01,
+ACCEPT-02 and REL-02A. One module-table row was found stale and corrected: Download Center's own
+claimed "90% → 92%" (CORE-15's retention-authorization work) had never been applied to the table
+below; it now reads 92% with matching evidence. No other module percentage changes from this
+milestone — the rest is acceptance/parity/release-safety work already reflected at its prior value,
+plus ACCEPT-01's finding, kept without its rule-violating fix (see PROJECT_STATE.md).
+
 ## WABA-01 — full sync stuck on Meta's UNKNOWN quality rating (2026-09-23)
 
 The owner connected a real WABA and reported full sync stuck on a second, still-PENDING number.
@@ -43,6 +52,124 @@ paths, migration head 0069) both verified correct.
 PENDING – Owner decision: review/merge of the unmerged 16-commit `codex/rel-02-local-certification`
 stack.
 No completion percentage change: this is an audit and two small fixes, not new scope.
+## REL-02A — Local release certification (2026-09-21)
+
+Deployment/security readiness now has passing local evidence for full code suites, deployable
+images, source/dependency/image scanning, SBOMs, the production topology, authenticated browser
+flows, accessibility, Redis degradation, observability and a latency canary. User-facing module
+percentages remain unchanged because this is release evidence rather than invented feature scope.
+Capacity/restore lab evidence and target-host/provider acceptance remain open.
+
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Dashboard, Inbox, Chat History, Contacts, Campaigns, Analytics, Download Center, Automation,
+Settings/Tags and Developer are now locally host-validated with authentication and representative
+data or truthful empty states. Module completion percentages remain unchanged; this milestone
+converts the prior host-validation caveat into passing local evidence. Overall canonical completion
+remains approximately 88.0%; target-host and real-provider acceptance remain open.
+
+## ACCEPT-01 — MySQL migration reversibility, finding kept and fix not merged (2026-09-21, revised 2026-09-23)
+
+Deployment/database readiness does not advance from this milestone. Real MySQL 8 exposed a genuine
+`head→base→head` reversibility defect in ~20 already-applied migrations, correctly diagnosed — but
+the fix rewrote those applied migration files, which `REPOSITORY_RULES.md`'s additive-migration
+invariant forbids outright. REVIEW-02 kept the finding, reverted the edits, and recorded it as a
+known limitation rather than merge a rule violation; see PROJECT_STATE.md for the full account.
+Product-module completion percentages are unaffected either way — this was release-safety work,
+not user-visible capability. Overall canonical completion remains approximately 88.0%.
+
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Developer and Administration remain at their existing completion percentages. Project API keys now
+open in a focused Developer Hub while credential security, state and audit behavior remain intact.
+Overall canonical average remains approximately 88.0%; authenticated local visual/browser
+acceptance remains open.
+
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Notifications and Settings remain at their existing completion percentages. Personal category
+controls now lead a dedicated server-synced workspace while the advanced preference store remains
+available. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Contacts and Settings remain at their existing completion percentages. Tag rows now expose the real
+first-message rule state and keyword count in a dedicated column while maintained usage and CRUD
+remain intact. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Team and Administration remain at their existing completion percentages. The account workspace now
+uses direct team-management hierarchy while retaining custom roles, permissions and explicit
+enable/disable safeguards beyond the reference. Overall canonical average remains approximately
+88.0%; authenticated local visual/browser acceptance remains open.
+
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Settings and Inbox remain at their existing completion percentages. Canned Message creation now
+provides a truthful live body preview while retaining personal/shared ownership and composer
+insertion semantics. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Contacts and Settings remain at their existing completion percentages. User Attributes now uses a
+closer compact action hierarchy while retaining typed validation, lifecycle and security metadata
+beyond the reference. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Inbox and Settings remain at their existing completion percentages. Live Chat configuration now
+leads with its real read-state, automated-reply, hours and resolution controls without unrelated
+application settings. Overall canonical average remains approximately 88.0%; authenticated local
+visual/browser acceptance remains open.
+
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Settings and Inbox remain at their existing completion percentages. The real consent workflow is
+now a focused Manage screen with close permitted hierarchy parity: paired keyword controls,
+independent acknowledgements, customer previews and a contextual save action. Overall canonical
+average remains approximately 88.0%; authenticated local visual/browser acceptance remains open.
+
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Chat History advances **88% → 90%**. Its complete read-only workflow now carries the compact
+contact identity and selected-row emphasis observed in the authenticated reference while retaining
+richer governed filters, shared views and transcript export. Remaining work is live MySQL/browser
+matrix and production-scale acceptance, not missing repository functionality.
+
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Download Center advances **90% → 92%**. Its existing unified personal history remains canonical;
+artifact links now cannot outlive durable retention, including links issued before expiry. Remaining
+work concerns approved source families and real object-storage/host acceptance, not another page or
+job subsystem. Overall canonical average remains approximately 88.0%.
+
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Inbox remains **98%**. Marking an unread Meta conversation read can now send the real provider
+acknowledgement under a separate organization policy, while unsupported connectors keep honest
+local-only behavior. Existing auto-responses and business hours were verified as complete and left
+unchanged. Overall canonical average remains approximately 88.0%; production-provider and host
+acceptance remain outside repository-only completion.
+
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Inbox and Contacts remain **98%**. Operators can now configure exact first-message matching on a
+tag, and both supported inbound providers apply it once with governed counter, timeline, audit and
+event-ledger effects. Overall canonical average remains approximately 88.0%. Remaining work is
+host validation and separately approved advanced rule scope—not reconstruction of tags or Inbox.
+
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Inbox remains **98%**. Its consent-keyword evaluator now supports independently configured opt-in
+and opt-out acknowledgements with durable, duplicate-safe acceptance and post-commit delivery.
+Consent failure semantics are closed without introducing or silently deciding a separate blocked
+state. Overall canonical average remains approximately 88.0%; live Redis/MySQL acceptance and the
+blocked-state decision remain outside this repository-only milestone.
 
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
@@ -1522,7 +1649,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 |---|---:|---|---|---|
 | Dashboard | 85% | UI-TASTE-03A replaces the messaging-led home with a permission-aware operational desk over real Reactivation, KYC, Task, Campaign, Inbox, Template and Analytics sources; DASH-01 opens it with whether WhatsApp will accept sends — each number's standing, what its tier permits, and when those stored figures were last checked | A human visual review and the wider browser matrix — automated WCAG 2.1 AA conformance is now gated in a real signed-in browser (A11Y-01: axe-core over 24 routes, both themes, 1440px and 375px, against the production build), so what remains of that item is the human visual review, the browser matrix beyond Chromium, and target-host/production-scale work — plus a real rolling-window remaining-quota count, server-owned exact cross-domain aggregate totals beyond bounded source reads, and final route-performance commissioning. | Reactivation, KYC, Tasks, Campaigns, Inbox, Templates, Analytics |
 | Inbox | 98% | Shared Inbox + Live Chat with factual Requested/Active/Intervened views carrying server-owned counts scoped to the search term alone, so each badge equals the rows its own click produces, executable row-locked Intervene/owner-only Resolve and an automatic inbound published-automation Human handoff that safely produces Requested once without requeueing claimed chats; CORE-11A/11B/11C routing/read/hours/replies/auto-resolve plus existing search, filters, saved views, bulk selects and pagination remain | General chatbot execution beyond the exact inbound handoff path, SLA badges, target-host concurrency and authenticated responsive/accessibility regression. | Automation, Notifications, SLA, Settings, shared design system |
-| Chat History | 88% | PAR-HIST-01 adds factual date/campaign/media/audit list filters and governed organization-shared views to PAR-DL-02 transcripts; the read-only route retains immediate search/status/agent/channel/tag controls, full bounded messages, audit deep link and secure Download Center delivery | A human visual/device review — automated WCAG 2.1 AA conformance is now gated in a real signed-in browser (A11Y-01: axe-core over 24 routes, both themes, 1440px and 375px, against the production build), so what remains of that item is the human visual review, the browser matrix beyond Chromium, and target-host/production-scale work — and production-scale/target-host query commissioning. | Audit, Download Center, Saved Views |
+| Chat History | 90% | CORE-10 reconciles the authenticated reference's compact contact/list hierarchy with the already delivered factual date/campaign/media/audit filters, governed shared views, complete bounded messages, audit/Live Chat handoffs and secure transcript delivery | Live MySQL representative-data owner acceptance, browser matrix beyond Chromium and production-scale/target-host query commissioning; no repository feature gap remains. | Audit, Download Center, Saved Views |
 | Contacts | 98% | PAR-VIEW-02 adds governed tenant-scoped private/team definitions over the existing server-evaluated search/tag/enum-attribute filter contract while preserving URL state, mobile sheet, cursor paging, bulk actions and export audience truth | Final opt-in/eligibility/assignment/export representative-data regression, a target-device visual review — automated WCAG 2.1 AA conformance is now gated in a real signed-in browser (A11Y-01: axe-core over 24 routes, both themes, 1440px and 375px, against the production build), so what remains of that item is the human visual review, the browser matrix beyond Chromium, and target-host/production-scale work — and production-scale query commissioning; no rebuild. | Saved Views, Reactivation, shared design system |
 | Customer 360 | 90% | CORE-07 factual workspace composes identity/attributes, WhatsApp threads/messages, Reactivation CRM/reminders/notes/SLA, Tasks, Documents, KYC/SIM/Activation, Campaigns, Audit and Timeline with permission-aware source deep links | UI-TASTE hierarchy/density pass, a target-device visual review — automated WCAG 2.1 AA conformance is now gated in a real signed-in browser (A11Y-01: axe-core over 24 routes, both themes, 1440px and 375px, against the production build), so what remains of that item is the human visual review, the browser matrix beyond Chromium, and target-host/production-scale work — representative-data query-budget and production-scale commissioning; incorporate future approved source-domain facts without duplicating them. | Source domain milestones, performance lab, shared design system |
 | Campaigns | 98% | OPS-01 repaired dispatch itself: `campaign_batch_service` logged `extra={"created": ...}`, a key `logging.makeRecord` refuses because it overwrites the record's own timestamp, so every dispatch task raised on a worker running at INFO while the suite — which ran above INFO, and so executed almost no log statement — stayed green. The suite now runs at INFO, where thirteen existing tests catch it, and an AST sweep bars the whole class. PAR-VIEW-03 adds governed private/team list definitions over the existing URL-backed search/status/sort contract to PAR-CAM-01 recipient operations and PAR-DL-03 exports; applying a view resets only transient page state | Campaign-to-reactivation conversion attribution and approved recovered-value/revenue/ROI facts; authenticated representative-data/scale commissioning; no generic approval engine is required. | Saved Views, Reactivation analytics, Download Center |
@@ -1543,7 +1670,7 @@ production-scale exact aggregate totals are not claimed by repository-only valid
 | Google Sheets | 70% | GSHEET-01 imports one tab through the existing contact-import pipeline; GSHEET-02 queues a server-filtered contact export into a new dated, retry-safe tab without overwriting existing tabs | Owner service-account/live-share commissioning, scheduled re-sync and multi-tab batches. | Jobs, API keys/secrets, Contacts |
 | WhatsApp Scan | 90% | PERF-02 made the screen usable at volume: the unfiltered page was 13ms but every verdict filter — the ordinary way it is used — cost 400-460ms against 200,000 recipients, because the aggregate's access path was indexed and none of the columns it reads were. `ix_crecip_reachability` covers them; filtered pages are now 181-229ms and the tallies 216ms, all inside the 300ms budget, for a measured +21% on a bulk receipt update. SCAN-01 answers reachability from campaign delivery receipts — a delivery proves the number is reachable and Meta's 131026 says it is not, so ten of the eleven section 13 items are covered with nothing sent and no provider called | The owner chose delivery evidence over a paid provider (SCAN-02), which settles the method: upload/batch/queue/duplicate/retry are machinery for running scans and this method runs none, and business-account detection is out of reach without the provider that was declined. SCAN-02 added the segment hand-off. SCAN-03 delivered Export through the contacts export, which already addresses people by segment rule — no second pipeline. **Every applicable item is now done**; what remains is the authenticated representative-data visual review every module owes. The earlier "ten of eleven items covered" was overstated — it counted the five not-applicable items as done. | Owner-approved compliant method, Jobs, Segments, Download Center |
 | Approval Workflow | 70% | **CORE-08 — Skipped: Not required by product owner.** Existing KYC-specific approval logic and completed campaign/automation authorization safeguards are preserved. | APPR-01 built the Approval Center as a *view* over the decisions each module already owns — no new authority, no state of its own, approve gated by each module's own permission. The generic framework and escalation system stay refused: they were refused on merit, and they would be a second authority. | Existing module-specific RBAC and audit only |
-| Download Center | 90% | One permission/status/expiry/signed-link history now carries contacts, eleven Analytics families/schedules, Chat History transcripts and PAR-DL-03 governed campaign recipient results | Scan results already land here as contacts exports (SCAN-03) and DL-01 names them after the list they came from. Remaining: generated-document links (with Documents) and any separately approved artifact retry controls. | Source export/report/document milestones |
+| Download Center | 92% | CORE-15 closed the retention-authorization edge onto the existing one permission/status/expiry/signed-link history (contacts, eleven Analytics families/schedules, Chat History transcripts, PAR-DL-03 campaign recipient results): a signed link's TTL is now capped by the artifact's own durable retention, and the byte-serving route rechecks retention so a link already issued before expiry cannot outlive it | Scan results already land here as contacts exports (SCAN-03) and DL-01 names them after the list they came from. Remaining: generated-document links (with Documents), real object-storage/host retention acceptance and any separately approved artifact retry controls. | Source export/report/document milestones |
 
 ## Additional scope modules
 

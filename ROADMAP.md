@@ -1,5 +1,16 @@
 # Final Product Implementation Roadmap
 
+## REVIEW-02 — integrating the `codex/rel-02-local-certification` branch (2026-09-23)
+
+Reviewed and integrated the 16 commits left over after REVIEW-01 (CORE-10, CORE-12–15,
+UI-REF-11–18, ACCEPT-01, ACCEPT-02, REL-02A). A migration numbering collision with WABA-01 was
+resolved (rel-02's own migration renumbered 0070→0071). One ledger bug fixed: Download Center's
+claimed 92% was never applied to its own percentage table. ACCEPT-01's real MySQL-reversibility
+finding is kept; its fix is not merged because it rewrote applied migrations, which this project's
+own rules forbid outright. Nothing else in the 16 commits needed a change. Next: the owner's two
+still-open items (Google service-account key, revenue/ROI source of truth) and the owner's own
+redeploy to pick up WABA-01 and this integration on their running instance.
+
 ## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
 
 The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
@@ -138,6 +149,119 @@ UI-REF-18, ACCEPT-01/02, REL-02A) has not been reviewed at the same depth this e
 merged commits — it was surveyed at the commit-message and file-stat level only. Reviewing or
 merging it is the owner's call, made explicitly, not something this session did on its own
 initiative.
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Local host acceptance is complete across the primary desktop and mobile workspaces using governed
+representative fixtures and disposable MySQL/Redis. The next release work is environment-specific:
+target-host deployment, real WhatsApp/provider credentials and data, production observability and
+owner UAT. Those are not started or simulated by this milestone.
+
+## ACCEPT-01 — MySQL migration reversibility, finding kept and fix not merged (2026-09-21, revised 2026-09-23)
+
+Real MySQL 8 exposed a genuine `head→base→head` reversibility defect in ~20 already-applied
+migrations (foreign-key-backing indexes dropped before their table). The diagnosis stands; the
+proposed fix rewrote those applied migration files directly, which `REPOSITORY_RULES.md` forbids
+outright, so REVIEW-02 kept the finding and reverted the edits rather than merge a rule violation.
+Practical exposure is low — this project's own rollback path (`deploy/DEPLOYMENT.md` §10) reverts
+the image tag against the newer schema and never calls `alembic downgrade`. Remains open as a
+known limitation pending a rule-compliant fix; not on the critical path to the next milestone,
+authenticated representative-data desktop/mobile browser acceptance.
+
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Repository validated. Project API credentials now carry the authenticated reference's applicable
+focused Developer Hub hierarchy while the generated contract and richer credential lifecycle stay
+authoritative. API campaigns and outbound project webhooks remain gated. Captures 0056–0069 remain
+excluded and the approved 73-screen comparison set is now exhausted; the next acceptance step is
+the authenticated local populated visual/browser matrix, not another reference screen.
+
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Repository validated. Existing real personal notification controls now carry the authenticated
+reference's applicable dedicated-workspace hierarchy without fake sound, push or device enrolment.
+Billing and marketplace captures 0056–0069 remain excluded. The next permitted reference comparison
+is Developer API keys; it is not started by this milestone.
+
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Repository validated. The existing Tags workspace now carries the authenticated reference's
+applicable first-message table hierarchy with real exact-match rule data and maintained usage.
+Unsupported categories/groups and excluded commercial surfaces remain absent. The next permitted
+Manage comparison is Notification Preferences; it is not started by this milestone.
+
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Repository validated. The existing governed account workspace now carries the authenticated
+reference's applicable Team Members and add-member hierarchy while preserving richer custom roles,
+permissions and lifecycle safeguards. Paid quotas, billing and invitations remain absent. The next
+permitted Manage comparison is Tags; it is not started by this milestone.
+
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Repository validated. The existing Canned Message editor now carries the authenticated reference's
+applicable live-preview interaction while preserving richer personal/shared ownership and truthful
+composer insertion behavior. Unsupported message types and variable substitution remain absent.
+The next permitted Manage comparison is Team; it is not started by this milestone.
+
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Repository validated. The existing typed contact-attribute workspace now carries the authenticated
+reference's applicable search/filter/add hierarchy with original components and richer governed
+states preserved. Meta Lead Form attributes and advertising remain excluded. The next permitted
+Manage comparison is Canned Messages; it is not started by this milestone.
+
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Repository validated. The existing Live Chat policy now appears as a dedicated Manage workspace
+with read-state, automated-reply, working-hours and inactivity-resolution hierarchy aligned to the
+authenticated reference. Unsupported typing indicators and excluded launch surfaces remain absent.
+The next permitted Manage comparison is User Attributes; it is not started by this milestone.
+
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Repository validated. The existing exact-match consent engine now appears as a dedicated Manage
+workspace with the keyword, acknowledgement and customer-preview hierarchy observed in the
+authenticated reference. Ads, premium reports, AI launch shortcuts and unsupported API-campaign
+controls remain absent. The next permitted Manage comparison is Live Chat Settings; it is not
+started by this milestone.
+
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Repository complete. The previously delivered History route, query extensions, shared views and
+transcript flow were reconciled against the authenticated reference. The final visible list
+hierarchy gap is closed without fake counters or a second history subsystem. Target-host query,
+browser-matrix and owner acceptance remain release gates.
+
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Repository implemented. Reconciliation found the unified Download Center and job-artifact discovery
+already delivered. CORE-15 closes the remaining retention boundary: signed links are capped and
+revalidated against the durable export expiry. No duplicate page, table, queue or navigation was
+created. Additional artifact families remain separate approved-source milestones.
+
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Repository validated. The inbox now distinguishes automatic local unread clearing from the
+organization's decision to notify a supported provider. Meta implements the capability, failures
+do not create false local success, and unsupported connectors remain local-only. Business hours
+and automatic replies were already present and were not reconstructed. Live Meta/Redis/MySQL
+acceptance remains release-validation work.
+
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Repository validated. CORE-13 reuses CORE-12's inbound evaluation path for a second effect type:
+applying configured organization tags on an exact first-message match. The rule is attached to the
+tag, duplicate-safe and provider-neutral, with no parallel rule engine. Tag groups, journey
+inclusion, substring/AI classification and later-message triggers remain outside this milestone.
+MySQL 0071 and live Redis execution remain release-validation work.
+
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Repository validated. The existing inbound rule evaluator now handles the consent effect and an
+optional post-record acknowledgement as one idempotent workflow. Opt-in and opt-out copy are
+configured independently, duplicate deliveries cannot create duplicate replies, and send failure
+cannot undo withdrawal. Live Redis/MySQL acceptance remains a release-validation item; operational
+blocking remains a separate unresolved product-model decision.
 
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
@@ -2960,7 +3084,7 @@ replaced.
 | CORE-07 — Customer 360 domain convergence — COMPLETE | Make the existing profile the authoritative operational workspace. | Real Reactivation/KYC/SIM/Activation facts, reminders, SLA, contact-scoped conversations, messages, campaigns, notes, documents, assignment, Tasks, Audit and Customer Timeline. | Existing Customer Profile, Inbox, Vi domain and shared section implementations; optional exact-Contact filters on existing APIs; generated contracts; ADR-0018; Design Document 31. | Exact-contact/tenant/RBAC API tests; factual composition, denied/read-only/error/no-placeholder tests; desktop/tablet/mobile and keyboard review. | COMPLETE — every section composes persisted source facts, respects permissions, deep-links to its source workflow, and introduces no duplicate record, synthetic metric, migration, or endpoint family. | +0 actual | None (actual) |
 | CORE-08 — Skipped: Not required by product owner | General Approval Engine is not required. | Preserve existing KYC-specific approval logic and completed module-level authorization safeguards; do not build an Approval Center, generic approval framework, approval queue, escalation system, or new approval authority. | Governance records only; no product source, API, model, migration, permission, or UI files. | Governance consistency and changed-file boundary only. | SKIPPED — owner decision is recorded consistently and existing safeguards remain unchanged. | +0 actual | None |
 | CORE-09 — Unified Notification Center — COMPLETE | Deliver durable, actionable in-app notification evidence over existing Task and Reactivation authorities. | Tenant/user-scoped records, unread count, mark-one/all-read, read-only team filter, source deep links, 15-second polling, Task due and Reactivation assignment/status projections, Audit evidence, lifecycle resolution and revision-safe redelivery. | Notification model/repository/service/endpoints, migration `0035_notification_center`, generated OpenAPI/types, top-nav center, tests, ADR-0019 and Design Document 32. | Tenant/RBAC/read-state/filter/deep-link/idempotency; task reassign/reopen/bulk/delete lifecycle; migration; generated-contract; frontend notification/layout accessibility tests. | COMPLETE — in-app evidence survives refresh/device use, stale task deliveries resolve, the correct recipient/revision can receive a fresh notice, and optional channels are not falsely claimed. | +4 actual | `0035` Notification Center (actual) |
-| CORE-10 — Dedicated Chat History — NEAR COMPLETE (`PAR-DL-02`, `PAR-HIST-01`) | Separate operational history from the live inbox. | Delivered: dedicated read route, agent/customer/status/channel/tag/date/campaign/media/audit filters, resolved records, full bounded message history, governed team-shared views, audit deep link and complete/date-bounded transcript exports. Remaining: authenticated representative-data WCAG/device/browser review and production-scale/target-host query commissioning. | Existing conversation/message/audit authorities; chat-history feature; shared export/Download Center pipeline. | Filter/pagination/tenant/permission/query-budget tests; route/sheet/mobile/accessibility tests; target-host performance evidence. | Dedicated page reproduces complete factual history without mutating live-chat queues or loading unbounded conversations. | +0–1 remaining | `0054_chat_history_filters_views` delivered |
+| CORE-10 — Dedicated Chat History — REPOSITORY COMPLETE (`PAR-DL-02`, `PAR-HIST-01`, `CORE-10`) | Separate operational history from the live inbox. | Delivered: dedicated read route, agent/customer/status/channel/tag/date/campaign/media/audit filters, resolved records, full bounded message history, governed team-shared views, audit deep link, complete/date-bounded transcript exports and authenticated-reference-aligned list hierarchy. | Existing conversation/message/audit authorities; chat-history feature; shared export/Download Center pipeline. | Repository criteria pass; live MySQL/browser-matrix, owner visual acceptance and target-host performance evidence remain release gates. | Dedicated page reproduces complete factual history without mutating live-chat queues, fabricating counts or loading unbounded conversations. | Repository complete; host gates remain | `0054_chat_history_filters_views` delivered; no CORE-10 migration |
 | CORE-11 — Core settings, team, tags, and SLA controls — PARTIAL (`CORE-11A/11B/11C` implemented) | Close remaining administrative gaps using existing admin/settings foundations. | **Delivered:** validated least-open/manual assignment, automatic/manual read state, exact opt-in/out keywords, organization-timezone weekly hours, new-window welcome, rate-limited off-hours replies, and protected inactivity auto-resolve with fresh-inbound reopen. **Remaining:** campaign preferences, pipeline/SLA, notification/security/audit settings; online/workload/login/permission audit; required/active attributes. | Existing settings/admin/tag/attribute backend/frontend files; possibly configuration migration. | Settings validation; role matrix; assignment/SLA calculations; audit; backward compatibility; responsive admin UI. | Final CORE-11 completion still requires every remaining approved control to be persisted, permission-scoped, audited and consumed; CORE-11A/11B/11C satisfy that rule for their bounded controls. | +1 actual so far | None for CORE-11A/11B/11C; next additive revision only if later structures require it |
 
 ## Approved cross-cutting UI Taste Modernization
@@ -3020,6 +3144,11 @@ remain authoritative.
 | REL-01 — Full-scope accessibility and UX acceptance | Validate the premium UI with real workflows and data. | WCAG-oriented audit, keyboard/focus, contrast, screen-reader labels, responsive/mobile, loading/empty/error states, final permitted workflow review. | Fixes only in existing components/routes; accessibility evidence and runbook updates. | Automated accessibility plus manual desktop/mobile/browser matrix; workflow UAT. | No critical accessibility issue; every approved route passes owner UX acceptance; excluded surfaces remain absent. | +0 | None |
 | REL-02 — Security, resilience, and capacity certification | Prove scale and failure behavior after feature completion. | SAST/dependency/image scans, SBOM, backup/restore, Redis/Celery/provider loss, load/stress/spike/soak, 1M-contact target, bundle/query optimization. | Existing quality/deployment scripts; focused fixes; evidence artifacts/docs. | Full static/pre-merge/release/deployed gates; chaos/recovery/performance lab. | All repository gates pass; capacity budgets and recovery objectives have reproducible evidence; no known high/critical release blocker. | +0 | None unless an additive performance index is reviewed |
 | REL-03 — Target-host commissioning and final acceptance | Close environment-only evidence and release the complete private platform. | TLS/host hardening, secrets, migrations, owner bootstrap, MySQL/Redis/Celery/nginx health, monitoring/log shipping/alerts/synthetics, UAT, restore and rollback rehearsal. | Deployment configuration/runbooks; final governance ledgers; release notes/tag. | Target-host smoke/E2E; alerts/dead-man; restore/rollback; acceptance checklist. | Every `VALIDATION_RESULTS.md` item is `PASS`, every module is 100% or explicitly owner-deferred, final scope traceability is complete, and owner approves release. | +0 | Upgrade through final additive head |
+
+REL-02 local checkpoint (REL-02A, 2026-09-21): full deployed quality profile, security scans,
+SBOMs, production images/topology, authenticated accessibility/browser flows, Redis degradation,
+observability and latency canary pass. Off-host restore and approved capacity/stress/spike/soak lab
+evidence remain open; target-host/provider/owner evidence belongs to REL-03.
 
 ## Scope traceability
 

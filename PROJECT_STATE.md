@@ -1,5 +1,68 @@
 # Project State
 
+## REVIEW-02 — integrating the 16-commit `codex/rel-02-local-certification` branch (2026-09-23)
+
+The owner asked for the remaining unmerged Codex work (CORE-10, CORE-12 through CORE-15, UI-REF-11
+through UI-REF-18, ACCEPT-01, ACCEPT-02, REL-02A — 16 commits, none reachable from `main` after
+REVIEW-01's six-commit fast-forward) reviewed and integrated, the same way REVIEW-01 reviewed the
+six commits before it: read every changed line, reproduce anything suspicious against real
+infrastructure before calling it a defect, run every gate.
+
+### Two structural problems, resolved before any content review
+
+**A genuine migration collision.** `codex/rel-02-local-certification` branched from the same point
+WABA-01 later branched from (`ba06a53`, UI-REF-10) and independently created its own
+`0070_tag_first_message_rules.py`, chained off the same `0069` parent as WABA-01's
+`0070_phone_quality_unknown.py`. Two files both claiming revision `0070` off the same parent is a
+branched (non-linear) Alembic history — `alembic upgrade head` refuses to run with multiple heads.
+Renumbered to `0071_tag_first_message_rules`, re-chained onto `0070_phone_quality_unknown`; applied
+cleanly to real MySQL at that new position.
+
+**A stale local branch pointer.** Mid-review, this session's local `main` ref turned out to be eight
+commits stale (still pointing at UI-REF-05), making early branch-topology and diff checks against it
+unreliable until caught and corrected (`git branch -f main origin/main`). Every topology and diff
+claim below was re-verified against the corrected ref.
+
+### ACCEPT-01: a real finding, a fix that violated a hard rule
+
+Full detail in its own entry below. Short version: ACCEPT-01 correctly found that ~20
+already-applied migrations fail a `head→base→head` round trip on real MySQL — reproduced here
+first-hand, not just trusted (`(1553, "Cannot drop index 'uq_reactivation_views_scope_creator_name':
+needed in a foreign key constraint")`). Its fix rewrote those applied migration files directly,
+which `REPOSITORY_RULES.md` forbids without exception. The finding is kept; the fix is not merged;
+the ~20 files and the regression test built on top of them were reverted to main's original content.
+
+### Everything else: reviewed, one documentation bug found and fixed, nothing else wrong
+
+Read every changed line across CORE-10/12/13/14/15's backend services, schemas, models and API
+endpoints, and UI-REF-11 through UI-REF-18's frontend panels, navigation and generated types.
+Traced the consent-acknowledgement reply path, the first-message tag-matching path, the read-receipt
+provider call and its tenant-scoping, and the download-link retention cap by hand against their own
+claims — all correct, including subtle details done right the first time: the opt-out-acknowledgement
+send bypass is scoped to exactly `kind == "consent_opt_out"` so it cannot loosen any other send path,
+and the idempotency check for automatic replies was correctly widened to cover the two new consent
+reply kinds (an easy thing to miss that would have let a retried webhook double-send an
+acknowledgement).
+
+One real bug, outside the code: CORE-15's own entry in every ledger claimed "Download Center advances
+90% → 92%", but the percentage table in `MODULE_STATUS.md` was never actually updated past 90% —
+the same class of ledger-synchronization gap REVIEW-01 found once already. Fixed here.
+
+Also checked and set aside as sound engineering, not a defect: REL-02A's `apk upgrade --no-cache` in
+both runtime Dockerfiles (patches OS CVEs on top of digest-pinned bases, documented in its own ADR —
+already reviewed once earlier this session) and the disposable-gate-only `RATE_LIMIT_AUTH_MAX`
+override for the accessibility crawler (production default of 10 untouched).
+
+### Verification
+
+Backend: Ruff clean, strict mypy clean (332 files), full suite **1,782 passed, 0 failed** in 10:54
+(Redis available in this environment, so none of the 6 tests rel-02's own evidence recorded as
+Redis-environment failures were skipped or failed here). Frontend: TypeScript clean, ESLint clean,
+full suite 63 files / 1,024 tests passed, production build succeeded. Migration `0071` applied
+cleanly to real MySQL, both as part of the normal upgrade chain and in the standalone downgrade
+reproduction above. OpenAPI: 247 paths, `export_openapi.py --check` confirms zero drift from the
+checked-in contract.
+
 ## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
 
 The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
@@ -138,6 +201,155 @@ UI-REF-18, ACCEPT-01/02, REL-02A) has not been reviewed at the same depth this e
 merged commits — it was surveyed at the commit-message and file-stat level only. Reviewing or
 merging it is the owner's call, made explicitly, not something this session did on its own
 initiative.
+## REL-02A — Local release certification (2026-09-21)
+
+The repository's complete deployed quality profile is green after closing fixed-package security
+findings in both deployable runtime images. A disposable production-like stack passed browser,
+accessibility, contact import, performance, observability and Redis-degradation checks. Functional
+scope remains approximately 88% because the remaining approved work is not replaced by local
+certification: large-scale/restore evidence, real provider and Vi data, and target-host owner UAT
+remain open. No exact AiSensy branding or excluded advertising/payment surface is claimed.
+
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Host validation is complete for the local representative-data milestone. The core desktop and
+mobile workspaces load and remain usable against real local MySQL/Redis services, including
+conversation and history drill-in. The checked empty states are truthful rather than placeholders.
+Overall canonical completion remains approximately 88%; remaining release work depends on target
+hosting, real provider/data integrations and owner acceptance rather than another local preview.
+
+## ACCEPT-01 — MySQL migration reversibility, finding kept and fix not merged (2026-09-21, revised 2026-09-23)
+
+Real disposable MySQL 8 exposed a genuine defect: a full `head → base → head` round trip failed
+because roughly twenty already-applied migrations (0003 through 0058) drop a foreign-key-backing
+index before the table that needs it during `downgrade()`, an ordering MySQL enforces and SQLite
+never did — the same class of "only real infrastructure catches this" gap this project keeps
+finding. Independently re-reproduced here on a fresh disposable database against the restored
+original files: `(1553, "Cannot drop index 'uq_reactivation_views_scope_creator_name': needed in a
+foreign key constraint")` on `ALTER TABLE reactivation_views DROP INDEX
+uq_reactivation_views_scope_creator_name`. The diagnosis is correct and kept.
+
+The fix as originally written was not: it edited those same already-applied migration files
+directly. `REPOSITORY_RULES.md` §"Additive engineering invariants" states this without a
+downgrade-only exception — *"Never downgrade, renumber, squash, or rewrite applied migrations. New
+schema work is additive from the current migration head."* Rewriting twenty applied files' downgrade
+paths is exactly what that line forbids, whatever the underlying intent, so REVIEW-02 (below)
+restored all twenty to their original content rather than merge the edits, and did not carry over
+the new `head→base→head` regression test built on top of them (it exercises the same downgrade path
+and would fail again once the files were restored — an honest reflection of the real, now-recorded
+gap, not a test to quietly drop).
+
+Practical exposure is low: `deploy/DEPLOYMENT.md` §10 already routes rollback through reverting
+`IMAGE_TAG` against the newer (expand-only) schema, never through `alembic downgrade`, so this gap
+does not sit on the path this project actually uses to roll back. It matters only for an intentional
+full reset to base — a fresh dev/test database, not a production incident. Recorded here as a known,
+permanent limitation rather than fixed by the means available, pending a rule-compliant approach
+(e.g., a new, additive squash point at some future major version) rather than an exception carved
+out under time pressure.
+
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Repository complete. The direct Developer entry now matches the authenticated reference's
+applicable focused-hub hierarchy while retaining richer governed credential security and lifecycle
+facts. No API-campaign, outbound-webhook or duplicate-contract surface was introduced. Full
+frontend is green at 63 files / 1,022 tests; overall canonical completion remains approximately
+88% because this is acceptance refinement.
+
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Repository complete. Real per-user notification-category controls now have the dedicated workspace
+observed in the authenticated reference while the advanced personal store remains available. No
+fake sound, push or device enrolment was introduced. Full frontend is green at 63 files / 1,022
+tests; overall canonical completion remains approximately 88% because this is acceptance
+refinement.
+
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Repository complete. Tags now matches the authenticated reference's applicable first-message table
+hierarchy using real rule data, while preserving richer maintained usage and governed CRUD. No fake
+category/group or excluded commercial surface was introduced. Full frontend is green at 63 files /
+1,022 tests; overall canonical completion remains approximately 88% because this is acceptance
+refinement.
+
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Repository complete. Team administration now matches the authenticated reference's applicable
+title and creation hierarchy while retaining stronger custom-role, permission and account-lifecycle
+controls. No excluded buying/billing surface or unsupported invitation flow was introduced. Full
+frontend is green at 63 files / 1,022 tests; overall canonical completion remains approximately
+88% because this is acceptance refinement.
+
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Repository complete. Canned Message creation now includes the authenticated reference's applicable
+live-preview interaction while preserving the richer personal/shared reply contract and truthful
+insert-without-send behavior. No unsupported message type or substitution control was introduced.
+Full frontend is green at 63 files / 1,021 tests; overall canonical completion remains
+approximately 88% because this is acceptance refinement.
+
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Repository complete. User Attributes now matches the authenticated reference's applicable toolbar
+and creation hierarchy while preserving the product's richer typed contact-field contract. No Meta
+Lead Form or advertising surface was introduced. Full frontend is green at 63 files / 1,021 tests;
+overall canonical completion remains approximately 88% because this is acceptance refinement.
+
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Repository complete. The real Live Chat policy now has a dedicated Manage presentation aligned to
+the authenticated reference's applicable information hierarchy. No unsupported typing-indicator
+control or excluded launch surface was invented. Full frontend is green at 63 files / 1,021 tests;
+overall canonical completion remains approximately 88% because this is acceptance refinement.
+
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Repository complete. The existing real consent-keyword and acknowledgement behavior now has a
+dedicated Manage presentation aligned to the authenticated reference's information hierarchy.
+Unrelated settings no longer bury the workflow. No excluded reference feature or fake control was
+added. Full frontend remains green at 63 files / 1,020 tests; overall canonical completion remains
+approximately 88% because this is acceptance refinement, not a new product capability.
+
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Current milestone branch `codex/core-10-chat-history-acceptance`, based on CORE-15 commit `b4e1954`.
+Authenticated AiSensy History inspection confirmed the existing list/detail/search pattern and
+identified only a compact identity-hierarchy difference, now closed in the original design system.
+Chat History advances **88% → 90%** and overall completion remains approximately 88.0%. Local
+representative-data preview remains host-blocked by unavailable MySQL; no false host validation is
+claimed.
+
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Current milestone branch `codex/core-15-download-center-reconciliation`, based on CORE-14 commit
+`47ffcef`. The earlier Download Center implementation was verified as the canonical unified export
+history; CORE-15 closes its durable-retention authorization edge without API, schema or frontend
+delta. Download Center advances **90% → 92%** and overall completion remains approximately 88.0%;
+remaining percentage is source-family and target-host acceptance work, not another history page.
+
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Current milestone branch `codex/core-14-read-receipt-policy`, based on approved CORE-13 commit
+`b1f883e`. Inbox business hours and auto-responses were already complete; the remaining provider
+read-receipt behavior is now implemented with a separate policy, Meta capability and failure-safe
+ordering. OpenAPI remains 247 paths with no migration delta. Inbox remains 98% and overall
+completion remains approximately 88.0%; live Meta/Redis/MySQL acceptance remains release work.
+
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Current milestone branch `codex/core-13-first-message-tagging`, based on approved CORE-12 commit
+`70f598e`. Tag create/edit now configures exact first-message keywords; Meta and provider-neutral
+inbound paths reuse one evaluator and the existing durable event ledger. Migration head advances to
+`0071_tag_first_message_rules`; OpenAPI remains 247 paths. Inbox and Contacts remain 98%, and
+overall completion remains approximately 88.0%; MySQL/Redis host validation remains pending.
+
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Current milestone branch `codex/core-12-consent-acknowledgements`, based on approved main
+`ba06a53`. The existing inbound rule path now records a real consent transition and accepts one
+idempotent acknowledgement before the inbound transaction commits; actual provider dispatch stays
+post-commit. Settings, OpenAPI and generated frontend types are synchronized at 247 paths. Inbox
+remains 98% and overall completion remains approximately 88.0%; production Redis/MySQL evidence
+and the separate blocked-state product decision remain open.
 
 ## UI-REF-10 — Template creation focus (2026-09-20)
 

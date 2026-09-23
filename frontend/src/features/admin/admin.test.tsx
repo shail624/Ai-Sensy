@@ -598,6 +598,18 @@ describe("UsersPanel", () => {
     const row = screen.getAllByRole("row").find((entry) => within(entry).queryByText("Anita"))!;
     expect(within(row).getByText("Active")).toBeInTheDocument();
     expect(within(row).getAllByText("agent").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Add team member" })).toBeInTheDocument();
+  });
+
+  it("opens the team-member creation workflow from the primary action", async () => {
+    seed([userFixture({ id: "u-other", full_name: "Anita" })]);
+    withProviders(<UsersPanel />);
+
+    await screen.findByText("Anita");
+    fireEvent.click(screen.getByRole("button", { name: "Add team member" }));
+
+    expect(screen.getByRole("dialog", { name: "Create Team Member" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create team member" })).toBeInTheDocument();
   });
 
   it("offers Disable for other accounts but not for your own", async () => {
@@ -623,7 +635,7 @@ describe("UsersPanel", () => {
     withProviders(<UsersPanel />);
 
     await screen.findByText("Anita");
-    expect(screen.queryByRole("button", { name: "New user" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add team member" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 

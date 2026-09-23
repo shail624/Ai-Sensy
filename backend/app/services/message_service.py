@@ -194,14 +194,18 @@ class MessageService:
             occurred_at=occurred_at,
         )
         policy = await self._operations.get(contact.organization_id)
-        await self._operations.apply_consent_keyword(
+        consent_change = await self._operations.apply_consent_keyword(
             contact=contact,
             message_type=message.message_type,
             content=message.content,
             occurred_at=occurred_at,
             policy=policy,
         )
-        conversation, opened_new_window = await self._conversations.open_for_inbound_with_window(
+        (
+            conversation,
+            opened_new_window,
+            is_first_inbound,
+        ) = await self._conversations.open_for_inbound_with_window(
             number=number, contact=contact, occurred_at=occurred_at
         )
         # The conversation lock closes the race between the optimistic lookup above and another
@@ -227,6 +231,19 @@ class MessageService:
         )
         await self._messages.add(stored)
         await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
         await self._conversations.record_inbound_message(
             conversation,
             preview=ConversationService.preview_of(message.message_type, message.content),
@@ -247,6 +264,7 @@ class MessageService:
             source_message=stored,
             occurred_at=occurred_at,
             opened_new_window=opened_new_window,
+            consent_change=consent_change,
         )
         await self._session.commit()
         result = {
@@ -341,7 +359,7 @@ class MessageService:
         except ValueError as exc:
             raise LedgerError(f"WAHA sender identity cannot be resolved: {exc}") from exc
         policy = await self._operations.get(contact.organization_id)
-        await self._operations.apply_consent_keyword(
+        consent_change = await self._operations.apply_consent_keyword(
             contact=contact,
             message_type=message.message_type,
             content=message.content,
@@ -351,6 +369,7 @@ class MessageService:
         (
             conversation,
             opened_new_window,
+            is_first_inbound,
         ) = await self._conversations.open_for_inbound_endpoint_with_window(
             endpoint=endpoint, contact=contact, occurred_at=occurred_at
         )
@@ -374,6 +393,19 @@ class MessageService:
         )
         await self._messages.add(stored)
         await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
         await self._conversations.record_inbound_message(
             conversation,
             preview=ConversationService.preview_of(message.message_type, message.content),
@@ -394,6 +426,7 @@ class MessageService:
             source_message=stored,
             occurred_at=occurred_at,
             opened_new_window=opened_new_window,
+            consent_change=consent_change,
         )
         await self._session.commit()
         result = {
@@ -449,17 +482,25 @@ class MessageService:
         source_message: Message,
         occurred_at: datetime,
         opened_new_window: bool,
+        consent_change: str | None,
     ) -> int | None:
-        if contact.opt_in_status == OPT_IN_OPTED_OUT:
-            return None
         now = utcnow()
-        decision = self._operations.automatic_reply_decision(
+        decision = self._operations.consent_reply_decision(
             policy=policy,
+            consent_status=consent_change,
             occurred_at=occurred_at,
-            opened_new_window=opened_new_window,
-            has_recent_off_hours_reply=False,
             now=now,
         )
+        if decision is None:
+            if contact.opt_in_status == OPT_IN_OPTED_OUT:
+                return None
+            decision = self._operations.automatic_reply_decision(
+                policy=policy,
+                occurred_at=occurred_at,
+                opened_new_window=opened_new_window,
+                has_recent_off_hours_reply=False,
+                now=now,
+            )
         if decision is None:
             return None
         if decision.kind == "off_hours" and await self._business_events.has_recent_automatic_reply(
@@ -488,6 +529,7 @@ class MessageService:
             body=decision.body,
             kind=decision.kind,
             source_message_id=source_message.id,
+            allow_opted_out=decision.kind == "consent_opt_out",
         )
         await self._business_events.record_automatic_reply(
             organization_id=conversation.organization_id,

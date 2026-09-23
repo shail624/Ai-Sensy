@@ -59,6 +59,10 @@ x-backend-env: &backend-env
   # fail validation at import time and crash-loop every backend container. "false" is also what
   # production already did implicitly, so an operator who never sets it sees no change.
   API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+  # Keep the production security default at 10. Isolated acceptance runs may raise this because
+  # their accessibility crawler deliberately hard-reloads every route, and each fresh document
+  # must rotate the memory-only access token through the public refresh endpoint.
+  RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_JSON: "true"
   STORAGE_BACKEND: ${STORAGE_BACKEND:-local}

@@ -487,6 +487,7 @@ class SendService:
         body: str,
         kind: str,
         source_message_id: int,
+        allow_opted_out: bool = False,
     ) -> Message:
         """Persist one policy-selected text reply inside the caller's inbound transaction.
 
@@ -494,7 +495,8 @@ class SendService:
         customer-service window. This method deliberately does not commit or dispatch: the inbound
         service owns atomicity, and the task adapter dispatches only after that commit succeeds.
         """
-        if contact.opt_in_status == OPT_IN_OPTED_OUT:
+        withdrawal_acknowledgement = allow_opted_out and kind == "consent_opt_out"
+        if contact.opt_in_status == OPT_IN_OPTED_OUT and not withdrawal_acknowledgement:
             raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
         text = body.strip()
         if not text:

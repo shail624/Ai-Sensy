@@ -67,6 +67,10 @@ class ConsentKeywordSettings(BaseModel):
     opt_out_keywords: list[Keyword] = Field(
         default_factory=lambda: ["STOP", "UNSUBSCRIBE"], max_length=20
     )
+    opt_in_response_enabled: bool = False
+    opt_in_response_body: str = Field(default="", max_length=1000)
+    opt_out_response_enabled: bool = False
+    opt_out_response_body: str = Field(default="", max_length=1000)
 
     @field_validator("opt_in_keywords", "opt_out_keywords")
     @classmethod
@@ -78,6 +82,11 @@ class ConsentKeywordSettings(BaseModel):
                 normalized.append(candidate)
         return normalized
 
+    @field_validator("opt_in_response_body", "opt_out_response_body")
+    @classmethod
+    def trim_response_body(cls, value: str) -> str:
+        return value.strip()
+
     @model_validator(mode="after")
     def validate_keyword_sets(self) -> ConsentKeywordSettings:
         if self.enabled and (not self.opt_in_keywords or not self.opt_out_keywords):
@@ -87,6 +96,10 @@ class ConsentKeywordSettings(BaseModel):
             raise ValueError(
                 f"consent keywords cannot appear in both lists: {', '.join(sorted(overlap))}"
             )
+        if self.opt_in_response_enabled and not self.opt_in_response_body:
+            raise ValueError("an enabled opt-in response requires message text")
+        if self.opt_out_response_enabled and not self.opt_out_response_body:
+            raise ValueError("an enabled opt-out response requires message text")
         return self
 
 
@@ -157,6 +170,7 @@ class InboxOperationsSettings(BaseModel):
 
     assignment_mode: Literal["manual", "least_open"] = "manual"
     auto_mark_read: bool = True
+    send_read_receipts: bool = True
     consent: ConsentKeywordSettings = Field(default_factory=ConsentKeywordSettings)
     working_hours: WorkingHoursSettings = Field(default_factory=WorkingHoursSettings)
     automatic_replies: AutomaticReplySettings = Field(default_factory=AutomaticReplySettings)

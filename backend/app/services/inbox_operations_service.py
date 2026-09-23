@@ -21,6 +21,7 @@ from app.models.audit import ACTOR_SYSTEM
 from app.models.contact import OPT_IN_OPTED_IN, OPT_IN_OPTED_OUT, Contact
 from app.models.contact_event import EVENT_OPTIN_CHANGED
 from app.models.conversation import CONV_OPEN, CONV_PENDING, CONV_RESOLVED, Conversation
+from app.models.tag import Tag
 from app.models.user import User
 from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
@@ -36,6 +37,7 @@ from app.schemas.settings import (
 from app.services.audit_service import AuditAction, AuditService
 from app.services.business_event_service import BusinessEventService
 from app.services.contact_event_service import ContactEventService
+from app.services.tag_service import TagService
 
 INBOX_OPERATIONS_KEY = "inbox.operations.v1"
 AUTO_REPLY_MAX_AGE = timedelta(minutes=10)
@@ -63,6 +65,7 @@ class InboxOperationsService:
         self._events = ContactEventService(session)
         self._business_events = BusinessEventService(session)
         self._audit = AuditService(session)
+        self._tags = TagService(session)
 
     async def get(self, organization_id: int) -> InboxOperationsResponse:
         row = await self._settings.get_org_setting(organization_id, INBOX_OPERATIONS_KEY)
@@ -265,16 +268,16 @@ class InboxOperationsService:
         content: dict[str, Any],
         occurred_at: datetime,
         policy: InboxOperationsResponse | None = None,
-    ) -> bool:
-        """Apply an exact configured keyword to the contact, inside the inbound transaction."""
+    ) -> str | None:
+        """Apply an exact configured keyword and return only a newly recorded target state."""
         if message_type != "text":
-            return False
+            return None
         policy = policy or await self.get(contact.organization_id)
         if not policy.consent.enabled:
-            return False
+            return None
         body = content.get("body")
         if not isinstance(body, str):
-            return False
+            return None
         keyword = " ".join(body.strip().upper().split())
         target: str | None = None
         if keyword in policy.consent.opt_in_keywords:
@@ -282,7 +285,7 @@ class InboxOperationsService:
         elif keyword in policy.consent.opt_out_keywords:
             target = OPT_IN_OPTED_OUT
         if target is None or target == contact.opt_in_status:
-            return False
+            return None
 
         previous = contact.opt_in_status
         contact.opt_in_status = target
@@ -308,7 +311,56 @@ class InboxOperationsService:
             after={"opt_in_status": target},
             metadata={"source": "inbound_keyword", "keyword": keyword},
         )
-        return True
+        return target
+
+    async def apply_first_message_tag_rules(
+        self,
+        *,
+        contact: Contact,
+        message_type: str,
+        content: dict[str, Any],
+        is_first_inbound: bool,
+    ) -> list[Tag]:
+        """Apply exact-match tag rules only to a conversation's first accepted inbound text."""
+        if not is_first_inbound or message_type != "text":
+            return []
+        body = content.get("body")
+        if not isinstance(body, str):
+            return []
+        keyword = " ".join(body.strip().upper().split())
+        if not keyword:
+            return []
+        applied = []
+        for tag in await self._tags.list_tags(contact.organization_id):
+            if not tag.first_message_enabled or keyword not in tag.first_message_keywords_json:
+                continue
+            if await self._tags.apply_system_tag_to_contact(contact=contact, tag=tag):
+                applied.append(tag)
+        return applied
+
+    @staticmethod
+    def consent_reply_decision(
+        *,
+        policy: InboxOperationsResponse,
+        consent_status: str | None,
+        occurred_at: datetime,
+        now: datetime | None = None,
+    ) -> AutomaticReplyDecision | None:
+        """Choose an acknowledgement only after a fresh consent transition was recorded."""
+        if consent_status is None:
+            return None
+        evaluated_at = now or utcnow()
+        age = evaluated_at - occurred_at
+        if age > AUTO_REPLY_MAX_AGE or age < -AUTO_REPLY_FUTURE_TOLERANCE:
+            return None
+        consent = policy.consent
+        if consent_status == OPT_IN_OPTED_IN and consent.opt_in_response_enabled:
+            return AutomaticReplyDecision(kind="consent_opt_in", body=consent.opt_in_response_body)
+        if consent_status == OPT_IN_OPTED_OUT and consent.opt_out_response_enabled:
+            return AutomaticReplyDecision(
+                kind="consent_opt_out", body=consent.opt_out_response_body
+            )
+        return None
 
     @staticmethod
     def automatic_reply_decision(

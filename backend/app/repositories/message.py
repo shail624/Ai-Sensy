@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import and_, or_, select
 
-from app.models.message import Message, MessageStatusHistory
+from app.models.message import DIRECTION_INBOUND, Message, MessageStatusHistory
 from app.repositories.base import BaseRepository
 
 
@@ -59,6 +59,20 @@ class MessageRepository(BaseRepository[Message]):
         )
         rows = list((await self.session.scalars(stmt)).all())
         return rows[:limit], len(rows) > limit
+
+    async def latest_receiptable_inbound(self, conversation_pk: int) -> Message | None:
+        """Newest inbound message carrying a provider identity that can be acknowledged."""
+        stmt = (
+            select(Message)
+            .where(
+                Message.conversation_id == conversation_pk,
+                Message.direction == DIRECTION_INBOUND,
+                Message.wamid.is_not(None),
+            )
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(1)
+        )
+        return (await self.session.scalars(stmt)).first()
 
     async def list_for_transcript(
         self,

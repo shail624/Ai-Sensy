@@ -41,6 +41,7 @@ from app.services.message_service import (
 )
 from app.services.webhook_service import WebhookService
 from tests.test_api_webhooks import (  # one Meta delivery shape, defined in one place
+    PASSWORD,
     WAMID,
     _delivery,
     _events,
@@ -225,6 +226,169 @@ async def test_configured_consent_keyword_updates_contact_in_the_inbound_transac
         "source": "inbound_keyword",
     }
     assert len(audit) == 1 and audit[0].metadata_json["keyword"] == "STOP"
+
+
+async def test_consent_keyword_acknowledgement_is_durable_and_idempotent(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.business_event import (
+        BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED,
+        BusinessEvent,
+    )
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _set_inbox_operations(
+        session_factory,
+        consent={
+            "enabled": True,
+            "opt_in_keywords": ["START"],
+            "opt_out_keywords": ["STOP"],
+            "opt_in_response_enabled": True,
+            "opt_in_response_body": "You will receive messages again.",
+            "opt_out_response_enabled": True,
+            "opt_out_response_body": "You will no longer receive messages.",
+        },
+    )
+    routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.CONSENT-STOP", body="STOP")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(routed[0])
+
+    (contact,) = await _rows(session_factory, Contact)
+    assert contact.opt_in_status == "opted_out"
+    assert first["auto_reply_message_pk"]
+    messages = await _rows(session_factory, Message)
+    assert [(row.direction, row.content_json) for row in messages] == [
+        (DIRECTION_INBOUND, {"body": "STOP"}),
+        (DIRECTION_OUTBOUND, {"body": "You will no longer receive messages."}),
+    ]
+    async with session_factory() as session:
+        event = (
+            await session.scalars(
+                select(BusinessEvent).where(
+                    BusinessEvent.event_type == BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED
+                )
+            )
+        ).one()
+    assert event.payload_json["kind"] == "consent_opt_out"
+
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(routed[0])
+    assert duplicate["status"] == DUPLICATE
+    assert duplicate["auto_reply_message_pk"] == first["auto_reply_message_pk"]
+    assert len(await _rows(session_factory, Message)) == 2
+
+    start_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.CONSENT-START", body="START")]),
+    )
+    async with session_factory() as session:
+        restarted = await MessageService(session).apply_inbound(start_routed[-1])
+    (contact,) = await _rows(session_factory, Contact)
+    assert contact.opt_in_status == "opted_in"
+    assert restarted["auto_reply_message_pk"]
+    messages = await _rows(session_factory, Message)
+    assert messages[-1].content_json == {"body": "You will receive messages again."}
+    async with session_factory() as session:
+        events = list(
+            (
+                await session.scalars(
+                    select(BusinessEvent)
+                    .where(BusinessEvent.event_type == BUSINESS_EVENT_AUTOMATIC_REPLY_ACCEPTED)
+                    .order_by(BusinessEvent.id)
+                )
+            ).all()
+        )
+    assert [event.payload_json["kind"] for event in events] == [
+        "consent_opt_out",
+        "consent_opt_in",
+    ]
+
+
+async def test_first_inbound_exact_match_applies_tags_once_and_only_on_the_first_message(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    from app.models.business_event import (
+        BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED,
+        BusinessEvent,
+    )
+    from app.models.contact_event import EVENT_TAG_ADDED, ContactEvent
+    from app.models.tag import Tag
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": "owner@vi.co", "password": PASSWORD}
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    for name, keyword in (("Interested", "INTERESTED"), ("Later", "LATER")):
+        created = await client.post(
+            "/api/v1/tags",
+            headers=headers,
+            json={
+                "name": name,
+                "first_message_enabled": True,
+                "first_message_keywords": [keyword],
+            },
+        )
+        assert created.status_code == 201
+
+    first_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.FIRST-TAG", body="  interested  ")]),
+    )
+    async with session_factory() as session:
+        first = await MessageService(session).apply_inbound(first_routed[0])
+    async with session_factory() as session:
+        duplicate = await MessageService(session).apply_inbound(first_routed[0])
+    assert duplicate["status"] == DUPLICATE
+    assert duplicate["message_pk"] == first["message_pk"]
+
+    second_routed = await _deliver(
+        client,
+        session_factory,
+        monkeypatch,
+        make_user,
+        _delivery(messages=[_fresh_message(wamid="wamid.SECOND-TAG", body="LATER")]),
+    )
+    async with session_factory() as session:
+        await MessageService(session).apply_inbound(second_routed[-1])
+
+    async with session_factory() as session:
+        tags = list((await session.scalars(select(Tag).order_by(Tag.name))).all())
+        tag_events = list(
+            (
+                await session.scalars(
+                    select(ContactEvent).where(ContactEvent.event_type == EVENT_TAG_ADDED)
+                )
+            ).all()
+        )
+        business_events = list(
+            (
+                await session.scalars(
+                    select(BusinessEvent).where(
+                        BusinessEvent.event_type == BUSINESS_EVENT_FIRST_MESSAGE_TAG_APPLIED
+                    )
+                )
+            ).all()
+        )
+    assert [(tag.name, tag.usage_count) for tag in tags] == [
+        ("Interested", 1),
+        ("Later", 0),
+    ]
+    assert len(tag_events) == 1
+    assert len(business_events) == 1
+    assert business_events[0].payload_json["tag_id"] == tags[0].public_id
 
 
 async def test_least_open_policy_assigns_a_new_thread_to_an_eligible_user(

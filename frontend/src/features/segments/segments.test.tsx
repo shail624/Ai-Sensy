@@ -102,6 +102,8 @@ function tagFixture(overrides: Partial<Tag> = {}): Tag {
     color: null,
     description: null,
     usage_count: 12,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-01T10:00:00Z",
     ...overrides,

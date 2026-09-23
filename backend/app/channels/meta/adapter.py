@@ -81,6 +81,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.INTERACTIVE,
             Capability.TEMPLATE,
             Capability.REACTION,
+            Capability.READ_RECEIPTS,
             Capability.BULK,
             Capability.CAMPAIGNS,
             Capability.OFFICIAL_WEBHOOKS,
@@ -176,6 +177,19 @@ class MetaChannelAdapter(ChannelAdapter):
         messages = body.get("messages") or []
         wamid = messages[0].get("id") if messages else None
         return SendResult(to=message.to, channel_message_id=wamid, accepted=bool(wamid), raw=body)
+
+    async def mark_read(self, channel_message_id: str) -> None:
+        """Mark one inbound WhatsApp message as read through Graph."""
+        self.require(Capability.READ_RECEIPTS)
+        number = self._client.credentials.require_phone_number()
+        await self._client.post(
+            f"{number}/messages",
+            json={
+                "messaging_product": _PRODUCT,
+                "status": "read",
+                "message_id": channel_message_id,
+            },
+        )
 
     # --- Inbound stream (Doc 06 §11; Doc 04 §23) -----------------------------
     def webhook_challenge(self, params: Mapping[str, str]) -> str | None:

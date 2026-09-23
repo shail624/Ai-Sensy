@@ -1,5 +1,20 @@
 # Changelog
 
+## REVIEW-02 — integrating the 16-commit `codex/rel-02-local-certification` branch (2026-09-23)
+
+Reviewed and integrated the 16 commits left unmerged after REVIEW-01 (CORE-10, CORE-12–15,
+UI-REF-11–18, ACCEPT-01, ACCEPT-02, REL-02A): read every changed line, reproduced anything
+suspicious against real infrastructure, ran every gate. Resolved a genuine migration collision
+(rel-02's own `0070_tag_first_message_rules` renamed to `0071`, re-chained onto WABA-01's
+`0070_phone_quality_unknown`, applied cleanly to real MySQL). Found and fixed one bug: CORE-15's
+claimed "Download Center advances 90% → 92%" was never applied to `MODULE_STATUS.md`'s own
+percentage table. Kept ACCEPT-01's real finding (a `head→base→head` MySQL migration-reversibility
+defect across ~20 already-applied migrations, independently re-reproduced here) but did not merge
+its fix, which rewrote those applied migration files directly — forbidden outright by
+`REPOSITORY_RULES.md`. Everything else checked out: PASS Ruff, strict mypy (332 files), TypeScript,
+ESLint, full frontend (63 files / 1,024 tests), production build; full backend suite **1,782
+passed, 0 failed** in 10:54, OpenAPI drift check clean at 247 paths.
+
 ## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
 
 The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
@@ -138,6 +153,142 @@ UI-REF-18, ACCEPT-01/02, REL-02A) has not been reviewed at the same depth this e
 merged commits — it was surveyed at the commit-message and file-stat level only. Reviewing or
 merging it is the owner's call, made explicitly, not something this session did on its own
 initiative.
+## REL-02A — Local release certification (2026-09-21)
+
+Closed the local production-security blocker by applying current Alpine security updates in both
+digest-pinned runtime images. Added a disposable-gate-only auth allowance for the hard-navigation
+accessibility crawler while preserving the production default. PASS: full deployed profile,
+1,782 backend tests, 1,022 frontend tests, source/dependency/image scans, SBOMs, production image
+contracts, five browser journeys, Redis degradation, log correlation and 6.1 ms p95 canary.
+
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+Validated the application with repository-owned representative fixtures on the disposable local
+MySQL/Redis stack. Dashboard, Live Chat, Chat History, Contacts, Campaigns, Analytics, Download
+Center, Automation, Tags and Developer Hub loaded under a real Owner session. Desktop and 390×844
+mobile checks passed with no document-level horizontal overflow; conversation list/detail drill-in
+worked at both breakpoints. No product code change was required.
+
+## ACCEPT-01 — MySQL migration reversibility, finding kept and fix not merged (2026-09-21, revised 2026-09-23)
+
+Validated the complete migration chain on disposable MySQL 8 and found a real defect: ~20
+already-applied migrations drop a foreign-key-backing index before the table that needs it during
+`downgrade()`, which MySQL enforces and SQLite never did. The proposed fix rewrote those applied
+migration files directly — forbidden outright by `REPOSITORY_RULES.md`'s additive-migration
+invariant. REVIEW-02 reverted the twenty file edits and the regression test built on top of them
+(it would fail again against the restored files), and recorded the gap in PROJECT_STATE.md instead
+of merging a rule violation. No code from this milestone ships; the diagnosis is preserved.
+
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+Compared the authenticated Developer Hub and made the direct credential entry a focused Developer
+Hub with Project API keys context and a Create API key action. Existing one-time secret, scopes,
+expiry, state, rotation/revocation and audit behavior remains intact. API campaigns, outbound
+project webhooks and a competing documentation contract were not faked. PASS: focused 103 and full
+frontend 1,022 tests, TypeScript, ESLint and production build.
+
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+Compared the authenticated Notification Preferences screen and promoted the existing real per-user
+notification-category controls into a dedicated personal settings workspace. The advanced
+server-synced preference store remains available below the primary controls. Unsupported sound,
+push and device enrolment were not faked. PASS: focused 139 and full frontend 1,022 tests,
+TypeScript, ESLint and production build.
+
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+Compared the authenticated Tags workspace and separated Tag name and First message into clear table
+columns. Each row now exposes its real first-message rule state and exact-match count while existing
+usage, editing, deletion and permission behavior remains intact. Unsupported categories/groups and
+excluded launch or billing surfaces were not faked. PASS: focused 130 and full frontend 1,022 tests,
+TypeScript, ESLint and production build.
+
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+Compared the authenticated Team Members workflow and aligned the existing governed user workspace
+around a direct Team Members heading, task description and Add team member creation action. Custom
+roles, permission gates, enable/disable safeguards and account concurrency remain intact. Paid seat
+quota, billing, launch cards, invitations and SSO were not faked. PASS: focused 72 and full frontend
+1,022 tests, TypeScript, ESLint and production build.
+
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+Compared the authenticated New Canned Message workflow and added a truthful live preview of the
+message body. Existing shortcut, title and personal/shared scope remain intact, and the empty state
+clarifies that selecting a saved reply inserts text without sending. Unsupported media types and
+gated variable substitution were not faked. PASS: focused 130 and full frontend 1,021 tests,
+TypeScript, ESLint and production build.
+
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+Compared the authenticated User Attributes screen and aligned the existing typed contact-field
+workspace around a compact search, type-filter and Add attribute toolbar. Creation language and
+table headings now follow the observed task hierarchy while richer validation, lifecycle and
+security facts remain intact. The Meta Lead Form-specific tab was not faked. PASS: focused 130 and
+full frontend 1,021 tests, TypeScript, ESLint and production build.
+
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+Compared the authenticated reference and made the existing Live Chat policy a dedicated Manage
+workspace. Read-state controls, welcome/off-hours replies, working hours and auto-resolution remain
+one real server-owned policy, while unrelated routing, consent and generic advanced controls are
+hidden at this deep link. Unsupported typing indicators and excluded launch shortcuts were not
+faked. PASS: focused 130 and full frontend 1,021 tests, TypeScript, ESLint and production build.
+
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+Compared the authenticated AiSensy Opt-in Management workflow and made the existing consent controls
+a dedicated Manage workspace. Opt-in/out keywords, independent acknowledgement toggles, editable
+customer previews and the single governed save action now carry the same clear hierarchy without
+copying excluded ads, premium reports or unsupported API-campaign controls. PASS: focused 129 and
+full frontend 1,020 tests, TypeScript, ESLint and production build. No backend or contract delta.
+
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+Reconciled the complete existing Chat History workflow against the authenticated reference. Added
+the missing compact contact-avatar hierarchy and stronger selected-row emphasis without inventing
+a message-count fact the API does not provide. PASS: focused Chat History 41, full frontend 1,020,
+focused backend history/transcript/fixture regression 48, static analysis and production build. No
+backend, API, migration or permission delta.
+
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+Reconciled the previously delivered unified Download Center instead of rebuilding it. Signed export
+links are now capped by durable artifact retention, and the public signature-authenticated download
+target rechecks retention so an already-issued link cannot outlive the artifact. No API, migration
+or frontend change was required. PASS: focused backend 63, full backend 1,769 with 6 MySQL-only
+skips, and full frontend 1,020 plus static checks/build. The same 6 Redis-dependent campaign tests
+remain host-environment failures.
+
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+Added an independent organization policy for provider read receipts, a capability-gated Meta Cloud
+implementation, and retry-safe inbox orchestration that never reports local success after provider
+failure. Existing business-hours, automatic-reply and shared unread behavior remains intact.
+OpenAPI remains 247 paths and no migration is required. PASS: focused backend 59, focused frontend
+108, full frontend 1,020, static analysis and production build. Full backend passed 1,767 with 6
+MySQL-only skips; 6 pre-existing Redis-dependent campaign tests remain host-environment failures.
+
+## CORE-13 — first-message tag rules (2026-09-20)
+
+Added exact-match first-message rules to organization tags. Matching the first accepted inbound
+text now attaches configured contact tags through the canonical tag authority, maintains usage,
+timeline and audit records, and records a deterministic effect on the existing business-event
+ledger. Migration head is `0071_tag_first_message_rules`; OpenAPI remains 247 paths. PASS: focused
+backend 52, focused frontend 191, full frontend 1,020, static analysis and production build. The
+full backend run passed 1,763 with 6 MySQL-only skips; its one milestone-owned deployment-head
+assertion was corrected and passed on rerun, while 6 pre-existing Redis-dependent campaign tests
+remain host-environment failures.
+
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+Added independently configurable opt-in and opt-out acknowledgement messages to the existing
+inbound consent-keyword evaluator. Consent is recorded before provider delivery, duplicate webhook
+processing recovers the same durable reply, and the opt-out bypass is restricted to the withdrawal
+acknowledgement itself. OpenAPI remains 247 paths. PASS: focused backend 43, focused frontend 105,
+full frontend 1,019, Ruff, strict mypy, TypeScript, ESLint and production build. The full backend
+run passed 1,762 with 6 MySQL-only skips; 6 pre-existing Redis-dependent campaign tests failed
+because Redis was unavailable on this host.
 
 ## UI-REF-10 — Template creation focus (2026-09-20)
 

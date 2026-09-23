@@ -55,6 +55,8 @@ class TagService:
         name: str,
         color: str | None,
         description: str | None,
+        first_message_enabled: bool = False,
+        first_message_keywords: list[str] | None = None,
     ) -> Tag:
         if await self._tags.get_by_name(organization_id, name) is not None:
             raise ConflictError(f"A tag named {name!r} already exists.")
@@ -63,6 +65,8 @@ class TagService:
             name=name,
             color=color,
             description=description,
+            first_message_enabled=first_message_enabled,
+            first_message_keywords_json=first_message_keywords or [],
             created_by=actor.id,
         )
         await self._tags.add(tag)
@@ -72,7 +76,12 @@ class TagService:
             organization_id=organization_id,
             entity_type="tag",
             entity_id=tag.id,
-            after={"name": name, "color": color},
+            after={
+                "name": name,
+                "color": color,
+                "first_message_enabled": first_message_enabled,
+                "first_message_keywords": first_message_keywords or [],
+            },
         )
         await self._session.commit()
         return tag
@@ -86,9 +95,16 @@ class TagService:
         name: str | None,
         color: str | None,
         description: str | None,
+        first_message_enabled: bool | None = None,
+        first_message_keywords: list[str] | None = None,
     ) -> Tag:
         tag = await self.get_tag(organization_id, public_id)
-        before = {"name": tag.name, "color": tag.color}
+        before = {
+            "name": tag.name,
+            "color": tag.color,
+            "first_message_enabled": tag.first_message_enabled,
+            "first_message_keywords": tag.first_message_keywords_json,
+        }
         if name is not None and name != tag.name:
             if await self._tags.get_by_name(organization_id, name) is not None:
                 raise ConflictError(f"A tag named {name!r} already exists.")
@@ -97,6 +113,21 @@ class TagService:
             tag.color = color
         if description is not None:
             tag.description = description
+        if first_message_enabled is not None:
+            tag.first_message_enabled = first_message_enabled
+        if first_message_keywords is not None:
+            tag.first_message_keywords_json = first_message_keywords
+        if tag.first_message_enabled and not tag.first_message_keywords_json:
+            raise ValidationError(
+                "Enabled first-message tagging requires at least one keyword.",
+                errors=[
+                    {
+                        "field": "first_message_keywords",
+                        "code": "required",
+                        "message": "Add at least one exact-match keyword.",
+                    }
+                ],
+            )
         await self._tags.flush()
         await self._audit.record(
             AuditAction.TAG_UPDATED,
@@ -105,7 +136,12 @@ class TagService:
             entity_type="tag",
             entity_id=tag.id,
             before=before,
-            after={"name": tag.name, "color": tag.color},
+            after={
+                "name": tag.name,
+                "color": tag.color,
+                "first_message_enabled": tag.first_message_enabled,
+                "first_message_keywords": tag.first_message_keywords_json,
+            },
         )
         await self._session.commit()
         return tag
@@ -226,6 +262,15 @@ class TagService:
             after={"tag": tag.name},
         )
         return True
+
+    async def apply_system_tag_to_contact(self, *, contact: Contact, tag: Tag) -> bool:
+        """Attach one rule-selected tag without committing the caller-owned inbound transaction."""
+        return await self._attach_tag(
+            organization_id=contact.organization_id,
+            contact=contact,
+            tag=tag,
+            actor=None,
+        )
 
     async def remove_tag_from_contact(
         self,

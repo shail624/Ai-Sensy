@@ -96,6 +96,10 @@ function contactLabel(contact: { name: string | null; phone: string } | null): s
   return contact?.name ?? contact?.phone ?? "Unknown contact";
 }
 
+function contactInitial(contact: { name: string | null; phone: string } | null): string {
+  return contactLabel(contact).trim().charAt(0).toUpperCase() || "?";
+}
+
 function hasActiveFilter(filters: InboxFilters): boolean {
   return Boolean(
     filters.q ||
@@ -407,31 +411,39 @@ export function ChatHistory(): JSX.Element {
                         type="button"
                         aria-current={selected ? "true" : undefined}
                         onClick={() => select(conversation.id)}
-                        className={`w-full px-3 py-3 text-left transition-colors hover:bg-hover ${selected ? "bg-surface-2" : ""}`}
+                        className={`flex w-full gap-3 border-l-2 px-3 py-3 text-left transition-colors hover:bg-hover ${selected ? "border-l-accent bg-surface-2" : "border-l-transparent"}`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="truncate text-sm font-semibold text-text-primary">
-                            {name}
+                        <span
+                          aria-hidden
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent"
+                        >
+                          {contactInitial(conversation.contact)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-text-primary">
+                              {name}
+                            </span>
+                            <time className="shrink-0 text-[11px] text-text-disabled">
+                              {formatDateTime(conversation.last_message_at)}
+                            </time>
                           </span>
-                          <time className="shrink-0 text-[11px] text-text-disabled">
-                            {formatDateTime(conversation.last_message_at)}
-                          </time>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-text-secondary">
-                          {conversation.last_message_preview ?? "No messages"}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <Badge
-                            tone={conversation.status === "open" ? "success" : "neutral"}
-                            dot
-                          >
-                            {STATUS_LABELS[conversation.status as ConversationStatus] ??
-                              conversation.status}
-                          </Badge>
-                          {conversation.tags.slice(0, 2).map((tag) => (
-                            <TagChip key={tag.id} name={tag.name} color={tag.color} />
-                          ))}
-                        </div>
+                          <span className="mt-0.5 block truncate text-xs text-text-secondary">
+                            {conversation.last_message_preview ?? "No messages"}
+                          </span>
+                          <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              tone={conversation.status === "open" ? "success" : "neutral"}
+                              dot
+                            >
+                              {STATUS_LABELS[conversation.status as ConversationStatus] ??
+                                conversation.status}
+                            </Badge>
+                            {conversation.tags.slice(0, 2).map((tag) => (
+                              <TagChip key={tag.id} name={tag.name} color={tag.color} />
+                            ))}
+                          </span>
+                        </span>
                       </button>
                     </li>
                   );

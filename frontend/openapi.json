@@ -21962,6 +21962,28 @@
             "type": "array",
             "maxItems": 20,
             "title": "Opt Out Keywords"
+          },
+          "opt_in_response_enabled": {
+            "type": "boolean",
+            "title": "Opt In Response Enabled",
+            "default": false
+          },
+          "opt_in_response_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Opt In Response Body",
+            "default": ""
+          },
+          "opt_out_response_enabled": {
+            "type": "boolean",
+            "title": "Opt Out Response Enabled",
+            "default": false
+          },
+          "opt_out_response_body": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Opt Out Response Body",
+            "default": ""
           }
         },
         "type": "object",
@@ -25660,6 +25682,11 @@
             "title": "Auto Mark Read",
             "default": true
           },
+          "send_read_receipts": {
+            "type": "boolean",
+            "title": "Send Read Receipts",
+            "default": true
+          },
           "consent": {
             "$ref": "#/components/schemas/ConsentKeywordSettings"
           },
@@ -25716,6 +25743,11 @@
           "auto_mark_read": {
             "type": "boolean",
             "title": "Auto Mark Read",
+            "default": true
+          },
+          "send_read_receipts": {
+            "type": "boolean",
+            "title": "Send Read Receipts",
             "default": true
           },
           "consent": {
@@ -32758,6 +32790,19 @@
               }
             ],
             "title": "Description"
+          },
+          "first_message_enabled": {
+            "type": "boolean",
+            "title": "First Message Enabled",
+            "default": false
+          },
+          "first_message_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "First Message Keywords"
           }
         },
         "type": "object",
@@ -32847,6 +32892,17 @@
             "type": "integer",
             "title": "Usage Count"
           },
+          "first_message_enabled": {
+            "type": "boolean",
+            "title": "First Message Enabled"
+          },
+          "first_message_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "First Message Keywords"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -32865,6 +32921,8 @@
           "color",
           "description",
           "usage_count",
+          "first_message_enabled",
+          "first_message_keywords",
           "created_at",
           "updated_at"
         ],
@@ -32938,6 +32996,32 @@
               }
             ],
             "title": "Description"
+          },
+          "first_message_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Message Enabled"
+          },
+          "first_message_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Message Keywords"
           }
         },
         "type": "object",

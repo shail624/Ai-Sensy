@@ -61,6 +61,10 @@ def stack_environment(image_tag: str, http_port: int) -> tuple[dict[str, str], s
             "WORKER_REALTIME_CONCURRENCY": "1",
             "WORKER_BULK_CONCURRENCY": "1",
             "WORKER_JOBS_CONCURRENCY": "1",
+            # The browser accessibility suite performs a hard navigation for every route. Access
+            # tokens intentionally live in memory, so every new document rotates the refresh token.
+            # Raise only this disposable gate's allowance; Compose keeps the production default 10.
+            "RATE_LIMIT_AUTH_MAX": "100",
             "OWNER_EMAIL": owner_email,
             "OWNER_PASSWORD": owner_password,
         }

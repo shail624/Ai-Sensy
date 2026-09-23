@@ -389,21 +389,22 @@ class ConversationService:
         Upsert, not create: ``uq_conv_number_contact`` means one thread per (number, contact), and
         every later message on it lands here again.
         """
-        conversation, _ = await self.open_for_inbound_with_window(
+        conversation, _, _ = await self.open_for_inbound_with_window(
             number=number, contact=contact, occurred_at=occurred_at
         )
         return conversation
 
     async def open_for_inbound_with_window(
         self, *, number: PhoneNumber, contact: Contact, occurred_at: datetime
-    ) -> tuple[Conversation, bool]:
-        """Open the thread and report whether this inbound begins a new 24-hour window."""
+    ) -> tuple[Conversation, bool, bool]:
+        """Open the thread and report its new-window and first-inbound facts."""
         conversation = await self.thread_for(number=number, contact=contact)
         conversation = (
             await self._conversations.lock_by_id(number.organization_id, conversation.id)
             or conversation
         )
         previous_inbound = conversation.last_inbound_at
+        is_first_inbound = previous_inbound is None
         opened_new_window = previous_inbound is None or occurred_at >= previous_inbound + WINDOW
         if conversation.last_inbound_at is None or occurred_at > conversation.last_inbound_at:
             conversation.last_inbound_at = occurred_at
@@ -411,7 +412,7 @@ class ConversationService:
         # Denormalized for `ix_conv_window`; `Conversation.window_is_open` is the read-time truth.
         conversation.is_window_open = conversation.window_is_open
         await self._conversations.flush()
-        return conversation, opened_new_window
+        return conversation, opened_new_window, is_first_inbound
 
     # --- Provider-neutral (channel-endpoint-owned, e.g. WAHA) analogues (QR-08) -----------------
     #
@@ -450,14 +451,14 @@ class ConversationService:
         WAHA send path *enforces* the Meta-only 24-hour customer-service-window rule those fields
         back; WhatsApp Multi-Device carries no such restriction.
         """
-        conversation, _ = await self.open_for_inbound_endpoint_with_window(
+        conversation, _, _ = await self.open_for_inbound_endpoint_with_window(
             endpoint=endpoint, contact=contact, occurred_at=occurred_at
         )
         return conversation
 
     async def open_for_inbound_endpoint_with_window(
         self, *, endpoint: ChannelEndpoint, contact: Contact, occurred_at: datetime
-    ) -> tuple[Conversation, bool]:
+    ) -> tuple[Conversation, bool, bool]:
         """Endpoint-owned window update with the same serialized new-window fact."""
         conversation = await self.thread_for_endpoint(endpoint=endpoint, contact=contact)
         conversation = (
@@ -465,13 +466,14 @@ class ConversationService:
             or conversation
         )
         previous_inbound = conversation.last_inbound_at
+        is_first_inbound = previous_inbound is None
         opened_new_window = previous_inbound is None or occurred_at >= previous_inbound + WINDOW
         if conversation.last_inbound_at is None or occurred_at > conversation.last_inbound_at:
             conversation.last_inbound_at = occurred_at
             conversation.window_expires_at = occurred_at + WINDOW
         conversation.is_window_open = conversation.window_is_open
         await self._conversations.flush()
-        return conversation, opened_new_window
+        return conversation, opened_new_window, is_first_inbound
 
     async def _touch_last_message(
         self, conversation: Conversation, *, preview: str, occurred_at: datetime

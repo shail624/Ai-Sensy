@@ -321,6 +321,21 @@ export function CannedMessagesPanel(): JSX.Element {
               />
             </Field>
 
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-text-secondary">Message preview</p>
+              <div
+                aria-label="Message preview"
+                className="min-h-20 rounded-xl border border-border bg-accent-soft p-3 text-sm leading-relaxed text-text-primary"
+              >
+                {editor.body.trim() || (
+                  <span className="text-text-disabled">
+                    Your message will appear here as you type. Selecting it later inserts the text
+                    into the composer; it does not send automatically.
+                  </span>
+                )}
+              </div>
+            </div>
+
             {editor.reply ? (
               // Read-only information, not a control — a `label htmlFor` pointing at a `<div>` would
               // create no real accessible association, so this is a definition row instead of a fake

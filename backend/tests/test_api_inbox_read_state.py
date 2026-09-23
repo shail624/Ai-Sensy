@@ -12,7 +12,11 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.channels.capabilities import Capability
+from app.models.contact import Contact
 from app.models.conversation import Conversation
+from app.models.message import DIRECTION_INBOUND, MSG_ACCEPTED, Message
+from app.services.waba_service import WabaService
 from tests.test_api_inbox_reads import _add_conv, _base
 from tests.test_api_messages import _headers
 
@@ -34,6 +38,26 @@ async def _state(session_factory) -> tuple[int, int]:
         return conv.unread_count, conv.row_version
 
 
+async def _add_inbound_message(session_factory, *, wamid: str) -> None:
+    async with session_factory() as session:
+        conv = (await session.scalars(select(Conversation))).first()
+        contact = (await session.scalars(select(Contact))).first()
+        session.add(
+            Message(
+                organization_id=conv.organization_id,
+                conversation_id=conv.id,
+                phone_number_id=conv.phone_number_id,
+                contact_id=contact.id,
+                direction=DIRECTION_INBOUND,
+                wamid=wamid,
+                message_type="text",
+                content_json={"body": "hello"},
+                status=MSG_ACCEPTED,
+            )
+        )
+        await session.commit()
+
+
 # --- Reset -------------------------------------------------------------------
 @pytest.mark.anyio
 async def test_read_resets_unread(client, make_user, session_factory, monkeypatch, dispatched):
@@ -49,6 +73,62 @@ async def test_read_resets_unread(client, make_user, session_factory, monkeypatc
     assert body["unread_count"] == 0
     assert body["row_version"] == 1  # a real reset bumps the optimistic-lock counter (was 0)
     assert await _state(session_factory) == (0, 1)
+
+
+@pytest.mark.anyio
+async def test_read_emits_provider_receipt_before_reset(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Receipt", phone="+1911010")
+    await _add_inbound_message(session_factory, wamid="wamid.latest")
+    await _set_unread(session_factory, 2)
+    calls: list[str] = []
+
+    class Adapter:
+        def supports(self, capability):
+            return capability is Capability.READ_RECEIPTS
+
+        async def mark_read(self, channel_message_id: str) -> None:
+            calls.append(channel_message_id)
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *args, **kwargs: Adapter())
+
+    resp = await client.post(f"{CONVERSATIONS_URL}/{conv_id}/read", headers=agent)
+
+    assert resp.status_code == 200, resp.text
+    assert calls == ["wamid.latest"]
+    assert await _state(session_factory) == (0, 1)
+
+
+@pytest.mark.anyio
+async def test_provider_receipt_failure_preserves_local_unread(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Failure", phone="+1911011")
+    await _add_inbound_message(session_factory, wamid="wamid.failure")
+    await _set_unread(session_factory, 4)
+
+    class Adapter:
+        def supports(self, capability):
+            return capability is Capability.READ_RECEIPTS
+
+        async def mark_read(self, channel_message_id: str) -> None:
+            raise RuntimeError("provider unavailable")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *args, **kwargs: Adapter())
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        await client.post(f"{CONVERSATIONS_URL}/{conv_id}/read", headers=agent)
+
+    assert await _state(session_factory) == (4, 0)
 
 
 @pytest.mark.anyio

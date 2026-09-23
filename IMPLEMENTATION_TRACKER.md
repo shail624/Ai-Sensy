@@ -1,5 +1,21 @@
 # Implementation Tracker (canonical)
 
+## REVIEW-02 — COMPLETE, integrating the `codex/rel-02-local-certification` branch (2026-09-23)
+
+- Reviewed and integrated 16 commits (CORE-10, CORE-12–15, UI-REF-11–18, ACCEPT-01, ACCEPT-02,
+  REL-02A): every changed line read, anything suspicious reproduced against real infrastructure.
+- Resolved a migration collision: rel-02's own `0070_tag_first_message_rules` renumbered to `0071`
+  and re-chained onto WABA-01's `0070_phone_quality_unknown`; applied cleanly to real MySQL.
+- Fixed one bug: CORE-15's claimed Download Center 90%→92% advancement was never applied to
+  `MODULE_STATUS.md`'s own table.
+- ACCEPT-01's finding kept, its fix (rewriting ~20 already-applied migration files) rejected per
+  `REPOSITORY_RULES.md`'s additive-migration invariant — see its own entry below.
+- No other defects found across the backend services/schemas/models/endpoints or the frontend
+  panels/navigation/generated types this branch touched.
+- PASS: Ruff, strict mypy (332 files), TypeScript, ESLint, full frontend 63 files / 1,024 tests,
+  production build. Full backend suite **1,782 passed, 0 failed** in 10:54; OpenAPI drift check
+  clean at 247 paths.
+
 ## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
 
 The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
@@ -138,6 +154,164 @@ UI-REF-18, ACCEPT-01/02, REL-02A) has not been reviewed at the same depth this e
 merged commits — it was surveyed at the commit-message and file-stat level only. Reviewing or
 merging it is the owner's call, made explicitly, not something this session did on its own
 initiative.
+## REL-02A — COMPLETE, local release certification (2026-09-21)
+
+- Backend and frontend runtime images now consume fixed Alpine packages during release builds.
+- Production auth remains 10 requests / 5 minutes; only the disposable crawler receives 100.
+- PASS: complete deployed quality profile, 1,782 backend and 1,022 frontend tests.
+- PASS: blocking source/dependency/image scans and deployable-image SBOM generation.
+- PASS: isolated stack, five browser journeys, p95 canary, observability and Redis degradation.
+- PENDING — off-host restore, large-scale stress/spike/soak and target-host/provider/owner evidence.
+
+## ACCEPT-02 — COMPLETE, host validated (2026-09-21)
+
+- Disposable local MySQL/Redis stack populated through the governed development fixture command.
+- Authenticated Owner browser session validated the primary operating and Manage workspaces.
+- Desktop 1440×900 and mobile 390×844 route matrix passed without page-level horizontal overflow.
+- Live Chat and Chat History list-to-detail interactions passed with representative messages.
+- Campaigns, Downloads and Developer Hub correctly presented truthful empty states where fixtures
+  intentionally contain no campaign, artifact or API-key records.
+- No product source, API, migration, permission or dependency change was required.
+- PENDING – target-host deployment, real provider credentials/data and owner UAT remain external
+  release gates.
+
+## ACCEPT-01 — FINDING KEPT, FIX NOT MERGED (2026-09-21, revised 2026-09-23)
+
+- Docker-backed disposable MySQL 8 validation reproduced multiple rollback ordering defects across
+  ~20 already-applied migrations (0003–0058) that SQLite could not expose — diagnosis correct, kept.
+- The fix rewrote those applied migration files' `downgrade()` bodies directly. Forbidden outright by
+  `REPOSITORY_RULES.md`: "Never downgrade, renumber, squash, or rewrite applied migrations."
+- REVIEW-02 restored all ~20 files to their original content and did not carry over the new
+  `head→base→head` regression test (it depends on the reverted edits and would fail again).
+- No code from this milestone ships. Recorded as a known, permanent limitation in PROJECT_STATE.md.
+- Practical exposure is low: `deploy/DEPLOYMENT.md` §10 rolls back via `IMAGE_TAG`, never
+  `alembic downgrade`, since migrations are expand-only — this gap sits off that path.
+- PENDING – a rule-compliant fix (e.g. a future additive squash point), not attempted here.
+
+## UI-REF-18 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Developer Hub and approved captures 0070–0073 inspected read-only.
+- The direct Developer entry now opens a focused Project API keys workspace.
+- Existing credential security, lifecycle, audit and permission behavior remains canonical.
+- API campaigns, outbound project webhooks and duplicate API documentation remain absent.
+- PASS: focused 103 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-17 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Notification Preferences and approved capture 0055 inspected read-only.
+- Real per-user category controls now lead a dedicated Notification Preferences workspace.
+- Existing immediate save, hidden-item retention and advanced personal store remain canonical.
+- Unsupported sound, browser push and device enrolment remain absent rather than fake.
+- PASS: focused 139 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-16 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Tags and approved capture 0054 inspected read-only.
+- Tag name and First message are now separate table facts with truthful rule state and match count.
+- Maintained usage, exact-match behavior, CRUD and permission gates remain canonical.
+- Unsupported category/group and excluded commercial surfaces remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-15 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Team Members and approved captures 0052–0053 inspected read-only.
+- The user workspace now leads with Team Members and a direct Add team member creation action.
+- Custom roles, permission gates, explicit enable/disable and edit concurrency remain canonical.
+- Paid quota/billing, launch cards, invitations and SSO remain absent rather than fake.
+- PASS: focused 72 and full frontend 1,022 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-14 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy New Canned Message and approved capture 0051 inspected read-only.
+- The existing text editor now shows the exact message body in a live preview.
+- Shortcut, title, personal/shared ownership and insert-without-send behavior remain canonical.
+- Unsupported media/message types and gated variable substitution remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-13 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy User Attributes and approved captures 0048–0050 inspected read-only.
+- Existing typed definitions, validation, status flags and per-record writes remain canonical.
+- Search, type filter and Add attribute now form one compact action row; creation wording and table
+  hierarchy are aligned without reducing the richer domain contract.
+- Meta Lead Form attributes, ads and launch shortcuts remain absent rather than empty/fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-12 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Live Chat Settings and approved capture 0047 inspected read-only.
+- Existing read-state, automatic-reply, working-hours and auto-resolution behavior remains the sole
+  authority; no endpoint, model or policy was duplicated.
+- The Manage deep link now hides unrelated routing, consent and advanced-store controls and uses a
+  contextual Live Chat save action.
+- Unsupported typing indicators, ads and AI launch shortcuts remain absent rather than fake.
+- PASS: focused 130 and full frontend 1,021 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## UI-REF-11 — COMPLETE, repository validated (2026-09-21)
+
+- Authenticated AiSensy Opt-in Management and approved captures 0045/0046 inspected read-only.
+- Existing exact-match consent policy remains the sole backend authority; no subsystem was rebuilt.
+- The Manage deep link now opens a focused consent workspace with paired keyword controls,
+  independent acknowledgement controls, customer previews and a contextual save action.
+- Unrelated Inbox/application settings are hidden only at the consent deep link and remain available
+  on their existing route.
+- Ads, premium report/download, AI launch and unsupported API-campaign controls remain absent.
+- PASS: focused 129 and full frontend 1,020 tests; TypeScript, ESLint and production build.
+- PENDING – Host Machine Validation: authenticated local populated preview and browser/mobile matrix.
+
+## CORE-10 — COMPLETE, repository validated (2026-09-20)
+
+The existing dedicated History route, advanced filters, bounded message history, shared views,
+audit/Live Chat handoffs and transcript exports were reconciled rather than rebuilt. Authenticated
+reference inspection informed the remaining avatar/selection hierarchy update; unsupported count
+badges were deliberately not fabricated. Live MySQL/browser-matrix and target-scale acceptance
+remain release gates. PASS: focused Chat History 41, full frontend 1,020, focused backend 48,
+TypeScript, ESLint, Ruff, strict mypy and production build. Design record: Document 85.
+
+## CORE-15 — COMPLETE, repository validated (2026-09-20)
+
+Reconciliation confirmed the unified personal history, permission/owner scoping, status discovery,
+keyset pagination and signed downloads already exist. The remaining retention-authorization gap is
+closed: link TTL cannot exceed artifact retention and the byte-serving route revokes previously
+issued links after retention. No parallel history system was added. PASS: full backend 1,769 with
+6 MySQL-only skips; full frontend 1,020 plus static checks/build. Six unrelated Redis-dependent
+campaign tests remain host-limited. Design record: Document 84.
+
+## CORE-14 — COMPLETE, repository validated (2026-09-20)
+
+The existing mark-read action can now emit a real Meta read receipt under an independent
+organization setting. Capability checks keep unsupported connectors truthful; provider failure
+preserves local unread state and retrying an already-completed local action remains a no-op.
+Existing business hours and automatic replies were verified and not rebuilt. PASS: focused backend
+59, focused frontend 108, full frontend 1,020, Ruff, strict mypy, TypeScript, ESLint and build. Full
+backend: 1,767 passed / 6 MySQL-only skipped / 6 Redis-environment failures. Design record:
+Document 83.
+
+## CORE-13 — COMPLETE, repository validated (2026-09-20)
+
+Tags now own optional normalized exact-match keywords, and the shared inbound evaluator applies
+matching tags only on the channel conversation's first accepted inbound text. The canonical tag
+authority preserves counter/timeline/audit behavior and the existing immutable ledger supplies a
+deterministic effect record. PASS: focused backend 52, focused frontend 191, full frontend 1,020,
+Ruff, strict mypy, TypeScript, ESLint and build. Composite applicable backend evidence is 1,764
+passing; 6 Redis-dependent campaign checks remain host-limited. Migration 0071. Design record:
+Document 82.
+
+## CORE-12 — COMPLETE, repository validated (2026-09-20)
+
+Actual opt-in and opt-out keyword transitions can now produce independently configured, durable
+acknowledgements. The existing event-ledger idempotency is reused; withdrawal is committed before
+delivery and cannot be reversed by send failure. No blocked state or new subsystem was introduced.
+PASS: focused backend 43, frontend settings 105, full frontend 1,019, static analysis and build.
+Full backend: 1,762 passed / 6 MySQL-only skipped / 6 Redis-environment failures. Design record:
+Document 81.
 
 ## UI-REF-10 — COMPLETE, repository validated (2026-09-20)
 

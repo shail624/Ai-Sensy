@@ -22,25 +22,29 @@ export function OperationsPage(): JSX.Element {
   const active = sections.find((section) =>
     location.pathname.startsWith(section.path),
   );
+  const isDeveloperWorkspace = active?.key === "api";
 
   return (
     <PageContainer>
       <Breadcrumbs
         items={[
           { label: "Dashboard", to: "/" },
-          { label: "Operations", to: sections[0]?.path },
+          {
+            label: isDeveloperWorkspace ? "Developer" : "Operations",
+            to: isDeveloperWorkspace ? active.path : sections[0]?.path,
+          },
           ...(active ? [{ label: active.label }] : []),
         ]}
       />
       <PageHeader
-        title="Operations"
+        title={isDeveloperWorkspace ? "Developer Hub" : "Operations"}
         description={
           active?.description ?? "Background work, queue backlog and the health of the fleet."
         }
       />
 
       {sections.length === 0 ? <EmptyState title="You don't have access to this area" description="Ask an administrator if you need operational access." /> : <>
-      <nav aria-label="Operations sections" className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-subtle p-1.5">
+      {!isDeveloperWorkspace ? <nav aria-label="Operations sections" className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-subtle p-1.5">
         {sections.map((section) => (
           <NavLink
             key={section.key}
@@ -56,7 +60,7 @@ export function OperationsPage(): JSX.Element {
             {section.label}
           </NavLink>
         ))}
-      </nav>
+      </nav> : null}
 
       <Outlet />
       </>}

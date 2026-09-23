@@ -22,6 +22,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.capabilities import Capability
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
@@ -36,8 +37,12 @@ from app.models.internal_note import InternalNote
 from app.models.user import User
 from app.repositories.conversation import ConversationRepository
 from app.repositories.internal_note import InternalNoteRepository
+from app.repositories.message import MessageRepository
 from app.repositories.user import UserRepository
+from app.repositories.waba import PhoneNumberRepository, WabaRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.inbox_operations_service import InboxOperationsService
+from app.services.waba_service import WabaService
 
 logger = get_logger(__name__)
 
@@ -104,6 +109,9 @@ class InboxService:
         self._session = session
         self._conversations = ConversationRepository(session)
         self._notes = InternalNoteRepository(session)
+        self._messages = MessageRepository(session)
+        self._numbers = PhoneNumberRepository(session)
+        self._wabas = WabaRepository(session)
         self._users = UserRepository(session)
         self._audit = AuditService(session)
 
@@ -296,18 +304,39 @@ class InboxService:
     async def mark_read(
         self, *, organization_id: int, public_id: uuidlib.UUID
     ) -> ConversationReadState:
-        """Reset a conversation's shared unread counter (Doc 04 §18.1 — "mark read").
+        """Acknowledge supported providers, then reset the shared unread counter.
 
         Read state in the frozen schema is the single denormalized ``unread_count`` on the thread
         (Doc 03 §9.1): one team-shared counter, not a per-agent last-read marker (the schema defines
         none). "Mark read" is therefore a reset to zero. **Idempotent** — an already-read thread is a
-        no-op, so repeatedly opening the inbox's hottest write never churns ``row_version`` or
-        ``updated_at``. The *increment* side lives on the inbound path
+        no-op, so repeatedly opening the inbox's hottest write never churns ``row_version``,
+        ``updated_at`` or provider traffic. When policy permits and the channel declares the
+        capability, the newest inbound provider message is acknowledged before the local commit;
+        provider failure therefore cannot create a false local success. The *increment* side lives on the inbound path
         (:class:`~app.services.conversation_service.ConversationService`) and is untouched here. Not
         audited: a read is high-frequency and carries none of the accountability of assign/status.
         """
         conversation = await self._conversation(organization_id, public_id)
         if conversation.unread_count != 0:
+            policy = await InboxOperationsService(self._session).get(organization_id)
+            inbound = await self._messages.latest_receiptable_inbound(conversation.id)
+            if (
+                policy.send_read_receipts
+                and inbound is not None
+                and conversation.phone_number_id is not None
+            ):
+                number = await self._numbers.get_by_id(conversation.phone_number_id)
+                if number is not None and number.organization_id == organization_id:
+                    waba = await self._wabas.get_by_id(number.waba_id)
+                    if waba is not None and waba.organization_id == organization_id:
+                        adapter = WabaService(self._session).adapter_for(
+                            waba, phone_number_id=number.phone_number_id
+                        )
+                        try:
+                            if adapter.supports(Capability.READ_RECEIPTS):
+                                await adapter.mark_read(inbound.wamid or "")
+                        finally:
+                            await adapter.close()
             conversation.unread_count = 0
             conversation.row_version += 1
             await self._conversations.flush()

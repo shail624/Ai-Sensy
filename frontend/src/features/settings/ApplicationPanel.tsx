@@ -1,4 +1,4 @@
-import { CheckCheck, Route, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { CheckCheck, MessageSquareText, Route, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -45,9 +45,14 @@ import { formatCount } from "@/lib/format";
 interface OperationsDraft {
   assignmentMode: "manual" | "least_open";
   autoMarkRead: boolean;
+  sendReadReceipts: boolean;
   consentEnabled: boolean;
   optInKeywords: string;
   optOutKeywords: string;
+  optInResponseEnabled: boolean;
+  optInResponseBody: string;
+  optOutResponseEnabled: boolean;
+  optOutResponseBody: string;
   workingHoursEnabled: boolean;
   workingDays: WorkingDay[];
   welcomeEnabled: boolean;
@@ -61,9 +66,14 @@ interface OperationsDraft {
 const DEFAULT_DRAFT: OperationsDraft = {
   assignmentMode: "manual",
   autoMarkRead: true,
+  sendReadReceipts: true,
   consentEnabled: false,
   optInKeywords: "START, YES",
   optOutKeywords: "STOP, UNSUBSCRIBE",
+  optInResponseEnabled: false,
+  optInResponseBody: "",
+  optOutResponseEnabled: false,
+  optOutResponseBody: "",
   workingHoursEnabled: false,
   workingDays: defaultWorkingDays(),
   welcomeEnabled: false,
@@ -79,9 +89,14 @@ function policyDraft(policy: InboxOperationsPolicy | undefined): OperationsDraft
   return {
     assignmentMode: policy.assignment_mode,
     autoMarkRead: policy.auto_mark_read,
+    sendReadReceipts: policy.send_read_receipts,
     consentEnabled: policy.consent?.enabled ?? false,
     optInKeywords: (policy.consent?.opt_in_keywords ?? ["START", "YES"]).join(", "),
     optOutKeywords: (policy.consent?.opt_out_keywords ?? ["STOP", "UNSUBSCRIBE"]).join(", "),
+    optInResponseEnabled: policy.consent?.opt_in_response_enabled ?? false,
+    optInResponseBody: policy.consent?.opt_in_response_body ?? "",
+    optOutResponseEnabled: policy.consent?.opt_out_response_enabled ?? false,
+    optOutResponseBody: policy.consent?.opt_out_response_body ?? "",
     workingHoursEnabled: policy.working_hours?.enabled ?? false,
     workingDays: policy.working_hours?.days ?? defaultWorkingDays(),
     welcomeEnabled: policy.automatic_replies?.welcome_enabled ?? false,
@@ -121,6 +136,8 @@ function toEntry(setting: Setting, canManage: boolean): KeyValueEntry {
 
 function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Element {
   const { hash } = useLocation();
+  const consentOnly = hash === "#consent";
+  const liveChatOnly = hash === "#inbox-policy";
   const policy = useInboxOperations();
   const update = useUpdateInboxOperations();
   const [draft, setDraft] = useState<OperationsDraft>(DEFAULT_DRAFT);
@@ -151,6 +168,14 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
     const overlap = optOut.find((keyword) => normalizedIn.has(keyword.toUpperCase()));
     if (overlap) {
       setValidation(`“${overlap}” cannot be both an opt-in and opt-out keyword.`);
+      return;
+    }
+    if (draft.optInResponseEnabled && !draft.optInResponseBody.trim()) {
+      setValidation("An enabled opt-in response needs message text.");
+      return;
+    }
+    if (draft.optOutResponseEnabled && !draft.optOutResponseBody.trim()) {
+      setValidation("An enabled opt-out response needs message text.");
       return;
     }
     if (draft.workingHoursEnabled && !draft.workingDays.some((day) => day.enabled)) {
@@ -189,10 +214,15 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
     const body: InboxOperationsUpdate = {
       assignment_mode: draft.assignmentMode,
       auto_mark_read: draft.autoMarkRead,
+      send_read_receipts: draft.sendReadReceipts,
       consent: {
         enabled: draft.consentEnabled,
         opt_in_keywords: optIn,
         opt_out_keywords: optOut,
+        opt_in_response_enabled: draft.optInResponseEnabled,
+        opt_in_response_body: draft.optInResponseBody.trim(),
+        opt_out_response_enabled: draft.optOutResponseEnabled,
+        opt_out_response_body: draft.optOutResponseBody.trim(),
       },
       working_hours: {
         enabled: draft.workingHoursEnabled,
@@ -222,17 +252,23 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
   return (
     <div id="inbox-policy" tabIndex={-1} className="scroll-mt-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
     <Section
-      title="Inbox operations"
-      description="Organization-wide rules consumed by new conversations and inbound messages."
-      icon={<SlidersHorizontal aria-hidden className="h-4 w-4" />}
+      title={consentOnly ? "Consent keyword rules" : liveChatOnly ? "Live Chat behavior" : "Inbox operations"}
+      description={consentOnly
+        ? "Control the exact messages that record customer opt-in and opt-out choices."
+        : liveChatOnly
+          ? "Manage read state, automated replies, working hours and inactive conversations."
+        : "Organization-wide rules consumed by new conversations and inbound messages."}
+      icon={consentOnly
+        ? <ShieldCheck aria-hidden className="h-4 w-4" />
+        : <SlidersHorizontal aria-hidden className="h-4 w-4" />}
       action={
         <Badge tone={policy.data?.configured ? "success" : "neutral"}>
           {policy.data?.configured ? "Configured" : "Using safe defaults"}
         </Badge>
       }
     >
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface-2 p-4">
+      {!consentOnly ? <div className={`grid gap-4 ${liveChatOnly ? "lg:grid-cols-2" : "xl:grid-cols-3"}`}>
+        {!liveChatOnly ? <div className="rounded-xl border border-border bg-surface-2 p-4">
           <div className="mb-3 flex items-start gap-3">
             <Route aria-hidden className="mt-0.5 h-4 w-4 text-accent" />
             <div>
@@ -259,7 +295,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               <option value="least_open">Balance by open workload</option>
             </Select>
           </Field>
-        </div>
+        </div> : null}
 
         <label className="flex min-h-40 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface-2 p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
           <input
@@ -284,7 +320,30 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
           </span>
         </label>
 
-        <div id="consent" tabIndex={-1} className="scroll-mt-4 rounded-xl border border-border bg-surface-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+        <label className="flex min-h-40 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface-2 p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
+          <input
+            type="checkbox"
+            aria-label="Send read receipts to customers"
+            checked={draft.sendReadReceipts}
+            disabled={!canManage}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, sendReadReceipts: event.target.checked }))
+            }
+            className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <CheckCheck aria-hidden className="h-4 w-4 text-accent" />
+              Send read receipts to customers
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-text-secondary">
+              When an unread conversation is marked read, notify supported WhatsApp providers.
+              Local unread state still works for connectors without this capability.
+            </span>
+          </span>
+        </label>
+
+        {!liveChatOnly ? <div className="rounded-xl border border-border bg-surface-2 p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
@@ -307,14 +366,43 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               </span>
             </span>
           </label>
-        </div>
-      </div>
+        </div> : null}
+      </div> : null}
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      {consentOnly ? <div
+        id="consent"
+        tabIndex={-1}
+        className="scroll-mt-4 rounded-xl border border-border bg-surface-2 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:p-5"
+      >
+        <label className="flex cursor-pointer items-start justify-between gap-4">
+          <span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <ShieldCheck aria-hidden className="h-4 w-4 text-accent" />
+              Recognize consent keywords
+            </span>
+            <span className="mt-1 block max-w-2xl text-xs leading-relaxed text-text-secondary">
+              Exact whole-message matches update the contact&apos;s consent record. A sentence that merely
+              contains a keyword is ignored.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            aria-label="Recognize consent keywords"
+            checked={draft.consentEnabled}
+            disabled={!canManage}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, consentEnabled: event.target.checked }))
+            }
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+          />
+        </label>
+      </div> : null}
+
+      {!liveChatOnly ? <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Field
           htmlFor="opt-in-keywords"
           label="Opt-in keywords"
-          description="Comma-separated; matching ignores case and surrounding spaces."
+          description="Messages that record permission to contact this person. Separate entries with commas."
         >
           <Input
             id="opt-in-keywords"
@@ -328,7 +416,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         <Field
           htmlFor="opt-out-keywords"
           label="Opt-out keywords"
-          description="Keep at least one opt-out keyword whenever consent handling is enabled."
+          description="Messages that record withdrawal. Matching ignores case and surrounding spaces."
         >
           <Input
             id="opt-out-keywords"
@@ -338,10 +426,79 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
               setDraft((current) => ({ ...current, optOutKeywords: event.target.value }))
             }
           />
-        </Field>
-      </div>
+          </Field>
+        </div> : null}
 
-      <WorkingHoursEditor
+      {!liveChatOnly ? <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {(
+          [
+            [
+              "opt-in",
+              "Opt-in acknowledgement",
+              draft.optInResponseEnabled,
+              draft.optInResponseBody,
+            ],
+            [
+              "opt-out",
+              "Opt-out acknowledgement",
+              draft.optOutResponseEnabled,
+              draft.optOutResponseBody,
+            ],
+          ] as const
+        ).map(([kind, label, enabled, body]) => (
+          <div key={kind} className="rounded-xl border border-border bg-surface-2 p-4 sm:p-5">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                aria-label={`Send ${kind} acknowledgement`}
+                checked={enabled}
+                disabled={!canManage || !draft.consentEnabled}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    ...(kind === "opt-in"
+                      ? { optInResponseEnabled: event.target.checked }
+                      : { optOutResponseEnabled: event.target.checked }),
+                  }))
+                }
+                className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-text-primary">{label}</span>
+                <span className="mt-1 block text-xs text-text-secondary">
+                  Sent only after the consent change is recorded. A delivery failure never
+                  reverses it.
+                </span>
+              </span>
+            </label>
+            <div className="mt-4 rounded-xl border border-border bg-surface p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium text-text-secondary">
+                <MessageSquareText aria-hidden className="h-4 w-4 text-accent" />
+                Customer preview
+              </div>
+              <textarea
+                aria-label={`${label} message`}
+                value={body}
+                maxLength={1000}
+                disabled={!canManage || !draft.consentEnabled || !enabled}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    ...(kind === "opt-in"
+                      ? { optInResponseBody: event.target.value }
+                      : { optOutResponseBody: event.target.value }),
+                  }))
+                }
+                className="min-h-24 w-full resize-y rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+                placeholder="Enter the confirmation message"
+              />
+            </div>
+            <p className="mt-1 text-right text-xs text-text-disabled">{body.length}/1,000</p>
+          </div>
+        ))}
+      </div> : null}
+
+      {!consentOnly ? <WorkingHoursEditor
         disabled={!canManage}
         timezone={policy.data?.organization_timezone ?? "UTC"}
         enabled={draft.workingHoursEnabled}
@@ -377,9 +534,9 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         onOffHoursBodyChange={(body) =>
           setDraft((current) => ({ ...current, offHoursBody: body }))
         }
-      />
+      /> : null}
 
-      <AutoResolveEditor
+      {!consentOnly ? <AutoResolveEditor
         disabled={!canManage}
         enabled={draft.autoResolveEnabled}
         inactiveAfterHours={draft.inactiveAfterHours}
@@ -389,7 +546,7 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
         onInactiveAfterHoursChange={(hours) =>
           setDraft((current) => ({ ...current, inactiveAfterHours: hours }))
         }
-      />
+      /> : null}
 
       {validation ? (
         <p role="alert" className="mt-3 text-xs text-danger">{validation}</p>
@@ -410,7 +567,11 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
             loading={update.isPending}
             onClick={save}
           >
-            Save inbox policy
+            {consentOnly
+              ? "Save consent settings"
+              : liveChatOnly
+                ? "Save Live Chat settings"
+                : "Save inbox policy"}
           </Button>
         ) : null}
       </div>
@@ -421,6 +582,9 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
 
 /** Operational policy first; the generic store remains available for advanced deployments. */
 export function ApplicationPanel(): JSX.Element {
+  const { hash } = useLocation();
+  const consentOnly = hash === "#consent";
+  const focusedPolicy = consentOnly || hash === "#inbox-policy";
   const canManage = useHasPermission("settings:manage");
   const settings = useSettings();
   const update = useUpdateSettings();
@@ -455,7 +619,7 @@ export function ApplicationPanel(): JSX.Element {
     <div className="space-y-4">
       <OperationalPolicyPanel canManage={canManage} />
 
-      <Section
+      {!focusedPolicy ? <Section
         title="Advanced organization settings"
         description="Additional deployment-specific values that do not yet have a dedicated control."
       >
@@ -470,9 +634,9 @@ export function ApplicationPanel(): JSX.Element {
           emptyDescription="Add a deployment-specific key only when a module documents that it consumes it."
           note="The validated inbox policy is reserved and cannot be bypassed from this advanced editor."
         />
-      </Section>
+      </Section> : null}
 
-      <Section title="System settings">
+      {!focusedPolicy ? <Section title="System settings">
         {systemEntries.length === 0 ? (
           <p className="text-sm text-text-disabled">
             No system-scoped settings are stored. These come from the server&apos;s own
@@ -490,9 +654,9 @@ export function ApplicationPanel(): JSX.Element {
             note="Read-only. These values are set on the server."
           />
         )}
-      </Section>
+      </Section> : null}
 
-      <Section title="System information">
+      {!focusedPolicy ? <Section title="System information">
         <dl>
           <DefinitionRow label="Settings stored">{formatCount(all.length)}</DefinitionRow>
           <DefinitionRow label="Organization-scoped">
@@ -505,7 +669,7 @@ export function ApplicationPanel(): JSX.Element {
           Secret settings are never returned. Operational inbox behavior is modelled above; other
           advanced keys only have an effect when a platform module explicitly consumes them.
         </p>
-      </Section>
+      </Section> : null}
     </div>
   );
 }

@@ -1,5 +1,23 @@
 # Validation Results
 
+## REVIEW-02 — integrating the `codex/rel-02-local-certification` branch (2026-09-23)
+
+- PASS: every changed line across the 16 commits (CORE-10, CORE-12–15, UI-REF-11–18, ACCEPT-01,
+  ACCEPT-02, REL-02A) read; nothing suspicious went unreproduced.
+- FIXED (structural): migration collision — rel-02's `0070_tag_first_message_rules` renumbered to
+  `0071_tag_first_message_rules`, re-chained onto WABA-01's `0070_phone_quality_unknown`.
+- PASS: `alembic upgrade head` reaches `0071_tag_first_message_rules` cleanly on real MySQL 8.
+- FIXED (documentation bug): `MODULE_STATUS.md`'s Download Center row still read 90% despite
+  CORE-15's own claimed "90% → 92%" advancement; corrected to 92% with matching evidence text.
+- KEPT, NOT MERGED: ACCEPT-01's finding (see its own entry above) — the fix rewrote ~20
+  already-applied migration files, forbidden by `REPOSITORY_RULES.md`.
+- PASS: Ruff clean; strict mypy clean across 332 backend source files.
+- PASS: complete frontend, 63 files / 1,024 tests; TypeScript, ESLint and production build.
+- PASS: complete backend suite, **1,782 passed, 0 failed**, 10:54 — Redis was available in this
+  environment, so none of the 6 tests rel-02's own evidence recorded as Redis-environment failures
+  were skipped or failed here.
+- PASS: OpenAPI drift check (`export_openapi.py --check`) clean; 247 paths confirmed by direct count.
+
 ## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
 
 The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
@@ -178,6 +196,208 @@ so nothing was rebased, merged with conflict-resolution guesses, or otherwise pu
 either side's work — a strict ancestor fast-forwards or it does not move at all.
 
 PENDING – Owner decision: whether and when to review or merge `codex/rel-02-local-certification`.
+## REL-02A — Local release certification (2026-09-21)
+
+- PASS: complete backend, 1,782 tests; Ruff, strict mypy and OpenAPI drift.
+- PASS: complete frontend, 63 files / 1,022 tests; TypeScript, ESLint and production build.
+- PASS: backend/frontend/browser dependency audits and tracked-source security scan.
+- PASS: backend/frontend high/critical image scans; CycloneDX SBOMs generated.
+- PASS: production Compose/release/image contracts and certified WAHA runtime probes.
+- PASS: isolated stack browser suite, 5/5 (light, dark, mobile, login, contact import/search).
+- PASS: performance p95 6.1 ms / 30 reads / 300 ms budget.
+- PASS: Redis-down readiness degradation and correlated/redacted runtime logging.
+- PASS: focused quality-tool regression, 19 tests (workspace basetemp used after host temp ACL).
+- PENDING: off-host restore, million-contact/load/stress/spike/soak and target-host/provider UAT.
+
+## ACCEPT-02 — Authenticated local browser matrix (2026-09-21)
+
+- PASS: local MySQL and Redis healthy; backend and frontend started successfully.
+- PASS: repository-owned fixtures created 31 contacts, 30 conversations, 191 messages, 4 tags,
+  2 agents, 1 WhatsApp account and 2 phone numbers in a disposable development database.
+- PASS: authenticated Dashboard, Live Chat, Chat History, Contacts, Campaigns, Analytics,
+  Download Center, Automation, Tags and Developer Hub routes.
+- PASS: Live Chat and Chat History list-to-detail interaction with representative messages.
+- PASS: desktop 1440×900 and mobile 390×844 matrix; no checked route had document-level
+  horizontal overflow.
+- PASS: no application/API console error observed. Local Vite hot-reload WebSocket warning is a
+  development-browser transport warning; production build validation remains green from ACCEPT-01.
+- PASS: no source-code, API-contract, migration, permission or dependency delta.
+
+## ACCEPT-01 — MySQL migration reversibility, finding kept and fix not merged (2026-09-21, revised 2026-09-23)
+
+- PASS (as originally run, against the rewritten migration files): disposable MySQL 8 fresh
+  0001→0070 upgrade, complete 0070→base downgrade, complete base→0070 re-upgrade.
+- FAIL (reproduced by REVIEW-02 first-hand, on a fresh disposable MySQL 8 database, against the
+  restored original migration files): `alembic upgrade head` then `alembic downgrade base` —
+  `sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1553, "Cannot drop index
+  'uq_reactivation_views_scope_creator_name': needed in a foreign key constraint")` on
+  `ALTER TABLE reactivation_views DROP INDEX uq_reactivation_views_scope_creator_name`. This
+  confirms both the underlying defect and that the revert below faithfully restored the original,
+  broken-on-real-MySQL downgrade path — not merely believed identical.
+- NOT MERGED: the fix rewrote those already-applied migration files directly, which
+  `REPOSITORY_RULES.md` forbids ("Never downgrade, renumber, squash, or rewrite applied
+  migrations"). REVIEW-02 restored all ~20 files to main's original content.
+- NOT MERGED (depends on the above): the new `test_fresh_mysql_database_round_trips_head_base_head`
+  regression test — it exercises the same downgrade path and fails again against the restored
+  files. Kept: the unrelated `_current_version` return-type widening was also reverted with it
+  since nothing else needs it.
+- PENDING: a rule-compliant fix. Until one exists, a full `alembic downgrade base` on real MySQL is
+  a known-broken path; this project's actual rollback procedure does not use it
+  (`deploy/DEPLOYMENT.md` §10 reverts `IMAGE_TAG` against the newer, expand-only schema instead).
+
+## UI-REF-18 — Developer API Keys focus (2026-09-21)
+
+- PASS: authenticated AiSensy Developer Hub inspected read-only.
+- PASS: focused foundations/Admin/Operations regression, 3 files / 103 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing credential security, lifecycle, audit and permission behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-17 — Notification Preferences focus (2026-09-21)
+
+- PASS: authenticated AiSensy Notification Preferences inspected read-only.
+- PASS: focused Settings/notifications/navigation regression, 3 files / 139 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing immediate save, hidden-item retention and personal-store behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-16 — Tags first-message column (2026-09-21)
+
+- PASS: authenticated AiSensy Tags screen inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing usage, exact-match, CRUD and permission behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-15 — Team Management focus (2026-09-21)
+
+- PASS: authenticated AiSensy Team Members screen inspected read-only.
+- PASS: focused Administration/navigation regression, 2 files / 72 tests.
+- PASS: complete frontend, 63 files / 1,022 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing custom-role, permission, lifecycle and concurrency behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-14 — Canned Message preview (2026-09-21)
+
+- PASS: authenticated AiSensy New Canned Message screen inspected read-only.
+- PASS: focused Settings regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,021 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing ownership, validation and insert-without-send behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-13 — User Attributes focus (2026-09-21)
+
+- PASS: authenticated AiSensy User Attributes inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,021 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing typed validation, permissions and per-record write behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-12 — Live Chat Settings focus (2026-09-21)
+
+- PASS: authenticated AiSensy Live Chat Settings inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 130 tests.
+- PASS: complete frontend, 63 files / 1,021 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing policy, validation, permission and audit behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## UI-REF-11 — Opt-in Management focus (2026-09-21)
+
+- PASS: authenticated AiSensy Opt-in Management inspected read-only.
+- PASS: focused Settings/navigation regression, 2 files / 129 tests.
+- PASS: complete frontend, 63 files / 1,020 tests.
+- PASS: TypeScript, ESLint and production build.
+- PASS: existing policy, validation, permission and audit behavior preserved.
+- PASS: no backend, OpenAPI, generated-client, migration, permission or dependency delta.
+- PENDING – Host Machine Validation: authenticated local representative-data preview and
+  mobile/browser matrix.
+
+## CORE-10 — Chat History reference acceptance (2026-09-20)
+
+- PASS: authenticated reference History list/search/selection structure inspected read-only.
+- PASS: existing functional scope reconciled; no duplicate backend or UI subsystem introduced.
+- PASS: decorative identity and selected-row state remain keyboard/screen-reader compatible.
+- PASS: focused Chat History UI, 41 tests; complete frontend, 63 files / 1,020 tests.
+- PASS: focused history/view/transcript/representative-fixture backend regression, 48 tests.
+- PASS: TypeScript, ESLint, production build, Ruff and strict mypy across 332 backend source files.
+- PASS: no OpenAPI, migration, generated-client, permission or backend-source delta.
+- PENDING – Host Machine Validation: local authenticated preview could not proceed because MySQL
+  was unavailable; browser matrix, production-scale query and owner acceptance remain open.
+
+## CORE-15 — Download Center retention authorization (2026-09-20)
+
+- PASS: focused export, Download Center and analytics backend regression, 63 tests.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: full backend reached 1,769 passed and 6 MySQL-only skipped.
+- PASS: unchanged full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: signed-link lifetime is capped by durable retention.
+- PASS: a valid previously issued link returns gone after durable retention expires.
+- PASS: no OpenAPI, generated-client, migration or frontend-source delta; contract remains 247 paths.
+- FAIL (environment, unrelated to CORE-15): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: object-storage presigned URL and retention acceptance.
+
+## CORE-14 — governed provider read receipts (2026-09-20)
+
+- PASS: focused backend settings/read-state/channel regression, 59 tests.
+- PASS: focused frontend settings/inbox-policy regression, 2 files / 108 tests.
+- PASS: full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths; no migration delta.
+- PASS: full backend reached 1,767 passed and 6 MySQL-only skipped.
+- FAIL (environment, unrelated to CORE-14): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: live Meta read acknowledgement, MySQL and Redis acceptance.
+
+## CORE-13 — first-message tag rules (2026-09-20)
+
+- PASS: focused backend tag/inbound/migration/deployment-contract regression, 52 tests.
+- PASS: focused frontend Tags and generated-type consumers, 4 files / 191 tests.
+- PASS: full frontend, 63 files / 1,020 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: SQLite migration chain/reversibility checks; one linear head at
+  `0071_tag_first_message_rules`.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths.
+- PASS: full backend reached 1,763 passed and 6 MySQL-only skipped; the single milestone-owned
+  deployment-head assertion was corrected and passed in the 52-test rerun, yielding 1,764
+  applicable passing checks as composite evidence.
+- FAIL (environment, unrelated to CORE-13): 6 existing campaign/journey tests could not connect to
+  Redis at `127.0.0.1:6379`.
+- PENDING – Host Machine Validation: MySQL 0070 upgrade/downgrade/re-upgrade and live Redis inbound
+  processing.
+
+## CORE-12 — consent keyword acknowledgements (2026-09-20)
+
+- PASS: focused backend settings/conversation regression, 43 tests.
+- PASS: focused frontend settings regression, 105 tests.
+- PASS: full frontend, 63 files / 1,019 tests; TypeScript, ESLint and production build.
+- PASS: Ruff and strict mypy across 332 backend source files.
+- PASS: regenerated OpenAPI/generated TypeScript synchronized at 247 paths; no migration delta.
+- PASS: full backend reached 1,762 passed and 6 MySQL-only skipped.
+- FAIL (environment, unrelated to this milestone): 6 existing campaign/journey tests could not
+  connect to Redis at `127.0.0.1:6379`; the same host limitation is already recorded for GSHEET-02.
+- PENDING – Host Machine Validation: live Redis post-commit delivery and MySQL transaction evidence.
 
 ## UI-REF-10 — Template creation focus (2026-09-20)
 

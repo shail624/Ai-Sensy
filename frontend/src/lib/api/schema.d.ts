@@ -6174,6 +6174,26 @@ export interface components {
             opt_in_keywords?: string[];
             /** Opt Out Keywords */
             opt_out_keywords?: string[];
+            /**
+             * Opt In Response Enabled
+             * @default false
+             */
+            opt_in_response_enabled: boolean;
+            /**
+             * Opt In Response Body
+             * @default
+             */
+            opt_in_response_body: string;
+            /**
+             * Opt Out Response Enabled
+             * @default false
+             */
+            opt_out_response_enabled: boolean;
+            /**
+             * Opt Out Response Body
+             * @default
+             */
+            opt_out_response_body: string;
         };
         /**
          * ContactAttributesRequest
@@ -7525,6 +7545,11 @@ export interface components {
              * @default true
              */
             auto_mark_read: boolean;
+            /**
+             * Send Read Receipts
+             * @default true
+             */
+            send_read_receipts: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
@@ -7552,6 +7577,11 @@ export interface components {
              * @default true
              */
             auto_mark_read: boolean;
+            /**
+             * Send Read Receipts
+             * @default true
+             */
+            send_read_receipts: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
@@ -10090,6 +10120,13 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+            /**
+             * First Message Enabled
+             * @default false
+             */
+            first_message_enabled: boolean;
+            /** First Message Keywords */
+            first_message_keywords?: string[];
         };
         /** TagNode */
         TagNode: {
@@ -10121,6 +10158,10 @@ export interface components {
             description: string | null;
             /** Usage Count */
             usage_count: number;
+            /** First Message Enabled */
+            first_message_enabled: boolean;
+            /** First Message Keywords */
+            first_message_keywords: string[];
             /**
              * Created At
              * Format: date-time
@@ -10152,6 +10193,10 @@ export interface components {
             color?: string | null;
             /** Description */
             description?: string | null;
+            /** First Message Enabled */
+            first_message_enabled?: boolean | null;
+            /** First Message Keywords */
+            first_message_keywords?: string[] | null;
         };
         /**
          * TaskBulkDeleteRequest
