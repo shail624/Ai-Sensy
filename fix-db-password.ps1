@@ -39,9 +39,12 @@ Write-Host "    Done." -ForegroundColor Green
 # Start recovery container with skip-grant-tables using same volume
 Write-Host "[3/6] Recovery mode mein start kar raha hoon (30 sec)..." -ForegroundColor Yellow
 docker rm -f mysql-recovery 2>$null | Out-Null
+# MUST match the pinned image in docker-compose.production.yml — a newer MySQL
+# irreversibly upgrades the data dictionary and the pinned 8.0 then refuses to start.
+$pinnedMysql = "mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b"
 docker run -d --name mysql-recovery `
     -v wa-platform_mysql-data:/var/lib/mysql `
-    mysql:8 `
+    $pinnedMysql `
     mysqld --skip-grant-tables --skip-networking | Out-Null
 Start-Sleep 30
 Write-Host "    MySQL recovery ready." -ForegroundColor Green
