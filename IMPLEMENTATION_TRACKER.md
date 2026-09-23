@@ -1,5 +1,99 @@
 # Implementation Tracker (canonical)
 
+## REVIEW-01 — auditing the work merged directly to `main` (2026-09-23)
+
+The owner reported substantial development had happened through a different tool while this
+session was between turns. `git fetch` confirmed it: `origin/main` had moved six commits past this
+branch's last commit (GSHEET-02, UI-REF-06 through UI-REF-10), authored on the owner's own machine,
+and 22 more `codex/*` branches existed remotely, one of them (`codex/rel-02-local-certification`)
+16 commits further still — CORE-12 through CORE-15, UI-REF-11 through UI-REF-18, ACCEPT-01/02 and
+REL-02A — none of it merged.
+
+This branch was a clean ancestor of `origin/main` (`git merge-base --is-ancestor` confirmed it, zero
+divergent commits), so it was fast-forwarded rather than merged, keeping one linear history.
+
+### What six commits' worth of work actually did
+
+GSHEET-02 added Google Sheets as a real export destination: a new migration (`0069`), a
+retry-safe write path (a resumed job clears and rewrites its own tab rather than appending, so a
+retry after a shrinking result set cannot leave stale trailing rows — verified by reading, not
+assumed, against `ensure_export_tab`'s `:clear` call), and `RAW` value semantics so a contact name
+cannot become a spreadsheet formula. UI-REF-06 through UI-REF-10 closed the five differences this
+session's own UI-REF-05 had recorded as outstanding (filter icon, list collapse, filled search
+button, empty-state artwork, conversation-pane texture) plus navigation, contacts-actions and
+campaign-list parity against the supplied capture archive.
+
+The work was reviewed the same way this session reviews its own: read every changed line rather
+than trusting the commit message, reproduce anything suspicious before calling it a defect, and run
+every gate. Backend **1,773 passed, 0 failed, 0 skipped** (was 1,761 at GSHEET-02's own commit — no
+regression); frontend **1,018 passed, 0 failed** before this milestone's own fix; ruff, strict mypy
+(332 files) and ESLint all clean. The governance ledgers' own claims were checked against the
+repository rather than trusted: 247 OpenAPI paths and migration head `0069` are both exactly what
+GSHEET-02's entry says.
+
+### Two defects found, both fixed here
+
+**The Filters button's active-filter count was inert — invisible and inaudible.** UI-REF-06 moved
+the "Filters" text to an icon plus a static `aria-label="Filters"`, and wrapped the previously
+visible count in a `sr-only` span. `aria-label`, when present, is the *entire* accessible name a
+browser computes for an element — nothing in its content contributes anything once it is set,
+sr-only or not. So the count regressed for both audiences at once: nothing to see, nothing to hear.
+Proved with a hermetic probe before touching anything: `getByRole("button", { name: "Filters" })`
+resolved regardless of an active filter, and the rendered accessible name never contained the digit
+that was plainly sitting in the DOM beside it. UI-REF-06's own new test never caught it because it
+only exercised zero active filters, the one case where the missing span renders nothing at all.
+
+Fixed by making the label itself carry the count (`"Filters, 1 active"`) and adding a small visible
+badge — the same `absolute`/`ring-2 ring-surface` pattern TopNav's unread-notification dot already
+uses, reused rather than re-invented, marked `aria-hidden` so it is decoration, not a duplicate
+announcement. A regression test asserts the count-aware name directly; stashing the fix and
+re-running it first confirmed the test fails against the pre-fix file with exactly this button
+unfindable by that name, before confirming it passes with the fix restored.
+
+**A stale comment claimed a scope the code no longer had.** `google_sheets_scope`'s doc comment
+still read "Read-only by intent... narrower scope is the one to request" directly above a value
+GSHEET-02 had already widened from `spreadsheets.readonly` to full `spreadsheets` — a change that is
+not optional decoration but a hard requirement: `ensure_export_tab`'s `batchUpdate` and
+`write_rows`'s `PUT` both 403 under the readonly scope, so export could not have worked without it.
+`.env.example` was updated correctly in the same commit (Viewer → Editor); only the settings comment
+was left telling a reader the opposite of what ships. Rewritten to state the current, correct
+requirement and point at the two calls that need it, so a future reader auditing OAuth scope width
+(the kind of review this owner's own standing instruction asks for) finds the right answer in the
+one place they would look.
+
+### Checked, not a live bug, recorded so it is not re-discovered as a surprise
+
+`BulkActionDialog`'s `ready` boolean falls through to `selectedTags.length > 0` for every mode
+except `set_attributes`, including `export` — reachable in principle if `selectedTags` were ever
+non-empty while `mode === "export"`. It is not reachable today: the tag-selection checkboxes that
+populate `selectedTags` render only under `mode === "add_tags" || "remove_tags"`, the dialog is a
+real `aria-modal="true"` `Modal` with a focus trap, and every caller changes `mode` by setting it to
+`null` first (an unmount, since the dialog only renders when `mode` is truthy) before setting a new
+mode, so `useState`'s initial `[]` always applies on the next open. Confirmed by reading
+`BulkActionsBar.tsx` and `ContactsActions.tsx`, not assumed. Worth a follow-up cleanup to an
+exhaustive per-mode match rather than an OR-chain with an implicit default, but not urgent, and nothing
+here writes to it changed to remove that shape.
+
+The campaign list's new `role="tablist"`/`role="tab"` pair (UI-REF-09) does not implement the full
+ARIA APG Tabs keyboard idiom (arrow-key roving focus) — click and Tab-key activation both work, and
+the new test exercises exactly that, so this is a completeness gap against the pattern's full
+specification, not a defect axe-core or the existing test would catch.
+
+REL-02A (unmerged, in `codex/rel-02-local-certification`) adds `apk upgrade --no-cache` to both
+Dockerfiles after their digest-pinned `FROM`, trading some of digest-pinning's own reproducibility
+for currently-patched packages — a real tension, resolved and honestly documented in
+`docs/adr/0022-patch-pinned-runtime-images-at-build.md` rather than silently traded away: the SBOM
+and final image digest become the release's reproducibility anchor instead of the base digest alone.
+Noted here for visibility; it is unmerged and this session made no changes to it.
+
+### What is still outstanding
+
+`codex/rel-02-local-certification` (16 commits: CORE-12 through CORE-15, UI-REF-11 through
+UI-REF-18, ACCEPT-01/02, REL-02A) has not been reviewed at the same depth this entry gives the six
+merged commits — it was surveyed at the commit-message and file-stat level only. Reviewing or
+merging it is the owner's call, made explicitly, not something this session did on its own
+initiative.
+
 ## UI-REF-10 — COMPLETE, repository validated (2026-09-20)
 
 New/clone Template creation now opens directly around the original split editor and live preview;

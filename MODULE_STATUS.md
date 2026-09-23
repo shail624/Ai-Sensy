@@ -1,5 +1,30 @@
 # Module Status
 
+## REVIEW-01 — auditing work merged directly to main (2026-09-23)
+
+Six commits landed on `origin/main` via another tool while this session was idle (GSHEET-02,
+UI-REF-06 through UI-REF-10) plus 22 unmerged `codex/*` branches, one 16 commits deep
+(`codex/rel-02-local-certification`: CORE-12–15, UI-REF-11–18, ACCEPT-01/02, REL-02A). This branch
+was a clean ancestor of main and was fast-forwarded, not merged — zero risk of losing either side's
+work.
+
+Reviewed the six merged commits by reading every changed line and reproducing anything suspicious.
+Found and fixed two real defects: (1) UI-REF-06's compact Filters button lost its active-filter
+count for both sighted and screen-reader users at once, because a static `aria-label` silently
+overrides any content inside the element it labels — regression test proven to fail on the pre-fix
+file first; (2) a stale "read-only by intent" comment on `google_sheets_scope` contradicted the
+scope GSHEET-02 had already (correctly, and necessarily) widened to read/write. One latent-but-
+unreachable logic smell in `BulkActionDialog` and one incomplete ARIA keyboard pattern in the new
+campaign tab strip were confirmed not currently live and recorded rather than fixed, so they are not
+mistaken for new problems later.
+
+PASS: backend 1,773 / 0 failed / 0 skipped; frontend 1,019 / 0 failed (1,018 → 1,019); ruff, strict
+mypy (332 files) and ESLint all clean; the two governance-ledger claims spot-checked (247 OpenAPI
+paths, migration head 0069) both verified correct.
+PENDING – Owner decision: review/merge of the unmerged 16-commit `codex/rel-02-local-certification`
+stack.
+No completion percentage change: this is an audit and two small fixes, not new scope.
+
 ## UI-REF-10 — Template creation focus (2026-09-20)
 
 Templates remains **98%**. Its existing editor/live-preview capability is now the immediate visual

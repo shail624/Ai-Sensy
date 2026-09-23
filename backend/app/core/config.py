@@ -203,8 +203,11 @@ class Settings(BaseSettings):
     #: because a personal account's password change or 2FA enrolment would silently stop every
     #: scheduled sync.
     google_service_account_json: str = ""
-    #: Read-only by intent: this integration imports *from* a sheet and never writes back, so the
-    #: narrower scope is the one to request. Widening it is an owner decision, not a config tweak.
+    #: Full read/write, not readonly (GSHEET-02): the integration both imports *from* a sheet and
+    #: streams a contact export *to* a job-owned tab it creates. `ensure_export_tab`'s `batchUpdate`
+    #: and `write_rows`'s `values/...PUT` both 403 under `spreadsheets.readonly`, so the narrower
+    #: scope cannot serve both directions at once. `.env.example` documents the matching Editor
+    #: share requirement. Narrowing this back to readonly disables export, not just a config tweak.
     google_sheets_scope: str = "https://www.googleapis.com/auth/spreadsheets"
     google_sheets_timeout_seconds: float = 30.0
 

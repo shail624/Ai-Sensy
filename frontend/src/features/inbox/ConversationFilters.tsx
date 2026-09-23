@@ -159,14 +159,24 @@ export function ConversationFilters({
           aria-expanded={filtersOpen}
           aria-controls="advanced-inbox-filters"
           onClick={() => setFiltersOpen((open) => !open)}
-          aria-label="Filters"
-          title="Filters"
-          className="shrink-0 px-2.5"
+          aria-label={
+            advancedFilterCount > 0 ? `Filters, ${advancedFilterCount} active` : "Filters"
+          }
+          title={advancedFilterCount > 0 ? `Filters (${advancedFilterCount} active)` : "Filters"}
+          className="relative shrink-0 px-2.5"
         >
           <SlidersHorizontal aria-hidden className="h-4 w-4" />
+          {/* An `aria-label` on the button determines its whole accessible name and suppresses
+              any child text, so the count previously lived only in a visually hidden span here —
+              screen readers never heard it either, since aria-label always wins. The count is now
+              in the label above; this badge (same pattern as the unread count on the notification
+              bell in TopNav.tsx) is `aria-hidden` on purpose so it is never announced twice. */}
           {advancedFilterCount > 0 ? (
-            <span className="sr-only">
-              {advancedFilterCount}
+            <span
+              aria-hidden
+              className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-fg ring-2 ring-surface"
+            >
+              {advancedFilterCount > 9 ? "9+" : advancedFilterCount}
             </span>
           ) : null}
         </Button>

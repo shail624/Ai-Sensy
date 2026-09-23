@@ -300,6 +300,28 @@ describe("ConversationFilters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Collapse conversation list" }));
     expect(onToggleList).toHaveBeenCalledOnce();
   });
+
+  it("announces the active filter count from the icon-only Filters button", () => {
+    // The compact button carries a static `aria-label` (UI-REF-06), and `aria-label` always wins
+    // over an element's content when a browser computes its accessible name -- so a count sitting
+    // only in child text, visible or not, is never read by assistive tech. Query by the count-aware
+    // name directly: if the label goes back to a bare "Filters", `getByRole` here fails to find it.
+    withProviders(
+      <ConversationFilters
+        filters={{ status: "open" }}
+        onChange={vi.fn()}
+        tags={[]}
+        savedViews={[]}
+        onSaveView={vi.fn()}
+        onDeleteView={vi.fn()}
+        currentUserId="u1"
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Filters, 1 active" });
+    // The visible badge is decorative and must not double up what the label already announces.
+    expect(within(button).getByText("1")).toHaveAttribute("aria-hidden", "true");
+  });
 });
 
 describe("MessageBubble", () => {
