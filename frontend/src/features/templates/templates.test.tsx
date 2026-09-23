@@ -30,7 +30,7 @@ import { TemplateFilters } from "@/features/templates/TemplateFilters";
 import { TemplateTable } from "@/features/templates/TemplateTable";
 import { toCreateRequest, toUpdateRequest, validateDraft } from "@/features/templates/templateForm";
 import type { Template, TemplateListQuery } from "@/features/templates/types";
-import { DEFAULT_LIST_QUERY } from "@/features/templates/types";
+import { ACTION_REQUIRED, DEFAULT_LIST_QUERY } from "@/features/templates/types";
 import { VariableInspector } from "@/features/templates/VariableInspector";
 import { formatAge, formatCount, formatDateTime, UNKNOWN } from "@/lib/format";
 
@@ -524,8 +524,16 @@ describe("TemplateFilters", () => {
     withProviders(
       <TemplateFilters filters={query({ page: 4 })} languages={["en_US"]} onChange={onChange} />,
     );
-    fireEvent.change(screen.getByLabelText("Approval status"), { target: { value: "approved" } });
+    fireEvent.click(within(screen.getByRole("tablist", { name: "Approval status" })).getByRole("tab", { name: "Approved" }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: "approved", page: 1 }));
+  });
+
+  it("groups rejected, paused and disabled templates under Action Required", () => {
+    const rows = ["approved", "rejected", "paused", "disabled", "draft"].map((status, index) =>
+      templateFixture({ id: `t${index}`, name: `t${index}`, status }),
+    );
+    const page = selectTemplatePage(rows, query({ status: ACTION_REQUIRED }));
+    expect(page.rows.map((row) => row.status).sort()).toEqual(["disabled", "paused", "rejected"]);
   });
 
   it("offers only the languages present in the registry", () => {

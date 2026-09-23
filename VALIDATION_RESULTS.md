@@ -1,5 +1,50 @@
 # Validation Results
 
+## UI-AIS-01 — Dashboard, Live Chat and the Manage column matched to the AiSensy reference (2026-09-24)
+
+The owner asked for the app to match the logged-in AiSensy reference screen by screen. Each screen
+was measured in a real browser at 1440px (computed sizes, colours, fonts, radii, shadows, transitions)
+against the equivalent screen here, then rebuilt and re-measured. The reference was only viewed: its
+dialogs were opened and cancelled, one Live Chat conversation was opened with the owner's explicit
+permission, nothing was sent, saved or intervened.
+
+- Shell: 70px `#0A474C` rail with 54px items, 20px icons, 10px captions and a 30px white active
+  disc; Developer pinned to the rail's bottom block; 60px white header with the business name and a
+  live WhatsApp Business API status plus a spinning refresh; canvas `#F7F7F7`; `shadow-card` token.
+- Dashboard: API-status / quality / messaging-limit card with (i) tooltips, setup checklist as
+  accordions (NEXT open by default) driven by real WABA/template/contact/campaign facts, WABA
+  profile card with category, copy-link, inline View Profile and a pencil Edit Business Profile dialog;
+  quick actions; the existing operations desk kept below as "Today's work".
+- New backend capability: `GET`/`POST /api/v1/phone-numbers/{id}/business-profile` reads and writes
+  Meta's WhatsApp Business profile live (never stored, so no migration); validation mirrors Meta's
+  limits and rejects before calling Meta; writes need `waba:manage` and are audited as
+  `phone_number.profile_updated`. OpenAPI 247 -> 248 paths, TypeScript types regenerated.
+- Live Chat: app header hidden on desktop; 380 / 650 / 340 panes; grey search pill and 860px Filters
+  dialog (Discard restores the pre-dialog filters); 50px tabs with a sliding 3px indicator, landing on
+  Active; quick switcher of waiting chats; 60px rows; beige chat wallpaper; teal thread header with
+  back arrow; reference bubbles, receipts and day chips; Chat Profile always beside the thread on wide
+  screens with a facts card and Tags/Notes/AI accordions.
+- Manage (first slice): the rail's Manage opens the first Manage destination, as the reference does,
+  and the Manage column now matches it (261px, 20px title, 40px items with 5px radius, mint active
+  state); Notification Preferences moved into the Manage list in the reference's order. Template
+  Message is the first Manage page matched: its own 60px `ManagePageHeader` with Create Template,
+  a 300x40 search pill, Sync Status, and All / Draft / Pending / Approved / Action Required tabs
+  (Action Required groups rejected, paused and disabled). The reference's template gallery, quick
+  guide and AI launch cards are its own content and were not reproduced. The other Manage pages
+  are still to be matched one by one.
+- Fixed along the way: a `waba:write` permission that does not exist (Connect/Edit never showed),
+  Tailwind arbitrary `var()` shadows silently compiling to nothing, modal width overrides losing to
+  `max-w-lg`, collapsed accordion links staying in the tab order, and a dev proxy that resolved
+  `localhost` to a WSL relay instead of Docker.
+- Not built (no backend source, so not faked): billing/plan/credits cards, Refer/Affiliate, Ads,
+  Payments, the reference's MAU/opt-in/lead-stage/customer-journey profile rows and Block Incoming.
+- PENDING – visual check of an open Live Chat conversation against real data (the local database has
+  none until Meta WhatsApp is reconnected); covered by component tests meanwhile.
+- PASS: frontend 64 files / 1,035 tests, TypeScript, ESLint, production build; backend Ruff, strict
+  mypy (332 files), full suite 1,786 passed, 0 failed in 6:50; OpenAPI drift check clean at 248 paths.
+- No module percentage change: presentation and one read/write profile capability, recorded here
+  for the owner to judge rather than self-scored.
+
 ## REVIEW-02 — integrating the `codex/rel-02-local-certification` branch (2026-09-23)
 
 - PASS: every changed line across the 16 commits (CORE-10, CORE-12–15, UI-REF-11–18, ACCEPT-01,

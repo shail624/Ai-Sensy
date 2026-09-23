@@ -1,3 +1,4 @@
+import { AlertCircle, Check, CheckCheck, Clock3 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -40,14 +41,14 @@ function MessageBody({ message }: { message: Message }): JSX.Element {
           <span>{media.filename ?? media.kind}</span>
         </p>
         {media.mimeType ? (
-          <p className="mt-0.5 text-xs text-text-secondary">{media.mimeType}</p>
+          <p className="mt-0.5 text-xs opacity-75">{media.mimeType}</p>
         ) : null}
         {media.link ? (
           <a
             href={media.link}
             target="_blank"
             rel="noreferrer noopener"
-            className="mt-0.5 inline-block text-xs text-accent hover:underline"
+            className="mt-0.5 inline-block text-xs underline-offset-2 hover:underline"
           >
             Open attachment
           </a>
@@ -66,7 +67,7 @@ function MessageBody({ message }: { message: Message }): JSX.Element {
           <span>Template: {template.name}</span>
         </p>
         {template.language ? (
-          <p className="mt-0.5 text-xs text-text-secondary">{template.language}</p>
+          <p className="mt-0.5 text-xs opacity-75">{template.language}</p>
         ) : null}
       </div>
     );
@@ -101,7 +102,7 @@ function MessageBody({ message }: { message: Message }): JSX.Element {
   if (text) return <p className="whitespace-pre-wrap break-words">{text}</p>;
 
   // An unmapped type is still a real message — name it rather than render an empty bubble.
-  return <p className="italic text-text-secondary">[{message.message_type}]</p>;
+  return <p className="italic opacity-75">[{message.message_type}]</p>;
 }
 
 interface Props {
@@ -109,44 +110,68 @@ interface Props {
   onReact: (emoji: string) => void;
   canReact: boolean;
   reactions?: ReactionContent[];
+  /** First letter of the customer's name, for the inbound avatar. */
+  contactInitial?: string;
 }
 
-export function MessageBubble({ message, onReact, canReact, reactions = [] }: Props): JSX.Element {
+function ReceiptIcon({ message }: { message: Message }): JSX.Element {
+  const state = receipt(message);
+  if (state === "Failed") return <AlertCircle aria-hidden className="h-[15px] w-[15px] text-danger" />;
+  if (state === "Queued") return <Clock3 aria-hidden className="h-[13px] w-[13px] text-[#808080]" />;
+  if (state === "Sent") return <Check aria-hidden className="h-[15px] w-[15px] text-[#808080]" />;
+  return <CheckCheck aria-hidden className={`h-[15px] w-[15px] ${state === "Read" ? "text-[#08cf65]" : "text-[#808080]"}`} />;
+}
+
+/**
+ * The reference chat bubble: customer messages in solid teal on the left beside an orange initial,
+ * team messages in white on the right; 22px corners, 10px time and a tick receipt underneath.
+ */
+export function MessageBubble({ message, onReact, canReact, reactions = [], contactInitial = "?" }: Props): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const outbound = message.direction === "outbound";
+  const template = Boolean(readTemplate(message));
 
   return (
-    <li className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
-      <div className="max-w-[80%]">
+    <li className={`group flex items-start gap-2 ${outbound ? "flex-row-reverse" : ""}`}>
+      <span
+        aria-hidden
+        className={`mt-px flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-sm ${
+          outbound ? "border border-[var(--color-nav-bg)] bg-[#f0f0f0] text-black" : "bg-[#ffa500] text-black"
+        }`}
+      >
+        {outbound ? "A" : contactInitial}
+      </span>
+      <div className={`flex max-w-[400px] flex-col ${outbound ? "items-end" : "items-start"}`}>
         <div
-          className={`rounded-lg border px-3 py-2 text-sm ${
+          className={`rounded-[22px] px-4 py-2 text-sm leading-[19px] ${
             outbound
-              ? "border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)] bg-surface-2 text-text-primary"
-              : "border-border bg-surface text-text-primary"
+              ? template
+                ? "bg-[#fbf9f3] text-[#0a474c] dark:bg-surface dark:text-text-primary"
+                : "bg-white text-[#484848] dark:bg-surface dark:text-text-primary"
+              : "bg-[#0a474c] text-white"
           }`}
         >
           <MessageBody message={message} />
         </div>
 
         {reactions.length > 0 ? (
-          <ul
-            aria-label="Reactions"
-            className={`mt-1 flex gap-1 ${outbound ? "justify-end" : "justify-start"}`}
-          >
+          <ul aria-label="Reactions" className="-mt-1.5 flex gap-1 px-2">
             {reactions.map((reaction, index) => (
-              <li
-                key={`${reaction.emoji}-${index}`}
-                className="rounded-full border border-border bg-surface-2 px-1.5 py-0.5 text-xs"
-              >
+              <li key={`${reaction.emoji}-${index}`} className="rounded-full bg-surface px-1.5 py-0.5 text-xs shadow-sm">
                 {reaction.emoji}
               </li>
             ))}
           </ul>
         ) : null}
 
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-text-disabled">
-          <span>{new Date(message.created_at).toLocaleTimeString()}</span>
-          {outbound ? <span>{receipt(message)}</span> : null}
+        <div className="flex items-center gap-1 p-1 text-[10px] text-black dark:text-text-secondary">
+          <span>{new Date(message.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+          {outbound ? (
+            <>
+              <ReceiptIcon message={message} />
+              <span className="sr-only">{receipt(message)}</span>
+            </>
+          ) : null}
           {message.error_code ? <span className="text-danger">{message.error_code}</span> : null}
           {canReact ? (
             <button
@@ -154,7 +179,7 @@ export function MessageBubble({ message, onReact, canReact, reactions = [] }: Pr
               aria-label={`React to message ${message.id}`}
               aria-expanded={pickerOpen}
               onClick={() => setPickerOpen((open) => !open)}
-              className="rounded px-1 hover:bg-hover"
+              className="rounded px-1 text-sm opacity-0 transition-opacity hover:bg-black/5 focus:opacity-100 group-hover:opacity-100"
             >
               ☺
             </button>
@@ -162,7 +187,7 @@ export function MessageBubble({ message, onReact, canReact, reactions = [] }: Pr
         </div>
 
         {pickerOpen ? (
-          <div role="group" aria-label="Choose a reaction" className="mt-1 flex gap-1">
+          <div role="group" aria-label="Choose a reaction" className="flex gap-1 rounded-full bg-surface p-1 shadow-md">
             {REACTION_EMOJI.map((emoji) => (
               <button
                 key={emoji}
@@ -172,7 +197,7 @@ export function MessageBubble({ message, onReact, canReact, reactions = [] }: Pr
                   onReact(emoji);
                   setPickerOpen(false);
                 }}
-                className="rounded border border-border px-1.5 py-0.5 text-sm hover:bg-hover"
+                className="rounded-full px-1.5 py-0.5 text-sm transition-transform hover:scale-125 hover:bg-hover"
               >
                 {emoji}
               </button>

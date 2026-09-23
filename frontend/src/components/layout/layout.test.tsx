@@ -280,7 +280,7 @@ describe("AppLayout mobile navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
 
     expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBeInTheDocument();
-    expect(screen.getByText("Vi Reactivation")).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Primary" })).getByText("Vi Reactivation")).toBeInTheDocument();
   });
 });
 

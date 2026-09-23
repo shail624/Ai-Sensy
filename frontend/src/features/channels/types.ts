@@ -11,6 +11,33 @@ export type PhoneNumberList = components["schemas"]["PhoneNumbersListResponse"];
 export type PhoneNumberUpdateRequest = components["schemas"]["PhoneNumberUpdateRequest"];
 export type PhoneNumberHealth = components["schemas"]["PhoneNumberHealthResponse"];
 
+export type BusinessProfile = components["schemas"]["BusinessProfileResponse"];
+export type BusinessProfileUpdateRequest = components["schemas"]["BusinessProfileUpdateRequest"];
+export type BusinessVertical = NonNullable<BusinessProfileUpdateRequest["vertical"]>;
+
+/** Meta's business categories, in words an operator recognises. */
+export const VERTICAL_LABELS: Record<BusinessVertical, string> = {
+  UNDEFINED: "Not set",
+  OTHER: "Other",
+  AUTO: "Automotive",
+  BEAUTY: "Beauty, Spa and Salon",
+  APPAREL: "Clothing and Apparel",
+  EDU: "Education",
+  ENTERTAIN: "Entertainment",
+  EVENT_PLAN: "Event Planning and Service",
+  FINANCE: "Finance and Banking",
+  GROCERY: "Food and Grocery",
+  GOVT: "Public Service",
+  HOTEL: "Hotel and Lodging",
+  HEALTH: "Medical and Health",
+  NONPROFIT: "Non-profit",
+  PROF_SERVICES: "Professional Services",
+  RETAIL: "Shopping and Retail",
+  TRAVEL: "Travel and Transportation",
+  RESTAURANT: "Restaurant",
+  NOT_A_BIZ: "Not a business",
+};
+
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
 
 /**

@@ -23,6 +23,8 @@ from app.core.exceptions import AppError
 from app.models.user import User
 from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.schemas.waba import (
+    BusinessProfileResponse,
+    BusinessProfileUpdateRequest,
     PhoneNumberHealthResponse,
     PhoneNumberResponse,
     PhoneNumbersListResponse,
@@ -249,3 +251,48 @@ async def refresh_phone_number(
         # The channel failed, not the request (Doc 04 §13.3 → 502).
         raise ChannelUnavailableError(str(exc)) from exc
     return PhoneNumberHealthResponse.from_number(number)
+
+
+@router.get(
+    "/phone-numbers/{number_id}/business-profile",
+    response_model=BusinessProfileResponse,
+    summary="WhatsApp Business profile, read live from Meta",
+)
+async def get_business_profile(
+    number_id: uuidlib.UUID, session: SessionDep, actor: WabaReadActor
+) -> BusinessProfileResponse:
+    try:
+        profile = await PhoneNumberService(session).business_profile(
+            organization_id=actor.organization_id, public_id=number_id
+        )
+    except ChannelError as exc:
+        raise ChannelUnavailableError(str(exc)) from exc
+    return BusinessProfileResponse.model_validate(_profile_out(profile))
+
+
+@router.post(
+    "/phone-numbers/{number_id}/business-profile",
+    response_model=BusinessProfileResponse,
+    summary="Update the WhatsApp Business profile on Meta",
+)
+async def update_business_profile(
+    number_id: uuidlib.UUID,
+    payload: BusinessProfileUpdateRequest,
+    session: SessionDep,
+    actor: WabaManageActor,
+) -> BusinessProfileResponse:
+    try:
+        profile = await PhoneNumberService(session).update_business_profile(
+            organization_id=actor.organization_id,
+            actor=actor,
+            public_id=number_id,
+            fields=payload.model_dump(exclude_unset=True),
+        )
+    except ChannelError as exc:
+        raise ChannelUnavailableError(str(exc)) from exc
+    return BusinessProfileResponse.model_validate(_profile_out(profile))
+
+
+def _profile_out(profile: dict[str, object]) -> dict[str, object]:
+    websites = profile.get("websites")
+    return {**profile, "websites": websites if isinstance(websites, list) else []}

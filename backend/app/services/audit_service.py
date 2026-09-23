@@ -85,6 +85,7 @@ class AuditAction:
     WABA_SYNCED = "waba.synced"
     PHONE_NUMBER_UPDATED = "phone_number.updated"
     PHONE_NUMBER_REFRESHED = "phone_number.refreshed"
+    PHONE_NUMBER_PROFILE_UPDATED = "phone_number.profile_updated"
     CHANNEL_CONNECTION_CREATED = "channel_connection.created"
     CHANNEL_CONNECTION_UPDATED = "channel_connection.updated"
     CHANNEL_CONNECTION_OBSERVED = "channel_connection.observed"

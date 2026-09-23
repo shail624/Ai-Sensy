@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.meta.adapter import MetaChannelAdapter
 from app.core.exceptions import NotFoundError, VersionConflictError
 from app.db.mixins import utcnow
 from app.models.user import User
@@ -136,3 +137,54 @@ class PhoneNumberService:
         )
         await self._session.commit()
         return number
+
+    # --- WhatsApp Business profile (live from Meta; nothing is stored) -------
+    async def _adapter(
+        self, organization_id: int, public_id: uuidlib.UUID
+    ) -> tuple[PhoneNumber, MetaChannelAdapter]:
+        number = await self.get_number(organization_id, public_id)
+        waba = await self._wabas.get_by_id(number.waba_id)
+        if waba is None:
+            raise NotFoundError("The owning WABA no longer exists.")
+        adapter = WabaService(self._session).adapter_for(
+            waba, phone_number_id=number.phone_number_id
+        )
+        return number, adapter
+
+    async def business_profile(
+        self, *, organization_id: int, public_id: uuidlib.UUID
+    ) -> dict[str, Any]:
+        """Read the number's public business profile from Meta (502 on channel error)."""
+        _, adapter = await self._adapter(organization_id, public_id)
+        try:
+            return await adapter.business_profile()
+        finally:
+            await adapter.close()
+
+    async def update_business_profile(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        public_id: uuidlib.UUID,
+        fields: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Write operator-edited profile fields to Meta, audit the change, return the fresh read."""
+        number, adapter = await self._adapter(organization_id, public_id)
+        try:
+            if fields:
+                await adapter.update_business_profile(fields)
+            profile = await adapter.business_profile()
+        finally:
+            await adapter.close()
+        if fields:
+            await self._audit.record(
+                AuditAction.PHONE_NUMBER_PROFILE_UPDATED,
+                actor_user_id=actor.id,
+                organization_id=organization_id,
+                entity_type="phone_number",
+                entity_id=number.id,
+                after={"fields": sorted(fields)},
+            )
+            await self._session.commit()
+        return profile

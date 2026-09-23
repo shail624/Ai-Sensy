@@ -56,6 +56,10 @@ from app.channels.models import (
 #: Graph's messaging envelope constant.
 _PRODUCT = "whatsapp"
 #: Fields that describe a number's sending health (Doc 06 §5/§28).
+_PROFILE_FIELDS = "about,address,description,email,profile_picture_url,websites,vertical"
+#: Fields an operator may write back; Meta owns the picture handle flow, so it is read-only here.
+PROFILE_WRITABLE_FIELDS = ("about", "address", "description", "email", "websites", "vertical")
+
 _HEALTH_FIELDS = (
     "display_phone_number,verified_name,quality_rating,throughput,"
     "messaging_limit_tier,platform_type"
@@ -88,6 +92,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.MEDIA_UPLOAD,
             Capability.MEDIA_DOWNLOAD,
             Capability.HEALTH,
+            Capability.BUSINESS_PROFILE,
         }
     )
 
@@ -341,6 +346,27 @@ class MetaChannelAdapter(ChannelAdapter):
             messaging_tier=body.get("messaging_limit_tier"),
             throughput_limit=throughput,
             detail=body.get("verified_name"),
+        )
+
+    async def business_profile(self) -> dict[str, Any]:
+        """The number's public WhatsApp Business profile, as Meta holds it right now."""
+        self.require(Capability.BUSINESS_PROFILE)
+        number = self._client.credentials.require_phone_number()
+        body = await self._client.get(
+            f"{number}/whatsapp_business_profile", params={"fields": _PROFILE_FIELDS}
+        )
+        rows = body.get("data") or [{}]
+        profile = rows[0] if isinstance(rows[0], dict) else {}
+        return {key: profile.get(key) for key in (*PROFILE_WRITABLE_FIELDS, "profile_picture_url")}
+
+    async def update_business_profile(self, fields: Mapping[str, Any]) -> None:
+        """Write the given operator-editable profile fields back to Meta."""
+        self.require(Capability.BUSINESS_PROFILE)
+        number = self._client.credentials.require_phone_number()
+        payload = {k: v for k, v in fields.items() if k in PROFILE_WRITABLE_FIELDS}
+        await self._client.post(
+            f"{number}/whatsapp_business_profile",
+            json={"messaging_product": "whatsapp", **payload},
         )
 
     async def close(self) -> None:

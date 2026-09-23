@@ -1,8 +1,8 @@
-import { ArrowLeft, MessageCircleMore, MessagesSquare, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { MessagesSquare, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { EmptyState, ErrorState, Pagination, Select, Skeleton } from "@/components/ui";
+import { ErrorState, Pagination, Select, Skeleton } from "@/components/ui";
 import { useTags } from "@/features/customer-profile/api";
 import {
   apiErrorMessage,
@@ -12,6 +12,7 @@ import {
   useBulkSetConversationStatus,
   useConversations,
 } from "@/features/inbox/api";
+import { ChatQuickSwitcher } from "@/features/inbox/ChatQuickSwitcher";
 import { ConversationFilters } from "@/features/inbox/ConversationFilters";
 import { ConversationList } from "@/features/inbox/ConversationList";
 import { ConversationThread } from "@/features/inbox/ConversationThread";
@@ -55,6 +56,14 @@ export function Inbox(): JSX.Element {
   const cursor = searchParams.get("cursor");
   const selectedId = searchParams.get("conversation");
 
+  // Like the reference, a bare visit to Live Chat lands on the Active tab (open chats), not on an
+  // unfiltered list that no tab represents. Any explicit filter or deep link is left untouched.
+  useEffect(() => {
+    if ([...searchParams.keys()].length === 0) {
+      setSearchParams(new URLSearchParams({ status: "open" }), { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const tags = useTags();
   const conversations = useConversations(filters, cursor, PAGE_SIZE);
   const preferences = useInboxPreferences(user?.id);
@@ -95,8 +104,10 @@ export function Inbox(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-canvas">
-      <div className={selectedId ? "hidden lg:block" : "block"}>
+    <div className="flex h-full min-h-0 bg-canvas">
+      <div
+        className={`${selectedId ? "hidden lg:flex" : "flex"} ${listCollapsed ? "lg:hidden" : ""} min-h-0 w-full flex-col bg-[#fdfbf7] dark:bg-surface lg:w-[380px] lg:flex-none lg:border-r lg:border-[#f2f2f2] dark:lg:border-border`}
+      >
         <ConversationFilters
           filters={filters}
           onChange={applyFilters}
@@ -105,16 +116,7 @@ export function Inbox(): JSX.Element {
           onSaveView={(name) => preferences.saveView(name, filters)}
           onDeleteView={preferences.deleteView}
           currentUserId={user?.id}
-          showProfileLabel={!selectedId}
-          listCollapsed={listCollapsed}
-          onToggleList={() => setListCollapsed((collapsed) => !collapsed)}
         />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <div
-        className={`${selectedId ? "hidden lg:flex" : "flex"} ${listCollapsed ? "lg:hidden" : ""} min-h-0 w-full flex-1 flex-col border-b border-border bg-surface lg:w-[360px] lg:flex-none lg:border-b-0 lg:border-r`}
-      >
 
         {selection.length > 0 ? (
           <div className="border-b border-border bg-accent-soft p-3" aria-label="Bulk actions">
@@ -219,11 +221,15 @@ export function Inbox(): JSX.Element {
               />
             </div>
           ) : rows.length === 0 ? (
-            <EmptyState
-              title="No conversations"
-              description="Nothing matches these filters. Try clearing a filter or changing your search."
-              icon={<MessagesSquare aria-hidden className="h-7 w-7" />}
-            />
+            <div className="flex h-full flex-col items-center justify-center gap-7 px-6 text-center">
+              <MessagesSquare aria-hidden className="h-24 w-24 text-[#0a474c]/15" strokeWidth={1.25} />
+              <div>
+                <p className="text-sm text-black dark:text-text-primary">Seems clear !</p>
+                {filters.q || filters.tag ? (
+                  <p className="mt-1 text-xs text-[#808080]">No chat matches these filters. Try clearing a filter or your search.</p>
+                ) : null}
+              </div>
+            </div>
           ) : (
             <ConversationList
               conversations={rows}
@@ -237,6 +243,7 @@ export function Inbox(): JSX.Element {
           )}
         </div>
 
+        {page?.prev_cursor || page?.next_cursor ? (
         <Pagination
           compact
           label="Conversation pagination"
@@ -250,22 +257,24 @@ export function Inbox(): JSX.Element {
             if (page?.next_cursor) goToCursor(page.next_cursor);
           }}
         />
+        ) : null}
       </div>
 
-      <div className={`${selectedId ? "block" : "hidden lg:block"} min-h-0 min-w-0 flex-1`}>
+      <div className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-1 flex-col`}>
+        <ChatQuickSwitcher
+          conversations={rows}
+          selectedId={selectedId}
+          onSelect={select}
+          listCollapsed={listCollapsed}
+          onToggleList={() => setListCollapsed((collapsed) => !collapsed)}
+        />
         {selectedId ? (
-          <div className="flex h-full min-h-0 flex-col">
-            <button
-              type="button"
-              onClick={() => setSearchParams(writeParams(filters, null))}
-              className="flex items-center gap-2 border-b border-border bg-surface px-4 py-3 text-sm font-semibold text-text-primary lg:hidden"
-            >
-              <ArrowLeft aria-hidden className="h-4 w-4" /> Back to conversations
-            </button>
+          <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1">
               <ConversationThread
                 key={selectedId}
                 conversationId={selectedId}
+                onBack={() => setSearchParams(writeParams(filters, null))}
                 tags={tagOptions}
                 pinned={preferences.pinned.includes(selectedId)}
                 onTogglePinned={() => preferences.togglePinned(selectedId)}
@@ -273,27 +282,24 @@ export function Inbox(): JSX.Element {
             </div>
           </div>
         ) : (
-          <div className="flex h-full min-h-0">
-          <div
-            className="flex min-w-0 flex-1 items-center justify-center bg-accent-soft/30 p-6"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 13%, transparent) 1px, transparent 1.5px)",
-              backgroundSize: "26px 26px",
-            }}
-          >
-            <EmptyState
-              title="Select a conversation"
-              description="Choose a conversation to read, collaborate, and reply."
-              icon={<MessageCircleMore aria-hidden className="h-7 w-7" />}
-            />
-          </div>
-          <aside aria-label="Chat profile" className="hidden w-72 shrink-0 border-l border-border bg-surface p-6 xl:block">
-            <p className="text-center text-sm text-text-secondary">Select a conversation to view the customer profile.</p>
-          </aside>
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div aria-hidden className="h-[50px] shrink-0 bg-[var(--color-nav-bg)]" />
+              <div className="chat-wallpaper flex min-h-0 flex-1 items-center justify-center p-6">
+                <p className="text-center text-base text-black dark:text-text-primary">Select a chat to continue!</p>
+              </div>
+            </div>
+            <aside aria-label="Chat profile" className="hidden w-[340px] shrink-0 flex-col bg-[#f8f8f8] dark:bg-surface xl:flex">
+              <h2 className="flex h-[50px] shrink-0 items-center justify-center bg-[var(--color-nav-bg)] text-base font-normal text-white">Chat Profile</h2>
+              <div className="flex flex-col items-center gap-3 p-6 text-center">
+                <span className="flex h-[55px] w-[55px] items-center justify-center rounded-full bg-[#ffa500] text-white">
+                  <UserRound aria-hidden className="h-9 w-9" />
+                </span>
+                <p className="text-sm text-text-secondary">Select a chat to view the customer profile.</p>
+              </div>
+            </aside>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

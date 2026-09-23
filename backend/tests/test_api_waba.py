@@ -5,6 +5,7 @@ No network: Meta is reached only through the adapter, whose transport is an ``ht
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import httpx
@@ -475,3 +476,83 @@ def test_waba_model_never_renders_its_token() -> None:
         organization_id=1, waba_id="w", business_name="b", access_token_enc=encrypt("tok")
     )
     assert "tok" not in repr(waba)
+
+
+_PROFILE = {
+    "about": "Vi Reactivation",
+    "address": "Dwarka More, New Delhi",
+    "description": "We help customers reactivate their Vi numbers.",
+    "email": "care@vi.co",
+    "websites": ["https://www.myvi.in/"],
+    "vertical": "OTHER",
+    "profile_picture_url": None,
+}
+
+
+async def test_business_profile_is_read_live_from_meta(
+    client, make_user, session_factory, meta
+) -> None:
+    h = await _owner(client, make_user)
+    number = await _synced_number(client, h, session_factory, meta)
+    meta["handler"] = lambda request: httpx.Response(200, json={"data": [_PROFILE]})
+
+    resp = await client.get(f"/api/v1/phone-numbers/{number['id']}/business-profile", headers=h)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["address"] == "Dwarka More, New Delhi"
+    assert resp.json()["websites"] == ["https://www.myvi.in/"]
+    assert "pn-1/whatsapp_business_profile" in meta["calls"][-1]
+
+
+async def test_business_profile_update_writes_only_provided_fields(
+    client, make_user, session_factory, meta
+) -> None:
+    h = await _owner(client, make_user)
+    number = await _synced_number(client, h, session_factory, meta)
+    posted: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            posted.append(json.loads(request.content))
+            return httpx.Response(200, json={"success": True})
+        return httpx.Response(200, json={"data": [{**_PROFILE, "address": "New address"}]})
+
+    meta["handler"] = handler
+    resp = await client.post(
+        f"/api/v1/phone-numbers/{number['id']}/business-profile",
+        headers=h,
+        json={"address": "New address"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert posted == [{"messaging_product": "whatsapp", "address": "New address"}]
+    assert resp.json()["address"] == "New address"
+
+
+async def test_business_profile_update_validates_before_calling_meta(
+    client, make_user, session_factory, meta
+) -> None:
+    h = await _owner(client, make_user)
+    number = await _synced_number(client, h, session_factory, meta)
+    before = len(meta["calls"])
+    url = f"/api/v1/phone-numbers/{number['id']}/business-profile"
+    assert (await client.post(url, headers=h, json={"email": "not-an-email"})).status_code == 422
+    assert (
+        await client.post(url, headers=h, json={"websites": ["myvi.in"]})
+    ).status_code == 422
+    assert (await client.post(url, headers=h, json={"vertical": "SPACE"})).status_code == 422
+    assert len(meta["calls"]) == before
+
+
+async def test_business_profile_channel_failure_is_502_and_viewer_cannot_edit(
+    client, make_user, session_factory, meta
+) -> None:
+    h = await _owner(client, make_user)
+    number = await _synced_number(client, h, session_factory, meta)
+    url = f"/api/v1/phone-numbers/{number['id']}/business-profile"
+    meta["handler"] = lambda request: httpx.Response(
+        500, json={"error": {"message": "meta is down", "code": 2}}
+    )
+    assert (await client.get(url, headers=h)).status_code == 502
+
+    await make_user(email="viewer@vi.co", password=PASSWORD, roles=("viewer",))
+    viewer = await _headers(client, "viewer@vi.co")
+    assert (await client.post(url, headers=viewer, json={"about": "x"})).status_code == 403

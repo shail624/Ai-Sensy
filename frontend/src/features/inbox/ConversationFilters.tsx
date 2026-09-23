@@ -1,17 +1,15 @@
 import {
   BookmarkPlus,
-  ChevronLeft,
-  ChevronRight,
   Inbox,
+  ListFilter,
   Radio,
   Search,
-  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Button, Field, Input, Select, TagChip } from "@/components/ui";
+import { Button, Field, Input, Modal, Select, TagChip } from "@/components/ui";
 import { useAssignableUsers, useConversationCounts } from "@/features/inbox/api";
 import type { SavedInboxView } from "@/features/inbox/preferences";
 import type { InboxFilters, TagSummary } from "@/features/inbox/types";
@@ -25,9 +23,6 @@ interface Props {
   onSaveView: (name: string) => void;
   onDeleteView: (id: string) => void;
   currentUserId?: string;
-  showProfileLabel?: boolean;
-  listCollapsed?: boolean;
-  onToggleList?: () => void;
 }
 
 /** Simple triage first; the complete filter and saved-view toolkit remains one click away. */
@@ -39,13 +34,12 @@ export function ConversationFilters({
   onSaveView,
   onDeleteView,
   currentUserId,
-  showProfileLabel = true,
-  listCollapsed = false,
-  onToggleList,
 }: Props): JSX.Element {
   const users = useAssignableUsers();
   const [viewName, setViewName] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filters apply live; Discard restores what was in force when the dialog opened.
+  const [openedWith, setOpenedWith] = useState<InboxFilters>(filters);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -97,6 +91,8 @@ export function ConversationFilters({
   const isQuickInboxActive = (next: InboxFilters): boolean =>
     filters.status === next.status && filters.assignee === next.assignee && !filters.tag;
 
+  const activeIndex = quickInboxes.findIndex((quickInbox) => isQuickInboxActive(quickInbox.next));
+
   const advancedFilterCount =
     Number(Boolean(filters.status)) + Number(Boolean(filters.assignee)) + Number(Boolean(filters.tag));
   const hasListFilter = advancedFilterCount > 0 || Boolean(filters.q);
@@ -106,7 +102,7 @@ export function ConversationFilters({
   }
 
   return (
-    <div className="flex shrink-0 flex-col border-b border-border bg-surface">
+    <div className="flex shrink-0 flex-col">
       <div className="sr-only">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-bold text-text-primary">Live Chat</h1>
@@ -120,81 +116,63 @@ export function ConversationFilters({
         </span>
       </div>
 
-      <div className="flex w-full max-w-xl items-center gap-2 p-3">
-        <Input
-          ref={searchRef}
-          id="inbox-search"
-          type="search"
-          value={filters.q ?? ""}
-          onChange={(event) => onChange({ ...filters, q: event.target.value || undefined })}
-          placeholder="Search name or mobile number"
-          aria-label="Search conversations"
-          trailingAction={
-            filters.q ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => onChange({ ...filters, q: undefined })}
-                className="rounded-full bg-accent p-1.5 text-accent-fg hover:opacity-90"
-              >
-                <X aria-hidden className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label="Search conversations"
-                onClick={() => searchRef.current?.focus()}
-                className="rounded-full bg-accent p-1.5 text-accent-fg hover:opacity-90"
-              >
-                <Search aria-hidden className="h-3.5 w-3.5" />
-              </button>
-            )
-          }
-          containerClassName="min-w-0 flex-1"
-        />
-        <Button
+      <div className="flex h-[60px] items-center gap-2 bg-[#fdfffc] pl-4 pr-2 dark:bg-surface">
+        <div className="flex h-[34px] min-w-0 flex-1 items-center rounded-lg bg-[#f0f0f0] pl-[15px] pr-1.5 dark:bg-surface-2">
+          <input
+            ref={searchRef}
+            id="inbox-search"
+            type="search"
+            value={filters.q ?? ""}
+            onChange={(event) => onChange({ ...filters, q: event.target.value || undefined })}
+            placeholder="Search name or mobile number"
+            aria-label="Search conversations"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary [&::-webkit-search-cancel-button]:hidden"
+          />
+          {filters.q ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => onChange({ ...filters, q: undefined })}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-black/50 hover:bg-black/5"
+            >
+              <X aria-hidden className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Search conversations"
+              onClick={() => searchRef.current?.focus()}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-black/50 hover:bg-black/5 dark:text-text-secondary"
+            >
+              <Search aria-hidden className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <button
           type="button"
-          size="md"
-          variant={filtersOpen || advancedFilterCount > 0 ? "subtle" : "secondary"}
           aria-expanded={filtersOpen}
           aria-controls="advanced-inbox-filters"
-          onClick={() => setFiltersOpen((open) => !open)}
-          aria-label={
-            advancedFilterCount > 0 ? `Filters, ${advancedFilterCount} active` : "Filters"
-          }
-          title={advancedFilterCount > 0 ? `Filters (${advancedFilterCount} active)` : "Filters"}
-          className="relative shrink-0 px-2.5"
+          onClick={() => {
+            setOpenedWith(filters);
+            setFiltersOpen((open) => !open);
+          }}
+          aria-label={advancedFilterCount > 0 ? `Filters, ${advancedFilterCount} active` : "Filters"}
+          title="Filters"
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-black/55 transition-colors duration-150 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-text-secondary"
         >
-          <SlidersHorizontal aria-hidden className="h-4 w-4" />
-          {/* An `aria-label` on the button determines its whole accessible name and suppresses
-              any child text, so the count previously lived only in a visually hidden span here —
-              screen readers never heard it either, since aria-label always wins. The count is now
-              in the label above; this badge (same pattern as the unread count on the notification
-              bell in TopNav.tsx) is `aria-hidden` on purpose so it is never announced twice. */}
+          <ListFilter aria-hidden className="h-6 w-6" />
           {advancedFilterCount > 0 ? (
             <span
               aria-hidden
-              className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-fg ring-2 ring-surface"
+              className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-nav-bg)] px-1 text-[9px] font-bold text-white"
             >
               {advancedFilterCount > 9 ? "9+" : advancedFilterCount}
             </span>
           ) : null}
-        </Button>
-        {onToggleList ? (
-          <button
-            type="button"
-            onClick={onToggleList}
-            aria-label={listCollapsed ? "Expand conversation list" : "Collapse conversation list"}
-            title={listCollapsed ? "Expand conversation list" : "Collapse conversation list"}
-            className="hidden rounded-control p-2 text-text-secondary hover:bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus lg:inline-flex"
-          >
-            {listCollapsed ? <ChevronRight aria-hidden className="h-4 w-4" /> : <ChevronLeft aria-hidden className="h-4 w-4" />}
-          </button>
-        ) : null}
+        </button>
       </div>
 
-      <div className="flex items-stretch bg-[var(--color-nav-bg)] text-[var(--color-nav-text)]" aria-label="Live Chat views">
-        <div className="flex min-w-0 flex-1 overflow-x-auto">
+      <div className="relative flex h-[50px] items-stretch bg-[var(--color-nav-bg)] text-white" aria-label="Live Chat views">
         {quickInboxes.map((quickInbox) => {
           const active = isQuickInboxActive(quickInbox.next);
           return (
@@ -204,30 +182,24 @@ export function ConversationFilters({
               aria-pressed={active}
               title={quickInbox.description}
               onClick={() => applyQuickInbox(quickInbox.next)}
-              className={`min-h-14 shrink-0 border-b-[3px] px-4 text-xs font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:min-w-36 ${
-                active
-                  ? "border-[var(--color-nav-text)] bg-[var(--color-nav-active-bg)]"
-                  : "border-transparent text-[var(--color-nav-muted)] hover:bg-[var(--color-nav-hover)]"
-              }`}
+              className={`min-w-0 flex-1 px-[3px] text-[11px] font-medium uppercase tracking-[0.03em] transition-opacity duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 ${active ? "opacity-100" : "opacity-70 hover:opacity-100"}`}
             >
               {quickInbox.label}
-              {/* The count sits inside the label as `ACTIVE (0)` rather than in a separate pill,
-                  matching the reference tab strip the owner supplied. The accessible name is
-                  unchanged — a pill and a parenthesis read the same to a screen reader, and the
-                  count tests assert on that name rather than on the decoration around it. */}
               {quickInbox.count === undefined ? null : (
-                <span
-                  aria-label={`${quickInbox.count} in ${quickInbox.label}`}
-                  className="ml-1.5 font-semibold tabular-nums"
-                >
+                <span aria-label={`${quickInbox.count} in ${quickInbox.label}`} className="ml-1 tabular-nums">
                   ({quickInbox.count})
                 </span>
               )}
             </button>
           );
         })}
-        </div>
-        {showProfileLabel ? <span className="hidden w-72 shrink-0 items-center justify-center text-sm font-semibold xl:flex">Chat Profile</span> : null}
+        {activeIndex >= 0 ? (
+          <span
+            aria-hidden
+            className="absolute bottom-0 h-[3px] bg-white transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            style={{ width: `${100 / quickInboxes.length}%`, left: `${(100 / quickInboxes.length) * activeIndex}%` }}
+          />
+        ) : null}
       </div>
 
       {savedViews.length > 0 ? (
@@ -261,10 +233,12 @@ export function ConversationFilters({
       ) : null}
 
       {filtersOpen ? (
+        <Modal title="Filters" onClose={() => setFiltersOpen(false)} panelClassName="!max-w-[860px] !rounded-md">
+        <p className="mb-3 text-sm text-text-secondary">Refine the live chat list by adding one or more filters.</p>
         <section
           id="advanced-inbox-filters"
           aria-label="Advanced inbox filters"
-          className="order-3 space-y-3 border-t border-border bg-surface-2 p-3"
+          className="space-y-3"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -369,6 +343,15 @@ export function ConversationFilters({
             />
           </form>
         </section>
+        <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
+          <button type="button" onClick={() => { onChange(openedWith); setFiltersOpen(false); }} className="h-9 rounded-md px-4 text-sm font-medium text-[#4a4a4a] hover:bg-hover dark:text-text-secondary">
+            Discard
+          </button>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="h-9 rounded-md bg-[var(--color-nav-bg)] px-4 text-sm font-medium text-white hover:bg-[#08393d]">
+            Apply Filters
+          </button>
+        </div>
+        </Modal>
       ) : null}
     </div>
   );

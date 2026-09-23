@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { toListQuery } from "@/features/inbox/api";
+import { ChatQuickSwitcher } from "@/features/inbox/ChatQuickSwitcher";
 import { ConversationFilters } from "@/features/inbox/ConversationFilters";
 import { collateReactions } from "@/features/inbox/messageContent";
 import { ConversationList } from "@/features/inbox/ConversationList";
@@ -281,7 +282,6 @@ describe("ConversationFilters", () => {
   });
 
   it("exposes compact reference controls without hiding their accessible purpose", () => {
-    const onToggleList = vi.fn();
     withProviders(
       <ConversationFilters
         filters={{}}
@@ -291,14 +291,32 @@ describe("ConversationFilters", () => {
         onSaveView={vi.fn()}
         onDeleteView={vi.fn()}
         currentUserId="u1"
-        onToggleList={onToggleList}
       />,
     );
 
     expect(screen.getByRole("button", { name: "Search conversations" })).toBeInTheDocument();
     expect(within(screen.getByRole("button", { name: "Filters" })).queryByText("Filters")).not.toBeInTheDocument();
+  });
+
+  it("collapses the list from the quick switcher and jumps to waiting chats", () => {
+    const onToggleList = vi.fn();
+    const onSelect = vi.fn();
+    const waiting = { ...conversationFixture(), id: "c9", unread_count: 3 };
+    withProviders(
+      <ChatQuickSwitcher
+        conversations={[waiting, { ...conversationFixture(), id: "c10", unread_count: 0 }]}
+        selectedId={null}
+        onSelect={onSelect}
+        listCollapsed={false}
+        onToggleList={onToggleList}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Collapse conversation list" }));
     expect(onToggleList).toHaveBeenCalledOnce();
+    const chats = within(screen.getByRole("list", { name: "Chats waiting for a reply" })).getAllByRole("button");
+    expect(chats).toHaveLength(1);
+    fireEvent.click(chats[0]!);
+    expect(onSelect).toHaveBeenCalledWith("c9");
   });
 
   it("announces the active filter count from the icon-only Filters button", () => {

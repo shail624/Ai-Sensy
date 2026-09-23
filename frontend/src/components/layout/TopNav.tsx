@@ -6,6 +6,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  RefreshCw,
   Search,
   Sun,
 } from "lucide-react";
@@ -14,6 +15,8 @@ import { useNavigate } from "react-router-dom";
 
 import { visibleCreateActions } from "@/components/layout/navigation";
 import { Modal } from "@/components/ui";
+import { useAccountSummary } from "@/features/channels/api";
+import { API_STATUS_LABELS, type ApiStatus } from "@/features/channels/accountSummary";
 import { CommandPalette } from "@/features/global-search";
 import { NotificationCenter, useUnreadCount } from "@/features/notifications";
 import { useQueues } from "@/features/operations/api";
@@ -33,16 +36,24 @@ interface TopNavProps {
   mobileNavOpen: boolean;
   onOpenMobileNav: () => void;
   onToggleCollapse: () => void;
+  /** Full-height workspaces (Live Chat) drop the bar on desktop, as the reference does. */
+  immersive?: boolean;
 }
 
+const API_STATUS_TONES: Record<ApiStatus, string> = {
+  live: "text-[#008000] dark:text-success",
+  pending: "text-warning",
+  not_connected: "text-danger",
+};
+
 const iconBtn =
-  "flex h-10 w-10 items-center justify-center rounded-xl text-text-secondary transition-colors hover:bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+  "flex h-[30px] w-[30px] items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
 }
 
-export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleCollapse }: TopNavProps): JSX.Element {
+export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleCollapse, immersive = false }: TopNavProps): JSX.Element {
   const { resolvedTheme, toggle } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -52,6 +63,8 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
   const canViewUsers = hasPermission("users:read");
   const queues = useQueues(canSystem);
   const unread = useUnreadCount(canReadNotifications);
+  const canWaba = hasPermission("waba:read");
+  const account = useAccountSummary(canWaba);
   const [accountOpen, setAccountOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -119,7 +132,7 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
 
   return (
     <>
-      <header className="relative z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_92%,transparent)] px-3 backdrop-blur-xl sm:px-4">
+      <header className={`relative z-30 flex h-[60px] shrink-0 items-center gap-2 bg-surface px-3 shadow-card ${immersive ? "lg:hidden" : ""}`}>
         <button
           type="button"
           aria-label="Open navigation"
@@ -139,17 +152,41 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
           {collapsed ? <PanelLeftOpen aria-hidden className="h-[18px] w-[18px]" /> : <PanelLeftClose aria-hidden className="h-[18px] w-[18px]" />}
         </button>
 
+        <p className="mr-auto min-w-0 truncate text-xl font-normal leading-[23px] text-text-primary">
+          {account.summary?.businessName ?? "Vi Reactivation"}
+        </p>
+
+        {canWaba && account.summary ? (
+          <p className="hidden items-center text-sm text-[#4a4a4a] dark:text-text-secondary xl:flex">
+            WhatsApp Business API Status :
+            <span className={`px-2 ${API_STATUS_TONES[account.summary.status]}`}>
+              {API_STATUS_LABELS[account.summary.status]}
+            </span>
+          </p>
+        ) : null}
+        {canWaba ? (
+          <button
+            type="button"
+            aria-label="Refresh account status"
+            title="Refresh"
+            onClick={() => void account.refetch()}
+            className={iconBtn}
+          >
+            <RefreshCw aria-hidden className={`h-[18px] w-[18px] ${account.isFetching ? "animate-spin [animation-duration:2s]" : ""}`} />
+          </button>
+        ) : null}
+
         <button
           type="button"
+          aria-label="Search"
+          title="Search (Ctrl + K)"
           onClick={() => setPaletteOpen(true)}
-          className="mr-auto flex h-9 min-w-0 max-w-sm flex-1 items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 text-left text-sm text-text-secondary transition-colors hover:border-border-strong hover:bg-hover md:ml-2 md:mr-5"
+          className={iconBtn}
         >
-          <Search aria-hidden className="h-4 w-4 shrink-0 text-text-disabled" />
-          <span className="truncate">Search</span>
-          <kbd className="ml-auto hidden rounded-md border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-text-disabled sm:inline">⌘K</kbd>
+          <Search aria-hidden className="h-[18px] w-[18px]" />
         </button>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {createActions.length > 0 ? (
             <div ref={createMenuRef} className="relative hidden md:block">
               <button
@@ -162,14 +199,14 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
                   setAccountOpen(false);
                   setCreateOpen((open) => !open);
                 }}
-                className="flex h-10 items-center gap-2 rounded-xl bg-accent px-3.5 text-sm font-medium text-accent-fg shadow-sm transition-colors hover:bg-accent-strong"
+                className="flex h-[31px] items-center gap-1.5 rounded-md bg-[#42b864] px-2.5 text-[13px] font-medium text-white transition-colors duration-200 hover:bg-[#379d54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <Plus aria-hidden className="h-4 w-4" />
                 Create
                 <ChevronDown aria-hidden className="h-3.5 w-3.5" />
               </button>
               {createOpen ? (
-                <div id="create-menu" role="menu" aria-label="Create" className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-border bg-surface p-2 shadow-lg">
+                <div id="create-menu" role="menu" aria-label="Create" className="absolute right-0 z-40 mt-2 w-72 rounded-lg border border-border bg-surface p-1.5 shadow-lg">
                   {createActions.map((action) => {
                     const Icon = action.icon;
                     return (
@@ -181,7 +218,7 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
                           setCreateOpen(false);
                           navigate(action.path);
                         }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-hover"
+                        className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors duration-150 hover:bg-hover"
                       >
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent"><Icon aria-hidden className="h-4 w-4" /></span>
                         <span><span className="block text-sm font-medium text-text-primary">{action.label}</span><span className="block text-xs text-text-secondary">{action.description}</span></span>
@@ -211,16 +248,16 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
                 setCreateOpen(false);
                 setAccountOpen((open) => !open);
               }}
-              className="flex h-10 items-center gap-2 rounded-xl pl-1 pr-2 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="flex h-10 items-center gap-2 rounded-full pl-1 pr-2 transition-colors duration-200 hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
-              <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent text-xs font-semibold text-accent-fg">{user ? initials(user.full_name) : "U"}</span>
+              <span aria-hidden className="flex h-[31px] w-[31px] items-center justify-center rounded-full bg-[var(--color-nav-bg)] text-sm font-medium text-white">{user ? initials(user.full_name) : "U"}</span>
               {user ? <span className="hidden max-w-[8rem] truncate text-sm font-medium text-text-primary xl:block">{user.full_name}</span> : null}
               <ChevronDown aria-hidden className="hidden h-3.5 w-3.5 text-text-disabled xl:block" />
             </button>
             {accountOpen ? (
-              <div id="account-menu" role="menu" aria-label="Account" className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-border bg-surface p-2 text-sm shadow-lg">
+              <div id="account-menu" role="menu" aria-label="Account" className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-lg border border-border bg-surface p-2 text-sm shadow-lg">
                 {user ? (
-                  <div className="mb-1 rounded-xl bg-surface-2 px-3 py-3">
+                  <div className="mb-1 rounded-md bg-surface-2 px-3 py-3">
                     <p className="truncate font-semibold text-text-primary">{user.full_name}</p>
                     <p className="truncate text-xs text-text-secondary">{user.email}</p>
                   </div>

@@ -49,7 +49,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
 
   if (!canSend) {
     return (
-      <p className="border-t border-border p-3 text-xs text-text-disabled">
+      <p className="bg-[#f5f5f5] px-4 py-[13px] text-center text-xs text-text-secondary dark:bg-surface">
         You do not have permission to send messages in this conversation.
       </p>
     );
@@ -64,7 +64,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
         : "Write a reply…";
 
   return (
-    <div className="border-t border-border p-3">
+    <div className="bg-[#f5f5f5] px-4 py-3 dark:bg-surface">
       {metaWindowClosed ? (
         <p className="mb-2 text-xs text-warning">
           The 24-hour service window is closed. Reply with an approved template to reopen it.
@@ -127,7 +127,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
           }
         }}
         placeholder={placeholder}
-        className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary disabled:opacity-50"
+        className="w-full rounded-[20px] border-0 bg-surface px-4 py-2 text-sm text-text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)] placeholder:text-[#9e9e9e] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
       />
 
       {send.error ? (
@@ -141,7 +141,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
           type="button"
           onClick={() => setShowReplies((open) => !open)}
           aria-expanded={showReplies}
-          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-hover"
+          className="h-9 rounded-full border border-[rgba(10,71,76,0.5)] px-4 text-sm font-medium text-[var(--color-nav-bg)] transition-colors hover:bg-[#ebf5f3] dark:text-accent"
         >
           Quick replies
         </button>
@@ -149,7 +149,7 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
           type="button"
           onClick={submit}
           disabled={disabled || !body.trim()}
-          className="rounded-md bg-accent px-3 py-1 text-sm text-accent-fg disabled:opacity-50"
+          className="h-9 rounded-full bg-[var(--color-nav-bg)] px-5 text-sm font-medium text-white transition-colors hover:bg-[#08393d] disabled:opacity-50"
         >
           {send.isPending ? "Sending…" : "Send"}
         </button>

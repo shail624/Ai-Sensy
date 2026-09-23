@@ -1,4 +1,5 @@
 import type { Template, TemplateListQuery, TemplateSort } from "@/features/templates/types";
+import { ACTION_REQUIRED, ACTION_REQUIRED_STATUSES } from "@/features/templates/types";
 
 /** Rows per page for the client-side list (see `useTemplates` for why paging lives here). */
 export const PAGE_SIZE = 25;
@@ -35,7 +36,9 @@ export function filterTemplates(templates: Template[], query: TemplateListQuery)
   return templates.filter(
     (template) =>
       matchesSearch(template, query.q) &&
-      (query.status === "" || template.status === query.status) &&
+      (query.status === "" ||
+        template.status === query.status ||
+        (query.status === ACTION_REQUIRED && ACTION_REQUIRED_STATUSES.includes(template.status))) &&
       (query.category === "" || template.category === query.category) &&
       (query.language === "" || template.language === query.language),
   );

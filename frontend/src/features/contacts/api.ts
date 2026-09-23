@@ -69,8 +69,9 @@ export interface ContactSearchParams {
  * in the OpenAPI contract (`GET /contacts` declares no parameters). Empty `rules` returns everyone,
  * cursor-paginated. `keepPreviousData` keeps the table stable while a new page/filter loads.
  */
-export function useContactSearch(params: ContactSearchParams) {
+export function useContactSearch(params: ContactSearchParams, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["contacts", "search", params],
     queryFn: async (): Promise<ContactsPage> =>
       unwrap(

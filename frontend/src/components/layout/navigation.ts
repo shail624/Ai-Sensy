@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   Bot,
   Contact,
   Code2,
@@ -173,7 +174,7 @@ export function manageNavGroups(
     const section = SETTINGS_SECTIONS.find((item) => item.key === key);
     return section && hasPermission(section.permission) ? [{
       ...section, available: true, glyph: "S",
-      icon: key === "tags" ? Tag : key === "canned-messages" ? MessageSquareText : key === "user-attributes" ? SlidersHorizontal : Settings,
+      icon: key === "tags" ? Tag : key === "preferences" ? Bell : key === "canned-messages" ? MessageSquareText : key === "user-attributes" ? SlidersHorizontal : Settings,
       group: "Manage",
     }] : [];
   };
@@ -195,13 +196,14 @@ export function manageNavGroups(
     }] : []),
     ...setting("tags"),
     ...destination("/analytics"),
+    ...setting("preferences"),
   ];
   const covered = new Set(["/templates", "/analytics", "/settings", "/admin"]);
   const additional = secondaryNavGroups(hasPermission)
     .map((group) => ({ ...group, items: group.items.filter((item) => !covered.has(item.path)) }))
     .filter((group) => group.items.length > 0);
   const configuration = [
-    ...["organization", "application", "flags", "preferences"].flatMap(setting),
+    ...["organization", "application", "flags"].flatMap(setting),
     ...ADMIN_SECTIONS.filter((section) => section.key !== "users" && hasPermission(section.permission))
       .map((section) => ({ ...section,
         description: section.key === "permissions" ? "Review the capabilities enforced by the platform." : section.description,

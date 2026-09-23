@@ -96,6 +96,7 @@ const config: Config = {
         DEFAULT: "var(--shadow-sm)",
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
+        card: "var(--shadow-card)",
       },
       borderRadius: {
         sm: "6px",

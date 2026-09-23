@@ -24,3 +24,4 @@ export {
 } from "./FormControl";
 export { FilterBar, Toolbar, ToolbarDivider, ToolbarGroup } from "./Toolbar";
 export { Pagination } from "./Pagination";
+export { InfoTooltip } from "./InfoTooltip";

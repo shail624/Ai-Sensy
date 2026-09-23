@@ -216,7 +216,8 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
     # adds governed campaign-results export start/progress paths (223 -> 225). PAR-VIEW-01/02/03
     # add Reactivation, Contacts and Campaign saved-view paths (225 -> 231), and PAR-VIEW-04 adds
     # the KYC saved-view paths (231 -> 233), and PAR-VIEW-05 adds Reports views (233 -> 235).
-    assert len(schema["paths"]) == 247
+    # UI-AIS-01 adds the live WhatsApp Business profile read/write path (247 -> 248).
+    assert len(schema["paths"]) == 248
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]

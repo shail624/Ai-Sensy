@@ -6101,6 +6101,110 @@
         }
       }
     },
+    "/api/v1/phone-numbers/{number_id}/business-profile": {
+      "get": {
+        "tags": [
+          "WhatsApp Infrastructure"
+        ],
+        "summary": "WhatsApp Business profile, read live from Meta",
+        "operationId": "get_business_profile_api_v1_phone_numbers__number_id__business_profile_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "number_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Number Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WhatsApp Infrastructure"
+        ],
+        "summary": "Update the WhatsApp Business profile on Meta",
+        "operationId": "update_business_profile_api_v1_phone_numbers__number_id__business_profile_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "number_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Number Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/webhooks/whatsapp": {
       "get": {
         "tags": [
@@ -20936,6 +21040,190 @@
         ],
         "title": "BulkUpdateRequest",
         "description": "``POST /contacts/bulk-update`` — add/remove tags or set attributes (FR-CON-07)."
+      },
+      "BusinessProfileResponse": {
+        "properties": {
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "websites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Websites"
+          },
+          "vertical": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vertical"
+          },
+          "profile_picture_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Picture Url"
+          }
+        },
+        "type": "object",
+        "title": "BusinessProfileResponse",
+        "description": "``GET /phone-numbers/{uuid}/business-profile`` — read live from Meta, never stored."
+      },
+      "BusinessProfileUpdateRequest": {
+        "properties": {
+          "about": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 139,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^$|^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "websites": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Websites"
+          },
+          "vertical": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "UNDEFINED",
+                  "OTHER",
+                  "AUTO",
+                  "BEAUTY",
+                  "APPAREL",
+                  "EDU",
+                  "ENTERTAIN",
+                  "EVENT_PLAN",
+                  "FINANCE",
+                  "GROCERY",
+                  "GOVT",
+                  "HOTEL",
+                  "HEALTH",
+                  "NONPROFIT",
+                  "PROF_SERVICES",
+                  "RETAIL",
+                  "TRAVEL",
+                  "RESTAURANT",
+                  "NOT_A_BIZ"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vertical"
+          }
+        },
+        "type": "object",
+        "title": "BusinessProfileUpdateRequest",
+        "description": "``POST /phone-numbers/{uuid}/business-profile`` — only the fields provided are written.\n\nLimits are Meta's own, so a value Meta would reject fails here with a field error instead of\na 502 from the provider."
       },
       "CampaignConfig": {
         "properties": {

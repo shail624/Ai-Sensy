@@ -7,3 +7,4 @@ export { PageHeader } from "./PageHeader";
 export { navItems, primaryNavItems, secondaryNavGroups, visibleNavItems } from "./navigation";
 export type { Crumb } from "./Breadcrumbs";
 export type { NavItem } from "./navigation";
+export { ManagePageHeader, MANAGE_PRIMARY_ACTION } from "./ManagePageHeader";

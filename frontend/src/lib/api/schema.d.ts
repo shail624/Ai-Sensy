@@ -1755,6 +1755,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/phone-numbers/{number_id}/business-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** WhatsApp Business profile, read live from Meta */
+        get: operations["get_business_profile_api_v1_phone_numbers__number_id__business_profile_get"];
+        put?: never;
+        /** Update the WhatsApp Business profile on Meta */
+        post: operations["update_business_profile_api_v1_phone_numbers__number_id__business_profile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/webhooks/whatsapp": {
         parameters: {
             query?: never;
@@ -5760,6 +5778,47 @@ export interface components {
             payload?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * BusinessProfileResponse
+         * @description ``GET /phone-numbers/{uuid}/business-profile`` — read live from Meta, never stored.
+         */
+        BusinessProfileResponse: {
+            /** About */
+            about?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Websites */
+            websites?: string[];
+            /** Vertical */
+            vertical?: string | null;
+            /** Profile Picture Url */
+            profile_picture_url?: string | null;
+        };
+        /**
+         * BusinessProfileUpdateRequest
+         * @description ``POST /phone-numbers/{uuid}/business-profile`` — only the fields provided are written.
+         *
+         *     Limits are Meta's own, so a value Meta would reject fails here with a field error instead of
+         *     a 502 from the provider.
+         */
+        BusinessProfileUpdateRequest: {
+            /** About */
+            about?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Websites */
+            websites?: string[] | null;
+            /** Vertical */
+            vertical?: ("UNDEFINED" | "OTHER" | "AUTO" | "BEAUTY" | "APPAREL" | "EDU" | "ENTERTAIN" | "EVENT_PLAN" | "FINANCE" | "GROCERY" | "GOVT" | "HOTEL" | "HEALTH" | "NONPROFIT" | "PROF_SERVICES" | "RETAIL" | "TRAVEL" | "RESTAURANT" | "NOT_A_BIZ") | null;
         };
         /** CampaignConfig */
         CampaignConfig: {
@@ -15218,6 +15277,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PhoneNumberHealthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_business_profile_api_v1_phone_numbers__number_id__business_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessProfileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_business_profile_api_v1_phone_numbers__number_id__business_profile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessProfileResponse"];
                 };
             };
             /** @description Validation Error */

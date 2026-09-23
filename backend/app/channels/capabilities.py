@@ -71,3 +71,5 @@ class Capability(StrEnum):
     HISTORY_SYNC = "history_sync"
     # Health
     HEALTH = "health"
+    #: The public WhatsApp Business profile (about, address, email, websites, vertical).
+    BUSINESS_PROFILE = "business_profile"

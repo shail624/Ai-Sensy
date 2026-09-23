@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// Local override so the dev server can proxy to a containerised stack (e.g. http://localhost via nginx).
+const apiTarget = process.env.VITE_DEV_API_TARGET ?? "http://localhost:8000";
+
 // Vite + React configuration (Doc 05, Doc 08 §16 — static, hash-versioned build).
 export default defineConfig({
   plugins: [react()],
@@ -18,9 +21,9 @@ export default defineConfig({
     // Proxy API + probes to the backend during local development so the SPA
     // uses same-origin relative URLs (Doc 04 §2).
     proxy: {
-      "/api": { target: "http://localhost:8000", changeOrigin: true },
-      "/health": { target: "http://localhost:8000", changeOrigin: true },
-      "/ready": { target: "http://localhost:8000", changeOrigin: true },
+      "/api": { target: apiTarget, changeOrigin: true },
+      "/health": { target: apiTarget, changeOrigin: true },
+      "/ready": { target: apiTarget, changeOrigin: true },
     },
   },
   preview: {
@@ -29,9 +32,9 @@ export default defineConfig({
     // output against a real API is to deploy it, which puts the artefact that ships furthest out
     // of reach of the checks that run most often — the accessibility gate among them.
     proxy: {
-      "/api": { target: "http://localhost:8000", changeOrigin: true },
-      "/health": { target: "http://localhost:8000", changeOrigin: true },
-      "/ready": { target: "http://localhost:8000", changeOrigin: true },
+      "/api": { target: apiTarget, changeOrigin: true },
+      "/health": { target: apiTarget, changeOrigin: true },
+      "/ready": { target: apiTarget, changeOrigin: true },
     },
   },
   build: {

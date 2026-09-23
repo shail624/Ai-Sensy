@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import type {
+  BusinessProfile,
+  BusinessProfileUpdateRequest,
   JobAccepted,
   PhoneNumber,
   PhoneNumberHealth,
@@ -11,6 +13,7 @@ import type {
   WabaCreateRequest,
   WabaUpdateRequest,
 } from "@/features/channels/types";
+import { summarizeAccount } from "@/features/channels/accountSummary";
 
 // Shared error helper, re-exported for this feature's components (as the other features do).
 export { apiErrorMessage } from "@/lib/api/errors";
@@ -23,6 +26,7 @@ export const channelKeys = {
   numbers: ["channels", "numbers"] as const,
   number: (id: string) => ["channels", "numbers", id] as const,
   health: (id: string) => ["channels", "numbers", id, "health"] as const,
+  profile: (id: string) => ["channels", "numbers", id, "profile"] as const,
 };
 
 /**
@@ -32,10 +36,11 @@ export const channelKeys = {
  * list for the organization. Search, filtering and sorting therefore run in the client over a set
  * that is genuinely complete, so nothing is hidden behind a page boundary here.
  */
-export function useWabas() {
+export function useWabas(enabled = true) {
   return useQuery({
     queryKey: channelKeys.wabas,
     queryFn: async (): Promise<Waba[]> => unwrap(await api.GET("/api/v1/waba")).data,
+    enabled,
   });
 }
 
@@ -58,11 +63,12 @@ export function useWaba(wabaId: string, enabled = true) {
  * the contract or reachable from the generated client. It applies **no limit**, so the response is
  * the complete set and client-side filtering is exact rather than a window onto it.
  */
-export function useNumbers() {
+export function useNumbers(enabled = true) {
   return useQuery({
     queryKey: channelKeys.numbers,
     queryFn: async (): Promise<PhoneNumber[]> =>
       unwrap(await api.GET("/api/v1/phone-numbers")).data,
+    enabled,
   });
 }
 
@@ -218,4 +224,57 @@ export function useRefreshNumber() {
         }),
       ),
   );
+}
+
+/** Header/dashboard account headline, derived from the complete WABA and number lists. */
+export function useAccountSummary(enabled = true) {
+  const wabas = useWabas(enabled);
+  const numbers = useNumbers(enabled);
+  const queryClient = useQueryClient();
+  return {
+    isLoading: wabas.isLoading || numbers.isLoading,
+    isError: wabas.isError || numbers.isError,
+    isFetching: wabas.isFetching || numbers.isFetching,
+    /** Re-read accounts, numbers and any open profile — the header's refresh button. */
+    refetch: () => queryClient.invalidateQueries({ queryKey: channelKeys.all }),
+    summary: wabas.data && numbers.data ? summarizeAccount(wabas.data, numbers.data) : null,
+  };
+}
+
+/** The number's public WhatsApp Business profile — read live from Meta, so only on demand. */
+export function useBusinessProfile(numberId: string, enabled = true) {
+  return useQuery({
+    queryKey: channelKeys.profile(numberId),
+    queryFn: async (): Promise<BusinessProfile> =>
+      unwrap(
+        await api.GET("/api/v1/phone-numbers/{number_id}/business-profile", {
+          params: { path: { number_id: numberId } },
+        }),
+      ),
+    enabled: enabled && Boolean(numberId),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useUpdateBusinessProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      numberId,
+      body,
+    }: {
+      numberId: string;
+      body: BusinessProfileUpdateRequest;
+    }): Promise<BusinessProfile> =>
+      unwrap(
+        await api.POST("/api/v1/phone-numbers/{number_id}/business-profile", {
+          params: { path: { number_id: numberId } },
+          body,
+        }),
+      ),
+    onSuccess: (profile, { numberId }) => {
+      queryClient.setQueryData(channelKeys.profile(numberId), profile);
+    },
+  });
 }
