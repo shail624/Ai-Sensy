@@ -58,14 +58,35 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "    Passwords reset ho gaye." -ForegroundColor Green
 
-# Stop recovery, start normal MySQL
-Write-Host "[5/6] Normal MySQL start kar raha hoon..." -ForegroundColor Yellow
+# Stop recovery, remove old MySQL container, recreate with correct healthcheck
+Write-Host "[5/6] MySQL ko fresh healthcheck ke saath restart kar raha hoon..." -ForegroundColor Yellow
 docker stop mysql-recovery | Out-Null
 docker rm mysql-recovery | Out-Null
-docker start wa-platform-mysql-1 | Out-Null
-Write-Host "    30 seconds wait kar raha hoon MySQL ke liye..." -ForegroundColor Yellow
-Start-Sleep 30
-Write-Host "    MySQL ready." -ForegroundColor Green
+docker stop wa-platform-mysql-1 2>$null | Out-Null
+docker rm wa-platform-mysql-1 2>$null | Out-Null
+
+# Recreate MySQL container (keeps volume, picks up current MYSQL_ROOT_PASSWORD for healthcheck)
+$env:IMAGE_TAG = "latest"
+& docker compose -f docker-compose.production.yml --env-file .env.production up -d mysql
+
+# Wait for MySQL to become healthy (up to 120 seconds)
+Write-Host "    MySQL healthy hone ka wait kar raha hoon..." -ForegroundColor Yellow
+$waited = 0
+while ($waited -lt 120) {
+    $health = docker inspect wa-platform-mysql-1 --format "{{.State.Health.Status}}" 2>$null
+    if ($health -eq "healthy") {
+        Write-Host "    MySQL healthy! ($waited sec mein)" -ForegroundColor Green
+        break
+    }
+    Start-Sleep 5
+    $waited += 5
+    Write-Host "    Still starting... ($waited/120 sec)" -ForegroundColor Yellow
+}
+if ($waited -ge 120) {
+    Write-Host "ERROR: MySQL 120 sec mein healthy nahi hua. Claude ko batao." -ForegroundColor Red
+    Read-Host "Enter dabao"
+    exit 1
+}
 
 # Run migrations
 Write-Host "[6/6] Migrations aur services start kar raha hoon..." -ForegroundColor Yellow
