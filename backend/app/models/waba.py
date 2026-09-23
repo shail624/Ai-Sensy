@@ -32,8 +32,10 @@ WABA_SUSPENDED = "suspended"
 WABA_DISABLED = "disabled"
 WABA_STATUSES = (WABA_ACTIVE, WABA_SUSPENDED, WABA_DISABLED)
 
-# phone_numbers.quality_rating (Doc 03 §5.2, FR-WA-04)
-QUALITY_RATINGS = ("GREEN", "YELLOW", "RED")
+# phone_numbers.quality_rating (Doc 03 §5.2, FR-WA-04). Includes UNKNOWN: Meta reports it for a
+# number with no messaging history yet to score, which is the normal state right after a number is
+# added — not an error case a shorter list could pretend does not happen (0070).
+QUALITY_RATINGS = ("GREEN", "YELLOW", "RED", "UNKNOWN")
 
 #: Default per-number send pacing target (Doc 03 §5.2); the rate gate consumes it (Doc 06 §5).
 DEFAULT_MPS_LIMIT = 80
@@ -89,7 +91,7 @@ class PhoneNumber(
         Index("ix_phone_waba", "waba_id"),
         Index("ix_phone_org", "organization_id", "channel_type"),
         CheckConstraint(
-            "quality_rating IN ('GREEN','YELLOW','RED') OR quality_rating IS NULL",
+            "quality_rating IN ('GREEN','YELLOW','RED','UNKNOWN') OR quality_rating IS NULL",
             name="ck_phone_quality",
         ),
         MYSQL_TABLE_ARGS,

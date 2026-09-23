@@ -53,7 +53,9 @@ export function buildWhatsAppOverview(
         ? "Watch"
         : number?.quality_rating === "RED"
           ? "Low"
-          : "Not rated";
+          : number?.quality_rating === "UNKNOWN"
+            ? "Scoring"
+            : "Not rated";
 
   return {
     account,

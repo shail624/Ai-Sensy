@@ -1,5 +1,50 @@
 # Final Product Implementation Roadmap
 
+## WABA-01 — a real WABA hit a bug the test suite had no way to catch (2026-09-23)
+
+The owner connected a real Meta WhatsApp Business Account (`Vi Reactivation Team`,
+`1061162763007187`) and reported it directly: full sync got stuck the moment a second number
+(`8527928506`, still `PENDING` in Meta) was in the batch, reporting the trigger as its `UNKNOWN`
+quality rating. Investigated the same way this session investigates everything — read the code path
+first, then reproduce the exact failure against real MySQL before writing a line of fix — rather than
+guessing from the symptom.
+
+### The bug
+
+`ck_phone_quality` permitted exactly `GREEN`, `YELLOW`, `RED`, or `NULL`. Meta's WhatsApp Cloud API
+reports a fourth value, `UNKNOWN`, for a number that has not sent enough messages yet for a quality
+score to exist — the normal state for a number just added to a WABA, which is precisely when an
+operator is most likely to sync. `WabaService.run_sync` applies every number Meta reports in memory,
+then flushes the **whole batch in one write** (Doc 06 idempotent-sync pattern). So the one number
+Meta had not rated yet did not just fail on its own — it took the *other*, already-healthy number's
+update down with it in the same flush, which is exactly "full sync stuck" as reported: nothing in
+that sync round committed, GREEN update included.
+
+Reproduced against live MySQL before any fix existed, through the real ORM path (not raw SQL) with
+the owner's own two numbers standing in: `(3819, "Check constraint 'ck_phone_numbers_ck_phone_quality'
+is violated.")`. No existing test exercised `quality_rating="UNKNOWN"` anywhere in the suite — this
+is the same shape as this session's other runtime-only defects: the suite passed throughout, and
+only a real account exposed it.
+
+### The fix
+
+Migration `0070` widens the constraint to include `UNKNOWN`; downgrade nulls the value on affected
+rows rather than deleting the phone-number record itself — the row is real, only the rating value
+the newer migration allowed is not. Verified up → down → up against live MySQL: downgrade preserved
+the row (`id` and `phone_number_id` intact) and nulled only `quality_rating`; re-upgrade restored the
+wider constraint. Two more sites carried the same stale three-value list and were widened to match:
+`QUALITY_RATINGS` in `app/models/waba.py` (unused by any validator today, but the same "what values
+can this hold" fact stated twice and left to drift, the same class of gap DEPLOY-01 and REVIEW-01
+already found and fixed elsewhere in this codebase) and, functionally this time, the frontend's own
+`QUALITY_RATINGS` in `features/channels/types.ts` — which drives a real `<select>` filter and a URL
+query-param validator (`NumberList.tsx`), so before this fix an operator could never filter their
+number list to `UNKNOWN` numbers even after the backend accepted them. `QUALITY_EXPLANATIONS` and
+`WhatsAppOverview`'s `qualityLabel` gained a fourth case ("Scoring", distinct from "Not rated" —
+Meta actively withholding a score is a different fact than the platform never having heard one) so
+the new value reads as "still counting," never presented beside `RED`'s "something is wrong."
+`isNumberHealthy`/the backend's own `healthy` computation already treat anything but `RED` as ready,
+so `UNKNOWN` was correctly healthy the moment it could be stored — neither needed changing.
+
 ## REVIEW-01 — auditing the work merged directly to `main` (2026-09-23)
 
 The owner reported substantial development had happened through a different tool while this

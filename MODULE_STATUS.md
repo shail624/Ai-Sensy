@@ -1,5 +1,24 @@
 # Module Status
 
+## WABA-01 — full sync stuck on Meta's UNKNOWN quality rating (2026-09-23)
+
+The owner connected a real WABA and reported full sync stuck on a second, still-PENDING number.
+`ck_phone_quality` only permitted GREEN/YELLOW/RED/NULL; Meta's real API reports a fourth value,
+UNKNOWN, for any number without enough messaging history to score yet — the normal state right
+after a number is added. `run_sync` batches every number into one flush, so the one number Meta had
+not rated took an already-healthy number's update down with it in the same commit.
+
+Migration 0070 widens the constraint; downgrade nulls the value rather than deleting the row. Two
+more stale copies of the same three-value list found and fixed: a backend constant unused by any
+validator, and the frontend's number-list quality filter, which functionally could not filter to
+UNKNOWN numbers before this fix.
+
+PASS: reproduced against live MySQL before any fix existed; migration verified up/down/up with the
+row preserved and only the value nulled; new backend test proven to fail against the pre-fix model
+first. Backend lint/mypy clean; frontend 1,020 passed, TypeScript/ESLint clean.
+PENDING – Host Machine Validation: not yet run against the owner's real WABA.
+No completion percentage change: this is a defect fix, not new scope.
+
 ## REVIEW-01 — auditing work merged directly to main (2026-09-23)
 
 Six commits landed on `origin/main` via another tool while this session was idle (GSHEET-02,

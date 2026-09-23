@@ -237,6 +237,32 @@ async def test_run_sync_creates_updates_and_removes_numbers(
     assert numbers[0]["quality_rating"] == "RED"
 
 
+async def test_run_sync_accepts_a_number_meta_has_not_rated_yet(
+    client, make_user, session_factory, meta
+) -> None:
+    """A brand-new number reports UNKNOWN until Meta has enough traffic to score it (0070).
+
+    Reproduced against live MySQL before 0070 existed: the flush below raised
+    ``(3819, "Check constraint 'ck_phone_numbers_ck_phone_quality' is violated.")``, and because
+    every number in a sync shares one flush, it took pn-1's already-good GREEN update down with
+    it too — the "full sync stuck on one PENDING number" symptom this locks in against a regression.
+    """
+    h = await _owner(client, make_user)
+    created = await _connect(client, h)
+
+    meta["handler"] = lambda request: _numbers_response(
+        _node("pn-1", "+919711686319", quality_rating="GREEN"),
+        _node("pn-2", "+918527928506", quality_rating="UNKNOWN"),
+    )
+    async with session_factory() as session:
+        result = await WabaService(session).run_sync(created["id"])
+    assert result == {"created": 2, "updated": 0, "removed": 0}
+
+    numbers = (await client.get("/api/v1/phone-numbers", headers=h)).json()["data"]
+    ratings = {n["phone_number_id"]: n["quality_rating"] for n in numbers}
+    assert ratings == {"pn-1": "GREEN", "pn-2": "UNKNOWN"}
+
+
 async def test_run_sync_is_idempotent(client, make_user, session_factory, meta) -> None:
     """Redelivery updates in place rather than duplicating (Doc 06 §8)."""
     h = await _owner(client, make_user)

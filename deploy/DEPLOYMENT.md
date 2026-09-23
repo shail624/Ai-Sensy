@@ -91,7 +91,7 @@ older schema.
 docker compose -f docker-compose.production.yml --env-file .env.production up migrate
 ```
 
-Expect `alembic upgrade head` to finish at **`0069_google_sheet_export_format`** and the
+Expect `alembic upgrade head` to finish at **`0070_phone_quality_unknown`** and the
 container to exit 0. Re-running is a no-op. Confirm the head against the repository rather
 than against this line — `ls backend/alembic/versions | tail -1` is the authority, and a
 release that adds a migration moves it.
@@ -460,6 +460,7 @@ Two numbers to keep consistent when you scale:
 | Login brute-force protection appears ineffective | A proxy in front of nginx — every client shares one bucket. Configure `set_real_ip_from` (§6) |
 | Browser console: blocked script/style by CSP | A third-party origin was introduced. Widen the specific directive in `deploy/nginx/nginx.conf`; never fall back to `unsafe-inline` for `script-src` |
 | WhatsApp QR screen says the session must be paired again after a restart | The `waha-sessions` volume is missing or was pruned. See §15 |
+| Full WABA sync never finishes / worker log shows `Check constraint 'ck_phone_numbers_ck_phone_quality' is violated` | Migration `0070` is not applied yet — a number Meta reports as `UNKNOWN` quality (its normal state right after being added, before it has enough messaging history to score) cannot be stored, and because a sync batches every number into one flush, it takes the rest of that sync's already-good updates down with it too. Run `up migrate` (or the Windows runbook's equivalent) to reach `0070`, then re-sync |
 
 ---
 

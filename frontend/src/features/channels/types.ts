@@ -37,13 +37,16 @@ export const WABA_STATUS_EXPLANATIONS: Record<string, string> = {
   disabled: "Switched off. Nothing sends, and it stays that way until it is re-enabled.",
 };
 
-/** Meta's quality buckets for a number (`ck_phone_quality`). Upper case on the wire. */
-export const QUALITY_RATINGS = ["GREEN", "YELLOW", "RED"];
+/** Meta's quality buckets for a number (`ck_phone_quality`). Upper case on the wire. UNKNOWN is
+ *  Meta's own value for a number with no messaging history yet to score — the normal state right
+ *  after a number is added, not an error case a shorter list could pretend does not happen. */
+export const QUALITY_RATINGS = ["GREEN", "YELLOW", "RED", "UNKNOWN"];
 
 export const QUALITY_EXPLANATIONS: Record<string, string> = {
   GREEN: "High quality. No delivery restrictions from Meta.",
   YELLOW: "Quality has dipped. Meta is watching this number — reduce low-value sends.",
   RED: "Low quality. Meta may restrict or downgrade this number's messaging limit.",
+  UNKNOWN: "Meta has not scored this number yet — it needs more messaging history first.",
 };
 
 /**
