@@ -15,14 +15,14 @@ set APP_USER=
 set APP_PASS=
 
 for /f "usebackq tokens=1,* delims==" %%a in (".env.production") do (
-    if "%%a"=="DB_ROOT_PASSWORD" set "ROOT_PASS=%%b"
-    if "%%a"=="DB_USER"          set "APP_USER=%%b"
-    if "%%a"=="DB_PASSWORD"      set "APP_PASS=%%b"
+    if "%%a"=="MYSQL_ROOT_PASSWORD" set "ROOT_PASS=%%b"
+    if "%%a"=="DB_USER"             set "APP_USER=%%b"
+    if "%%a"=="DB_PASSWORD"         set "APP_PASS=%%b"
 )
 
 if "%ROOT_PASS%"=="" (
     color 0C
-    echo ERROR: DB_ROOT_PASSWORD nahi mila .env.production mein.
+    echo ERROR: MYSQL_ROOT_PASSWORD nahi mila .env.production mein.
     pause
     exit /b 1
 )
