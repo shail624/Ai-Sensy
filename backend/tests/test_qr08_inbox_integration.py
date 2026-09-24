@@ -29,7 +29,7 @@ from app.channels.runtime import PairingState
 from app.channels.runtime_registry import ProviderRuntimeRegistry
 from app.channels.session import SessionState
 from app.channels.waha import register_waha_runtime
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
 from app.models.channel_connection import ChannelConnection, ChannelEndpoint
 from app.models.contact import Contact
 from app.models.contact_identity import ContactIdentity
@@ -332,6 +332,19 @@ async def test_mixed_meta_and_waha_conversations_appear_in_one_inbox_list(
     assert sorted(connectors) == sorted([CONNECTOR_META_CLOUD, CONNECTOR_WAHA])
     waha_conv = next(c for c in result.conversations if c.channel_endpoint_id == waha_endpoint.id)
     assert waha_conv.phone_number_id is None
+
+    # The channel filter splits the same inbox into Official WhatsApp and WhatsApp (QR).
+    async def only(channel: str) -> list[int]:
+        page = await InboxQueryService(db_session).list_conversations(
+            organization_id=organization.id, limit=10, cursor=None, contact=None, status=None,
+            assignee=None, number=None, tag=None, q=None, channel=channel,
+        )
+        return [c.id for c in page.conversations]
+
+    assert await only("qr") == [waha_conv.id]
+    assert await only("official") == [meta_conv.id]
+    with pytest.raises(BadRequestError):
+        await only("sms")
 
 
 # =================================================================================================
@@ -1300,3 +1313,83 @@ async def test_normal_sized_and_badly_signed_deliveries_are_unaffected(client, d
         headers={"Content-Type": "application/json", "X-Webhook-Hmac": "deadbeef"},
     )
     assert forged.status_code == 403
+
+
+# =================================================================================================
+# UI-AIS-05. Own-message echoes and other senders' receipts settle instead of dead-lettering
+# =================================================================================================
+
+
+@pytest.mark.anyio
+async def test_own_message_echo_settles_as_processed_without_a_message(
+    db_session, organization, make_user
+) -> None:
+    actor = (await make_user(email="echo-settle@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    await _waha_endpoint(db_session, organization.id, actor, suffix="ECHO")
+    echo = _waha_delivery(
+        event="message.any",
+        envelope_id="echo-1",
+        session="waha-session-ECHO",
+        body="sent from the phone app",
+        from_id="919990020202@c.us",
+        from_me=True,
+    )
+    (event_pk,) = await _ingest_waha(db_session, echo)
+
+    result = await WebhookService(db_session).process(
+        event_pk, dispatch_inbound=lambda pk: pytest.fail(f"echo routed inbound: {pk}")
+    )
+
+    assert result == {
+        "status": "processed",
+        "event_pk": event_pk,
+        "object_type": "echoes",
+        "outcome": "echo",
+    }
+    assert (await db_session.scalars(select(Message))).all() == []
+
+
+@pytest.mark.anyio
+async def test_receipt_for_a_phone_sent_message_retries_then_settles(
+    db_session, organization, make_user
+) -> None:
+    from app.services.message_service import MessageNotFound
+
+    actor = (await make_user(email="receipt-settle@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    await _waha_endpoint(db_session, organization.id, actor, suffix="RCPT")
+    receipt = _waha_ack_delivery(
+        session="waha-session-RCPT",
+        envelope_id="rcpt-1",
+        message_id="PHONESENT3EB0AAAA",
+        ack=2,
+        recipient="919990030303@c.us",
+    )
+    (event_pk,) = await _ingest_waha(db_session, receipt)
+
+    def never(pk: int) -> None:
+        pytest.fail(f"receipt routed inbound: {pk}")
+
+    # The first attempts still retry: they cover a race with our own send committing its id.
+    for _ in range(2):
+        with pytest.raises(MessageNotFound):
+            await WebhookService(db_session).process(event_pk, dispatch_inbound=never)
+        await db_session.rollback()
+
+    result = await WebhookService(db_session).process(event_pk, dispatch_inbound=never)
+
+    assert result["status"] == "processed"
+    assert result["outcome"] == "unmatched_receipt"
+
+
+def test_duplicate_key_races_retry_but_other_integrity_errors_do_not() -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    from app.queue.retry import FailureClass, classify
+
+    duplicate = IntegrityError("INSERT", {}, Exception(1062, "Duplicate entry"))
+    foreign_key = IntegrityError("INSERT", {}, Exception(1452, "Cannot add a child row"))
+
+    assert classify(duplicate) is FailureClass.TRANSIENT_PROC
+    assert classify(foreign_key) is not FailureClass.TRANSIENT_PROC

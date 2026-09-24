@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ApiStatus } from "@/components/layout/ApiStatus";
+import { AlertToggle } from "@/features/inbox/AlertToggle";
 import { visibleCreateActions } from "@/components/layout/navigation";
 import { Modal } from "@/components/ui";
 import { useAccountSummary } from "@/features/channels/api";
@@ -150,6 +151,7 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
         </p>
 
         <ApiStatus />
+        {hasPermission("inbox:read") ? <AlertToggle /> : null}
 
         <button
           type="button"

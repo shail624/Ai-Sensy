@@ -172,6 +172,9 @@ class InboundEventType(StrEnum):
 
     MESSAGES = "messages"
     STATUSES = "statuses"
+    #: A copy of a message this account itself sent (from the phone app or through the API). It is
+    #: understood — just not applied — so it settles as processed instead of being dead-lettered.
+    ECHOES = "echoes"
     UNKNOWN = "unknown"
 
 

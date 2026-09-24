@@ -2,6 +2,8 @@ import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide
 import { useRef } from "react";
 
 import { ApiStatus } from "@/components/layout/ApiStatus";
+import { AlertToggle } from "@/features/inbox/AlertToggle";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import type { Conversation } from "@/features/inbox/types";
 
 function label(conversation: Conversation): string {
@@ -60,9 +62,10 @@ export function ChatQuickSwitcher({ conversations, selectedId, onSelect, listCol
                 title={name}
                 className="group relative flex w-10 flex-col items-center rounded-xl pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
-                <span className={`flex h-10 w-10 items-center justify-center rounded-full bg-[#f5efdf] text-xl text-[#0a474c] transition-transform duration-150 group-hover:scale-105 ${selected ? "ring-2 ring-[var(--color-nav-bg)]" : ""}`}>
-                  {name.trim()[0]?.toUpperCase() ?? "?"}
-                </span>
+                <CustomerAvatar
+                  conversation={conversation}
+                  className={`h-10 w-10 bg-[#f5efdf] text-xl text-[#0a474c] transition-transform duration-150 group-hover:scale-105 ${selected ? "ring-2 ring-[var(--color-nav-bg)]" : ""}`}
+                />
                 <span className="absolute -right-2 -top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-nav-bg)] px-1 text-[10px] text-white">
                   {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
                 </span>
@@ -79,7 +82,8 @@ export function ChatQuickSwitcher({ conversations, selectedId, onSelect, listCol
           <ChevronRight aria-hidden className="h-6 w-6" />
         </button>
       ) : null}
-      <ApiStatus className="ml-auto pr-3" />
+      <ApiStatus className="ml-auto" />
+      <span className="pr-3"><AlertToggle /></span>
     </div>
   );
 }

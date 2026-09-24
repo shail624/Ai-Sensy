@@ -88,6 +88,7 @@ from app.core.exceptions import (
     ForbiddenError,
     NotFoundError,
     ServiceUnavailableError,
+    ValidationError,
 )
 from app.db.mixins import utcnow
 from app.models.channel_connection import ChannelConnection
@@ -109,6 +110,8 @@ if TYPE_CHECKING:
 #: ``PairingManager.AUTHENTICATE_PERMISSION`` already established for "manage pairing lifecycle".
 OPERATE_PERMISSION = "channels:authenticate"
 READ_PERMISSION = "channels:read"
+#: Starting a chat with a new number is a send, so it needs the send permission too.
+SEND_PERMISSION = "messages:send"
 
 #: Capabilities recorded against the session so `PairingManager` will operate on it (it requires
 #: `qr_auth` to be declared) — mirrors exactly what the adapter implements, no more.
@@ -953,6 +956,96 @@ class WhatsAppQrService:
             updated_at=row.health_observed_at,
         )
 
+    # --- New chats and contact photos (UI-AIS-05) --------------------------------------------
+
+    async def start_chat(self, *, organization_id: int, actor: User, phone: str) -> str:
+        """Open (or reuse) a QR conversation with a number that has not messaged us yet.
+
+        WhatsApp is asked first whether the number has an account; only then is the Contact, its
+        reply route and the thread created, so a mistyped number never leaves a dead chat behind.
+        Returns the conversation's public id — the send itself goes through the normal reply path.
+        """
+        from app.channels.waha.identity import (
+            normalize_direct_jid,
+            phone_wa_id,
+            route_identity_namespace,
+        )
+        from app.services.conversation_service import ConversationService
+
+        if not await self._available(organization_id, actor, require=READ_PERMISSION):
+            raise NotFoundError("WhatsApp connection is not available for this organization.")
+        await self._require_permission_code(actor, SEND_PERMISSION)
+        digits = normalize_phone_input(phone)
+        row, connection = await self._current(organization_id)
+        if row is None or connection is None or row.pairing_state != PairingState.PAIRED.value:
+            raise ConflictError("WhatsApp is not connected. Scan the QR code first.")
+        endpoints = await ChannelEndpointRepository(self._session).list_for_connection(
+            organization_id, connection.id
+        )
+        if not endpoints:
+            raise ConflictError("WhatsApp is not connected. Scan the QR code first.")
+        endpoint = endpoints[0]
+
+        try:
+            chat_id = await self._adapter.client.check_exists(phone=digits)
+        except ChannelError as exc:
+            raise ServiceUnavailableError("WhatsApp could not be reached. Try again shortly.") from exc
+        if chat_id is None:
+            raise ConflictError(f"+{digits} is not on WhatsApp.")
+
+        provider_address = normalize_direct_jid(chat_id)
+        conversations = ConversationService(self._session)
+        contact = await conversations.resolve_recipient(
+            organization_id=organization_id, wa_id=phone_wa_id(provider_address) or digits, source="live_chat"
+        )
+        await conversations.remember_endpoint_contact_identity(
+            endpoint=endpoint,
+            connection=connection,
+            contact=contact,
+            provider_address=provider_address,
+            route_namespace=route_identity_namespace(provider_address),
+            phone_wa_id=phone_wa_id(provider_address),
+            occurred_at=utcnow(),
+        )
+        conversation = await conversations.thread_for_endpoint(endpoint=endpoint, contact=contact)
+        await self._session.commit()
+        return conversation.public_id
+
+    async def contact_photo(
+        self, *, organization_id: int, actor: User, conversation_public_id: uuidlib.UUID
+    ) -> tuple[bytes, str] | None:
+        """The WhatsApp profile photo of a QR conversation's customer, or ``None``.
+
+        Meta's Cloud API exposes no profile photos, so only QR conversations can have one. The photo
+        is fetched server-side so the browser keeps its strict image policy; nothing is stored.
+        """
+        from app.repositories.contact import ContactRepository
+        from app.repositories.conversation import ConversationRepository
+
+        if not await self._available(organization_id, actor, require=READ_PERMISSION):
+            return None
+        conversation = await ConversationRepository(self._session).get_active_by_uuid(
+            organization_id, conversation_public_id.bytes
+        )
+        if conversation is None:
+            raise NotFoundError("Conversation not found.")
+        if conversation.channel_endpoint_id is None:
+            return None
+        contact = await ContactRepository(self._session).get_by_id(conversation.contact_id)
+        if contact is None or not contact.wa_id:
+            return None
+        try:
+            url = await self._adapter.client.profile_picture_url(contact_id=f"{contact.wa_id}@c.us")
+            if url is None:
+                return None
+            return await self._adapter.client.download_profile_picture(url)
+        except ChannelError:
+            return None
+
+    async def _require_permission_code(self, actor: User, permission: str) -> None:
+        if not await self._rbac.has_permissions(actor, {permission}):
+            raise ForbiddenError("You do not have permission to start WhatsApp chats.")
+
     async def _current(
         self, organization_id: int
     ) -> tuple[ChannelSession | None, ChannelConnection | None]:
@@ -1009,3 +1102,16 @@ class WhatsAppQrService:
     @staticmethod
     def _request_runtime_id() -> str:
         return f"api:whatsapp-qr:{uuidlib.uuid4()}"
+
+_PHONE_DIGITS = re.compile(r"\D+")
+
+
+def normalize_phone_input(phone: str) -> str:
+    """Digits with country code. A bare 10-digit number is taken as Indian (+91), which is how
+    this workspace's operators type numbers; anything else must already carry its country code."""
+    digits = _PHONE_DIGITS.sub("", phone)
+    if len(digits) == 10:
+        digits = f"91{digits}"
+    if not 11 <= len(digits) <= 15:
+        raise ValidationError("Enter a valid mobile number with country code, e.g. +91 98765 43210.")
+    return digits

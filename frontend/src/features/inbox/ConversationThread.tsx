@@ -14,6 +14,7 @@ import { collateReactions } from "@/features/inbox/messageContent";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { InterventionActions } from "@/features/inbox/InterventionActions";
 import type { TagSummary } from "@/features/inbox/types";
 import { connectorLabel, isWahaConversation } from "@/features/inbox/types";
@@ -149,7 +150,7 @@ export function ConversationThread({ conversationId, onBack, tags, pinned = fals
                     ) : null,
                   <MessageBubble
                     key={message.id}
-                    contactInitial={contactName.trim()[0]?.toUpperCase() ?? "?"}
+                    customerAvatar={<CustomerAvatar conversation={thread} className="h-[30px] w-[30px] bg-[#ffa500] text-sm text-black" iconClassName="h-4 w-4" />}
                     message={message}
                     canReact={canSend}
                     reactions={reactions.get(message.id)}

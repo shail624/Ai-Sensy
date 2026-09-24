@@ -19,6 +19,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
@@ -58,6 +59,9 @@ INBOUND_TASK = "app.channels.tasks.process_inbound_message"
 
 #: Event types this module knows how to complete. Anything else is isolated (Doc 06 §11.6).
 _ROUTABLE = (InboundEventType.MESSAGES.value, InboundEventType.STATUSES.value)
+#: Attempts before a QR-endpoint receipt with no matching stored message is treated as another
+#: sender's (the phone app's) rather than a race with our own send.
+_UNMATCHED_RECEIPT_ATTEMPTS = 3
 
 
 class WebhookUnprocessable(Exception):
@@ -68,10 +72,20 @@ class WebhookUnprocessable(Exception):
     """
 
 
+def _is_duplicate_key(exc: IntegrityError) -> bool:
+    args: tuple[object, ...] = getattr(exc.orig, "args", ())
+    return len(args) > 0 and args[0] == 1062
+
+
 def _classify_webhook(exc: BaseException) -> FailureClass | None:
     """Register the classes this module owns with the retry engine (Doc 06 §6.6, D12)."""
     if isinstance(exc, WebhookUnprocessable | LedgerError):
         return FailureClass.TERMINAL_DATA
+    if isinstance(exc, IntegrityError) and _is_duplicate_key(exc):
+        # Two deliveries of one provider message (WAHA sends `message` and `message.any`) can race
+        # to create the same new Contact or thread. The loser retries, finds the winner's rows, and
+        # the message-level check under the conversation lock stops a second copy.
+        return FailureClass.TRANSIENT_PROC
     if isinstance(exc, MessageNotFound):
         # A race with the send that created the message; a moment's backoff resolves it, and an
         # exhausted one dead-letters rather than vanishing (Doc 06 §11.3/§11.5).
@@ -143,7 +157,9 @@ class WebhookService:
             raise ForbiddenError("Invalid webhook signature.")
 
         events, unreadable = self._read(adapter, body)
-        channel_number_ids = {event.channel_number_id for event in events if event.channel_number_id}
+        channel_number_ids = {
+            event.channel_number_id for event in events if event.channel_number_id
+        }
         if self._endpoint_routed:
             endpoint_routing = await self._events.resolve_endpoints(
                 channel_number_ids, connector_type=self._connector_type
@@ -203,7 +219,9 @@ class WebhookService:
             ], True
 
     # --- Process (Doc 06 §11.2 step 4) --------------------------------------
-    async def process(self, event_pk: int, *, dispatch_inbound: Callable[[int], Any]) -> dict[str, Any]:
+    async def process(
+        self, event_pk: int, *, dispatch_inbound: Callable[[int], Any]
+    ) -> dict[str, Any]:
         """Apply one persisted event, idempotently (FR-WA-07).
 
         Doc 06 §2.3 splits the work by cost: this lane **applies status callbacks** — a cheap
@@ -226,6 +244,17 @@ class WebhookService:
         row.attempts += 1
         await self._session.commit()
 
+        if row.object_type == InboundEventType.ECHOES.value:
+            # Understood, deliberately not applied (see `InboundEventType.ECHOES`).
+            row.status = WH_PROCESSED
+            row.processed_at = utcnow()
+            await self._session.commit()
+            return {
+                "status": WH_PROCESSED,
+                "event_pk": event_pk,
+                "object_type": row.object_type,
+                "outcome": "echo",
+            }
         if row.object_type not in _ROUTABLE:
             raise WebhookUnprocessable(f"unknown event type {row.object_type!r}")
         if row.phone_number_id is None and row.channel_endpoint_id is None:
@@ -252,11 +281,31 @@ class WebhookService:
             # one of `phone_number_id`/`channel_endpoint_id` is set (guaranteed non-None above); it
             # scopes the reconciliation to the endpoint the callback arrived on (ADR-0020 provider
             # message identity).
-            outcome = await service.apply_status(
-                service.to_status_update(row.payload_json),
-                phone_number_id=row.phone_number_id,
-                channel_endpoint_id=row.channel_endpoint_id,
-            )
+            try:
+                outcome = await service.apply_status(
+                    service.to_status_update(row.payload_json),
+                    phone_number_id=row.phone_number_id,
+                    channel_endpoint_id=row.channel_endpoint_id,
+                )
+            except MessageNotFound:
+                # On a QR endpoint the account's own phone also sends, and its receipts arrive here
+                # for messages this platform never stored. A few retries cover the real race with
+                # our own send committing; past that the receipt is someone else's — settle it
+                # rather than filling the dead-letter store. Meta numbers keep the strict path.
+                if row.channel_endpoint_id is None or row.attempts < _UNMATCHED_RECEIPT_ATTEMPTS:
+                    raise
+                await self._session.rollback()
+                row = await self._events.get_by_id(event_pk)
+                assert row is not None
+                row.status = WH_PROCESSED
+                row.processed_at = utcnow()
+                await self._session.commit()
+                return {
+                    "status": WH_PROCESSED,
+                    "event_pk": event_pk,
+                    "object_type": row.object_type,
+                    "outcome": "unmatched_receipt",
+                }
 
         row.status = WH_PROCESSED
         row.processed_at = utcnow()

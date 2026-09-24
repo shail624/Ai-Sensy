@@ -138,6 +138,8 @@ class ConversationRepository(BaseRepository[Conversation]):
         has_media: bool = False,
         has_audit: bool = False,
         q: str | None = None,
+        endpoint_ids: list[int] | None = None,
+        exclude_endpoint_ids: list[int] | None = None,
         limit: int,
         cursor: tuple[datetime, int] | None = None,
     ) -> tuple[list[Conversation], bool]:
@@ -178,6 +180,15 @@ class ConversationRepository(BaseRepository[Conversation]):
                     Message.campaign_id == campaign_id,
                 )
                 .exists()
+            )
+        if endpoint_ids is not None:
+            clauses.append(Conversation.channel_endpoint_id.in_(endpoint_ids))
+        if exclude_endpoint_ids:
+            clauses.append(
+                or_(
+                    Conversation.channel_endpoint_id.is_(None),
+                    Conversation.channel_endpoint_id.not_in(exclude_endpoint_ids),
+                )
             )
         if has_media:
             clauses.append(

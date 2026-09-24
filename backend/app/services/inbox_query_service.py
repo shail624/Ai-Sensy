@@ -18,7 +18,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channels.capabilities import CONNECTOR_META_CLOUD
+from app.channels.capabilities import CONNECTOR_META_CLOUD, CONNECTOR_WAHA
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.models.channel_connection import ChannelConnection, ChannelEndpoint
 from app.models.contact import Contact
@@ -40,6 +40,9 @@ from app.repositories.waba import PhoneNumberRepository
 #: passing their own id; "Unassigned" is this).
 _UNASSIGNED_TOKENS = ("unassigned", "none")
 
+
+#: Inbox channel filter: Official WhatsApp (Meta API) or WhatsApp (QR).
+_CHANNEL_FILTERS = frozenset({"official", "qr"})
 
 @dataclass(slots=True)
 class ConversationListResult:
@@ -124,6 +127,7 @@ class InboxQueryService:
         has_media: bool = False,
         has_audit: bool = False,
         q: str | None,
+        channel: str | None = None,
     ) -> ConversationListResult:
         """The inbox list, filtered and searched as Doc 04 §18.1 defines, newest activity first."""
         assignee_id, unassigned, assignee_impossible = await self._resolve_assignee(
@@ -133,6 +137,18 @@ class InboxQueryService:
         phone_number_id, number_impossible = await self._resolve_number(organization_id, number)
         tag_id, tag_impossible = await self._resolve_tag(organization_id, tag)
         campaign_id, campaign_impossible = await self._resolve_campaign(organization_id, campaign)
+        endpoint_ids: list[int] | None = None
+        exclude_endpoint_ids: list[int] | None = None
+        if channel:
+            if channel not in _CHANNEL_FILTERS:
+                raise BadRequestError("The channel filter must be 'official' or 'qr'.")
+            qr_endpoints = await self._qr_endpoint_ids(organization_id)
+            if channel == "qr":
+                endpoint_ids = qr_endpoints
+                if not qr_endpoints:
+                    return ConversationListResult([], {}, {}, {}, {}, {}, has_more=False)
+            else:
+                exclude_endpoint_ids = qr_endpoints
 
         # A filter that named a real-looking but non-existent assignee/number/tag matches nothing —
         # returned as an empty page, not an error: the query was valid, the target just isn't here.
@@ -159,6 +175,8 @@ class InboxQueryService:
             has_media=has_media,
             has_audit=has_audit,
             q=q,
+            endpoint_ids=endpoint_ids,
+            exclude_endpoint_ids=exclude_endpoint_ids,
             limit=limit,
             cursor=cursor,
         )
@@ -303,6 +321,18 @@ class InboxQueryService:
             await self._session.scalars(select(PhoneNumber).where(PhoneNumber.id.in_(ids)))
         ).all()
         return {n.id: n.public_id for n in rows}
+
+    async def _qr_endpoint_ids(self, organization_id: int) -> list[int]:
+        """Endpoints owned by a QR (WAHA) connection — the "WhatsApp (QR)" side of the channel filter."""
+        stmt = (
+            select(ChannelEndpoint.id)
+            .join(ChannelConnection, ChannelConnection.id == ChannelEndpoint.connection_id)
+            .where(
+                ChannelEndpoint.organization_id == organization_id,
+                ChannelConnection.connector_type == CONNECTOR_WAHA,
+            )
+        )
+        return list((await self._session.scalars(stmt)).all())
 
     async def _endpoint_connectors_for(self, conversations: list[Conversation]) -> dict[int, str]:
         """``channel_endpoint_id`` -> the owning connection's ``connector_type`` (QR-08)."""

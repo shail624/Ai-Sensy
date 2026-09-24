@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -24,14 +24,14 @@ vi.mock("@/features/inbox/api", async (importOriginal) => ({
   useConversationCounts: () => ({ data: counts.value }),
 }));
 
-function renderFilters() {
+function renderFilters(filters: Record<string, string> = { status: "open" }, onChange = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <ConversationFilters
-          filters={{ status: "open" }}
-          onChange={vi.fn()}
+          filters={filters}
+          onChange={onChange}
           tags={[]}
           savedViews={[]}
           onSaveView={vi.fn()}
@@ -72,5 +72,25 @@ describe("inbox category counts", () => {
 
     // Distinct from the loading case above: an answered zero is a fact worth showing.
     expect(screen.getByLabelText("0 in Requesting")).toBeInTheDocument();
+  });
+});
+
+describe("WhatsApp API / QR filter", () => {
+  it("narrows the list to one WhatsApp and keeps the rest of the view", () => {
+    const onChange = vi.fn();
+    renderFilters({ status: "open", q: "shai" }, onChange);
+
+    expect(screen.getByRole("button", { name: "All chats" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "WhatsApp QR" }));
+    expect(onChange).toHaveBeenLastCalledWith({ status: "open", q: "shai", channel: "qr" });
+  });
+
+  it("keeps the WhatsApp choice when switching between Active, Requesting and Intervened", () => {
+    const onChange = vi.fn();
+    renderFilters({ status: "open", channel: "official" }, onChange);
+
+    expect(screen.getByRole("button", { name: "WhatsApp API" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Requesting/ }));
+    expect(onChange.mock.lastCall?.[0]).toMatchObject({ channel: "official" });
   });
 });

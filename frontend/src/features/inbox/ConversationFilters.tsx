@@ -2,6 +2,7 @@ import {
   BookmarkPlus,
   Inbox,
   ListFilter,
+  MessageSquarePlus,
   Radio,
   Search,
   Trash2,
@@ -12,8 +13,14 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Field, Input, Modal, Select, TagChip } from "@/components/ui";
 import { useAssignableUsers, useConversationCounts } from "@/features/inbox/api";
 import type { SavedInboxView } from "@/features/inbox/preferences";
-import type { InboxFilters, TagSummary } from "@/features/inbox/types";
+import type { InboxChannel, InboxFilters, TagSummary } from "@/features/inbox/types";
 import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
+
+const CHANNEL_CHOICES: { label: string; value: InboxChannel | undefined; description: string }[] = [
+  { label: "All chats", value: undefined, description: "Chats from every WhatsApp number" },
+  { label: "WhatsApp API", value: "official", description: "Only chats on the official WhatsApp Business API number" },
+  { label: "WhatsApp QR", value: "qr", description: "Only chats on the phone connected by QR scan" },
+];
 
 interface Props {
   filters: InboxFilters;
@@ -23,6 +30,8 @@ interface Props {
   onSaveView: (name: string) => void;
   onDeleteView: (id: string) => void;
   currentUserId?: string;
+  /** Opens the new-chat dialog; the button is hidden when omitted (no send permission). */
+  onNewChat?: () => void;
 }
 
 /** Simple triage first; the complete filter and saved-view toolkit remains one click away. */
@@ -34,6 +43,7 @@ export function ConversationFilters({
   onSaveView,
   onDeleteView,
   currentUserId,
+  onNewChat,
 }: Props): JSX.Element {
   const users = useAssignableUsers();
   const [viewName, setViewName] = useState("");
@@ -98,7 +108,8 @@ export function ConversationFilters({
   const hasListFilter = advancedFilterCount > 0 || Boolean(filters.q);
 
   function applyQuickInbox(next: InboxFilters): void {
-    onChange(filters.q ? { ...next, q: filters.q } : next);
+    // Search and the WhatsApp choice survive a view switch; the view only swaps status/assignee.
+    onChange({ ...next, ...(filters.q ? { q: filters.q } : {}), ...(filters.channel ? { channel: filters.channel } : {}) });
   }
 
   return (
@@ -148,6 +159,17 @@ export function ConversationFilters({
             </button>
           )}
         </div>
+        {onNewChat ? (
+          <button
+            type="button"
+            aria-label="New chat"
+            title="New chat"
+            onClick={onNewChat}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/55 transition-colors duration-150 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-text-secondary"
+          >
+            <MessageSquarePlus aria-hidden className="h-[22px] w-[22px]" />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-expanded={filtersOpen}
@@ -200,6 +222,28 @@ export function ConversationFilters({
             style={{ width: `${100 / quickInboxes.length}%`, left: `${(100 / quickInboxes.length) * activeIndex}%` }}
           />
         ) : null}
+      </div>
+
+      <div role="group" aria-label="Which WhatsApp" className="flex items-center gap-1.5 border-b border-border bg-[#fdfffc] px-3 py-2 dark:bg-surface">
+        {CHANNEL_CHOICES.map((choice) => {
+          const active = filters.channel === choice.value;
+          return (
+            <button
+              key={choice.label}
+              type="button"
+              aria-pressed={active}
+              title={choice.description}
+              onClick={() => onChange({ ...filters, channel: choice.value })}
+              className={`h-7 rounded-full px-3 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                active
+                  ? "bg-[var(--color-nav-bg)] text-white"
+                  : "bg-[#f0f0f0] text-[#4a4a4a] hover:bg-[#e4e4e4] dark:bg-surface-2 dark:text-text-secondary"
+              }`}
+            >
+              {choice.label}
+            </button>
+          );
+        })}
       </div>
 
       {savedViews.length > 0 ? (

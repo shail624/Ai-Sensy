@@ -54,7 +54,11 @@ export interface InboxFilters {
   campaign?: string;
   hasMedia?: boolean;
   hasAudit?: boolean;
+  /** Which WhatsApp the chat came through: the official API or the QR-scanned phone. */
+  channel?: InboxChannel;
 }
+
+export type InboxChannel = "official" | "qr";
 
 /** Emoji offered by the reaction picker (the API accepts any single emoji). */
 export const REACTION_EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🙏"];

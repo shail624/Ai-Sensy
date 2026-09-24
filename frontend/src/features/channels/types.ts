@@ -84,6 +84,10 @@ export const QUALITY_EXPLANATIONS: Record<string, string> = {
  */
 export const NUMBER_STATUS_CONNECTED = "connected";
 
+export function isNumberConnected(number: PhoneNumber): boolean {
+  return number.status.toLowerCase() === NUMBER_STATUS_CONNECTED;
+}
+
 /**
  * Whether a token exists and is still in date.
  *
@@ -126,7 +130,7 @@ export function isReactivatable(waba: Waba): boolean {
 
 /** A number is usable when it is connected and Meta has not marked it red. */
 export function isNumberHealthy(number: PhoneNumber): boolean {
-  return number.status === NUMBER_STATUS_CONNECTED && number.quality_rating !== "RED";
+  return isNumberConnected(number) && number.quality_rating !== "RED";
 }
 
 // --- List queries (client-side; see `api.ts` for why) --------------------------------------------

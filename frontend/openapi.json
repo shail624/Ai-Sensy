@@ -7120,6 +7120,104 @@
         ]
       }
     },
+    "/api/v1/channels/whatsapp-qr/chats": {
+      "post": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "Start a chat with a new number over the QR connection",
+        "operationId": "start_chat_api_v1_channels_whatsapp_qr_chats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppQrStartChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppQrStartChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/channels/whatsapp-qr/conversations/{conversation_id}/photo": {
+      "get": {
+        "tags": [
+          "WhatsApp QR Connection",
+          "WhatsApp QR Connection"
+        ],
+        "summary": "The customer's WhatsApp profile photo (204 when there is none)",
+        "operationId": "conversation_photo_api_v1_channels_whatsapp_qr_conversations__conversation_id__photo_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "image/jpeg": {}
+            }
+          },
+          "204": {
+            "description": "No profile photo"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/templates": {
       "get": {
         "tags": [
@@ -9011,6 +9109,24 @@
               "default": false,
               "title": "Has Audit"
             }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats.",
+              "title": "Channel"
+            },
+            "description": "Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats."
           },
           {
             "name": "filter[status][eq]",
@@ -36214,6 +36330,39 @@
         ],
         "title": "WhatsAppQrLogoutRequest",
         "description": "Explicit confirmation required before an irreversible logout."
+      },
+      "WhatsAppQrStartChatRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 5,
+            "title": "Phone",
+            "examples": [
+              "+91 98765 43210"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "WhatsAppQrStartChatRequest",
+        "description": "``POST /channels/whatsapp-qr/chats`` — a number that has not messaged us yet."
+      },
+      "WhatsAppQrStartChatResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id"
+        ],
+        "title": "WhatsAppQrStartChatResponse",
+        "description": "The conversation to send the first message in."
       },
       "WhatsAppQrStatus": {
         "properties": {

@@ -28,7 +28,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 
@@ -53,6 +53,8 @@ logger = get_logger(__name__)
 
 #: Header carrying the server API key. Never logged with its value.
 API_KEY_HEADER: Final = "X-Api-Key"
+#: Upper bound on a downloaded WhatsApp profile photo; larger is treated as "no photo".
+MAX_PROFILE_PICTURE_BYTES: Final = 2 * 1024 * 1024
 
 #: Header names whose values must never appear in a log, error, trace or diagnostic payload.
 SENSITIVE_HEADERS: Final[frozenset[str]] = frozenset({"x-api-key", "authorization", "cookie"})
@@ -494,6 +496,57 @@ class WahaClient:
             if canonical_message_id(entry.get("id")) == canonical_id:
                 return True
         return False
+
+    async def check_exists(self, *, phone: str) -> str | None:
+        """The WhatsApp chat id for ``phone`` (digits, with country code), or ``None`` if the number
+        has no WhatsApp account. Read-only; nothing is sent to the number."""
+        session = self._credentials.require_session()
+        body = await self._get(
+            f"/api/contacts/check-exists?phone={quote(phone, safe='')}&session={quote(session, safe='')}"
+        )
+        if body.get("numberExists") is not True:
+            return None
+        chat_id = body.get("chatId")
+        return chat_id if isinstance(chat_id, str) and chat_id else None
+
+    async def profile_picture_url(self, *, contact_id: str) -> str | None:
+        """The contact's current WhatsApp profile photo URL, or ``None`` when hidden or unset."""
+        session = self._credentials.require_session()
+        body = await self._get(
+            f"/api/contacts/profile-picture?contactId={quote(contact_id, safe='')}"
+            f"&session={quote(session, safe='')}"
+        )
+        url = body.get("profilePictureURL")
+        return url if isinstance(url, str) and url else None
+
+    async def download_profile_picture(self, url: str) -> tuple[bytes, str] | None:
+        """Fetch a profile photo from WhatsApp's own image host, bounded and type-checked.
+
+        Only ``https`` URLs on ``*.whatsapp.net`` are followed — the URL comes from the provider, and
+        this must never become a way to make the server fetch arbitrary addresses. Anything too large
+        or not an image is treated as "no photo" rather than an error.
+        """
+        parsed = urlsplit(url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not (host == "whatsapp.net" or host.endswith(".whatsapp.net")):
+            return None
+        try:
+            async with self._client().stream("GET", url, timeout=self._timeout) as response:
+                if response.status_code != 200:
+                    return None
+                content_type = response.headers.get("content-type", "").split(";")[0].strip()
+                if not content_type.startswith("image/"):
+                    return None
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_PROFILE_PICTURE_BYTES:
+                        return None
+                    chunks.append(chunk)
+                return b"".join(chunks), content_type
+        except httpx.HTTPError:
+            return None
 
     async def _get_list(self, path: str) -> list[Any]:
         """Authenticated GET returning a JSON array (the chat-messages shape)."""

@@ -2173,6 +2173,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels/whatsapp-qr/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a chat with a new number over the QR connection */
+        post: operations["start_chat_api_v1_channels_whatsapp_qr_chats_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/whatsapp-qr/conversations/{conversation_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The customer's WhatsApp profile photo (204 when there is none) */
+        get: operations["conversation_photo_api_v1_channels_whatsapp_qr_conversations__conversation_id__photo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates": {
         parameters: {
             query?: never;
@@ -11332,6 +11366,25 @@ export interface components {
             confirm: boolean;
         };
         /**
+         * WhatsAppQrStartChatRequest
+         * @description ``POST /channels/whatsapp-qr/chats`` — a number that has not messaged us yet.
+         */
+        WhatsAppQrStartChatRequest: {
+            /**
+             * Phone
+             * @example +91 98765 43210
+             */
+            phone: string;
+        };
+        /**
+         * WhatsAppQrStartChatResponse
+         * @description The conversation to send the first message in.
+         */
+        WhatsAppQrStartChatResponse: {
+            /** Conversation Id */
+            conversation_id: string;
+        };
+        /**
          * WhatsAppQrStatus
          * @description Current WhatsApp QR connection status for the caller's organization.
          *
@@ -15930,6 +15983,78 @@ export interface operations {
             };
         };
     };
+    start_chat_api_v1_channels_whatsapp_qr_chats_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppQrStartChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhatsAppQrStartChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conversation_photo_api_v1_channels_whatsapp_qr_conversations__conversation_id__photo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description No profile photo */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_v1_templates_get: {
         parameters: {
             query?: never;
@@ -16978,6 +17103,8 @@ export interface operations {
                 campaign?: string | null;
                 has_media?: boolean;
                 has_audit?: boolean;
+                /** @description Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats. */
+                channel?: string | null;
                 "filter[status][eq]"?: string | null;
                 "filter[assignee][eq]"?: string | null;
                 "filter[number][eq]"?: string | null;

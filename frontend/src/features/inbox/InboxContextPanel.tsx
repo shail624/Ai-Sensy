@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { EmptyState } from "@/components/ui";
 import { AiFoundationPanel } from "@/features/ai";
 import { ConversationTags } from "@/features/inbox/ConversationControls";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { NotesPanel } from "@/features/inbox/NotesPanel";
 import type { Conversation, TagSummary } from "@/features/inbox/types";
 import { connectorLabel, STATUS_LABELS, type ConversationStatus } from "@/features/inbox/types";
@@ -73,9 +74,7 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-6">
         <div className="flex items-center justify-center gap-6">
-          <span className="flex h-[55px] w-[55px] shrink-0 items-center justify-center rounded-full bg-[#ffa500] text-[30px] text-white">
-            {name.trim()[0]?.toUpperCase() ?? "?"}
-          </span>
+          <CustomerAvatar conversation={conversation} className="h-[55px] w-[55px] bg-[#ffa500] text-[30px] text-white" />
           <div className="min-w-0">
             <h3 className="truncate px-2 py-1 text-xl font-normal text-black dark:text-text-primary">{name}</h3>
             <p className="px-2 text-sm text-black dark:text-text-secondary">{contact?.phone ?? "No phone available"}</p>

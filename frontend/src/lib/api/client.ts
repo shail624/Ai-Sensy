@@ -1,6 +1,7 @@
 import createClient, { type Middleware } from "openapi-fetch";
 
 import type { paths } from "@/lib/api/schema";
+import { utcMiddleware } from "@/lib/api/utc";
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "@/lib/auth/tokens";
 
 /**
@@ -95,6 +96,9 @@ const authMiddleware: Middleware = {
   },
 };
 
+// Registered first on purpose: openapi-fetch runs `onResponse` in reverse order, so the auth
+// middleware's refresh-and-replay happens before timestamps are marked as UTC on the final body.
+api.use(utcMiddleware);
 api.use(authMiddleware);
 
 export type { paths } from "@/lib/api/schema";

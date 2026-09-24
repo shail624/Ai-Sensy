@@ -16,14 +16,15 @@ import { ChatQuickSwitcher } from "@/features/inbox/ChatQuickSwitcher";
 import { ConversationFilters } from "@/features/inbox/ConversationFilters";
 import { ConversationList } from "@/features/inbox/ConversationList";
 import { ConversationThread } from "@/features/inbox/ConversationThread";
+import { NewChatDialog } from "@/features/inbox/NewChatDialog";
 import { useInboxPreferences } from "@/features/inbox/preferences";
-import type { InboxFilters } from "@/features/inbox/types";
+import type { InboxChannel, InboxFilters } from "@/features/inbox/types";
 import {
   CONVERSATION_STATUSES,
   STATUS_LABELS,
   type ConversationStatus,
 } from "@/features/inbox/types";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useHasPermission } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
 
@@ -33,7 +34,12 @@ function readFilters(params: URLSearchParams): InboxFilters {
     assignee: params.get("assignee") ?? undefined,
     tag: params.get("tag") ?? undefined,
     q: params.get("q") ?? undefined,
+    channel: readChannel(params.get("channel")),
   };
+}
+
+function readChannel(value: string | null): InboxChannel | undefined {
+  return value === "official" || value === "qr" ? value : undefined;
 }
 
 function writeParams(filters: InboxFilters, conversationId: string | null): URLSearchParams {
@@ -42,6 +48,7 @@ function writeParams(filters: InboxFilters, conversationId: string | null): URLS
   if (filters.assignee) params.set("assignee", filters.assignee);
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.q) params.set("q", filters.q);
+  if (filters.channel) params.set("channel", filters.channel);
   if (conversationId) params.set("conversation", conversationId);
   return params;
 }
@@ -52,6 +59,8 @@ export function Inbox(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selection, setSelection] = useState<string[]>([]);
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const canSend = useHasPermission("messages:send");
   const filters = useMemo(() => readFilters(searchParams), [searchParams]);
   const cursor = searchParams.get("cursor");
   const selectedId = searchParams.get("conversation");
@@ -116,6 +125,7 @@ export function Inbox(): JSX.Element {
           onSaveView={(name) => preferences.saveView(name, filters)}
           onDeleteView={preferences.deleteView}
           currentUserId={user?.id}
+          onNewChat={canSend ? () => setNewChatOpen(true) : undefined}
         />
 
         {selection.length > 0 ? (
@@ -301,6 +311,9 @@ export function Inbox(): JSX.Element {
           </div>
         )}
       </div>
+      {newChatOpen ? (
+        <NewChatDialog onClose={() => setNewChatOpen(false)} onStarted={(id) => select(id)} />
+      ) : null}
     </div>
   );
 }

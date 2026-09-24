@@ -1,5 +1,29 @@
 # Module Status
 
+## UI-AIS-05 — WhatsApp QR fixes, new chat, customer photo and name, message alerts, API/QR filter (2026-09-24)
+
+Owner testing of the QR-connected WhatsApp found missing configuration, dead-lettered echoes and
+receipts, wrong times, and no way to message a new number, see who a customer is or hear new messages.
+
+- QR setup: WAHA settings added to the production env (secrets generated, never displayed) and the
+  omnichannel flags enabled. Live test passed both ways with the approved number.
+- Webhooks: own-phone echoes (`fromMe`) are a new `echoes` event type that settles as processed;
+  receipts for messages sent from the phone settle as `unmatched_receipt` after 3 tries instead of
+  dead-lettering; duplicate-key races are retried as transient.
+- Customer name now read from NOWEB `_data.pushName`; list, header, profile and alerts show
+  "Name +number" (number enlarged to 13px in the list).
+- New chat: `POST /channels/whatsapp-qr/chats` checks the number is on WhatsApp first (10 digits get
+  +91), requires `messages:send`. Customer photo: `GET /channels/whatsapp-qr/conversations/{id}/photo`
+  (whatsapp.net https only, images only, 2 MB cap, 204 when none) shown via `CustomerAvatar`.
+- Times: API naive-UTC timestamps are marked UTC in the client (fixed a 5.5h display shift).
+- Message alerts: chime (default on) and optional desktop notification with the customer's name and
+  number, on every screen, skipping the chat already open; toggled from a speaker button.
+- Live Chat filter "All chats / WhatsApp API / WhatsApp QR" (`channel=official|qr` on
+  `GET /conversations`, 400 on other values), kept in the URL and across view tabs.
+- Data: an empty test chat (+919100000000) created during testing was soft-deleted.
+- PASS: backend 1,809, ruff, OpenAPI `--check` (251 paths); frontend 70 files / 1,066 tests,
+  TypeScript, ESLint, production build. No migration. No module percentage change.
+
 ## UI-AIS-04 — User Attributes page, plain-language copy, API status on every screen (2026-09-24)
 
 Owner feedback: the app is not user friendly compared with AiSensy — too many technical words — and

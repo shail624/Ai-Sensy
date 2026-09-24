@@ -1,5 +1,5 @@
 import { AlertCircle, Check, CheckCheck, Clock3 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   readInteractive,
@@ -110,8 +110,8 @@ interface Props {
   onReact: (emoji: string) => void;
   canReact: boolean;
   reactions?: ReactionContent[];
-  /** First letter of the customer's name, for the inbound avatar. */
-  contactInitial?: string;
+  /** The customer's avatar, shown beside inbound messages. */
+  customerAvatar?: ReactNode;
 }
 
 function ReceiptIcon({ message }: { message: Message }): JSX.Element {
@@ -126,21 +126,25 @@ function ReceiptIcon({ message }: { message: Message }): JSX.Element {
  * The reference chat bubble: customer messages in solid teal on the left beside an orange initial,
  * team messages in white on the right; 22px corners, 10px time and a tick receipt underneath.
  */
-export function MessageBubble({ message, onReact, canReact, reactions = [], contactInitial = "?" }: Props): JSX.Element {
+export function MessageBubble({ message, onReact, canReact, reactions = [], customerAvatar }: Props): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const outbound = message.direction === "outbound";
   const template = Boolean(readTemplate(message));
 
   return (
     <li className={`group flex items-start gap-2 ${outbound ? "flex-row-reverse" : ""}`}>
-      <span
-        aria-hidden
-        className={`mt-px flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-sm ${
-          outbound ? "border border-[var(--color-nav-bg)] bg-[#f0f0f0] text-black" : "bg-[#ffa500] text-black"
-        }`}
-      >
-        {outbound ? "A" : contactInitial}
-      </span>
+      {outbound || !customerAvatar ? (
+        <span
+          aria-hidden
+          className={`mt-px flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-sm ${
+            outbound ? "border border-[var(--color-nav-bg)] bg-[#f0f0f0] text-black" : "bg-[#ffa500] text-black"
+          }`}
+        >
+          {outbound ? "A" : null}
+        </span>
+      ) : (
+        <span className="mt-px">{customerAvatar}</span>
+      )}
       <div className={`flex max-w-[400px] flex-col ${outbound ? "items-end" : "items-start"}`}>
         <div
           className={`rounded-[22px] px-4 py-2 text-sm leading-[19px] ${

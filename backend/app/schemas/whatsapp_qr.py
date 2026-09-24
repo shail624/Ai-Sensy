@@ -87,3 +87,15 @@ class WhatsAppQrLogoutRequest(BaseModel):
     confirm: bool = Field(
         description="Must be true. Logout invalidates WhatsApp credentials and requires a new scan."
     )
+
+
+class WhatsAppQrStartChatRequest(BaseModel):
+    """``POST /channels/whatsapp-qr/chats`` — a number that has not messaged us yet."""
+
+    phone: str = Field(min_length=5, max_length=32, examples=["+91 98765 43210"])
+
+
+class WhatsAppQrStartChatResponse(BaseModel):
+    """The conversation to send the first message in."""
+
+    conversation_id: str

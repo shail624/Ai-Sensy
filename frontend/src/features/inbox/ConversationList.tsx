@@ -1,6 +1,7 @@
 import { Check, Clock3, Pin, PinOff, QrCode, ShieldCheck } from "lucide-react";
 
 import { TagChip } from "@/components/ui";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import type { Conversation, ConversationStatus } from "@/features/inbox/types";
 import { connectorLabel, isWahaConversation, STATUS_LABELS } from "@/features/inbox/types";
 
@@ -18,14 +19,6 @@ function displayName(conversation: Conversation): string {
   return conversation.contact?.name ?? conversation.contact?.phone ?? "Unknown contact";
 }
 
-function initials(conversation: Conversation): string {
-  return displayName(conversation)
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
 
 function responseSignal(conversation: Conversation): { label: string; className: string } | null {
   if (conversation.unread_count === 0 || !conversation.last_message_at) return null;
@@ -82,8 +75,8 @@ export function ConversationList({
               aria-current={selected ? "true" : undefined}
               className={`flex h-[60px] w-full items-center gap-2 pl-2 pr-3 text-left transition-colors duration-150 ${selected ? "bg-[#ebf5f3] dark:bg-accent-soft" : "hover:bg-black/[0.03] dark:hover:bg-hover"}`}
             >
-              <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5efdf] text-xl text-black transition-opacity dark:bg-surface-2 dark:text-text-primary ${checked ? "opacity-0" : "group-hover:opacity-0"}`}>
-                {initials(conversation).slice(0, 1)}
+              <span className={`relative shrink-0 transition-opacity ${checked ? "opacity-0" : "group-hover:opacity-0"}`}>
+                <CustomerAvatar conversation={conversation} className="h-10 w-10 bg-[#f5efdf] text-xl text-black dark:bg-surface-2 dark:text-text-primary" />
                 {conversation.window.is_open ? (
                   <span title="WhatsApp service window is open" className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#28c152] ring-2 ring-[#fdfbf7] dark:ring-surface">
                     <span className="sr-only">Window open</span>
@@ -93,6 +86,9 @@ export function ConversationList({
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
                   <span className="truncate text-sm text-black dark:text-text-primary">{displayName(conversation)}</span>
+                  {conversation.contact?.name && conversation.contact.phone && conversation.contact.name !== conversation.contact.phone ? (
+                    <span className="shrink-0 text-[13px] text-[#6e6e6e] dark:text-text-secondary">{conversation.contact.phone}</span>
+                  ) : null}
                   <span title={connectorLabel(conversation)} className={`inline-flex shrink-0 ${isWahaConversation(conversation) ? "text-accent" : "text-[#808080]"}`}>
                     {isWahaConversation(conversation) ? <QrCode aria-hidden className="h-3 w-3" /> : <ShieldCheck aria-hidden className="h-3 w-3" />}
                     <span className="sr-only">{connectorLabel(conversation)}</span>

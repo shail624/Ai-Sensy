@@ -316,7 +316,7 @@ def test_outbound_echo_is_not_ingested_as_inbound() -> None:
     """``fromMe`` true is our own message echoed back; QR-05 owns delivery state, not QR-04."""
     delivery = _inbound()
     delivery["payload"]["fromMe"] = True
-    assert parse_events(delivery)[0].type is InboundEventType.UNKNOWN
+    assert parse_events(delivery)[0].type is InboundEventType.ECHOES
 
 
 def test_ack_event_is_routed_as_a_status() -> None:
@@ -502,3 +502,14 @@ def test_prohibited_capabilities_unchanged() -> None:
 def test_qr04_adds_no_send_or_teardown() -> None:
     for name in ("delete_session", "send_image", "sync_history"):
         assert not hasattr(WahaChannelAdapter, name)
+
+
+def test_noweb_display_name_is_read_from_the_native_record() -> None:
+    """NOWEB (the certified engine) sends the sender's WhatsApp name only as `_data.pushName`."""
+    delivery = _inbound()
+    del delivery["payload"]["notifyName"]
+    delivery["payload"]["_data"] = {"key": {"remoteJid": "651430587620@lid"}, "pushName": "Kirti"}
+
+    message = WahaChannelAdapter(CREDS).to_inbound_message(delivery)
+
+    assert message.profile_name == "Kirti"

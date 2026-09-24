@@ -195,6 +195,10 @@ async def list_conversations(
     campaign: Annotated[str | None, Query()] = None,
     has_media: Annotated[bool, Query()] = False,
     has_audit: Annotated[bool, Query()] = False,
+    channel: Annotated[
+        str | None,
+        Query(description="Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats."),
+    ] = None,
     filter_status: Annotated[str | None, Query(alias="filter[status][eq]")] = None,
     filter_assignee: Annotated[str | None, Query(alias="filter[assignee][eq]")] = None,
     filter_number: Annotated[str | None, Query(alias="filter[number][eq]")] = None,
@@ -242,6 +246,7 @@ async def list_conversations(
         has_media=has_media,
         has_audit=has_audit,
         q=q,
+        channel=channel,
     )
     data = [
         ConversationResponse.from_conversation(

@@ -208,14 +208,17 @@ def parse_events(delivery: dict[str, Any]) -> list[InboundEvent]:
 
     if type_name in _INBOUND_MESSAGE_EVENTS and payload_obj.get("fromMe") is False:
         kind = InboundEventType.MESSAGES
+    elif type_name in _INBOUND_MESSAGE_EVENTS and payload_obj.get("fromMe") is True:
+        # The account's own message (sent from the phone or by us), echoed back. Recorded and
+        # settled rather than applied; showing phone-sent messages in Live Chat is a later feature.
+        kind = InboundEventType.ECHOES
     elif type_name == EVENT_MESSAGE_ACK:
         # A delivery acknowledgement for something we sent (QR-05's `to_status_update` already
         # translates its payload; QR-08 is what first routes it there via `InboundEventType.STATUSES`
         # rather than recording it inert).
         kind = InboundEventType.STATUSES
     else:
-        # Includes outbound message echoes (``fromMe`` true) and session events, which nothing here
-        # interprets — recorded, not applied.
+        # Session events and anything else nothing here interprets.
         kind = InboundEventType.UNKNOWN
 
     return [
@@ -266,7 +269,13 @@ def to_inbound_message(delivery: dict[str, Any]) -> InboundMessage:
     alternate = key_obj.get("remoteJidAlt")
     alternate_from_id = alternate if isinstance(alternate, str) and alternate.strip() else None
 
-    push_name = payload_obj.get("notifyName") or payload_obj.get("pushName")
+    # NOWEB carries the sender's WhatsApp display name only inside the native message record
+    # (`_data.pushName`); other engines put it on the payload itself.
+    push_name = (
+        payload_obj.get("notifyName")
+        or payload_obj.get("pushName")
+        or data_obj.get("pushName")
+    )
     profile_name = push_name if isinstance(push_name, str) and push_name.strip() else None
 
     content = _text_content(payload_obj)

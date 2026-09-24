@@ -1,4 +1,4 @@
-import { NUMBER_STATUS_CONNECTED, type PhoneNumber, type Waba } from "./types";
+import { isNumberConnected, type PhoneNumber, type Waba } from "./types";
 
 export type ApiStatus = "live" | "pending" | "not_connected";
 
@@ -21,13 +21,13 @@ export function summarizeAccount(wabas: Waba[], numbers: PhoneNumber[]): Account
   const pool = own.length > 0 ? own : numbers;
   const number =
     pool.find((candidate) => candidate.is_default) ??
-    pool.find((candidate) => candidate.status === NUMBER_STATUS_CONNECTED) ??
+    pool.find((candidate) => isNumberConnected(candidate)) ??
     pool[0] ??
     null;
   let status: ApiStatus = "not_connected";
   if (waba) {
     status =
-      waba.status === "active" && numbers.some((candidate) => candidate.status === NUMBER_STATUS_CONNECTED)
+      waba.status === "active" && numbers.some((candidate) => isNumberConnected(candidate))
         ? "live"
         : "pending";
   }

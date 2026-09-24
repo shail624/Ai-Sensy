@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -70,6 +70,7 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
     campaign: filters.campaign || null,
     has_media: Boolean(filters.hasMedia),
     has_audit: Boolean(filters.hasAudit),
+    channel: filters.channel || null,
     cursor: cursor || null,
     limit,
   };
@@ -427,4 +428,50 @@ export function useTypingSignal(conversationId: string, enabled: boolean): () =>
       })
       .catch(() => undefined);
   }, [conversationId, enabled]);
+}
+
+/** Open (or reuse) a QR chat with a number that has not messaged us yet; returns its id. */
+export function useStartChat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (phone: string): Promise<string> =>
+      unwrap(await api.POST("/api/v1/channels/whatsapp-qr/chats", { body: { phone } }))
+        .conversation_id,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
+/**
+ * The customer's WhatsApp profile photo as an object URL, or `null`. Only QR conversations can
+ * have one (Meta's API exposes no photos). Fetched through the API with the session's token and
+ * held for an hour, so the strict image policy stays intact and scrolling never refetches.
+ */
+export function useConversationPhoto(conversationId: string, enabled: boolean): string | null {
+  const photo = useQuery({
+    // Outside `inboxKeys.all` on purpose: inbox writes invalidate that tree, and a photo must not
+    // be re-downloaded every time a message is sent.
+    queryKey: ["contact-photo", conversationId],
+    queryFn: async (): Promise<Blob | null> => {
+      const { data, response } = await api.GET(
+        "/api/v1/channels/whatsapp-qr/conversations/{conversation_id}/photo",
+        { params: { path: { conversation_id: conversationId } }, parseAs: "blob" },
+      );
+      return response.status === 200 && data instanceof Blob && data.size > 0 ? data : null;
+    },
+    enabled: enabled && Boolean(conversationId),
+    staleTime: 60 * 60_000,
+    gcTime: 60 * 60_000,
+    retry: false,
+  });
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!photo.data) {
+      setUrl(null);
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(photo.data);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [photo.data]);
+  return url;
 }

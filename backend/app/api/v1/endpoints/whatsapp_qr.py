@@ -8,6 +8,7 @@ caching so neither a browser cache nor an intermediary retains it.
 from __future__ import annotations
 
 import dataclasses
+import uuid as uuidlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
@@ -15,8 +16,18 @@ from fastapi import APIRouter, Depends, Response
 from app.api.deps import ChannelFoundationDep, SessionDep, require_permissions
 from app.channels.waha import WahaQrChallenge
 from app.models.user import User
-from app.schemas.whatsapp_qr import WhatsAppQrLogoutRequest, WhatsAppQrStatus
-from app.services.whatsapp_qr_service import OPERATE_PERMISSION, READ_PERMISSION, WhatsAppQrService
+from app.schemas.whatsapp_qr import (
+    WhatsAppQrLogoutRequest,
+    WhatsAppQrStartChatRequest,
+    WhatsAppQrStartChatResponse,
+    WhatsAppQrStatus,
+)
+from app.services.whatsapp_qr_service import (
+    OPERATE_PERMISSION,
+    READ_PERMISSION,
+    SEND_PERMISSION,
+    WhatsAppQrService,
+)
 
 router = APIRouter(prefix="/channels/whatsapp-qr", tags=["WhatsApp QR Connection"])
 
@@ -120,3 +131,48 @@ async def logout(
         organization_id=actor.organization_id, actor=actor, confirm=body.confirm
     )
     return WhatsAppQrStatus(**dataclasses.asdict(state))
+
+
+Sender = Annotated[User, Depends(require_permissions(SEND_PERMISSION))]
+InboxReader = Annotated[User, Depends(require_permissions("inbox:read"))]
+
+
+@router.post(
+    "/chats",
+    response_model=WhatsAppQrStartChatResponse,
+    summary="Start a chat with a new number over the QR connection",
+)
+async def start_chat(
+    payload: WhatsAppQrStartChatRequest,
+    session: SessionDep,
+    actor: Sender,
+    foundation: ChannelFoundationDep,
+) -> WhatsAppQrStartChatResponse:
+    conversation_id = await _service(session, foundation).start_chat(
+        organization_id=actor.organization_id, actor=actor, phone=payload.phone
+    )
+    return WhatsAppQrStartChatResponse(conversation_id=conversation_id)
+
+
+@router.get(
+    "/conversations/{conversation_id}/photo",
+    summary="The customer's WhatsApp profile photo (204 when there is none)",
+    responses={200: {"content": {"image/jpeg": {}}}, 204: {"description": "No profile photo"}},
+)
+async def conversation_photo(
+    conversation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: InboxReader,
+    foundation: ChannelFoundationDep,
+) -> Response:
+    photo = await _service(session, foundation).contact_photo(
+        organization_id=actor.organization_id, actor=actor, conversation_public_id=conversation_id
+    )
+    if photo is None:
+        return Response(status_code=204, headers={"Cache-Control": "private, max-age=600"})
+    content, content_type = photo
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
+    )

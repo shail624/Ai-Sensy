@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Badge, type BadgeTone, ErrorState, Skeleton } from "@/components/ui";
 import { useNumbers } from "@/features/channels/api";
-import { NUMBER_STATUS_CONNECTED, type PhoneNumber } from "@/features/channels/types";
+import { isNumberConnected, type PhoneNumber } from "@/features/channels/types";
 import { apiErrorMessage } from "@/lib/api/errors";
 
 const QUALITY_TONES: Record<string, BadgeTone> = {
@@ -19,12 +19,12 @@ const QUALITY_LABELS: Record<string, string> = {
 };
 
 function qualityTone(number: PhoneNumber): BadgeTone {
-  if (number.status !== NUMBER_STATUS_CONNECTED) return "danger";
+  if (!isNumberConnected(number)) return "danger";
   return QUALITY_TONES[number.quality_rating ?? ""] ?? "neutral";
 }
 
 function qualityLabel(number: PhoneNumber): string {
-  if (number.status !== NUMBER_STATUS_CONNECTED) return number.status;
+  if (!isNumberConnected(number)) return number.status;
   return QUALITY_LABELS[number.quality_rating ?? ""] ?? "Not rated yet";
 }
 
@@ -131,7 +131,7 @@ export function ChannelHealthStrip(): JSX.Element | null {
 
 /** Higher is more urgent, so the sort reads worst-first without a second comparator. */
 function severity(number: PhoneNumber): number {
-  if (number.status !== NUMBER_STATUS_CONNECTED) return 3;
+  if (!isNumberConnected(number)) return 3;
   if (number.quality_rating === "RED") return 2;
   if (number.quality_rating === "YELLOW") return 1;
   return 0;
