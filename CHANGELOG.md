@@ -1,5 +1,20 @@
 # Changelog
 
+## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
+
+Follow-up to UI-AIS-17: the Campaigns strip showed "Not reported yet" for the tier.
+
+- Root cause (read-only Graph check): Meta no longer returns `messaging_limit_tier` on the phone
+  number; the limit moved to the business portfolio and is reported as
+  `whatsapp_business_manager_messaging_limit` (here `TIER_10K`, on both the number and the WABA).
+- The Meta adapter now requests that field for number health and number sync and uses it when the
+  old one is empty (`_messaging_tier`). The connected number was refreshed through the normal
+  `PhoneNumberService.refresh` path: GREEN, TIER_10K. The rate gate's tier cap now uses the real
+  10K instead of the 1K fallback.
+- Live: Campaigns shows Quality High, "Tier 2 (10K/24 Hours)", Remaining Quota 9,999.
+- PASS: `test_channels.py` + `test_api_waba.py` 70 (new field test), ruff, mypy. No API shape
+  change, no migration.
+
 ## UI-AIS-17 — Campaigns list header: quality, tier, remaining quota, reports (2026-09-24)
 
 Owner feedback (screenshot of the reference list): add the quota strip, search bar, tabs, report

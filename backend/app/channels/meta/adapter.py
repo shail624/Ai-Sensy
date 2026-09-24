@@ -63,15 +63,23 @@ PROFILE_WRITABLE_FIELDS = ("about", "address", "description", "email", "websites
 
 _HEALTH_FIELDS = (
     "display_phone_number,verified_name,quality_rating,throughput,"
-    "messaging_limit_tier,platform_type"
+    "messaging_limit_tier,whatsapp_business_manager_messaging_limit,platform_type"
 )
 #: Fields read when enumerating a WABA's templates (Doc 03 §7.1 columns).
 _TEMPLATE_FIELDS = "id,name,language,category,status,components,quality_score,rejected_reason"
 #: Fields read when enumerating a WABA's numbers (Doc 03 §5.2 columns).
 _NUMBER_FIELDS = (
     "id,display_phone_number,verified_name,quality_rating,throughput,"
-    "messaging_limit_tier,code_verification_status,status"
+    "messaging_limit_tier,whatsapp_business_manager_messaging_limit,"
+    "code_verification_status,status"
 )
+
+
+def _messaging_tier(node: dict[str, Any]) -> str | None:
+    """Meta moved the messaging limit to the business portfolio: newer Graph versions report it as
+    ``whatsapp_business_manager_messaging_limit`` and leave ``messaging_limit_tier`` empty."""
+    tier = node.get("messaging_limit_tier") or node.get("whatsapp_business_manager_messaging_limit")
+    return str(tier) if tier else None
 
 
 class MetaChannelAdapter(ChannelAdapter):
@@ -293,7 +301,7 @@ class MetaChannelAdapter(ChannelAdapter):
             display_number=node.get("display_phone_number", ""),
             verified_name=node.get("verified_name"),
             quality_rating=node.get("quality_rating"),
-            messaging_tier=node.get("messaging_limit_tier"),
+            messaging_tier=_messaging_tier(node),
             throughput_level=(node.get("throughput") or {}).get("level"),
             status=node.get("status") or node.get("code_verification_status"),
         )
@@ -377,7 +385,7 @@ class MetaChannelAdapter(ChannelAdapter):
             # Meta reports RED when a number is at risk of restriction (Doc 06 §28).
             healthy=quality not in ("RED", "FLAGGED"),
             quality_rating=quality,
-            messaging_tier=body.get("messaging_limit_tier"),
+            messaging_tier=_messaging_tier(body),
             throughput_limit=throughput,
             detail=body.get("verified_name"),
         )

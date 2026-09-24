@@ -449,3 +449,12 @@ async def test_meta_sends_a_location_pin() -> None:
     assert result.channel_message_id == "wamid.LOC"
     assert captured["body"]["type"] == "location"
     assert captured["body"]["location"] == {"latitude": 28.61, "longitude": 77.2, "name": "Vi Store"}
+
+
+def test_messaging_tier_reads_the_business_portfolio_limit() -> None:
+    """Newer Graph versions report the tier only as the portfolio-level limit (UI-AIS-18)."""
+    from app.channels.meta.adapter import _messaging_tier
+
+    assert _messaging_tier({"whatsapp_business_manager_messaging_limit": "TIER_10K"}) == "TIER_10K"
+    assert _messaging_tier({"messaging_limit_tier": "TIER_1K"}) == "TIER_1K"
+    assert _messaging_tier({}) is None
