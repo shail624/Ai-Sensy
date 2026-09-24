@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CheckCheck, Clock3 } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock3, Smartphone } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -127,6 +127,7 @@ export function MessageBubble({ message, onReact, canReact, reactions = [], cust
   const [pickerOpen, setPickerOpen] = useState(false);
   const outbound = message.direction === "outbound";
   const template = Boolean(readTemplate(message));
+  const fromPhone = outbound && (message.content as Record<string, unknown> | null)?.sent_from_phone === true;
   // Photos and videos sit edge to edge in a thin frame, as on WhatsApp; stickers have no bubble.
   const media = readMedia(message);
   const pictureKind = media && !media.link ? media.kind : null;
@@ -175,6 +176,11 @@ export function MessageBubble({ message, onReact, canReact, reactions = [], cust
         ) : null}
 
         <div className="flex items-center gap-1 p-1 text-[10px] text-black dark:text-text-secondary">
+          {fromPhone ? (
+            <span title="Sent from the WhatsApp phone, not from this app" className="inline-flex items-center gap-0.5 text-[#6e6e6e]">
+              <Smartphone aria-hidden className="h-3 w-3" /> Sent from phone ·
+            </span>
+          ) : null}
           <span>{new Date(message.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
           {outbound ? (
             <>

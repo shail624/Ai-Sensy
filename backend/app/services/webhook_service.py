@@ -244,6 +244,19 @@ class WebhookService:
         row.attempts += 1
         await self._session.commit()
 
+        if row.object_type == InboundEventType.ECHOES.value and row.channel_endpoint_id is not None:
+            # A message the QR-connected phone sent: routed like an inbound message, where the
+            # message lane stores it unless it is one of ours (UI-AIS-09).
+            row.status = WH_PROCESSED
+            row.processed_at = utcnow()
+            await self._session.commit()
+            dispatch_inbound(row.id)
+            return {
+                "status": WH_PROCESSED,
+                "event_pk": event_pk,
+                "object_type": row.object_type,
+                "outcome": "routed",
+            }
         if row.object_type == InboundEventType.ECHOES.value:
             # Understood, deliberately not applied (see `InboundEventType.ECHOES`).
             row.status = WH_PROCESSED

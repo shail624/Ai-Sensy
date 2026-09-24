@@ -1321,9 +1321,8 @@ async def test_normal_sized_and_badly_signed_deliveries_are_unaffected(client, d
 
 
 @pytest.mark.anyio
-async def test_own_message_echo_settles_as_processed_without_a_message(
-    db_session, organization, make_user
-) -> None:
+async def test_phone_sent_message_is_stored_as_outbound(db_session, organization, make_user) -> None:
+    """A message typed on the QR phone shows in Live Chat as ours (UI-AIS-09)."""
     actor = (await make_user(email="echo-settle@vi.co", is_superuser=True)).user
     await _enable_flags(db_session, organization.id)
     await _waha_endpoint(db_session, organization.id, actor, suffix="ECHO")
@@ -1337,17 +1336,92 @@ async def test_own_message_echo_settles_as_processed_without_a_message(
     )
     (event_pk,) = await _ingest_waha(db_session, echo)
 
-    result = await WebhookService(db_session).process(
-        event_pk, dispatch_inbound=lambda pk: pytest.fail(f"echo routed inbound: {pk}")
-    )
+    routed: list[int] = []
+    result = await WebhookService(db_session).process(event_pk, dispatch_inbound=routed.append)
+    assert result["outcome"] == "routed" and routed == [event_pk]
 
-    assert result == {
-        "status": "processed",
-        "event_pk": event_pk,
-        "object_type": "echoes",
-        "outcome": "echo",
-    }
+    applied = await MessageService(db_session).apply_inbound(event_pk)
+    assert applied["status"] == "applied"
+    (message,) = (await db_session.scalars(select(Message))).all()
+    assert message.direction == "outbound"
+    assert message.status == "sent"
+    assert message.content_json == {"body": "sent from the phone app", "sent_from_phone": True}
+    (conversation,) = (await db_session.scalars(select(Conversation))).all()
+    assert conversation.unread_count == 0
+    assert conversation.last_inbound_at is None  # the customer said nothing: no window opens
+    assert conversation.last_message_preview == "sent from the phone app"
+    (contact,) = (await db_session.scalars(select(Contact))).all()
+    # The echo carries the business's own name; it must never become the customer's.
+    assert contact.profile_name is None
+
+    # Redelivery (message + message.any, or a retry) adds nothing.
+    again = await MessageService(db_session).apply_inbound(event_pk)
+    assert again["status"] == DUPLICATE
+    assert len((await db_session.scalars(select(Message))).all()) == 1
+
+
+@pytest.mark.anyio
+async def test_echo_of_our_own_send_is_not_stored_twice(db_session, organization, make_user) -> None:
+    actor = (await make_user(email="echo-own@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    endpoint = await _waha_endpoint(db_session, organization.id, actor, suffix="OWN")
+    contact = Contact(
+        organization_id=organization.id, wa_id="919990030303", phone_e164="+919990030303"
+    )
+    db_session.add(contact)
+    await db_session.flush()
+    conversation = Conversation(
+        organization_id=organization.id, channel_endpoint_id=endpoint.id, contact_id=contact.id
+    )
+    db_session.add(conversation)
+    await db_session.flush()
+    ours = Message(
+        organization_id=organization.id,
+        conversation_id=conversation.id,
+        channel_endpoint_id=endpoint.id,
+        contact_id=contact.id,
+        direction="outbound",
+        wamid="OWN-1",
+        message_type="text",
+        content_json={"body": "from Live Chat"},
+        status="sent",
+    )
+    db_session.add(ours)
+    await db_session.commit()
+
+    echo = _waha_delivery(
+        event="message.any",
+        envelope_id="OWN-1",
+        session="waha-session-OWN",
+        body="from Live Chat",
+        from_id="919990030303@c.us",
+        from_me=True,
+    )
+    (event_pk,) = await _ingest_waha(db_session, echo)
+    result = await MessageService(db_session).apply_inbound(event_pk)
+    assert result["status"] == DUPLICATE
+    assert len((await db_session.scalars(select(Message))).all()) == 1
+
+
+@pytest.mark.anyio
+async def test_echo_to_a_group_or_junk_address_is_ignored(db_session, organization, make_user) -> None:
+    actor = (await make_user(email="echo-group@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    await _waha_endpoint(db_session, organization.id, actor, suffix="GRP")
+    for envelope, address in (("grp-1", "1203630000000@g.us"), ("junk-1", "1@c.us")):
+        echo = _waha_delivery(
+            event="message.any",
+            envelope_id=envelope,
+            session="waha-session-GRP",
+            body="hello group",
+            from_id=address,
+            from_me=True,
+        )
+        (event_pk,) = await _ingest_waha(db_session, echo)
+        result = await MessageService(db_session).apply_inbound(event_pk)
+        assert result["status"] == "ignored_echo"
     assert (await db_session.scalars(select(Message))).all() == []
+    assert (await db_session.scalars(select(Contact))).all() == []
 
 
 @pytest.mark.anyio

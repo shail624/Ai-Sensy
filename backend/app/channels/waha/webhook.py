@@ -258,8 +258,8 @@ def parse_events(delivery: dict[str, Any]) -> list[InboundEvent]:
     if type_name in _INBOUND_MESSAGE_EVENTS and payload_obj.get("fromMe") is False:
         kind = InboundEventType.MESSAGES
     elif type_name in _INBOUND_MESSAGE_EVENTS and payload_obj.get("fromMe") is True:
-        # The account's own message (sent from the phone or by us), echoed back. Recorded and
-        # settled rather than applied; showing phone-sent messages in Live Chat is a later feature.
+        # The account's own message (sent from the phone or by us), echoed back. The message lane
+        # stores phone-sent ones as outbound messages and skips ours by provider id (UI-AIS-09).
         kind = InboundEventType.ECHOES
     elif type_name == EVENT_MESSAGE_ACK:
         # A delivery acknowledgement for something we sent (QR-05's `to_status_update` already

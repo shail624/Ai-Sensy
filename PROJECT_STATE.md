@@ -1,5 +1,25 @@
 # Project State
 
+## UI-AIS-09 — Messages sent from the QR phone shown in Live Chat (2026-09-24)
+
+Owner request (deferred earlier): show messages typed directly on the QR-connected phone.
+
+- WAHA `fromMe` echoes on a QR endpoint are now routed to the message lane instead of being
+  settled unread. `MessageService._apply_phone_echo` stores them as **outbound** messages (status
+  `sent`, `content.sent_from_phone = true`) in the customer's chat, updating the preview and the
+  contact's last-outbound time — no unread count, no 24-hour window, no tags, automations or
+  auto-replies, and the business's own push name is never written onto the customer.
+- Duplicates: our own sends are echoed too; they are matched by provider id and skipped. A send
+  still waiting for its provider id is given up to ~6 s (re-checked in fresh transactions) before
+  an echo is treated as phone-sent. Redeliveries (`message` + `message.any`) add nothing.
+- Groups, status posts and junk/short addresses are ignored (`ignored_echo`), never turned into
+  contacts or dead letters. Phone-sent media goes through the UI-AIS-08 media lane.
+- Live Chat labels these bubbles "📱 Sent from phone".
+- Replayed today's stored echoes after a DB backup: all 3 were our own sends (duplicates), 1 junk
+  test address ignored — nothing duplicated.
+- PASS: backend 1,828 (full suite), ruff, OpenAPI `--check`; frontend 1,083 tests, TypeScript,
+  ESLint, build. No migration. No module percentage change.
+
 ## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
 
 Active Live Chat refreshes every 2 seconds. This reduces UI delay after the provider delivers a webhook; it does not guarantee instant provider delivery. Local deployment and a real inbound Meta API message were checked. No backend or migration change.

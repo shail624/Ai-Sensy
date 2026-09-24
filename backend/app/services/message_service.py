@@ -14,15 +14,17 @@ is explicit that the data layer is the ultimate guard.
 
 from __future__ import annotations
 
+import asyncio
 import uuid as uuidlib
 from datetime import datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
 from app.channels.capabilities import CONNECTOR_META_CLOUD, CONNECTOR_WAHA
-from app.channels.models import InboundMessage, StatusUpdate
+from app.channels.models import InboundEventType, InboundMessage, StatusUpdate
 from app.channels.waha.identity import (
     normalize_direct_jid,
     optional_direct_jid,
@@ -36,7 +38,9 @@ from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.conversation import Conversation
 from app.models.message import (
     DIRECTION_INBOUND,
+    DIRECTION_OUTBOUND,
     MSG_ACCEPTED,
+    MSG_SENT,
     STATUS_TIMESTAMP_COLUMN,
     Message,
     MessageStatusHistory,
@@ -66,6 +70,13 @@ logger = get_logger(__name__)
 
 # Application outcomes — returned rather than raised, because none of them is a failure.
 APPLIED = "applied"
+#: A phone-sent echo that cannot be tied to a one-to-one customer chat (group, status, unknown LID).
+IGNORED_ECHO = "ignored_echo"
+#: How long our own just-sent message may still be waiting for its provider id, and how often
+#: an echo re-checks for it before being treated as sent from the phone.
+_OWN_SEND_WINDOW = timedelta(minutes=2)
+_OWN_SEND_CHECKS = 4
+_OWN_SEND_PAUSE_SECONDS = 2.0
 DUPLICATE = "duplicate"
 #: A status that does not move the message forward (D16) — the whole point of monotonicity.
 IGNORED_STALE = "ignored_stale"
@@ -166,6 +177,10 @@ class MessageService:
             logger.warning("inbound_event_missing", extra={"event_pk": event_pk})
             return {"status": "missing", "event_pk": event_pk}
         if row.channel_endpoint_id is not None:
+            if row.object_type == InboundEventType.ECHOES.value:
+                return await self._apply_phone_echo(
+                    event_pk, row.channel_endpoint_id, row.payload_json
+                )
             return await self._apply_inbound_endpoint(
                 event_pk, row.channel_endpoint_id, row.payload_json
             )
@@ -282,6 +297,134 @@ class MessageService:
         if auto_reply_message_pk is not None:
             result["auto_reply_message_pk"] = auto_reply_message_pk
         return result
+
+    async def _apply_phone_echo(
+        self, event_pk: int, channel_endpoint_id: int, payload: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Store a message the business sent from the QR-connected phone itself (UI-AIS-09).
+
+        WAHA echoes every message the account sends. Ours are already in the ledger under the same
+        provider id and are skipped; the rest were typed on the phone and are stored as outbound
+        messages so Live Chat shows the whole conversation. No unread, window, tag, automation or
+        auto-reply effect: the business said this, the customer did not. Anything that is not a
+        one-to-one customer chat (a group, a status post, an unlinkable address) is ignored rather
+        than dead-lettered or turned into a new contact.
+        """
+        message = self._to_inbound_message(payload, connector_type=CONNECTOR_WAHA)
+        if message.message_type == "unsupported":
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        occurred_at = message.occurred_at or utcnow()
+        try:
+            provider_address = normalize_direct_jid(message.from_id)
+            alternate_address = optional_direct_jid(message.alternate_from_id)
+            route_namespace = route_identity_namespace(provider_address)
+            contact_phone_wa_id = phone_wa_id(provider_address, alternate_address)
+        except Exception:  # noqa: BLE001 - not a one-to-one customer chat
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        if contact_phone_wa_id is not None and len(contact_phone_wa_id) < 8:
+            # Too short to be anyone's phone number; never mint a contact for it.
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+
+        # Our own send is echoed too. Its provider id is written right after the provider answers,
+        # so give a just-sent message a moment to receive it before deciding who sent this. Each
+        # re-check ends the transaction so it sees the other worker's commit; nothing is loaded
+        # into the session before this loop, so nothing goes stale.
+        for attempt in range(_OWN_SEND_CHECKS):
+            existing = await self._messages.get_by_provider_message_id_for_endpoint(
+                message.channel_message_id, channel_endpoint_id=channel_endpoint_id
+            )
+            if existing is not None:
+                return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+            if attempt == _OWN_SEND_CHECKS - 1 or not await self._own_send_in_flight(
+                channel_endpoint_id
+            ):
+                break
+            await self._session.rollback()
+            await asyncio.sleep(_OWN_SEND_PAUSE_SECONDS)
+
+        endpoint = await self._endpoints.get_by_id(channel_endpoint_id)
+        if endpoint is None:
+            raise LedgerError(f"channel endpoint {channel_endpoint_id} no longer exists")
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None or connection.connector_type != CONNECTOR_WAHA:
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+
+        try:
+            contact = await self._conversations.resolve_endpoint_contact_identity(
+                endpoint=endpoint,
+                connection=connection,
+                provider_address=provider_address,
+                route_namespace=route_namespace,
+                phone_wa_id=contact_phone_wa_id,
+                # The echo carries the business's own name, never the customer's.
+                profile_name=None,
+                occurred_at=occurred_at,
+            )
+        except ValueError:
+            await self._session.rollback()
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        conversation = await self._conversations.thread_for_endpoint(
+            endpoint=endpoint, contact=contact
+        )
+        conversation = (
+            await self._conversation_repo.lock_by_id(endpoint.organization_id, conversation.id)
+            or conversation
+        )
+        existing = await self._messages.get_by_provider_message_id_for_endpoint(
+            message.channel_message_id, channel_endpoint_id=endpoint.id
+        )
+        if existing is not None:
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+
+        content = dict(message.content)
+        content["sent_from_phone"] = True
+        stored = Message(
+            organization_id=endpoint.organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            wamid=message.channel_message_id,
+            message_type=message.message_type,
+            content_json=content,
+            status=MSG_SENT,
+            sent_at=occurred_at,
+            created_at=occurred_at,
+        )
+        await self._messages.add(stored)
+        await self._messages.flush()
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(message.message_type, content),
+            occurred_at=occurred_at,
+        )
+        await self._session.commit()
+        return {
+            "status": APPLIED,
+            "event_pk": event_pk,
+            "message_id": stored.public_id,
+            "message_pk": stored.id,
+            "conversation_id": conversation.public_id,
+            "contact_id": contact.public_id,
+            "media_pending": self._media_pending(stored),
+            "automation_receipts": [],
+        }
+
+    async def _own_send_in_flight(self, channel_endpoint_id: int) -> bool:
+        """Whether one of our sends on this endpoint is still waiting for its provider id."""
+        stmt = (
+            select(Message.id)
+            .where(
+                Message.channel_endpoint_id == channel_endpoint_id,
+                Message.direction == DIRECTION_OUTBOUND,
+                Message.wamid.is_(None),
+                Message.status == MSG_ACCEPTED,
+                Message.created_at >= utcnow() - _OWN_SEND_WINDOW,
+            )
+            .limit(1)
+        )
+        return (await self._session.scalar(stmt)) is not None
 
     async def _apply_inbound_endpoint(
         self, event_pk: int, channel_endpoint_id: int, payload: dict[str, Any] | None

@@ -34,3 +34,25 @@ describe("MessageMedia", () => {
     expect(screen.getByText("File not available")).toBeInTheDocument();
   });
 });
+
+describe("phone-sent messages", () => {
+  it("are labelled so agents know they came from the phone", async () => {
+    const { MessageBubble } = await import("./MessageBubble");
+    render(
+      <MessageBubble
+        message={{
+          id: "m9",
+          direction: "outbound",
+          status: "sent",
+          message_type: "text",
+          content: { body: "on my way", sent_from_phone: true },
+          created_at: "2026-09-24T10:00:00Z",
+        } as never}
+        onReact={vi.fn()}
+        canReact={false}
+      />,
+    );
+    expect(screen.getByText(/Sent from phone/)).toBeInTheDocument();
+    expect(screen.getByText("on my way")).toBeInTheDocument();
+  });
+});
