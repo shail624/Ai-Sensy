@@ -35,13 +35,14 @@ export interface CampaignPage {
 export function selectCampaignPage(
   campaigns: Campaign[],
   query: CampaignListQuery,
+  pageSize: number = PAGE_SIZE,
 ): CampaignPage {
   const matched = sortCampaigns(campaigns, query.sort);
-  const totalPages = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const page = Math.min(Math.max(1, query.page), totalPages);
-  const start = (page - 1) * PAGE_SIZE;
+  const start = (page - 1) * pageSize;
   return {
-    rows: matched.slice(start, start + PAGE_SIZE),
+    rows: matched.slice(start, start + pageSize),
     total: matched.length,
     totalPages,
     page,

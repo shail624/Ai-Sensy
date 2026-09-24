@@ -1,3 +1,4 @@
+import { BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { CampaignActions } from "@/features/campaigns/CampaignActions";
@@ -26,6 +27,7 @@ export function CampaignTable({ campaigns }: Props): JSX.Element {
       <table className="w-full text-left text-sm">
         <thead className="border-b border-[#f0f0f0] text-[13px] text-[var(--color-nav-bg)] dark:border-border dark:text-accent">
           <tr className="h-[50px]">
+            <th scope="col" className="w-12 pl-4 font-normal"><span className="sr-only">Analytics</span></th>
             <th scope="col" className="px-4 font-normal">Campaign</th>
             <th scope="col" className="hidden px-3 font-normal lg:table-cell">Type</th>
             <th scope="col" className="hidden px-3 font-normal lg:table-cell">Created At</th>
@@ -38,6 +40,16 @@ export function CampaignTable({ campaigns }: Props): JSX.Element {
         <tbody>
           {campaigns.map((campaign) => (
             <tr key={campaign.id} className="border-b border-[#f0f0f0] last:border-0 hover:bg-hover dark:border-border">
+              <td className="py-3 pl-4">
+                <Link
+                  to={`/campaigns/${campaign.id}`}
+                  aria-label={`Analytics for ${campaign.name}`}
+                  title="Campaign analytics"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-black hover:bg-[#ebf5f3] dark:text-text-primary"
+                >
+                  <BarChart3 aria-hidden className="h-5 w-5" />
+                </Link>
+              </td>
               <td className="px-4 py-3">
                 <Link
                   to={`/campaigns/${campaign.id}`}

@@ -16,6 +16,7 @@ from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from pydantic import BaseModel
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import Page, decode_cursor, encode_cursor
@@ -52,6 +53,7 @@ from app.services.campaign_service import CampaignService
 from app.services.campaign_view_service import CampaignViewService
 from app.services.cost_estimation_service import CostEstimationService
 from app.services.export_service import ExportService
+from app.services.messaging_quota_service import MessagingQuotaService
 
 router = APIRouter()
 
@@ -173,6 +175,37 @@ async def delete_campaign_view(
     actor: CampaignReader,
 ) -> None:
     await CampaignViewService(session).delete(actor, view_id)
+
+
+class NumberQuotaResponse(BaseModel):
+    phone_number_id: str
+    display_number: str
+    quality_rating: str | None
+    messaging_tier: str | None
+    daily_limit: int | None
+    used_last_24h: int
+    remaining: int | None
+
+
+@router.get(
+    "/campaigns/messaging-quota",
+    response_model=list[NumberQuotaResponse],
+    summary="Quality, tier and estimated remaining 24h quota per sending number",
+)
+async def messaging_quota(session: SessionDep, actor: CampaignReader) -> list[NumberQuotaResponse]:
+    """Remaining quota is an estimate from this platform's own sends (Meta does not report it)."""
+    return [
+        NumberQuotaResponse(
+            phone_number_id=q.phone_number_id,
+            display_number=q.display_number,
+            quality_rating=q.quality_rating,
+            messaging_tier=q.messaging_tier,
+            daily_limit=q.daily_limit,
+            used_last_24h=q.used_last_24h,
+            remaining=q.remaining,
+        )
+        for q in await MessagingQuotaService(session).for_organization(actor.organization_id)
+    ]
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse, summary="Get a campaign")

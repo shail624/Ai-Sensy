@@ -2452,6 +2452,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/messaging-quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Quality, tier and estimated remaining 24h quota per sending number
+         * @description Remaining quota is an estimate from this platform's own sends (Meta does not report it).
+         */
+        get: operations["messaging_quota_api_v1_campaigns_messaging_quota_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaigns/{campaign_id}": {
         parameters: {
             query?: never;
@@ -8752,6 +8772,23 @@ export interface components {
             /** Data */
             data: components["schemas"]["NotificationResponse"][];
             page: components["schemas"]["Page"];
+        };
+        /** NumberQuotaResponse */
+        NumberQuotaResponse: {
+            /** Phone Number Id */
+            phone_number_id: string;
+            /** Display Number */
+            display_number: string;
+            /** Quality Rating */
+            quality_rating: string | null;
+            /** Messaging Tier */
+            messaging_tier: string | null;
+            /** Daily Limit */
+            daily_limit: number | null;
+            /** Used Last 24H */
+            used_last_24h: number;
+            /** Remaining */
+            remaining: number | null;
         };
         /** OrganizationResponse */
         OrganizationResponse: {
@@ -16707,6 +16744,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    messaging_quota_api_v1_campaigns_messaging_quota_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NumberQuotaResponse"][];
                 };
             };
         };

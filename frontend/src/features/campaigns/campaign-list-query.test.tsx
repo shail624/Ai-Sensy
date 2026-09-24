@@ -64,8 +64,8 @@ describe("campaign server filters", () => {
     await screen.findByText("No campaigns match these filters");
     expect(screen.queryByText("No campaigns yet")).not.toBeInTheDocument();
     expect(get).toHaveBeenCalledWith("/api/v1/campaigns", { params: { query: { q: "Alpha", status: "draft" } } });
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "Beta" } });
-    expect(screen.getByLabelText("Search")).toHaveValue("Beta");
+    fireEvent.change(screen.getByLabelText("Search campaigns"), { target: { value: "Beta" } });
+    expect(screen.getByLabelText("Search campaigns")).toHaveValue("Beta");
     await waitFor(() => expect(get).toHaveBeenCalledWith("/api/v1/campaigns", { params: { query: { q: "Beta", status: "draft" } } }));
   });
   it("passes q and status through the client and refetches for each filter key", async () => {

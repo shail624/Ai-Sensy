@@ -1,5 +1,27 @@
 # Validation Results
 
+## UI-AIS-17 — Campaigns list header: quality, tier, remaining quota, reports (2026-09-24)
+
+Owner feedback (screenshot of the reference list): add the quota strip, search bar, tabs, report
+buttons and rows-per-page.
+
+- Quota strip above the list (reference layout): Quality Rating pill (High/Medium/Low), Template
+  Messaging Tier ("Tier 2 (10K/24 Hours)" etc., or "Not reported yet"), Remaining Quota, and the
+  Launch button. New `GET /campaigns/messaging-quota` (`campaigns:read`, declared before
+  `/campaigns/{campaign_id}`): per number, tier limit from the rate gate's tier caps, customers sent
+  a template from that number in the last 24h, and the remainder — an estimate labelled as such
+  (Meta does not report it; sends outside this app are not seen). 256 OpenAPI paths.
+- Big "Search by campaign name" bar, Refresh, underline tabs (All · Scheduled · Running ·
+  Completed · Drafts), report buttons: Report downloads, **User Report** (pick a campaign → the
+  existing per-customer results export), **Overview Report** (campaign totals per day as CSV via
+  the analytics report export, delivered to Downloads).
+- Table gains the reference 📊 analytics link per row; pagination shows "Rows per page 10/25/50"
+  and "1-10 of N".
+- Live: Quality shows High (GREEN from Meta); the tier is still empty from Meta for this number,
+  so the tier reads "Not reported yet" and quota "—" rather than an invented number.
+- PASS: backend 1,835 (full suite), ruff, OpenAPI `--check`; frontend 1,091 tests, TypeScript,
+  ESLint, build; live page check. No migration.
+
 ## UI-AIS-16 — "Select Campaign Type" on Launch, with CSV Broadcast (2026-09-24)
 
 Owner feedback (screenshot of the reference): Launch should first ask for the campaign type.

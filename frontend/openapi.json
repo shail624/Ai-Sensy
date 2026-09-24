@@ -7974,6 +7974,37 @@
         }
       }
     },
+    "/api/v1/campaigns/messaging-quota": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Quality, tier and estimated remaining 24h quota per sending number",
+        "description": "Remaining quota is an estimate from this platform's own sends (Meta does not report it).",
+        "operationId": "messaging_quota_api_v1_campaigns_messaging_quota_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NumberQuotaResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Messaging Quota Api V1 Campaigns Messaging Quota Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/campaigns/{campaign_id}": {
       "get": {
         "tags": [
@@ -29098,6 +29129,77 @@
           "page"
         ],
         "title": "NotificationsPage"
+      },
+      "NumberQuotaResponse": {
+        "properties": {
+          "phone_number_id": {
+            "type": "string",
+            "title": "Phone Number Id"
+          },
+          "display_number": {
+            "type": "string",
+            "title": "Display Number"
+          },
+          "quality_rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Rating"
+          },
+          "messaging_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messaging Tier"
+          },
+          "daily_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Limit"
+          },
+          "used_last_24h": {
+            "type": "integer",
+            "title": "Used Last 24H"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone_number_id",
+          "display_number",
+          "quality_rating",
+          "messaging_tier",
+          "daily_limit",
+          "used_last_24h",
+          "remaining"
+        ],
+        "title": "NumberQuotaResponse"
       },
       "OrganizationResponse": {
         "properties": {
