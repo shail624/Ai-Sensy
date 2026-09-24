@@ -571,7 +571,7 @@ export function ChatHistory(): JSX.Element {
                       <EmptyState
                         compact
                         title="No messages in this thread"
-                        description="Conversation metadata is persisted, but the message ledger has no visible entries."
+                        description="This chat has no messages to show."
                       />
                     ) : (
                       <ul aria-label="Message history" className="space-y-2">

@@ -106,7 +106,7 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
             {pinned ? <PinOff aria-hidden className="h-4 w-4" /> : <Pin aria-hidden className="h-4 w-4" />}
             {pinned ? "Unpin" : "Pin"}
           </button>
-          <button type="button" disabled title="Conversation merge requires an additive audited domain contract" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-surface text-sm text-text-disabled disabled:cursor-not-allowed">
+          <button type="button" disabled title="Merging chats is not available yet" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-surface text-sm text-text-disabled disabled:cursor-not-allowed">
             <Merge aria-hidden className="h-4 w-4" /> Merge
           </button>
         </div>

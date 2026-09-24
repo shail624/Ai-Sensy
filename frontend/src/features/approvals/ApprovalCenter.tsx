@@ -42,7 +42,7 @@ export function ApprovalCenter(): JSX.Element {
     return (
       <EmptyState
         title="No approvals to show"
-        description="You need KYC or activation read permission to see what is waiting."
+        description="Your role cannot see KYC or activations. Ask your admin."
       />
     );
   }
@@ -52,7 +52,7 @@ export function ApprovalCenter(): JSX.Element {
       <CardHeader
         className="border-b border-border px-4 py-4 sm:px-5"
         title="Waiting on you"
-        description="KYC verifications and activation records that need a decision. Each is approved by the module that owns it — nothing here grants new authority."
+        description="KYC checks and activations waiting for your OK."
       />
 
       <div className="p-4 sm:px-5">
@@ -66,7 +66,7 @@ export function ApprovalCenter(): JSX.Element {
         ) : items.length === 0 ? (
           <EmptyState
             title="Nothing waiting"
-            description="No KYC verification or activation record is asking for a decision right now."
+            description="Nothing needs your approval right now."
           />
         ) : (
           <ul className="space-y-2">

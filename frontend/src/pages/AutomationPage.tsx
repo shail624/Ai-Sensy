@@ -12,7 +12,7 @@ export function AutomationPage(): JSX.Element {
       <PageHeader
         eyebrow="Governed automation"
         title="Automation"
-        description="Build, validate and publish recoverable workflow definitions with immutable version history. Execution stays off until the governed runtime is delivered."
+        description="Create automatic flows. Every change is saved as a new version."
         meta={<><Badge tone="info" dot>Versioned authoring</Badge><span>Human approval remains mandatory</span></>}
       />
       <div className="mb-4 flex items-center gap-2 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning"><LockKeyhole aria-hidden className="h-4 w-4 shrink-0" />Customer-facing nodes can only become approval proposals; they never send directly.</div>

@@ -15,7 +15,6 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
-  eyebrow,
   actions,
   meta,
 }: PageHeaderProps): JSX.Element {
@@ -23,11 +22,8 @@ export function PageHeader({
     <header data-slot="page-header" className="mb-5 border-b border-border pb-5 sm:mb-6 sm:pb-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          {eyebrow ? (
-            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">
-              {eyebrow}
-            </p>
-          ) : null}
+          {/* `eyebrow` is accepted for compatibility but no longer shown: the reference screens use a
+              plain title, and the category labels read as jargon to the people using them. */}
           <h1 className="text-[26px] font-bold leading-8 tracking-[-0.025em] text-text-primary sm:text-[30px] sm:leading-9">
             {title}
           </h1>

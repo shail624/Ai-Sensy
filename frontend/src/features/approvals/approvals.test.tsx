@@ -140,11 +140,11 @@ describe("what is waiting on me", () => {
   it("tells an empty queue apart from no access", () => {
     state.items = [];
     withProviders(<ApprovalCenter />);
-    expect(screen.getByText(/asking for a decision right now/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing needs your approval right now/i)).toBeInTheDocument();
 
     state.permissions = [];
     withProviders(<ApprovalCenter />);
-    expect(screen.getByText(/need KYC or activation read permission/i)).toBeInTheDocument();
+    expect(screen.getByText(/Your role cannot see KYC or activations/i)).toBeInTheDocument();
   });
 });
 

@@ -9,7 +9,7 @@ export function TasksPage(): JSX.Element {
       <PageHeader
         eyebrow="Personal productivity"
         title="Tasks"
-        description="Your follow-up queue — no lead left without a next action."
+        description="Your follow-ups, so no customer is forgotten."
       />
       <TaskList />
     </PageContainer>

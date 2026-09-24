@@ -9,7 +9,7 @@ export function SegmentsPage(): JSX.Element {
       <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Segments" }]} />
       <PageHeader
         title="Segments"
-        description="Saved filters over your contacts. Campaigns resolve them live at dispatch."
+        description="Saved groups of contacts. A campaign uses the latest members when it sends."
       />
       <div className="mb-5">
         <AiFoundationPanel compact capabilities={["audience"]} context="existing contact attributes and reusable segment rules" />

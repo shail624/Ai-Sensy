@@ -6,17 +6,16 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  RefreshCw,
   Search,
   Sun,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { ApiStatus } from "@/components/layout/ApiStatus";
 import { visibleCreateActions } from "@/components/layout/navigation";
 import { Modal } from "@/components/ui";
 import { useAccountSummary } from "@/features/channels/api";
-import { API_STATUS_LABELS, type ApiStatus } from "@/features/channels/accountSummary";
 import { CommandPalette } from "@/features/global-search";
 import { NotificationCenter, useUnreadCount } from "@/features/notifications";
 import { useQueues } from "@/features/operations/api";
@@ -39,12 +38,6 @@ interface TopNavProps {
   /** Full-height workspaces (Live Chat) drop the bar on desktop, as the reference does. */
   immersive?: boolean;
 }
-
-const API_STATUS_TONES: Record<ApiStatus, string> = {
-  live: "text-[#008000] dark:text-success",
-  pending: "text-warning",
-  not_connected: "text-danger",
-};
 
 const iconBtn =
   "flex h-[30px] w-[30px] items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-hover hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
@@ -156,25 +149,7 @@ export function TopNav({ collapsed, mobileNavOpen, onOpenMobileNav, onToggleColl
           {account.summary?.businessName ?? "Vi Reactivation"}
         </p>
 
-        {canWaba && account.summary ? (
-          <p className="hidden items-center text-sm text-[#4a4a4a] dark:text-text-secondary xl:flex">
-            WhatsApp Business API Status :
-            <span className={`px-2 ${API_STATUS_TONES[account.summary.status]}`}>
-              {API_STATUS_LABELS[account.summary.status]}
-            </span>
-          </p>
-        ) : null}
-        {canWaba ? (
-          <button
-            type="button"
-            aria-label="Refresh account status"
-            title="Refresh"
-            onClick={() => void account.refetch()}
-            className={iconBtn}
-          >
-            <RefreshCw aria-hidden className={`h-[18px] w-[18px] ${account.isFetching ? "animate-spin [animation-duration:2s]" : ""}`} />
-          </button>
-        ) : null}
+        <ApiStatus />
 
         <button
           type="button"

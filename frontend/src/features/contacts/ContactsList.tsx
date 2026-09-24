@@ -123,7 +123,7 @@ export function ContactsList(): JSX.Element {
         <PageHeader
           eyebrow="Customer data"
           title="Contacts"
-          description="Search, segment, and act on a complete customer record from one workspace."
+          description="All your customers in one place."
           meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
           actions={<div className="flex flex-wrap gap-2">
             {canCreate ? <Button variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => { setCreated(false); setCreating(true); }}>Add Contact</Button> : null}

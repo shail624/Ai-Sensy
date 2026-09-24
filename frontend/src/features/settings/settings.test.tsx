@@ -1912,6 +1912,17 @@ describe("UserAttributesPanel", () => {
     expect(screen.getByText(/contacts write permission/)).toBeInTheDocument();
   });
 
+  it("retires an attribute straight from its status switch", async () => {
+    responses["/api/v1/custom-attributes"] = [attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" })];
+    responses["/api/v1/custom-attributes/{attribute_id}"] = attributeDefinitionFixture({ id: "a1", is_active: false });
+    withProviders(<UserAttributesPanel />);
+
+    fireEvent.click(await screen.findByRole("switch", { name: "Plan active" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]?.body).toEqual({ is_active: false });
+  });
+
   it("names each row action after its own attribute", async () => {
     responses["/api/v1/custom-attributes"] = [
       attributeDefinitionFixture({ id: "a1", key_name: "plan", label: "Plan" }),
@@ -1924,7 +1935,7 @@ describe("UserAttributesPanel", () => {
     expect(screen.getByRole("button", { name: "Delete Plan" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit LTV" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete LTV" })).toBeInTheDocument();
-    expect(screen.getAllByText("Edit")).toHaveLength(2);
+    expect(screen.getAllByTitle("Edit attribute")).toHaveLength(2);
   });
 
   it("offers a retry when the list fails to load", async () => {

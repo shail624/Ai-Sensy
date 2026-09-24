@@ -107,7 +107,7 @@ export function ConversationList({
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className="text-[10px] text-[#808080]">{relativeTime(conversation.last_message_at)}</span>
                 {signal ? (
-                  <span title="Response indicator derived from unread wait time; not a server policy" className={`inline-flex items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold ${signal.className}`}>
+                  <span title="How long this customer has been waiting for a reply" className={`inline-flex items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold ${signal.className}`}>
                     <Clock3 aria-hidden className="h-3 w-3" /> {signal.label}
                   </span>
                 ) : null}

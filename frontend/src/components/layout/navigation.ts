@@ -189,7 +189,7 @@ export function manageNavGroups(
         glyph: "L", icon: Inbox, group: "Manage", permission: "settings:read",
         description: "Routing, working hours, automatic replies and resolution." },
     ] : []),
-    ...setting("user-attributes"),
+    ...setting("user-attributes").map((item) => ({ ...item, path: "/user-attributes" })),
     ...setting("canned-messages"),
     ...(hasPermission(team.permission) ? [{
       ...team, label: "Team", available: true, glyph: "T", icon: Users, group: "Manage",

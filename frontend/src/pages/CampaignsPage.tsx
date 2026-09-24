@@ -9,7 +9,7 @@ export function CampaignsPage(): JSX.Element {
       <PageHeader
         eyebrow="Engagement orchestration"
         title="Campaigns"
-        description="Build, duplicate as a reusable campaign pattern, schedule, approve, and measure governed engagement."
+        description="Create, schedule and track your WhatsApp campaigns."
       />
       <CampaignList />
     </PageContainer>

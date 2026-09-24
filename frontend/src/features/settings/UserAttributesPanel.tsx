@@ -1,4 +1,4 @@
-import { ListPlus, Plus, Search } from "lucide-react";
+import { ListPlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -8,10 +8,8 @@ import {
   EmptyState,
   ErrorState,
   Field,
-  FilterBar,
   Input,
   Modal,
-  Section,
   Select,
   Spinner,
 } from "@/components/ui";
@@ -35,7 +33,12 @@ import {
   validateAttributeKeyName,
   validateAttributeLabel,
 } from "@/features/settings/types";
+import { MANAGE_CARD, MANAGE_FIELD, MANAGE_OUTLINE, Toggle } from "@/features/settings/managePrimitives";
 import { formatDateTime } from "@/lib/format";
+
+/** The reference row action: a 30px round icon button in the brand teal. */
+const ROW_ICON =
+  "flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--color-nav-bg)] transition-colors duration-150 hover:bg-[#ebf5f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-accent";
 
 interface EditorState {
   /** The definition being amended, or `null` when creating a new one. */
@@ -180,170 +183,138 @@ export function UserAttributesPanel(): JSX.Element {
   }
 
   const newAttributeButton = canManage ? (
-    <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => openEditor(emptyEditor())}>
-      Add attribute
-    </Button>
+    <button type="button" onClick={() => openEditor(emptyEditor())} className={`${MANAGE_OUTLINE} !h-[37px] px-4 text-sm`}>
+      <Plus aria-hidden className="h-4 w-4" /> Add attribute
+    </button>
   ) : null;
 
   return (
-    <Section
-      title="User Attributes"
-      description="Typed contact fields available to profiles, campaign audiences and segments."
-    >
-      <p className="mb-3 text-sm text-text-secondary">
-        {all.length === 0
-          ? "No user attributes exist yet."
-          : `${all.length} attribute${all.length === 1 ? "" : "s"}`}
-      </p>
-
-      {all.length > 0 ? (
-        <div className="mb-3">
-          <FilterBar label="User attribute search and filters" contentClassName="w-full">
-            <Input
-              id="user-attributes-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search key name or label…"
-              aria-label="Search user attributes"
-              leadingIcon={<Search aria-hidden className="h-4 w-4" />}
-              containerClassName="min-w-0 flex-1 sm:min-w-[220px]"
-            />
-            <Select
-              aria-label="Filter by type"
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value as AttributeTypeFilter)}
-              className="min-w-[10rem] !w-auto"
-            >
-              <option value="all">All types</option>
-              {ATTRIBUTE_DATA_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {ATTRIBUTE_DATA_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </Select>
-            {newAttributeButton}
-          </FilterBar>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex h-[42px] w-full max-w-[454px] items-center gap-2 rounded-[8px] bg-surface px-[15px] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <Search aria-hidden className="h-4 w-4 shrink-0 text-black/40" />
+          <input
+            id="user-attributes-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by attributes name"
+            aria-label="Search user attributes"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary"
+          />
         </div>
-      ) : null}
+        <select
+          aria-label="Filter by type"
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value as AttributeTypeFilter)}
+          className={`${MANAGE_FIELD} h-10 w-[141px] pr-7`}
+        >
+          <option value="all">All</option>
+          {ATTRIBUTE_DATA_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {ATTRIBUTE_DATA_TYPE_LABELS[type]}
+            </option>
+          ))}
+        </select>
+        {newAttributeButton}
+        <p className="ml-auto text-sm text-[#6e6e6e] dark:text-text-secondary">
+          {all.length === 0 ? "No user attributes exist yet." : `${all.length} attribute${all.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
 
       {all.length === 0 ? (
-        <EmptyState
-          icon={<ListPlus aria-hidden className="h-6 w-6" />}
-          title="No user attributes yet"
-          description={
-            canManage
-              ? "Define the first typed field so it can be set on contacts and used in segments."
-              : "Nobody has defined a user attribute yet. You need the contacts write permission to add one."
-          }
-          action={newAttributeButton}
-        />
+        <div className={`${MANAGE_CARD} py-6`}>
+          <EmptyState
+            icon={<ListPlus aria-hidden className="h-6 w-6" />}
+            title="No user attributes yet"
+            description={
+              canManage
+                ? "Define the first typed field so it can be set on contacts and used in segments."
+                : "Nobody has defined a user attribute yet. You need the contacts write permission to add one."
+            }
+          />
+        </div>
       ) : matching.length === 0 ? (
-        <EmptyState
-          title="No user attributes match"
-          description="No attribute matches this search and filter."
-          action={
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSearch("");
-                setTypeFilter("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          }
-        />
+        <div className={`${MANAGE_CARD} py-6`}>
+          <EmptyState
+            title="No user attributes match"
+            description="No attribute matches this search and filter."
+            action={
+              <button type="button" className={MANAGE_OUTLINE} onClick={() => { setSearch(""); setTypeFilter("all"); }}>
+                Clear filters
+              </button>
+            }
+          />
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
+        <div className="overflow-x-auto rounded-[8px] bg-surface">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
-              <tr>
-                <th scope="col" className="px-3 py-2">Attribute key</th>
-                <th scope="col" className="px-3 py-2">Display label</th>
-                <th scope="col" className="px-3 py-2">Type</th>
-                <th scope="col" className="hidden px-3 py-2 md:table-cell">Indexed</th>
-                <th scope="col" className="hidden px-3 py-2 md:table-cell">PII</th>
-                <th scope="col" className="hidden px-3 py-2 md:table-cell">State</th>
-                <th scope="col" className="hidden px-3 py-2 lg:table-cell">Updated At</th>
-                {canManage ? (
-                  <th scope="col" className="px-3 py-2 text-right">Actions</th>
-                ) : null}
+            <thead className="border-b border-[#f0f0f0] text-sm text-[var(--color-nav-bg)] dark:border-border dark:text-accent">
+              <tr className="h-[55px]">
+                <th scope="col" className="pl-8 pr-3 font-normal">Name*</th>
+                <th scope="col" className="px-3 font-normal">Key</th>
+                <th scope="col" className="px-3 font-normal">Type</th>
+                <th scope="col" className="hidden px-3 font-normal lg:table-cell">Updated</th>
+                <th scope="col" className="px-3 font-normal">Status</th>
+                {canManage ? <th scope="col" className="pl-3 pr-8 text-right font-normal">Action</th> : null}
               </tr>
             </thead>
             <tbody>
               {matching.map((definition) => (
-                <tr key={definition.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 align-top font-mono text-xs text-text-primary">
-                    {definition.key_name}
-                  </td>
-                  <td className="px-3 py-2 align-top text-text-primary">{definition.label}</td>
-                  <td className="px-3 py-2 align-top">
-                    <Badge tone="neutral">
-                      {ATTRIBUTE_DATA_TYPE_LABELS[definition.data_type as AttributeDataType] ??
-                        definition.data_type}
-                    </Badge>
-                  </td>
-                  <td className="hidden px-3 py-2 align-top md:table-cell">
-                    {definition.is_indexed ? (
-                      <Badge tone="accent" title="Mirrored for fast contact-list and campaign rendering.">
-                        Indexed
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-text-disabled">—</span>
-                    )}
-                  </td>
-                  <td className="hidden px-3 py-2 align-top md:table-cell">
-                    {definition.is_pii ? (
-                      <Badge tone="warning" title="Flagged as personally identifiable information.">
-                        PII
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-text-disabled">—</span>
-                    )}
-                  </td>
-                  <td className="hidden px-3 py-2 align-top md:table-cell">
-                    <span className="flex flex-wrap gap-1">
+                <tr key={definition.id} className="border-b border-[#f0f0f0] last:border-0 dark:border-border">
+                  <td className="py-4 pl-8 pr-3 align-middle">
+                    <span className="inline-flex min-h-[42px] min-w-[200px] items-center rounded-[8px] bg-[#f0f0f0] px-[15px] text-sm text-[#4a4a4a] dark:bg-surface-2 dark:text-text-primary">
+                      {definition.label}
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap gap-1">
+                      {definition.is_indexed ? (
+                        <Badge tone="accent" title="Mirrored for fast contact-list and campaign rendering.">Indexed</Badge>
+                      ) : null}
+                      {definition.is_pii ? (
+                        <Badge tone="warning" title="Flagged as personally identifiable information.">PII</Badge>
+                      ) : null}
                       {definition.is_required ? (
-                        <Badge tone="info" title="Once set, this value cannot be cleared.">
-                          Required
-                        </Badge>
+                        <Badge tone="info" title="Once set, this value cannot be cleared.">Required</Badge>
                       ) : null}
                       {!definition.is_active ? (
-                        <Badge
-                          tone="neutral"
-                          title="Takes no new values. What was recorded stays readable."
-                        >
-                          Retired
-                        </Badge>
+                        <Badge tone="neutral" title="Takes no new values. What was recorded stays readable.">Retired</Badge>
                       ) : null}
-                      {definition.is_required || !definition.is_active ? null : (
-                        <span className="text-xs text-text-disabled">—</span>
-                      )}
                     </span>
                   </td>
-                  <td className="hidden px-3 py-2 align-top text-xs text-text-secondary lg:table-cell">
-                    {formatDateTime(definition.updated_at)}
+                  <td className="px-3 align-middle font-mono text-xs text-[#4a4a4a] dark:text-text-secondary">{definition.key_name}</td>
+                  <td className="px-3 align-middle text-[#4a4a4a] dark:text-text-secondary">
+                    {ATTRIBUTE_DATA_TYPE_LABELS[definition.data_type as AttributeDataType] ?? definition.data_type}
+                  </td>
+                  <td className="hidden px-3 align-middle text-xs text-[#6e6e6e] lg:table-cell">{formatDateTime(definition.updated_at)}</td>
+                  <td className="px-3 align-middle">
+                    <Toggle
+                      checked={definition.is_active}
+                      disabled={!canManage || update.isPending}
+                      label={`${definition.label} active`}
+                      onChange={(isActive) => update.mutate({ id: definition.id, body: { is_active: isActive } })}
+                    />
                   </td>
                   {canManage ? (
-                    <td className="px-3 py-2 align-top">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Button
-                          variant="secondary"
-                          size="sm"
+                    <td className="pl-3 pr-8 align-middle">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
                           aria-label={`Edit ${definition.label}`}
+                          title="Edit attribute"
                           onClick={() => openEditor(editorFor(definition))}
+                          className={ROW_ICON}
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
+                          <Pencil aria-hidden className="h-[18px] w-[18px]" />
+                        </button>
+                        <button
+                          type="button"
                           aria-label={`Delete ${definition.label}`}
+                          title="Delete attribute"
                           onClick={() => openDeleteConfirm(definition)}
+                          className={`${ROW_ICON} hover:!bg-danger-soft hover:!text-danger`}
                         >
-                          Delete
-                        </Button>
+                          <Trash2 aria-hidden className="h-[18px] w-[18px]" />
+                        </button>
                       </div>
                     </td>
                   ) : null}
@@ -354,8 +325,10 @@ export function UserAttributesPanel(): JSX.Element {
         </div>
       )}
 
+      {update.error && !editor ? <ErrorState message={apiErrorMessage(update.error)} /> : null}
+
       {!canManage ? (
-        <p className="mt-3 text-xs text-text-disabled">
+        <p className="text-xs text-text-disabled">
           Read-only — changing user attributes needs the contacts write permission.
         </p>
       ) : null}
@@ -574,6 +547,6 @@ export function UserAttributesPanel(): JSX.Element {
           </div>
         </Modal>
       ) : null}
-    </Section>
+    </div>
   );
 }

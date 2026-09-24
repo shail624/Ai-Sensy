@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { ApiStatus } from "./ApiStatus";
+
 interface ManagePageHeaderProps {
   title: string;
   /** Right-aligned primary action(s), e.g. "Create Template". */
@@ -13,7 +15,8 @@ interface ManagePageHeaderProps {
 export function ManagePageHeader({ title, actions }: ManagePageHeaderProps): JSX.Element {
   return (
     <header data-slot="page-header" className="sticky top-0 z-20 flex h-[60px] shrink-0 items-center justify-between gap-3 bg-surface pl-6 pr-[30px] shadow-card">
-      <h1 className="truncate text-xl font-normal leading-[23px] text-black dark:text-text-primary">{title}</h1>
+      <h1 className="mr-auto truncate text-xl font-normal leading-[23px] text-black dark:text-text-primary">{title}</h1>
+      <ApiStatus className="hidden md:flex" />
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </header>
   );

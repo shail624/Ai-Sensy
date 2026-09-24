@@ -1,5 +1,28 @@
 # Changelog
 
+## UI-AIS-04 — User Attributes page, plain-language copy, API status on every screen (2026-09-24)
+
+Owner feedback: the app is not user friendly compared with AiSensy — too many technical words — and
+the WhatsApp Business API status had disappeared from some screens.
+
+- Manage → User Attributes on its own page (`/user-attributes`, `contacts:read`) in the reference
+  layout: search pill, type filter, Add attribute, and a table with a per-row Status switch (activate
+  / retire straight from the list) and round edit/delete icons. All typed-attribute capabilities
+  (type, choices, required, PII, indexed) are kept.
+- Plain language: rewrote the Dashboard's operations copy (~36 strings), eleven page descriptions,
+  approval, chat-history and Live Chat hints, and the Scan page badges, replacing phrases such as
+  "governed", "authorized tenant", "derived", "SLA" and "authority" with short everyday wording.
+  `PageHeader` no longer shows the category eyebrow labels ("Engagement orchestration" etc.).
+  Claims were checked against behaviour before rewording (e.g. dashboard numbers do not all
+  auto-refresh, so the copy says to press Refresh).
+- API status restored everywhere: one shared `ApiStatus` (status + refresh) now sits in the app
+  header, every Manage page header and the Live Chat top bar, and shows on narrow screens too
+  (compact "API :" form). It had gone missing when those screens dropped the app header, and it
+  only showed above 1280px.
+- PASS: frontend 67 files / 1,051 tests, TypeScript, ESLint, production build. Backend unchanged
+  since UI-AIS-03 (1,792 passed).
+- No module percentage change.
+
 ## UI-AIS-03 — Manage → Live Chat Settings matched to the AiSensy reference, plus typing indicators and timezone (2026-09-24)
 
 Third Manage page of the reference match. The reference page was only viewed.

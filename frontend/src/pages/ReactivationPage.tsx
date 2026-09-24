@@ -58,7 +58,7 @@ export function ReactivationPage(): JSX.Element {
             <Badge tone="success" dot>
               Connected
             </Badge>
-            <span>Real tenant-scoped records · permission-aware actions · immutable evidence</span>
+            <span>Your customers, their documents and every step, in one place</span>
           </>
         }
       />

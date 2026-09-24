@@ -8,7 +8,7 @@ export function PipelinesPage(): JSX.Element {
       <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Pipelines" }]} />
       <PageHeader
         title="Lead pipelines"
-        description="The ordered stages a lead moves through. Configuration only — leads are moved from the Inbox."
+        description="The steps a lead goes through. You move leads between steps from Live Chat."
       />
       <PipelineList />
     </PageContainer>

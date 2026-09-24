@@ -8,7 +8,7 @@ export function DownloadsPage(): JSX.Element {
       <PageHeader
         eyebrow="Generated files"
         title="Download Center"
-        description="Track contact exports, analytics reports and chat transcripts, then download them securely when ready."
+        description="Your exported files. Download them here when they are ready."
       />
       <DownloadCenter />
     </PageContainer>

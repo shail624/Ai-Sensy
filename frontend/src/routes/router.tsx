@@ -35,6 +35,7 @@ const AdminPage = lazyNamed(() => import("@/pages/AdminPage"), "AdminPage");
 const AnalyticsPage = lazyNamed(() => import("@/pages/AnalyticsPage"), "AnalyticsPage");
 const AutomationPage = lazyNamed(() => import("@/pages/AutomationPage"), "AutomationPage");
 const BroadcastsPage = lazyNamed(() => import("@/pages/BroadcastsPage"), "BroadcastsPage");
+const UserAttributesPage = lazyNamed(() => import("@/pages/UserAttributesPage"), "UserAttributesPage");
 const LiveChatSettingsPage = lazyNamed(() => import("@/pages/LiveChatSettingsPage"), "LiveChatSettingsPage");
 const OptInPage = lazyNamed(() => import("@/pages/OptInPage"), "OptInPage");
 const CampaignCreatePage = lazyNamed(() => import("@/pages/CampaignCreatePage"), "CampaignCreatePage");
@@ -379,6 +380,11 @@ export const router = createBrowserRouter([
             path: "live-chat-settings",
             element: <RequirePermission code="settings:read" />,
             children: [{ index: true, element: lazyElement(LiveChatSettingsPage) }],
+          },
+          {
+            path: "user-attributes",
+            element: <RequirePermission code="contacts:read" />,
+            children: [{ index: true, element: lazyElement(UserAttributesPage) }],
           },
           {
             // Each section carries the permission its own endpoints enforce. Preferences is on

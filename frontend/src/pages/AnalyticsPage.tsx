@@ -9,7 +9,7 @@ export function AnalyticsPage(): JSX.Element {
       <PageHeader
         eyebrow="Performance intelligence"
         title="Analytics"
-        description="Delivery, campaigns, conversations and follow-up — from the rollups."
+        description="How your messages, campaigns and chats are doing."
       />
       <AnalyticsDashboard />
     </PageContainer>

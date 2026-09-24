@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useRef } from "react";
 
+import { ApiStatus } from "@/components/layout/ApiStatus";
 import type { Conversation } from "@/features/inbox/types";
 
 function label(conversation: Conversation): string {
@@ -78,6 +79,7 @@ export function ChatQuickSwitcher({ conversations, selectedId, onSelect, listCol
           <ChevronRight aria-hidden className="h-6 w-6" />
         </button>
       ) : null}
+      <ApiStatus className="ml-auto pr-3" />
     </div>
   );
 }
