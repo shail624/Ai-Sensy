@@ -1,5 +1,10 @@
 # Changelog
 
+## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
+
+- Active conversation list, chat details and messages now refresh every 2 seconds instead of 10 seconds. Other inbox consumers and counts retain their prior polling interval; no realtime transport or backend contract changed.
+- Locally built and tested; a real Meta API inbound message appeared in the inbox. Provider delivery time is outside this refresh interval.
+
 ## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
 
 Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.

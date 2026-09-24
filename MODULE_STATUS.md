@@ -1,5 +1,9 @@
 # Module Status
 
+## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
+
+Inbox: active Live Chat list and thread refresh every 2 seconds; other polling remains at 10 seconds. No module completion percentage change and no claim of instant provider delivery.
+
 ## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
 
 Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.

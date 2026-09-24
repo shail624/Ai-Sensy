@@ -1,5 +1,9 @@
 # Implementation Tracker (canonical)
 
+## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
+
+Complete locally: the active Live Chat list, conversation and messages poll every 2 seconds. Background consumers and counts remain at 10 seconds. No API, schema, migration or module-percentage change. Frontend build, type-check and inbox tests passed.
+
 ## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
 
 Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.

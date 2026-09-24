@@ -43,11 +43,11 @@ export const inboxKeys = {
 };
 
 /**
- * How often the inbox re-reads itself. The platform ships no realtime transport (the conversations
- * endpoint documents that explicitly), so freshness is polling: cheap, cursor-stable, and honest
- * about its latency. Swapping this for a socket later touches only this constant and the hooks.
+ * The platform ships no realtime transport. Poll the active Live Chat every two seconds, while
+ * background surfaces and category counts retain their existing ten-second refresh.
  */
 export const POLL_INTERVAL_MS = 10_000;
+export const LIVE_INBOX_POLL_INTERVAL_MS = 2_000;
 
 function utcDayBoundary(value: string | undefined, through: boolean): string | null {
   if (!value) return null;
@@ -111,15 +111,14 @@ export function useConversations(
         }),
       ),
     placeholderData: keepPreviousData,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: LIVE_INBOX_POLL_INTERVAL_MS,
     enabled,
   });
 }
 
 /**
- * `refetchInterval` defaults to the live 10s poll every existing caller (Live Chat's thread view,
- * Customer 360's conversation section) relies on; a read-only consumer with no live-triage need
- * (Chat History) can pass `false` to read once per selection instead, without a second hook.
+ * `refetchInterval` defaults to the existing ten-second poll for non-inbox callers. Live Chat
+ * passes its shorter interval explicitly; Chat History passes `false` to read once per selection.
  */
 export function useConversation(
   conversationId: string | null,

@@ -1,5 +1,13 @@
 # Validation Results
 
+## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
+
+- PASS: frontend production build and TypeScript type-check.
+- PASS: frontend inbox tests, 10 files / 76 tests; `git diff --check`.
+- PASS: local frontend image rebuilt; browser showed the 2-second indicator and requests roughly 2 seconds apart.
+- PASS: real Meta API inbound message processed and visible in the inbox. Provider webhook arrival took roughly 5.5 seconds in that trial; frontend polling cannot eliminate that external delay.
+- Not run: full backend suite (frontend-only change); full frontend suite (targeted inbox suite used). No migration or OpenAPI change.
+
 ## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
 
 Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.

@@ -132,10 +132,10 @@ export function ConversationFilters({
           <p className="text-[11px] text-text-secondary">One shared team inbox</p>
         </div>
         <span
-          title="Conversation list refreshes every 10 seconds"
+          title="Conversation list refreshes every 2 seconds"
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success-soft px-2 py-1 text-[11px] font-semibold text-success-on-soft"
         >
-          <Radio aria-hidden className="h-3 w-3" /> Auto-refresh · 10s
+          <Radio aria-hidden className="h-3 w-3" /> Auto-refresh · 2s
         </span>
       </div>
 

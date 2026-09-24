@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import {
   apiErrorMessage,
+  LIVE_INBOX_POLL_INTERVAL_MS,
   useConversation,
   useMarkRead,
   useMessages,
@@ -36,8 +37,8 @@ interface Props {
 /** The active chat keeps daily reply controls visible and moves secondary context one click away. */
 export function ConversationThread({ conversationId, onBack, tags, pinned = false, onTogglePinned = () => undefined }: Props): JSX.Element {
   const { user } = useAuth();
-  const conversation = useConversation(conversationId);
-  const messages = useMessages(conversationId);
+  const conversation = useConversation(conversationId, LIVE_INBOX_POLL_INTERVAL_MS);
+  const messages = useMessages(conversationId, 50, LIVE_INBOX_POLL_INTERVAL_MS);
   const markRead = useMarkRead(conversationId);
   const operations = useInboxOperations();
   const reaction = useSendReaction(conversationId);

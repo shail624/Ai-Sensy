@@ -16,6 +16,7 @@ vi.mock("@/features/settings/api", () => ({
 }));
 
 vi.mock("@/features/inbox/api", () => ({
+  LIVE_INBOX_POLL_INTERVAL_MS: 2_000,
   useUpdateSaleDetails: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   apiErrorMessage: () => "error",
   useConversation: () => ({

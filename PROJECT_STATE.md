@@ -1,5 +1,9 @@
 # Project State
 
+## UI-AIS-09 — Faster Live Chat refresh (2026-09-24)
+
+Active Live Chat refreshes every 2 seconds. This reduces UI delay after the provider delivers a webhook; it does not guarantee instant provider delivery. Local deployment and a real inbound Meta API message were checked. No backend or migration change.
+
 ## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
 
 Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.
