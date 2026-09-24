@@ -1,4 +1,4 @@
-import { ArrowLeft, MailCheck, MessageCircle, PanelRightOpen, QrCode, ShieldCheck } from "lucide-react";
+import { ArrowLeft, MailCheck, MessageCircle, PanelRightOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
@@ -14,10 +14,12 @@ import { collateReactions } from "@/features/inbox/messageContent";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import { MessageComposer } from "@/features/inbox/MessageComposer";
 import { InboxContextPanel } from "@/features/inbox/InboxContextPanel";
+import { ChannelBadge } from "@/features/inbox/ChannelBadge";
 import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
+import { SaleControls } from "@/features/inbox/SaleControls";
 import { InterventionActions } from "@/features/inbox/InterventionActions";
 import type { TagSummary } from "@/features/inbox/types";
-import { connectorLabel, isWahaConversation } from "@/features/inbox/types";
+import { isWahaConversation } from "@/features/inbox/types";
 import { useInboxOperations } from "@/features/settings/api";
 import { useAuth, useHasPermission } from "@/lib/auth";
 import { useMediaQuery } from "@/lib/useMediaQuery";
@@ -79,10 +81,7 @@ export function ConversationThread({ conversationId, onBack, tags, pinned = fals
           {contactName}
           {thread.contact?.phone && thread.contact.phone !== contactName ? ` (${thread.contact.phone})` : ""}
         </h2>
-        <span title={connectorLabel(thread)} className="inline-flex shrink-0 items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px]">
-          {isWahaConversation(thread) ? <QrCode aria-hidden className="mr-1 h-3 w-3" /> : <ShieldCheck aria-hidden className="mr-1 h-3 w-3" />}
-          {connectorLabel(thread)}
-        </span>
+        <ChannelBadge conversation={thread} onDark />
         <button
           type="button"
           aria-expanded={contextOpen}
@@ -120,6 +119,8 @@ export function ConversationThread({ conversationId, onBack, tags, pinned = fals
         ) : null}
         <InterventionActions conversation={thread} currentUserId={user?.id} />
       </div>
+
+      <SaleControls conversation={thread} />
 
       <div className="relative flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">

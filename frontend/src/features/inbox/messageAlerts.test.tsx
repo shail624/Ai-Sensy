@@ -51,3 +51,14 @@ describe("AlertToggle", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("newReminders", () => {
+  it("rings only for reminders that appeared since the last poll", async () => {
+    const { newReminders } = await import("./messageAlerts");
+    const a = { id: "a", type: "follow_up_due", title: "Reminder: A", body: "call" };
+    const b = { id: "b", type: "release_date_due", title: "Release date today: B", body: "" };
+    const other = { id: "c", type: "report_ready", title: "Report", body: "" };
+    expect(newReminders(null, [a])).toEqual([]);
+    expect(newReminders(new Set(["a"]), [a, b, other])).toEqual([b]);
+  });
+});

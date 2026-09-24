@@ -1,9 +1,11 @@
-import { Check, Clock3, Pin, PinOff, QrCode, ShieldCheck } from "lucide-react";
+import { Check, Clock3, Pin, PinOff } from "lucide-react";
 
 import { TagChip } from "@/components/ui";
+import { ChannelBadge } from "@/features/inbox/ChannelBadge";
 import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
+import { saleStatusOption } from "@/features/inbox/saleStatus";
 import type { Conversation, ConversationStatus } from "@/features/inbox/types";
-import { connectorLabel, isWahaConversation, STATUS_LABELS } from "@/features/inbox/types";
+import { STATUS_LABELS } from "@/features/inbox/types";
 
 function relativeTime(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -89,15 +91,19 @@ export function ConversationList({
                   {conversation.contact?.name && conversation.contact.phone && conversation.contact.name !== conversation.contact.phone ? (
                     <span className="shrink-0 text-[13px] text-[#6e6e6e] dark:text-text-secondary">{conversation.contact.phone}</span>
                   ) : null}
-                  <span title={connectorLabel(conversation)} className={`inline-flex shrink-0 ${isWahaConversation(conversation) ? "text-accent" : "text-[#808080]"}`}>
-                    {isWahaConversation(conversation) ? <QrCode aria-hidden className="h-3 w-3" /> : <ShieldCheck aria-hidden className="h-3 w-3" />}
-                    <span className="sr-only">{connectorLabel(conversation)}</span>
-                  </span>
+                  <ChannelBadge conversation={conversation} />
                   <span className="sr-only">{status}</span>
                   {conversation.tags.slice(0, 1).map((tag) => <TagChip key={tag.id} name={tag.name} color={tag.color} />)}
                 </span>
-                <span className="mt-px block truncate text-xs font-semibold text-[#808080] dark:text-text-secondary">
-                  {conversation.last_message_preview ?? "No messages yet"}
+                <span className="mt-px flex min-w-0 items-center gap-1.5">
+                  {saleStatusOption(conversation.contact?.sale_status) ? (
+                    <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-semibold ${saleStatusOption(conversation.contact?.sale_status)!.pill}`}>
+                      {saleStatusOption(conversation.contact?.sale_status)!.label}
+                    </span>
+                  ) : null}
+                  <span className="truncate text-xs font-semibold text-[#808080] dark:text-text-secondary">
+                    {conversation.last_message_preview ?? "No messages yet"}
+                  </span>
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">

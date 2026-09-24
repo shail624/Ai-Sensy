@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.channels.capabilities import CONNECTOR_META_CLOUD, CONNECTOR_WAHA
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.models.channel_connection import ChannelConnection, ChannelEndpoint
-from app.models.contact import Contact
+from app.models.contact import SALE_STATUSES, Contact
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.tag import Tag
@@ -128,6 +128,7 @@ class InboxQueryService:
         has_audit: bool = False,
         q: str | None,
         channel: str | None = None,
+        sale_status: str | None = None,
     ) -> ConversationListResult:
         """The inbox list, filtered and searched as Doc 04 §18.1 defines, newest activity first."""
         assignee_id, unassigned, assignee_impossible = await self._resolve_assignee(
@@ -139,6 +140,8 @@ class InboxQueryService:
         campaign_id, campaign_impossible = await self._resolve_campaign(organization_id, campaign)
         endpoint_ids: list[int] | None = None
         exclude_endpoint_ids: list[int] | None = None
+        if sale_status and sale_status != "none" and sale_status not in SALE_STATUSES:
+            raise BadRequestError("Unknown sale status filter.")
         if channel:
             if channel not in _CHANNEL_FILTERS:
                 raise BadRequestError("The channel filter must be 'official' or 'qr'.")
@@ -177,6 +180,7 @@ class InboxQueryService:
             q=q,
             endpoint_ids=endpoint_ids,
             exclude_endpoint_ids=exclude_endpoint_ids,
+            sale_status=sale_status or None,
             limit=limit,
             cursor=cursor,
         )

@@ -16,6 +16,7 @@ vi.mock("@/features/settings/api", () => ({
 }));
 
 vi.mock("@/features/inbox/api", () => ({
+  useUpdateSaleDetails: () => ({ mutate: vi.fn(), isPending: false, error: null }),
   apiErrorMessage: () => "error",
   useConversation: () => ({
     data: {

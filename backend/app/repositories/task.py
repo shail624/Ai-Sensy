@@ -24,6 +24,7 @@ from app.models.task import (
     TASK_PRIORITY_MEDIUM,
     TASK_STATUS_COMPLETED,
     TASK_STATUS_OPEN,
+    TASK_TYPE_REMINDER,
     Task,
 )
 from app.models.task_event import TaskEvent
@@ -260,7 +261,15 @@ class TaskRepository(BaseRepository[Task]):
         stmt = (
             select(Task)
             .where(
-                Task.reference_type == "reactivation_case",
+                or_(
+                    Task.reference_type == "reactivation_case",
+                    # Reminders set from Live Chat (UI-AIS-06): a chat reminder or a release date.
+                    and_(
+                        Task.reference_type.is_(None),
+                        Task.task_type == TASK_TYPE_REMINDER,
+                        Task.conversation_id.is_not(None),
+                    ),
+                ),
                 Task.status == TASK_STATUS_OPEN,
                 Task.due_at <= now,
                 Task.due_notified_at.is_(None),

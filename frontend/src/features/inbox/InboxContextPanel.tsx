@@ -7,6 +7,7 @@ import { AiFoundationPanel } from "@/features/ai";
 import { ConversationTags } from "@/features/inbox/ConversationControls";
 import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { NotesPanel } from "@/features/inbox/NotesPanel";
+import { formatDay, saleStatusOption } from "@/features/inbox/saleStatus";
 import type { Conversation, TagSummary } from "@/features/inbox/types";
 import { connectorLabel, STATUS_LABELS, type ConversationStatus } from "@/features/inbox/types";
 
@@ -61,6 +62,8 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
     ["Assigned To", conversation.assigned_to ?? "Unassigned"],
     ["WA Conversation", conversation.window.is_open ? "Active" : "Inactive"],
     ["Channel", connectorLabel(conversation)],
+    ["Sale Status", saleStatusOption(contact?.sale_status)?.label ?? "Not marked"],
+    ["Release Date", contact?.release_date ? formatDay(contact.release_date) : "—"],
   ];
 
   return (
@@ -93,7 +96,7 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
         <Section title="Tags" defaultOpen>
           <ConversationTags conversation={conversation} tags={tags} />
         </Section>
-        <Section title="Notes">
+        <Section title="Notes" defaultOpen>
           <NotesPanel conversationId={conversation.id} />
         </Section>
         <Section title="AI Assist">

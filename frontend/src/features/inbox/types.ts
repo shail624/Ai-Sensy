@@ -56,6 +56,8 @@ export interface InboxFilters {
   hasAudit?: boolean;
   /** Which WhatsApp the chat came through: the official API or the QR-scanned phone. */
   channel?: InboxChannel;
+  /** A sale status value, or "none" for customers nobody has marked yet. */
+  sale?: string;
 }
 
 export type InboxChannel = "official" | "qr";

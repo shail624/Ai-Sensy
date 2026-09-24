@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { useNewMessageAlerts } from "@/features/inbox/messageAlerts";
+import { useNewMessageAlerts, useReminderAlerts } from "@/features/inbox/messageAlerts";
 import { useAuth } from "@/lib/auth";
 import { useWorkspacePreferences } from "@/lib/workspace";
 
@@ -46,6 +46,7 @@ export function AppLayout(): JSX.Element {
   const [mobileOpen, setMobileOpen] = useState(false);
   // Sound/desktop alerts for new customer messages, wherever the agent is in the app.
   useNewMessageAlerts(hasPermission("inbox:read"));
+  useReminderAlerts(true);
   const mobileDialogRef = useRef<HTMLDivElement>(null);
   const mobileInvokerRef = useRef<HTMLElement | null>(null);
 

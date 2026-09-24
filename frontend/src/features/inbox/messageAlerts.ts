@@ -155,3 +155,65 @@ export function useNewMessageAlerts(enabled: boolean): void {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latest.data]);
 }
+
+const REMINDER_TYPES = new Set(["follow_up_due", "release_date_due"]);
+
+interface ReminderNotice {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  action_url?: string | null;
+}
+
+/** Reminders that were not in the previous poll. The first poll only records the baseline. */
+export function newReminders(previous: Set<string> | null, current: ReminderNotice[]): ReminderNotice[] {
+  if (previous === null) return [];
+  return current.filter((notice) => REMINDER_TYPES.has(notice.type) && !previous.has(notice.id));
+}
+
+/**
+ * Ring and (optionally) show a desktop notification when a reminder falls due — a chat reminder or
+ * a number release date. Uses the same sound / desktop choices as new-message alerts.
+ */
+export function useReminderAlerts(enabled: boolean): void {
+  const [prefs] = useAlertPrefs();
+  const navigate = useNavigate();
+  const seen = useRef<Set<string> | null>(null);
+  const active = enabled && (prefs.sound || prefs.desktop);
+
+  const unread = useQuery({
+    queryKey: ["reminder-alerts"],
+    queryFn: async (): Promise<ReminderNotice[]> =>
+      unwrap(await api.GET("/api/v1/notifications", { params: { query: { status: "unread", limit: 20 } } }))
+        .data,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    enabled: active,
+  });
+
+  useEffect(() => {
+    if (!active) seen.current = null;
+  }, [active]);
+
+  useEffect(() => {
+    const rows = unread.data;
+    if (!rows) return;
+    const fresh = newReminders(seen.current, rows);
+    seen.current = new Set([...(seen.current ?? []), ...rows.map((row) => row.id)]);
+    if (fresh.length === 0) return;
+    if (prefs.sound) playChime();
+    if (prefs.desktop && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      for (const row of fresh.slice(0, 3)) {
+        const notification = new Notification(row.title, { body: row.body, tag: `reminder-${row.id}` });
+        notification.onclick = () => {
+          window.focus();
+          navigate(row.action_url?.startsWith("/") ? row.action_url : "/tasks");
+          notification.close();
+        };
+      }
+    }
+    // Only a new poll result should ring.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unread.data]);
+}

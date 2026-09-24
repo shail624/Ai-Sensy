@@ -83,6 +83,8 @@ from app.services.contact_event_service import ContactEventService
 from app.services.notification_service import NotificationService
 
 _UTC = ZoneInfo("UTC")
+#: Title of the reminder task behind a customer's number release date (set from Live Chat).
+CHAT_RELEASE_TASK_TITLE = "Number release date"
 _VALID_SORTS = {SORT_DUE_AT, SORT_CREATED_AT, SORT_PRIORITY, SORT_COMPLETED_AT}
 _BUCKET_TODAY = "today"
 _BUCKET_OVERDUE = "overdue"
@@ -708,16 +710,33 @@ class TaskService:
                 },
             )
             is_follow_up = task.task_type == "reminder"
-            await NotificationService(self._session).emit(
-                organization_id=task.organization_id,
-                recipient_user_id=task.assigned_agent_id,
-                notification_type="follow_up_due" if is_follow_up else "release_date_due",
-                title="Follow-up is due" if is_follow_up else "Release date is due",
-                body=(
+            chat_reminder = task.reference_type is None
+            if chat_reminder:
+                # Set from Live Chat: say who to contact and what the agent wrote.
+                is_release = task.title == CHAT_RELEASE_TASK_TITLE
+                customer = await self._session.get(Contact, task.contact_id)
+                who = (
+                    (customer.full_name or customer.profile_name or customer.phone_e164)
+                    if customer is not None
+                    else "a customer"
+                )
+                notification_type = "release_date_due" if is_release else "follow_up_due"
+                title = f"Release date today: {who}" if is_release else f"Reminder: {who}"
+                body = task.description or task.title
+            else:
+                notification_type = "follow_up_due" if is_follow_up else "release_date_due"
+                title = "Follow-up is due" if is_follow_up else "Release date is due"
+                body = (
                     "A customer follow-up needs attention."
                     if is_follow_up
                     else "A name-change release action needs attention."
-                ),
+                )
+            await NotificationService(self._session).emit(
+                organization_id=task.organization_id,
+                recipient_user_id=task.assigned_agent_id,
+                notification_type=notification_type,
+                title=title[:160],
+                body=body,
                 dedup_key=(
                     f"task:{task.public_id}:due:v{task.row_version}:"
                     f"{task.assigned_agent_id}:{task.due_at.isoformat()}"

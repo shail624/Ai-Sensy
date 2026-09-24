@@ -1,5 +1,29 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-06 — Sale status, number release date, chat reminders, API/QR badge, easier notes (2026-09-24)
+
+Owner request: mark each customer's sale status from the chat, record the number release date and
+be reminded on it, set reminders for a specific date, filter chats by status, see clearly which chat
+is API or QR, and reach notes easily.
+
+- Migration `0072_contact_sale_status` (additive): `contacts.sale_status` (Follow-up, Sale reminder,
+  Sale in field, Sale confirmed, Sale done, Activated from other, Not interested; check constraint +
+  index), `contacts.release_date`, `contacts.release_task_id`. New head 0072. DB backed up first.
+- `PATCH /conversations/{id}/sale-details` (`inbox:write`, audited): only sent fields change. A
+  release date creates one high-priority reminder task at 10:00 IST, moves it when the date changes
+  and cancels it when cleared. Conversation contact now carries `sale_status` and `release_date`.
+- `GET /conversations?sale_status=<value|none>` filter (400 on unknown values).
+- Due notifications now also cover chat reminders (reminder tasks with a conversation and no case
+  reference), titled "Reminder: <customer>" / "Release date today: <customer>".
+- Live Chat: a row above each chat with a coloured status dropdown, Release date, Reminder (date,
+  time, note → task) and Notes buttons; status tabs under the API/QR filter; status pill on rows;
+  bold "API"/"QR" badges on rows and the chat header; profile shows status and release date.
+- Notes open by default in the profile, plain wording, yellow note cards, Ctrl+Enter to save.
+- Reminder alerts: the app chimes (and shows a desktop notice when allowed) when a reminder falls due.
+- PASS: backend 1,813 (full suite), ruff, mypy on changed files, OpenAPI `--check` (252 paths);
+  frontend 71 files / 1,072 tests, TypeScript, ESLint, build. Live check: status, release date and
+  its task created, moved and cancelled; test data reverted. No module percentage change.
+
 ## UI-AIS-05 — WhatsApp QR fixes, new chat, customer photo and name, message alerts, API/QR filter (2026-09-24)
 
 Owner testing of the QR-connected WhatsApp found missing configuration, dead-lettered echoes and

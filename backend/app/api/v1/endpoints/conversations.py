@@ -55,6 +55,8 @@ from app.schemas.inbox import (
     NoteCreateRequest,
     NoteResponse,
     NotesListResponse,
+    SaleDetailsRequest,
+    SaleDetailsResponse,
     TypingIndicatorResponse,
 )
 from app.schemas.message import MessageResponse
@@ -65,6 +67,7 @@ from app.services.export_service import ENTITY_CONVERSATION_TRANSCRIPT, ExportSe
 from app.services.inbox_query_service import InboxQueryService
 from app.services.inbox_service import InboxService
 from app.services.rbac_service import RBACService
+from app.services.sale_status_service import SaleStatusService
 
 router = APIRouter()
 
@@ -195,6 +198,10 @@ async def list_conversations(
     campaign: Annotated[str | None, Query()] = None,
     has_media: Annotated[bool, Query()] = False,
     has_audit: Annotated[bool, Query()] = False,
+    sale_status: Annotated[
+        str | None,
+        Query(description="Only chats whose customer has this sale status; 'none' = not marked."),
+    ] = None,
     channel: Annotated[
         str | None,
         Query(description="Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats."),
@@ -247,6 +254,7 @@ async def list_conversations(
         has_audit=has_audit,
         q=q,
         channel=channel,
+        sale_status=sale_status,
     )
     data = [
         ConversationResponse.from_conversation(
@@ -354,6 +362,35 @@ async def list_conversation_messages(
         next_cursor = encode_cursor(last.created_at, last.id)
     return ConversationMessagesPage(
         data=data, page=Page(limit=page_limit, has_more=page.has_more, next_cursor=next_cursor)
+    )
+
+
+@router.patch(
+    "/conversations/{conversation_id}/sale-details",
+    response_model=SaleDetailsResponse,
+    summary="Set the customer's sale status and number release date",
+)
+async def update_sale_details(
+    conversation_id: uuidlib.UUID,
+    payload: SaleDetailsRequest,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> SaleDetailsResponse:
+    """Only the fields sent change.
+
+    A release date creates (or moves) a reminder task for that day; clearing it cancels it.
+    """
+    changes = {name: getattr(payload, name) for name in payload.model_fields_set}
+    details = await SaleStatusService(session).update(
+        organization_id=actor.organization_id,
+        actor=actor,
+        conversation_public_id=conversation_id,
+        **changes,
+    )
+    return SaleDetailsResponse(
+        sale_status=details.sale_status,
+        release_date=details.release_date,
+        release_task_id=details.release_task_id,
     )
 
 

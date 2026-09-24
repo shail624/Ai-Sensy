@@ -11,7 +11,7 @@ milestone).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -30,6 +30,10 @@ class ContactRef(BaseModel):
     id: str
     name: str | None
     phone: str
+    #: Where the sale stands (``SALE_STATUSES``), or ``null`` when not marked yet.
+    sale_status: str | None = None
+    #: The customer's number release date, when one is recorded.
+    release_date: date | None = None
 
 
 class WindowState(BaseModel):
@@ -94,6 +98,8 @@ class ConversationResponse(BaseModel):
                     id=contact.public_id,
                     name=contact.full_name or contact.profile_name,
                     phone=contact.phone_e164,
+                    sale_status=contact.sale_status,
+                    release_date=contact.release_date,
                 )
                 if contact is not None
                 else None

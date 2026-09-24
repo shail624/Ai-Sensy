@@ -13,8 +13,15 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Field, Input, Modal, Select, TagChip } from "@/components/ui";
 import { useAssignableUsers, useConversationCounts } from "@/features/inbox/api";
 import type { SavedInboxView } from "@/features/inbox/preferences";
+import { SALE_STATUS_OPTIONS } from "@/features/inbox/saleStatus";
 import type { InboxChannel, InboxFilters, TagSummary } from "@/features/inbox/types";
 import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
+
+const SALE_FILTERS: { label: string; value: string; pill: string }[] = [
+  { label: "All status", value: "", pill: "bg-[#f0f0f0] text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+  ...SALE_STATUS_OPTIONS.map((option) => ({ label: option.label, value: option.value, pill: option.pill })),
+  { label: "Not marked", value: "none", pill: "bg-[#f0f0f0] text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+];
 
 const CHANNEL_CHOICES: { label: string; value: InboxChannel | undefined; description: string }[] = [
   { label: "All chats", value: undefined, description: "Chats from every WhatsApp number" },
@@ -109,7 +116,12 @@ export function ConversationFilters({
 
   function applyQuickInbox(next: InboxFilters): void {
     // Search and the WhatsApp choice survive a view switch; the view only swaps status/assignee.
-    onChange({ ...next, ...(filters.q ? { q: filters.q } : {}), ...(filters.channel ? { channel: filters.channel } : {}) });
+    onChange({
+      ...next,
+      ...(filters.q ? { q: filters.q } : {}),
+      ...(filters.channel ? { channel: filters.channel } : {}),
+      ...(filters.sale ? { sale: filters.sale } : {}),
+    });
   }
 
   return (
@@ -238,6 +250,25 @@ export function ConversationFilters({
                 active
                   ? "bg-[var(--color-nav-bg)] text-white"
                   : "bg-[#f0f0f0] text-[#4a4a4a] hover:bg-[#e4e4e4] dark:bg-surface-2 dark:text-text-secondary"
+              }`}
+            >
+              {choice.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div role="group" aria-label="Sale status" className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-[#fdfffc] px-3 pb-2 dark:bg-surface">
+        {SALE_FILTERS.map((choice) => {
+          const active = (filters.sale ?? "") === choice.value;
+          return (
+            <button
+              key={choice.label}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange({ ...filters, sale: choice.value || undefined })}
+              className={`h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                active ? "bg-[var(--color-nav-bg)] text-white" : `${choice.pill} hover:opacity-80`
               }`}
             >
               {choice.label}

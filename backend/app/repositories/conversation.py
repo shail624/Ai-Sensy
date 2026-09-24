@@ -140,6 +140,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         q: str | None = None,
         endpoint_ids: list[int] | None = None,
         exclude_endpoint_ids: list[int] | None = None,
+        sale_status: str | None = None,
         limit: int,
         cursor: tuple[datetime, int] | None = None,
     ) -> tuple[list[Conversation], bool]:
@@ -222,9 +223,14 @@ class ConversationRepository(BaseRepository[Conversation]):
                 conversation_tags, conversation_tags.c.conversation_id == Conversation.id
             )
             clauses.append(conversation_tags.c.tag_id == tag_id)
-        if q:
+        if q or sale_status:
             stmt = stmt.join(Contact, Contact.id == Conversation.contact_id)
+        if q:
             clauses.append(self._customer_match(q))
+        if sale_status == "none":
+            clauses.append(Contact.sale_status.is_(None))
+        elif sale_status:
+            clauses.append(Contact.sale_status == sale_status)
         if cursor is not None:
             c_ts, c_id = cursor
             clauses.append(or_(sort_key < c_ts, and_(sort_key == c_ts, Conversation.id < c_id)))

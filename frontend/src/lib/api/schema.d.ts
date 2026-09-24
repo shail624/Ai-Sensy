@@ -2825,6 +2825,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/sale-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set the customer's sale status and number release date
+         * @description Only the fields sent change.
+         *
+         *     A release date creates (or moves) a reminder task for that day; clearing it cancels it.
+         */
+        patch: operations["update_sale_details_api_v1_conversations__conversation_id__sale_details_patch"];
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/assign": {
         parameters: {
             query?: never;
@@ -6414,6 +6436,10 @@ export interface components {
             name: string | null;
             /** Phone */
             phone: string;
+            /** Sale Status */
+            sale_status?: string | null;
+            /** Release Date */
+            release_date?: string | null;
         };
         /** ContactResponse */
         ContactResponse: {
@@ -9709,6 +9735,27 @@ export interface components {
             name?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * SaleDetailsRequest
+         * @description Change the customer's sale status and/or number release date.
+         *
+         *     Only the fields sent change; ``null`` clears one.
+         */
+        SaleDetailsRequest: {
+            /** Sale Status */
+            sale_status?: ("follow_up" | "sale_reminder" | "sale_in_field" | "sale_confirmed" | "sale_done" | "activated_elsewhere" | "not_interested") | null;
+            /** Release Date */
+            release_date?: string | null;
+        };
+        /** SaleDetailsResponse */
+        SaleDetailsResponse: {
+            /** Sale Status */
+            sale_status: ("follow_up" | "sale_reminder" | "sale_in_field" | "sale_confirmed" | "sale_done" | "activated_elsewhere" | "not_interested") | null;
+            /** Release Date */
+            release_date: string | null;
+            /** Release Task Id */
+            release_task_id: string | null;
         };
         /**
          * ScheduleEntry
@@ -17103,6 +17150,8 @@ export interface operations {
                 campaign?: string | null;
                 has_media?: boolean;
                 has_audit?: boolean;
+                /** @description Only chats whose customer has this sale status; 'none' = not marked. */
+                sale_status?: string | null;
                 /** @description Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats. */
                 channel?: string | null;
                 "filter[status][eq]"?: string | null;
@@ -17219,6 +17268,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationMessagesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_sale_details_api_v1_conversations__conversation_id__sale_details_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaleDetailsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaleDetailsResponse"];
                 };
             };
             /** @description Validation Error */

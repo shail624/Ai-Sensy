@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import { createIdempotencyKey } from "@/lib/idempotency";
+import type { SaleStatus } from "@/features/inbox/saleStatus";
 import type {
   Conversation,
   ConversationCategoryCounts,
@@ -71,6 +72,7 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
     has_media: Boolean(filters.hasMedia),
     has_audit: Boolean(filters.hasAudit),
     channel: filters.channel || null,
+    sale_status: filters.sale || null,
     cursor: cursor || null,
     limit,
   };
@@ -474,4 +476,19 @@ export function useConversationPhoto(conversationId: string, enabled: boolean): 
     return () => URL.revokeObjectURL(objectUrl);
   }, [photo.data]);
   return url;
+}
+
+/** Set the customer's sale status and/or number release date; only the fields given change. */
+export function useUpdateSaleDetails(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { sale_status?: SaleStatus | null; release_date?: string | null }) =>
+      unwrap(
+        await api.PATCH("/api/v1/conversations/{conversation_id}/sale-details", {
+          params: { path: { conversation_id: conversationId } },
+          body,
+        }),
+      ),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
 }

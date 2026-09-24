@@ -9111,6 +9111,24 @@
             }
           },
           {
+            "name": "sale_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only chats whose customer has this sale status; 'none' = not marked.",
+              "title": "Sale Status"
+            },
+            "description": "Only chats whose customer has this sale status; 'none' = not marked."
+          },
+          {
             "name": "channel",
             "in": "query",
             "required": false,
@@ -9389,6 +9407,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConversationMessagesPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/sale-details": {
+      "patch": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Set the customer's sale status and number release date",
+        "description": "Only the fields sent change.\n\nA release date creates (or moves) a reminder task for that day; clearing it cancels it.",
+        "operationId": "update_sale_details_api_v1_conversations__conversation_id__sale_details_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaleDetailsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleDetailsResponse"
                 }
               }
             }
@@ -22745,6 +22822,29 @@
           "phone": {
             "type": "string",
             "title": "Phone"
+          },
+          "sale_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale Status"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
           }
         },
         "type": "object",
@@ -31836,6 +31936,99 @@
         },
         "type": "object",
         "title": "RoleUpdateRequest"
+      },
+      "SaleDetailsRequest": {
+        "properties": {
+          "sale_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "follow_up",
+                  "sale_reminder",
+                  "sale_in_field",
+                  "sale_confirmed",
+                  "sale_done",
+                  "activated_elsewhere",
+                  "not_interested"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale Status"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          }
+        },
+        "type": "object",
+        "title": "SaleDetailsRequest",
+        "description": "Change the customer's sale status and/or number release date.\n\nOnly the fields sent change; ``null`` clears one."
+      },
+      "SaleDetailsResponse": {
+        "properties": {
+          "sale_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "follow_up",
+                  "sale_reminder",
+                  "sale_in_field",
+                  "sale_confirmed",
+                  "sale_done",
+                  "activated_elsewhere",
+                  "not_interested"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale Status"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "release_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Task Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sale_status",
+          "release_date",
+          "release_task_id"
+        ],
+        "title": "SaleDetailsResponse"
       },
       "ScheduleEntry": {
         "properties": {

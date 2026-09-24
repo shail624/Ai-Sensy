@@ -35,6 +35,7 @@ function readFilters(params: URLSearchParams): InboxFilters {
     tag: params.get("tag") ?? undefined,
     q: params.get("q") ?? undefined,
     channel: readChannel(params.get("channel")),
+    sale: params.get("sale") ?? undefined,
   };
 }
 
@@ -49,6 +50,7 @@ function writeParams(filters: InboxFilters, conversationId: string | null): URLS
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.q) params.set("q", filters.q);
   if (filters.channel) params.set("channel", filters.channel);
+  if (filters.sale) params.set("sale", filters.sale);
   if (conversationId) params.set("conversation", conversationId);
   return params;
 }

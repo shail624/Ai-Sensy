@@ -109,6 +109,7 @@ describe("toListQuery", () => {
       has_media: false,
       has_audit: false,
       channel: null,
+      sale_status: null,
       cursor: null,
       limit: 25,
     });
@@ -130,6 +131,7 @@ describe("toListQuery", () => {
           hasMedia: true,
           hasAudit: true,
           channel: "qr",
+          sale: "sale_done",
         },
         "cur1",
         50,
@@ -148,6 +150,7 @@ describe("toListQuery", () => {
       has_media: true,
       has_audit: true,
       channel: "qr",
+      sale_status: "sale_done",
       cursor: "cur1",
       limit: 50,
     });

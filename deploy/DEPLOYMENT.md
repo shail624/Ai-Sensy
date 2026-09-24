@@ -91,7 +91,7 @@ older schema.
 docker compose -f docker-compose.production.yml --env-file .env.production up migrate
 ```
 
-Expect `alembic upgrade head` to finish at **`0071_tag_first_message_rules`** and the
+Expect `alembic upgrade head` to finish at **`0072_contact_sale_status`** and the
 container to exit 0. Re-running is a no-op. Confirm the head against the repository rather
 than against this line — `ls backend/alembic/versions | tail -1` is the authority, and a
 release that adds a migration moves it.
