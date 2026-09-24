@@ -1,5 +1,23 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-16 — "Select Campaign Type" on Launch, with CSV Broadcast (2026-09-24)
+
+Owner feedback (screenshot of the reference): Launch should first ask for the campaign type.
+
+- Launch now opens "Select Campaign Type" (reference layout): **Broadcast Campaign** → the
+  campaign wizard; **API Campaign** → the Developer page (API key, send endpoint); **CSV
+  Broadcast** (NEW) → upload a CSV; **Meta Ads** shown as SOON and disabled (not built — no fake
+  flow).
+- CSV Broadcast: the file is read in the browser (phone column found by header or by content,
+  optional "name" column, header row detected), up to 5,000 numbers. New
+  `POST /contacts/resolve-numbers` (`contacts:write`, audited) finds or creates one contact per
+  number (10 digits = +91, duplicates collapsed, unreadable rows reported, existing names never
+  overwritten, new contacts `source=csv_broadcast`) and returns their ids; the wizard then opens
+  with a "Selected contacts" audience, so templates, opt-out protection, approval and scheduling
+  all apply as for any campaign. 255 OpenAPI paths.
+- PASS: backend 1,833 (full suite), ruff, OpenAPI `--check`; frontend 1,091 tests (CSV parser,
+  dialog), TypeScript, ESLint, build; live check of the dialog. No migration.
+
 ## UI-AIS-15 — Campaign launch wizard matched to AiSensy (2026-09-24)
 
 Owner request: make the campaign creation page like AiSensy's.

@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from pydantic import BaseModel, Field
 from starlette.datastructures import QueryParams
 
 from app.api.deps import SessionDep, require_permissions
@@ -67,6 +68,8 @@ from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
 from app.services.contact_view_service import ContactViewService
+from app.services.csv_audience_service import MAX_ROWS as MAX_CSV_ROWS
+from app.services.csv_audience_service import CsvAudienceService
 from app.services.export_service import ExportService
 from app.services.google_sheet_import_service import GoogleSheetImportService
 from app.services.import_service import ImportService
@@ -688,3 +691,44 @@ async def bulk_progress(
     service = BulkService(session)
     job = await service.get(actor.organization_id, bulk_id)
     return BulkProgressResponse.from_job(job, await service.error_report_url(job))
+
+
+class CsvAudienceRow(BaseModel):
+    phone: str = Field(min_length=1, max_length=40)
+    name: str | None = Field(default=None, max_length=160)
+
+
+class CsvAudienceRequest(BaseModel):
+    rows: list[CsvAudienceRow] = Field(min_length=1, max_length=MAX_CSV_ROWS)
+
+
+class CsvAudienceResponse(BaseModel):
+    contact_ids: list[str]
+    created: int
+    existing: int
+    invalid_rows: list[int]
+
+
+@router.post(
+    "/contacts/resolve-numbers",
+    response_model=CsvAudienceResponse,
+    summary="Turn uploaded numbers into contacts for a CSV broadcast",
+)
+async def resolve_numbers(
+    payload: CsvAudienceRequest, session: SessionDep, actor: ContactsWriteActor
+) -> CsvAudienceResponse:
+    """Find or create a contact for each number (10 digits = India); returns their ids in order.
+
+    The broadcast itself is then an ordinary campaign with a "Selected contacts" audience.
+    """
+    result = await CsvAudienceService(session).resolve(
+        organization_id=actor.organization_id,
+        actor=actor,
+        rows=[(row.phone, row.name) for row in payload.rows],
+    )
+    return CsvAudienceResponse(
+        contact_ids=result.contact_ids,
+        created=result.created,
+        existing=result.existing,
+        invalid_rows=result.invalid_rows,
+    )

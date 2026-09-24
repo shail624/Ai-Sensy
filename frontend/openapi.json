@@ -2930,6 +2930,53 @@
         }
       }
     },
+    "/api/v1/contacts/resolve-numbers": {
+      "post": {
+        "tags": [
+          "Contacts"
+        ],
+        "summary": "Turn uploaded numbers into contacts for a CSV broadcast",
+        "description": "Find or create a contact for each number (10 digits = India); returns their ids in order.\n\nThe broadcast itself is then an ordinary campaign with a \"Selected contacts\" audience.",
+        "operationId": "resolve_numbers_api_v1_contacts_resolve_numbers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvAudienceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvAudienceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/identity-resolution/resolve": {
       "post": {
         "tags": [
@@ -24225,6 +24272,85 @@
         ],
         "title": "ConversationsPage",
         "description": "A page of the inbox list (Doc 04 §3 envelope)."
+      },
+      "CsvAudienceRequest": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CsvAudienceRow"
+            },
+            "type": "array",
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows"
+        ],
+        "title": "CsvAudienceRequest"
+      },
+      "CsvAudienceResponse": {
+        "properties": {
+          "contact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contact Ids"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "existing": {
+            "type": "integer",
+            "title": "Existing"
+          },
+          "invalid_rows": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Invalid Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact_ids",
+          "created",
+          "existing",
+          "invalid_rows"
+        ],
+        "title": "CsvAudienceResponse"
+      },
+      "CsvAudienceRow": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Phone"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "CsvAudienceRow"
       },
       "DeduplicateRequest": {
         "properties": {

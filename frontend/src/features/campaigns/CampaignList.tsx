@@ -1,11 +1,12 @@
 import { Rocket } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { MANAGE_PRIMARY_ACTION } from "@/components/layout";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { apiErrorMessage, useCampaigns, useHasPermission } from "@/features/campaigns/api";
 import { CampaignFilters } from "@/features/campaigns/CampaignFilters";
+import { CampaignTypeDialog } from "@/features/campaigns/CampaignTypeDialog";
 import { CampaignSavedViews } from "@/features/campaigns/CampaignSavedViews";
 import { CampaignTable } from "@/features/campaigns/CampaignTable";
 import { formatCount } from "@/features/campaigns/format";
@@ -61,6 +62,7 @@ export function CampaignList(): JSX.Element {
   const query = useMemo(() => readQuery(searchParams), [searchParams]);
   const canWrite = useHasPermission("campaigns:write");
   const canExport = useHasPermission("campaigns:export");
+  const [choosing, setChoosing] = useState(false);
 
   const campaigns = useCampaigns(true, { q: query.q || undefined, status: query.status || undefined });
   const page = useMemo(
@@ -90,6 +92,7 @@ export function CampaignList(): JSX.Element {
 
   return (
     <>
+      {choosing ? <CampaignTypeDialog onClose={() => setChoosing(false)} /> : null}
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div role="tablist" aria-label="Campaign categories" className="flex flex-wrap items-center gap-1.5 pb-2">
@@ -129,9 +132,9 @@ export function CampaignList(): JSX.Element {
               </Link>
             ) : null}
             {canWrite ? (
-              <Link to="/campaigns/new" aria-label="Launch campaign" className={MANAGE_PRIMARY_ACTION}>
+              <button type="button" aria-label="Launch campaign" onClick={() => setChoosing(true)} className={MANAGE_PRIMARY_ACTION}>
                 <Rocket aria-hidden className="mr-1.5 h-4 w-4" /> Launch
-              </Link>
+              </button>
             ) : null}
           </div>
         </div>

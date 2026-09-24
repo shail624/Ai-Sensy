@@ -29,10 +29,11 @@ describe("campaign server filters", () => {
       "href",
       "/downloads?category=campaigns",
     );
-    expect(screen.getByRole("link", { name: "Launch campaign" })).toHaveAttribute(
-      "href",
-      "/campaigns/new",
-    );
+    // Launch now asks for the campaign type first, as the reference does.
+    fireEvent.click(screen.getByRole("button", { name: "Launch campaign" }));
+    expect(screen.getByRole("heading", { name: "Select Campaign Type" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Meta Ads: next" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
 
     fireEvent.click(screen.getByRole("tab", { name: "Scheduled" }));
     await waitFor(() =>

@@ -941,6 +941,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contacts/resolve-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn uploaded numbers into contacts for a CSV broadcast
+         * @description Find or create a contact for each number (10 digits = India); returns their ids in order.
+         *
+         *     The broadcast itself is then an ordinary campaign with a "Selected contacts" audience.
+         */
+        post: operations["resolve_numbers_api_v1_contacts_resolve_numbers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/identity-resolution/resolve": {
         parameters: {
             query?: never;
@@ -6931,6 +6953,29 @@ export interface components {
             /** Data */
             data: components["schemas"]["ConversationResponse"][];
             page: components["schemas"]["Page"];
+        };
+        /** CsvAudienceRequest */
+        CsvAudienceRequest: {
+            /** Rows */
+            rows: components["schemas"]["CsvAudienceRow"][];
+        };
+        /** CsvAudienceResponse */
+        CsvAudienceResponse: {
+            /** Contact Ids */
+            contact_ids: string[];
+            /** Created */
+            created: number;
+            /** Existing */
+            existing: number;
+            /** Invalid Rows */
+            invalid_rows: number[];
+        };
+        /** CsvAudienceRow */
+        CsvAudienceRow: {
+            /** Phone */
+            phone: string;
+            /** Name */
+            name?: string | null;
         };
         /**
          * DeduplicateRequest
@@ -13571,6 +13616,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkProgressResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_numbers_api_v1_contacts_resolve_numbers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CsvAudienceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvAudienceResponse"];
                 };
             };
             /** @description Validation Error */
