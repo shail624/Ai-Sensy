@@ -1,5 +1,26 @@
 # Project State
 
+## UI-AIS-08 — Photos, videos, audio and documents shown inside Live Chat (2026-09-24)
+
+Owner request: attachments showed only as a file name; show them inside the chat like WhatsApp.
+
+- `GET /messages/{id}/media` (`inbox:read`, tenant-scoped through the message): streams the stored
+  file with its MIME type, `Cache-Control: private`, `nosniff`; 404 while an inbound file is still
+  being fetched. 253 OpenAPI paths.
+- QR inbound media: the WAHA webhook now turns `hasMedia` + `media.url` into a media message
+  (kind from MIME; only the `/api/files/` path is kept, never the reported host). The existing
+  media lane downloads it through the WAHA adapter (`MEDIA_DOWNLOAD` declared,
+  `download_attachment` bounded to 100 MB and to WAHA's file store) and links the asset.
+  MIME parameters (e.g. `audio/ogg; codecs=opus`) are stripped before validation.
+- Chat bubbles: photos inline (tap to enlarge, download), stickers without a bubble, videos and
+  voice notes with players, documents as a card with a download button, locations with an
+  "Open in Google Maps" link. Photos/videos sit in a thin 3px frame (owner feedback: the thick
+  border looked bad). Files load once and are cached; inbound files are retried for a minute.
+- Live check: the owner's sent Excel file shows as a download card; photos sent and received on a
+  QR chat show inline.
+- PASS: backend 1,826 (full suite), ruff, OpenAPI `--check`; frontend 73 files / 1,082 tests,
+  TypeScript, ESLint, build. No migration. No module percentage change.
+
 ## UI-AIS-07 — Attachments, emoji and location in Live Chat (API and QR) (2026-09-24)
 
 Owner request: both chats had no way to send attachments; add what WhatsApp Web offers —

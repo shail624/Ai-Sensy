@@ -9,16 +9,9 @@ import {
   readText,
   type ReactionContent,
 } from "@/features/inbox/messageContent";
+import { MessageMedia } from "@/features/inbox/MessageMedia";
 import type { Message } from "@/features/inbox/types";
 import { REACTION_EMOJI } from "@/features/inbox/types";
-
-const MEDIA_GLYPH: Record<string, string> = {
-  image: "🖼",
-  video: "🎬",
-  audio: "🎧",
-  document: "📄",
-  sticker: "🏷",
-};
 
 /** Outbound delivery state, shown as a compact receipt (Doc 07 ledger states). */
 function receipt(message: Message): string {
@@ -33,27 +26,23 @@ function receipt(message: Message): string {
 function MessageBody({ message }: { message: Message }): JSX.Element {
   const media = readMedia(message);
   if (media) {
-    const glyph = MEDIA_GLYPH[media.kind] ?? "📎";
-    return (
-      <div>
-        <p className="flex items-center gap-1.5 font-medium">
-          <span aria-hidden>{glyph}</span>
-          <span>{media.filename ?? media.kind}</span>
-        </p>
-        {media.mimeType ? (
-          <p className="mt-0.5 text-xs opacity-75">{media.mimeType}</p>
-        ) : null}
-        {media.link ? (
-          <a
-            href={media.link}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-0.5 inline-block text-xs underline-offset-2 hover:underline"
-          >
-            Open attachment
+    // A link-only attachment (e.g. a URL sent through the API) has no stored file to show.
+    if (media.link) {
+      return (
+        <div>
+          <a href={media.link} target="_blank" rel="noreferrer noopener" className="font-medium underline-offset-2 hover:underline">
+            📎 {media.filename ?? "Open attachment"}
           </a>
+          {media.caption ? <p className="mt-1 whitespace-pre-wrap">{media.caption}</p> : null}
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-1">
+        <MessageMedia messageId={message.id} media={media} />
+        {media.caption ? (
+          <p className={`whitespace-pre-wrap ${media.kind === "image" || media.kind === "video" ? "px-2 pb-1" : ""}`}>{media.caption}</p>
         ) : null}
-        {media.caption ? <p className="mt-1 whitespace-pre-wrap">{media.caption}</p> : null}
       </div>
     );
   }
@@ -75,16 +64,24 @@ function MessageBody({ message }: { message: Message }): JSX.Element {
 
   const location = readLocation(message);
   if (location) {
+    const hasPin = location.latitude !== undefined && location.longitude !== undefined;
     return (
-      <p className="flex items-center gap-1.5">
-        <span aria-hidden>📍</span>
-        <span>
-          {location.name ??
-            (location.latitude !== undefined
-              ? `${location.latitude}, ${location.longitude}`
-              : "Location")}
-        </span>
-      </p>
+      <div>
+        <p className="flex items-center gap-1.5 font-medium">
+          <span aria-hidden>📍</span>
+          <span>{location.name ?? (hasPin ? `${location.latitude}, ${location.longitude}` : "Location")}</span>
+        </p>
+        {hasPin ? (
+          <a
+            href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-0.5 inline-block text-xs underline underline-offset-2"
+          >
+            Open in Google Maps
+          </a>
+        ) : null}
+      </div>
     );
   }
 
@@ -130,6 +127,11 @@ export function MessageBubble({ message, onReact, canReact, reactions = [], cust
   const [pickerOpen, setPickerOpen] = useState(false);
   const outbound = message.direction === "outbound";
   const template = Boolean(readTemplate(message));
+  // Photos and videos sit edge to edge in a thin frame, as on WhatsApp; stickers have no bubble.
+  const media = readMedia(message);
+  const pictureKind = media && !media.link ? media.kind : null;
+  const sticker = pictureKind === "sticker";
+  const picture = pictureKind === "image" || pictureKind === "video";
 
   return (
     <li className={`group flex items-start gap-2 ${outbound ? "flex-row-reverse" : ""}`}>
@@ -147,8 +149,12 @@ export function MessageBubble({ message, onReact, canReact, reactions = [], cust
       )}
       <div className={`flex max-w-[400px] flex-col ${outbound ? "items-end" : "items-start"}`}>
         <div
-          className={`rounded-[22px] px-4 py-2 text-sm leading-[19px] ${
-            outbound
+          className={`text-sm leading-[19px] ${
+            sticker ? "" : picture ? "overflow-hidden rounded-[14px] p-[3px]" : "rounded-[22px] px-4 py-2"
+          } ${
+            sticker
+              ? ""
+              : outbound
               ? template
                 ? "bg-[#fbf9f3] text-[#0a474c] dark:bg-surface dark:text-text-primary"
                 : "bg-white text-[#484848] dark:bg-surface dark:text-text-primary"

@@ -71,6 +71,7 @@ from __future__ import annotations
 import hmac
 from hashlib import sha256, sha512
 from typing import Any, Final
+from urllib.parse import urlsplit
 
 from app.channels.models import InboundEvent, InboundEventType, InboundMessage
 
@@ -172,6 +173,54 @@ def _text_content(payload: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(body, str) or not body:
         return None
     return {"body": body}
+
+
+#: Where WAHA serves the files it downloaded. Only this path is ever fetched (never the host part
+#: of the URL WAHA reports, which names WAHA's own view of itself, e.g. ``localhost:3000``).
+WAHA_FILES_PREFIX = "/api/files/"
+
+
+def media_kind(mime_type: str) -> str:
+    """The platform's media kind for a MIME type."""
+    mime = mime_type.split(";")[0].strip().lower()
+    if mime == "image/webp":
+        return "sticker"
+    for prefix, kind in (("image/", "image"), ("video/", "video"), ("audio/", "audio")):
+        if mime.startswith(prefix):
+            return kind
+    return "document"
+
+
+def _media_content(payload: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    """A downloaded attachment → ``(kind, {"media": …})``; ``None`` when there is no usable file.
+
+    WAHA downloads the file itself and reports where it serves it; the path is kept as the
+    message's channel media reference so the media lane can fetch and store it.
+    """
+    if not payload.get("hasMedia"):
+        return None
+    raw = payload.get("media")
+    media: dict[str, Any] = raw if isinstance(raw, dict) else {}
+    url = media.get("url")
+    if not isinstance(url, str) or not url:
+        return None
+    path = urlsplit(url).path
+    if not path.startswith(WAHA_FILES_PREFIX) or ".." in path:
+        return None
+    raw_mime = media.get("mimetype")
+    mime_type = raw_mime if isinstance(raw_mime, str) and raw_mime else "application/octet-stream"
+    kind = media_kind(mime_type)
+    filename = media.get("filename")
+    caption = payload.get("body")
+    return kind, {
+        "media": {
+            "kind": kind,
+            "channel_media_id": path,
+            "mime_type": mime_type,
+            "filename": filename if isinstance(filename, str) and filename else None,
+            "caption": caption if isinstance(caption, str) and caption else None,
+        }
+    }
 
 
 def parse_events(delivery: dict[str, Any]) -> list[InboundEvent]:
@@ -278,8 +327,11 @@ def to_inbound_message(delivery: dict[str, Any]) -> InboundMessage:
     )
     profile_name = push_name if isinstance(push_name, str) and push_name.strip() else None
 
+    media = _media_content(payload_obj)
     content = _text_content(payload_obj)
-    if content is None:
+    if media is not None:
+        message_type, content = media
+    elif content is None:
         message_type = "unsupported"
         content = {"provider_has_media": bool(payload_obj.get("hasMedia"))}
     else:

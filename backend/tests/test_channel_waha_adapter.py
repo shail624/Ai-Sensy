@@ -95,6 +95,7 @@ def test_declares_only_implemented_capabilities() -> None:
             Capability.TEXT,
             Capability.MEDIA,
             Capability.LOCATION,
+            Capability.MEDIA_DOWNLOAD,
             Capability.SESSION_RECONNECT,
             Capability.SESSION_LOGOUT,
         }
@@ -106,7 +107,6 @@ def test_declares_only_implemented_capabilities() -> None:
     [
         Capability.HISTORY_SYNC,
         Capability.MEDIA_UPLOAD,
-        Capability.MEDIA_DOWNLOAD,
         Capability.INTERACTIVE,
         Capability.REACTION,
         Capability.CONTACT,
@@ -528,9 +528,12 @@ def test_adapter_declares_no_official_webhook_handshake() -> None:
     assert Capability.OFFICIAL_WEBHOOKS not in WahaChannelAdapter.capabilities
 
 
-async def test_adapter_cannot_transfer_media() -> None:
+async def test_adapter_has_no_separate_media_upload() -> None:
+    """Files travel inside the send; downloads only ever read WAHA's own file store (UI-AIS-08)."""
+    from app.channels.errors import ChannelApiError
+
     adapter = WahaChannelAdapter(CREDS)
     with pytest.raises(ChannelNotSupported):
         await adapter.upload_attachment(b"x", mime_type="image/png")
-    with pytest.raises(ChannelNotSupported):
+    with pytest.raises(ChannelApiError):
         await adapter.download_attachment("media-id")

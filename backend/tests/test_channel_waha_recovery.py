@@ -531,7 +531,6 @@ async def test_logout_is_capability_gated() -> None:
 def test_qr06_declares_no_later_capability() -> None:
     withheld = {
         Capability.MEDIA_UPLOAD,
-        Capability.MEDIA_DOWNLOAD,
         Capability.HISTORY_SYNC,
         Capability.INTERACTIVE,
         Capability.REACTION,

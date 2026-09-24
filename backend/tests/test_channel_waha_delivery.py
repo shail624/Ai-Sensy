@@ -423,7 +423,6 @@ def test_text_declared() -> None:
 def test_qr05_declares_no_later_capability() -> None:
     withheld = {
         Capability.MEDIA_UPLOAD,
-        Capability.MEDIA_DOWNLOAD,
         Capability.INTERACTIVE,
         Capability.REACTION,
         Capability.CONTACT,
@@ -528,3 +527,21 @@ async def test_location_pin_is_sent() -> None:
     assert path == "/api/sendLocation"
     assert payload["latitude"] == 28.61 and payload["longitude"] == 77.2
     assert payload["title"] == "Vi Store, CP"
+
+
+@pytest.mark.anyio
+async def test_inbound_file_is_downloaded_from_the_waha_file_store() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        return httpx.Response(200, content=b"jpeg-bytes", headers={"content-type": "image/jpeg"})
+
+    downloaded = await _adapter(handler).download_attachment("/api/files/default/ABC.jpeg")
+    assert seen == ["/api/files/default/ABC.jpeg"]
+    assert downloaded.content == b"jpeg-bytes"
+    assert downloaded.mime_type == "image/jpeg"
+
+    with pytest.raises(ChannelApiError):
+        await _adapter(handler).download_attachment("/api/sessions/default/stop")
+    assert len(seen) == 1

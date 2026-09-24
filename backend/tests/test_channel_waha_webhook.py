@@ -485,7 +485,6 @@ def test_qr04_declares_no_later_capability() -> None:
     withheld = {
         Capability.HISTORY_SYNC,
         Capability.MEDIA_UPLOAD,
-        Capability.MEDIA_DOWNLOAD,
     }
     assert not (WahaChannelAdapter.capabilities & withheld)
 
@@ -512,3 +511,55 @@ def test_noweb_display_name_is_read_from_the_native_record() -> None:
     message = WahaChannelAdapter(CREDS).to_inbound_message(delivery)
 
     assert message.profile_name == "Kirti"
+
+
+def test_inbound_photo_becomes_media_with_a_file_path() -> None:
+    """WAHA downloads the file; only its /api/files/ path is kept (UI-AIS-08)."""
+    from app.channels.waha.webhook import to_inbound_message
+
+    delivery = {
+        "id": "evt-media",
+        "event": "message",
+        "session": "default",
+        "payload": {
+            "id": "false_919891000010@c.us_ABC",
+            "from": "919891000010@c.us",
+            "fromMe": False,
+            "body": "my bill",
+            "hasMedia": True,
+            "media": {
+                "url": "http://localhost:3000/api/files/default/ABC.jpeg",
+                "mimetype": "image/jpeg",
+                "filename": None,
+            },
+        },
+    }
+    message = to_inbound_message(delivery)
+    assert message.message_type == "image"
+    assert message.content["media"] == {
+        "kind": "image",
+        "channel_media_id": "/api/files/default/ABC.jpeg",
+        "mime_type": "image/jpeg",
+        "filename": None,
+        "caption": "my bill",
+    }
+
+
+def test_media_outside_the_file_store_is_not_followed() -> None:
+    from app.channels.waha.webhook import media_kind, to_inbound_message
+
+    delivery = {
+        "id": "evt-media-2",
+        "event": "message",
+        "session": "default",
+        "payload": {
+            "id": "false_919891000010@c.us_DEF",
+            "from": "919891000010@c.us",
+            "hasMedia": True,
+            "media": {"url": "http://evil.example/api/sessions/x", "mimetype": "image/png"},
+        },
+    }
+    assert to_inbound_message(delivery).message_type == "unsupported"
+    assert media_kind("audio/ogg; codecs=opus") == "audio"
+    assert media_kind("image/webp") == "sticker"
+    assert media_kind("application/pdf") == "document"

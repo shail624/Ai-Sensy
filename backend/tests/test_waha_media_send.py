@@ -150,3 +150,61 @@ async def test_location_is_accepted_on_a_qr_chat(db_session, organization, make_
     assert message.message_type == "location"
     await db_session.refresh(conversation)
     assert conversation.last_message_preview == "📍 Vi Store"
+
+
+@pytest.mark.anyio
+async def test_customer_photo_on_a_qr_chat_is_downloaded_and_linked(
+    db_session, organization, make_user
+) -> None:
+    """Inbound QR media: webhook → message with a file path → media lane stores it (UI-AIS-08)."""
+    from app.models.message import Message
+    from app.services.media_ingest_service import MediaIngestService
+
+    actor = (await make_user(email="qr-inbound-media@vi.co", is_superuser=True)).user
+    await _qr_thread(db_session, organization, actor)
+    delivery = _waha_delivery(
+        event="message",
+        envelope_id="media-in",
+        session="waha-session-MD",
+        body="my bill",
+        from_id="919990021212@c.us",
+    )
+    delivery["payload"]["hasMedia"] = True
+    delivery["payload"]["media"] = {
+        "url": "http://localhost:3000/api/files/waha-session-MD/BILL.png",
+        "mimetype": "image/png",
+        "filename": None,
+    }
+    (event_pk,) = await _ingest_waha(db_session, delivery)
+    result = await MessageService(db_session).apply_inbound(event_pk)
+    assert result["media_pending"] is True
+    message = await db_session.get(Message, result["message_pk"])
+    assert message.message_type == "image"
+
+    fetched: list[str] = []
+
+    def files(request: httpx.Request) -> httpx.Response:
+        fetched.append(request.url.path)
+        return httpx.Response(200, content=PNG, headers={"content-type": "image/png"})
+
+    credentials = WahaCredentials(
+        base_url="http://waha.internal:3000", api_key="test-key", session="waha-session-MD"
+    )
+    adapter = WahaChannelAdapter(
+        credentials,
+        client=WahaClient(credentials, http=httpx.AsyncClient(transport=httpx.MockTransport(files))),
+    )
+    original = _ADAPTERS.get(CONNECTOR_WAHA)
+    _ADAPTERS[CONNECTOR_WAHA] = lambda **_: adapter
+    try:
+        outcome = await MediaIngestService(db_session).download_inbound(message.id)
+    finally:
+        if original is None:
+            _ADAPTERS.pop(CONNECTOR_WAHA, None)
+        else:
+            _ADAPTERS[CONNECTOR_WAHA] = original
+
+    assert outcome["status"] == "linked"
+    assert fetched == ["/api/files/waha-session-MD/BILL.png"]
+    await db_session.refresh(message)
+    assert message.media_asset_id is not None

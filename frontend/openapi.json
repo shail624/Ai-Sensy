@@ -6715,6 +6715,57 @@
         }
       }
     },
+    "/api/v1/messages/{message_id}/media": {
+      "get": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "The file attached to a message (photo, video, audio or document)",
+        "description": "Stream a message's stored attachment so Live Chat can show it inline.\n\nTenant-scoped through the message; ``404`` while an inbound file is still being fetched.",
+        "operationId": "message_media_api_v1_messages__message_id__media_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/octet-stream": {}
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/messages/{message_id}/status-history": {
       "get": {
         "tags": [

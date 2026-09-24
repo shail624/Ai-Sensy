@@ -56,6 +56,8 @@ logger = get_logger(__name__)
 API_KEY_HEADER: Final = "X-Api-Key"
 #: Upper bound on a downloaded WhatsApp profile photo; larger is treated as "no photo".
 MAX_PROFILE_PICTURE_BYTES: Final = 2 * 1024 * 1024
+#: WhatsApp's own ceiling for documents; no larger inbound file can arrive.
+MAX_INBOUND_FILE_BYTES: Final = 100 * 1024 * 1024
 
 #: Header names whose values must never appear in a log, error, trace or diagnostic payload.
 SENSITIVE_HEADERS: Final[frozenset[str]] = frozenset({"x-api-key", "authorization", "cookie"})
@@ -603,6 +605,33 @@ class WahaClient:
                 return b"".join(chunks), content_type
         except httpx.HTTPError:
             return None
+
+    async def download_file(self, path: str) -> tuple[bytes, str | None]:
+        """Fetch a file WAHA downloaded for an inbound message (``/api/files/…`` only), bounded."""
+        if not path.startswith("/api/files/") or ".." in path:
+            raise ChannelApiError(f"refusing to fetch a non-file WAHA path: {path!r}")
+        self._credentials.require()
+        try:
+            async with self._client().stream(
+                "GET", self.url(path), headers=self._headers(accept="*/*"), timeout=self._timeout
+            ) as response:
+                if response.status_code != 200:
+                    raise ChannelApiError(
+                        f"WAHA file download failed with HTTP {response.status_code}: {path}"
+                    )
+                content_type = response.headers.get("content-type")
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_INBOUND_FILE_BYTES:
+                        raise ChannelApiError("WAHA file is larger than the platform accepts")
+                    chunks.append(chunk)
+                return b"".join(chunks), content_type
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(f"WAHA file download timed out: {path}") from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA file download failed: {path}") from exc
 
     async def _get_list(self, path: str) -> list[Any]:
         """Authenticated GET returning a JSON array (the chat-messages shape)."""

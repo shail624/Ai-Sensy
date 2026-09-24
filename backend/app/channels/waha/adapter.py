@@ -54,7 +54,8 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
 | ``TEXT`` | **yes** | QR-05. :meth:`_dispatch` sends text through the configured session, and certification proved an external cross-account delivery reaching ``READ``. |
 | ``MEDIA`` | **yes** | UI-AIS-07. Photos, videos, voice notes and documents are sent inline (base64) by :meth:`_dispatch`. |
-| ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | There is no separate provider upload step; files travel with the send. |
+| ``MEDIA_DOWNLOAD`` | **yes** | UI-AIS-08. Files WAHA downloaded for inbound messages are fetched from its ``/api/files/`` store. |
+| ``MEDIA_UPLOAD`` | no | There is no separate provider upload step; files travel with the send. |
 | ``LOCATION`` | **yes** | UI-AIS-07. A map pin via ``/api/sendLocation``. |
 | ``INTERACTIVE`` / ``REACTION`` / ``CONTACT`` | no | Neither implemented nor evidenced. |
 | ``BULK`` / ``CAMPAIGNS`` / ``TEMPLATE`` | **never** | Permanently prohibited — see below. |
@@ -81,6 +82,7 @@ separate methods so no caller can conflate them.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any, Final
 
 from app.channels.base import ChannelAdapter
@@ -93,6 +95,7 @@ from app.channels.errors import (
 )
 from app.channels.models import (
     ChannelStatus,
+    DownloadedAttachment,
     HealthSignal,
     InboundEvent,
     InboundMessage,
@@ -148,6 +151,7 @@ class WahaChannelAdapter(ChannelAdapter):
             Capability.TEXT,
             Capability.MEDIA,
             Capability.LOCATION,
+            Capability.MEDIA_DOWNLOAD,
             Capability.SESSION_RECONNECT,
             Capability.SESSION_LOGOUT,
         }
@@ -570,6 +574,18 @@ class WahaChannelAdapter(ChannelAdapter):
             channel_message_id=provider_id,
             accepted=bool(provider_id),
             raw=body,
+        )
+
+    async def download_attachment(self, media_id: str) -> DownloadedAttachment:
+        """Fetch a file WAHA downloaded for an inbound message; ``media_id`` is its file path."""
+        self.require(Capability.MEDIA_DOWNLOAD)
+        content, content_type = await self._client.download_file(media_id)
+        mime = (content_type or "").split(";")[0].strip() or None
+        return DownloadedAttachment(
+            content=content,
+            mime_type=mime,
+            sha256=hashlib.sha256(content).hexdigest(),
+            byte_size=len(content),
         )
 
     async def reconcile_send(self, *, to: str, canonical_id: str) -> bool:

@@ -551,3 +551,39 @@ export function useSendLocation(conversationId: string) {
     ),
   );
 }
+
+/**
+ * A message's attached file as a local object URL, for showing it inside the chat. An inbound
+ * file is fetched in the background after the message arrives, so a "not yet" answer is retried
+ * for a minute before giving up.
+ */
+export function useMessageMedia(messageId: string, enabled: boolean): { url: string | null; loading: boolean; failed: boolean } {
+  const media = useQuery({
+    // Outside `inboxKeys.all`: a file never changes, so sending a reply must not re-download it.
+    queryKey: ["message-media", messageId],
+    queryFn: async (): Promise<Blob> => {
+      const { data, response } = await api.GET("/api/v1/messages/{message_id}/media", {
+        params: { path: { message_id: messageId } },
+        parseAs: "blob",
+      });
+      if (response.status !== 200 || !(data instanceof Blob)) throw new Error(`media ${response.status}`);
+      return data;
+    },
+    enabled: enabled && Boolean(messageId),
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: 12,
+    retryDelay: 5_000,
+  });
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!media.data) {
+      setUrl(null);
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(media.data);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [media.data]);
+  return { url, loading: media.isLoading || media.isFetching, failed: media.isError };
+}

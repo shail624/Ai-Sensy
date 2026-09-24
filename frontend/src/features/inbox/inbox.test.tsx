@@ -509,7 +509,7 @@ describe("MessageComposer", () => {
 });
 
 describe("message content rendering", () => {
-  it("renders a media message with filename, type and caption", () => {
+  it("renders a photo inline with its caption while the file loads", () => {
     withProviders(
       <MessageBubble
         message={messageFixture({
@@ -523,8 +523,9 @@ describe("message content rendering", () => {
       />,
     );
 
-    expect(screen.getByText("aadhaar.jpg")).toBeInTheDocument();
-    expect(screen.getByText("image/jpeg")).toBeInTheDocument();
+    // The picture itself is fetched from /messages/{id}/media (UI-AIS-08); until then a
+    // placeholder says what is coming, and the caption shows straight away.
+    expect(screen.getByText(/Loading image/)).toBeInTheDocument();
     expect(screen.getByText("Front side")).toBeInTheDocument();
   });
 

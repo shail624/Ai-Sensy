@@ -25,11 +25,13 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channels.base import ChannelAdapter
+from app.channels.base import ChannelAdapter, get_adapter
+from app.channels.capabilities import Capability
 from app.channels.models import DownloadedAttachment
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
+from app.models.channel_connection import ChannelConnection, ChannelEndpoint
 from app.models.media import MediaAsset
 from app.models.message import Message
 from app.repositories.media import MediaRepository
@@ -113,7 +115,7 @@ class MediaIngestService:
         file_name: str | None,
     ) -> tuple[MediaAsset, bool]:
         """Bytes from a channel → a stored asset. Returns ``(asset, created)``."""
-        mime_type = downloaded.mime_type or "application/octet-stream"
+        mime_type = (downloaded.mime_type or "application/octet-stream").split(";")[0].strip()
         kind = media_type if media_type in MEDIA_TYPES else "document"
         # The same gate the API upload passes: nothing a channel sends is trusted more than a
         # file a user picked (Doc 04 §16).
@@ -193,9 +195,8 @@ class MediaIngestService:
         self, message: Message
     ) -> tuple[ChannelAdapter, Callable[[], Awaitable[None]]]:
         if message.phone_number_id is None:
-            # Media is a Meta-only capability (QR-08); a channel-endpoint-owned message has no
-            # `phone_numbers` row to resolve here at all.
-            raise MediaUnavailable("the message's number is no longer connected")
+            # A channel-endpoint-owned (QR) message: its connection's adapter fetches the file.
+            return await self._endpoint_adapter_for(message)
         number = await self._numbers.get_by_id(message.phone_number_id)
         waba = await self._wabas.get_by_id(number.waba_id) if number else None
         if number is None or waba is None:
@@ -203,6 +204,23 @@ class MediaIngestService:
         adapter = WabaService(self._session).adapter_for(
             waba, phone_number_id=number.phone_number_id
         )
+        return adapter, adapter.close
+
+    async def _endpoint_adapter_for(
+        self, message: Message
+    ) -> tuple[ChannelAdapter, Callable[[], Awaitable[None]]]:
+        if message.channel_endpoint_id is None:
+            raise MediaUnavailable("the message has no sending channel")
+        endpoint = await self._session.get(ChannelEndpoint, message.channel_endpoint_id)
+        connection = (
+            await self._session.get(ChannelConnection, endpoint.connection_id) if endpoint else None
+        )
+        if connection is None:
+            raise MediaUnavailable("the message's WhatsApp connection no longer exists")
+        adapter = get_adapter(connection.connector_type)
+        if not adapter.supports(Capability.MEDIA_DOWNLOAD):
+            await adapter.close()
+            raise MediaUnavailable("this WhatsApp connection cannot download attachments")
         return adapter, adapter.close
 
 
