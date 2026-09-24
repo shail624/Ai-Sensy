@@ -20,7 +20,9 @@ SESSION = "waha-session-NEW"
 
 
 def _client(handler) -> WahaClient:
-    credentials = WahaCredentials(base_url="http://waha.internal:3000", api_key="k", session=SESSION)
+    credentials = WahaCredentials(
+        base_url="http://waha.internal:3000", api_key="k", session=SESSION
+    )
     return WahaClient(credentials, http=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
 
 
@@ -29,7 +31,11 @@ def _client(handler) -> WahaClient:
 
 @pytest.mark.parametrize(
     ("typed", "digits"),
-    [("9891000010", "919891000010"), ("+91 98910 00010", "919891000010"), ("+1 (415) 555-2671", "14155552671")],
+    [
+        ("9891000010", "919891000010"),
+        ("+91 98910 00010", "919891000010"),
+        ("+1 (415) 555-2671", "14155552671"),
+    ],
 )
 def test_phone_input_accepts_common_forms(typed: str, digits: str) -> None:
     assert normalize_phone_input(typed) == digits
@@ -73,7 +79,11 @@ async def test_photo_download_refuses_non_images_and_oversized_files() -> None:
     responses = iter(
         [
             httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>"),
-            httpx.Response(200, headers={"content-type": "image/jpeg"}, content=b"x" * (MAX_PROFILE_PICTURE_BYTES + 1)),
+            httpx.Response(
+                200,
+                headers={"content-type": "image/jpeg"},
+                content=b"x" * (MAX_PROFILE_PICTURE_BYTES + 1),
+            ),
         ]
     )
     client = _client(lambda request: next(responses))
@@ -86,10 +96,14 @@ async def test_photo_download_refuses_non_images_and_oversized_files() -> None:
 
 def _service(db_session, handler) -> WhatsAppQrService:
     providers, runtimes = _registries()
-    credentials = WahaCredentials(base_url="http://waha.internal:3000", api_key="k", session=SESSION)
+    credentials = WahaCredentials(
+        base_url="http://waha.internal:3000", api_key="k", session=SESSION
+    )
     adapter = WahaChannelAdapter(
         credentials,
-        client=WahaClient(credentials, http=httpx.AsyncClient(transport=httpx.MockTransport(handler))),
+        client=WahaClient(
+            credentials, http=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        ),
     )
     return WhatsAppQrService(db_session, providers=providers, runtimes=runtimes, adapter=adapter)
 
@@ -118,8 +132,12 @@ async def test_start_chat_creates_contact_route_and_thread_once(
         return httpx.Response(200, json={"numberExists": True, "chatId": "919891000010@c.us"})
 
     service = _service(db_session, handler)
-    first = await service.start_chat(organization_id=organization.id, actor=actor, phone="98910 00010")
-    again = await service.start_chat(organization_id=organization.id, actor=actor, phone="+919891000010")
+    first = await service.start_chat(
+        organization_id=organization.id, actor=actor, phone="98910 00010"
+    )
+    again = await service.start_chat(
+        organization_id=organization.id, actor=actor, phone="+919891000010"
+    )
 
     assert first == again
     (contact,) = (await db_session.scalars(select(Contact))).all()
@@ -135,7 +153,9 @@ async def test_start_chat_refuses_a_number_without_whatsapp(
     actor = (await make_user(email="start-chat-none@vi.co", is_superuser=True)).user
     await _enable_flags(db_session, organization.id)
     await _waha_endpoint(db_session, organization.id, actor, suffix="NEW")
-    service = _service(db_session, lambda request: httpx.Response(200, json={"numberExists": False}))
+    service = _service(
+        db_session, lambda request: httpx.Response(200, json={"numberExists": False})
+    )
 
     with pytest.raises(ConflictError, match="not on WhatsApp"):
         await service.start_chat(organization_id=organization.id, actor=actor, phone="9100000000")
@@ -157,7 +177,7 @@ async def test_start_chat_requires_a_paired_connection(
 
 
 @pytest.mark.anyio
-async def test_contact_photo_is_fetched_for_qr_conversations_only(
+async def test_contact_photo_is_fetched_through_the_qr_phone(
     db_session, organization, make_user, _waha_configured
 ) -> None:
     actor = (await make_user(email="photo@vi.co", is_superuser=True)).user
@@ -173,8 +193,48 @@ async def test_contact_photo_is_fetched_for_qr_conversations_only(
         return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=b"jpeg")
 
     service = _service(db_session, handler)
-    conversation_id = await service.start_chat(organization_id=organization.id, actor=actor, phone="9891000010")
+    conversation_id = await service.start_chat(
+        organization_id=organization.id, actor=actor, phone="9891000010"
+    )
 
     assert await service.contact_photo(
-        organization_id=organization.id, actor=actor, conversation_public_id=uuidlib.UUID(conversation_id)
+        organization_id=organization.id,
+        actor=actor,
+        conversation_public_id=uuidlib.UUID(conversation_id),
     ) == (b"jpeg", "image/jpeg")
+
+
+@pytest.mark.anyio
+async def test_official_api_chat_gets_its_photo_through_the_qr_phone(
+    db_session, organization, make_user, _waha_configured
+) -> None:
+    """Meta shares no profile photos, so API chats use the QR WhatsApp's view (UI-AIS-11)."""
+    from tests.test_qr08_inbox_integration import _meta_endpoint
+
+    actor = (await make_user(email="photo-api@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    await _waha_endpoint(db_session, organization.id, actor, suffix="API")
+    number = await _meta_endpoint(db_session, organization.id, suffix="APIP")
+    contact = Contact(
+        organization_id=organization.id, wa_id="919891000011", phone_e164="+919891000011"
+    )
+    db_session.add(contact)
+    await db_session.flush()
+    conversation = Conversation(
+        organization_id=organization.id, phone_number_id=number.id, contact_id=contact.id
+    )
+    db_session.add(conversation)
+    await db_session.commit()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/contacts/profile-picture":
+            assert request.url.params["contactId"] == "919891000011@c.us"
+            return httpx.Response(200, json={"profilePictureURL": "https://pps.whatsapp.net/q.jpg"})
+        return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=b"api-jpeg")
+
+    photo = await _service(db_session, handler).contact_photo(
+        organization_id=organization.id,
+        actor=actor,
+        conversation_public_id=uuidlib.UUID(bytes=conversation.uuid),
+    )
+    assert photo == (b"api-jpeg", "image/jpeg")

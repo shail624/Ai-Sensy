@@ -1014,10 +1014,13 @@ class WhatsAppQrService:
     async def contact_photo(
         self, *, organization_id: int, actor: User, conversation_public_id: uuidlib.UUID
     ) -> tuple[bytes, str] | None:
-        """The WhatsApp profile photo of a QR conversation's customer, or ``None``.
+        """The customer's WhatsApp profile photo, or ``None``.
 
-        Meta's Cloud API exposes no profile photos, so only QR conversations can have one. The photo
-        is fetched server-side so the browser keeps its strict image policy; nothing is stored.
+        Meta's Cloud API exposes no profile photos, so the photo is always looked up through the
+        QR-connected WhatsApp by the customer's number — for official-API chats too (UI-AIS-11). It
+        is what any WhatsApp user who has the number would see, subject to the customer's own
+        privacy setting. Fetched server-side so the browser keeps its strict image policy; nothing
+        is stored.
         """
         from app.repositories.contact import ContactRepository
         from app.repositories.conversation import ConversationRepository
@@ -1029,8 +1032,6 @@ class WhatsAppQrService:
         )
         if conversation is None:
             raise NotFoundError("Conversation not found.")
-        if conversation.channel_endpoint_id is None:
-            return None
         contact = await ContactRepository(self._session).get_by_id(conversation.contact_id)
         if contact is None or not contact.wa_id:
             return None

@@ -1,5 +1,17 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-11 — Customer photo on official-API chats (2026-09-24)
+
+Owner report: the customer's DP showed on QR chats but not on API chats.
+
+- Meta's Cloud API exposes no profile photos. `WhatsAppQrService.contact_photo` now looks the
+  photo up through the QR-connected WhatsApp by the customer's number for every conversation, not
+  only QR-owned ones (same privacy as any WhatsApp user who has the number; nothing stored).
+  `CustomerAvatar` requests it for all chats. Without a connected QR phone the initial/icon stays.
+- Live check: both official-API chats in the list now show the customer's photo.
+- PASS: `tests/test_waha_start_chat.py` 14 (new API-chat case), ruff; frontend inbox 76 tests,
+  TypeScript, ESLint. No API shape change, no migration. No module percentage change.
+
 ## UI-AIS-10 — Remaining Manage pages matched to AiSensy; quieter API/QR badge; stuck template explained (2026-09-24)
 
 Owner request: build Canned Message, Team, Tags, Analytics and Notification Preferences like the

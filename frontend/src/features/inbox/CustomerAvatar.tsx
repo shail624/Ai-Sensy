@@ -2,7 +2,6 @@ import { UserRound } from "lucide-react";
 
 import { useConversationPhoto } from "@/features/inbox/api";
 import type { Conversation } from "@/features/inbox/types";
-import { isWahaConversation } from "@/features/inbox/types";
 
 /** The first letter of a real name; `null` when there is only a phone number to show. */
 export function nameInitial(conversation: Pick<Conversation, "contact">): string | null {
@@ -19,11 +18,12 @@ interface Props {
 }
 
 /**
- * The customer's WhatsApp profile photo when WhatsApp shares one (QR chats only), otherwise the
+ * The customer's WhatsApp profile photo when WhatsApp shares one, otherwise the
  * first letter of their name, otherwise a person icon — never a stray "+" from a phone number.
  */
 export function CustomerAvatar({ conversation, className, iconClassName = "h-1/2 w-1/2" }: Props): JSX.Element {
-  const photo = useConversationPhoto(conversation.id, isWahaConversation(conversation as Conversation));
+  // Looked up through the QR WhatsApp for every chat: Meta's API shares no profile photos.
+  const photo = useConversationPhoto(conversation.id, true);
   const initial = nameInitial(conversation);
   return (
     <span aria-hidden className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full ${className}`}>
