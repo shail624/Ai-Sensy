@@ -55,6 +55,7 @@ from app.schemas.inbox import (
     NoteCreateRequest,
     NoteResponse,
     NotesListResponse,
+    TypingIndicatorResponse,
 )
 from app.schemas.message import MessageResponse
 from app.schemas.tag import TagSummary
@@ -448,6 +449,22 @@ async def mark_conversation_read(
         organization_id=actor.organization_id, public_id=conversation_id
     )
     return ConversationReadResponse.from_read_state(state)
+
+
+@router.post(
+    "/conversations/{conversation_id}/typing",
+    response_model=TypingIndicatorResponse,
+    summary="Show the customer a typing indicator (best effort)",
+)
+async def show_conversation_typing(
+    conversation_id: uuidlib.UUID, session: SessionDep, actor: InboxWriter
+) -> TypingIndicatorResponse:
+    """Signal "typing…" while an agent composes. Never fails for provider reasons; ``sent`` says
+    whether it went out — see :meth:`InboxService.show_typing` for when it is skipped."""
+    sent = await InboxService(session).show_typing(
+        organization_id=actor.organization_id, public_id=conversation_id
+    )
+    return TypingIndicatorResponse(sent=sent)
 
 
 @router.get(

@@ -5,6 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useCallback, useRef } from "react";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
@@ -403,4 +404,27 @@ export function useSendReaction(conversationId: string) {
         }),
       ),
   );
+}
+
+/** WhatsApp shows "typing…" for up to 25s, so one signal per 20s keeps it continuous. */
+export const TYPING_SIGNAL_INTERVAL_MS = 20_000;
+
+/**
+ * A throttled "agent is typing" notifier. The server decides whether anything is actually sent
+ * (policy, read receipts, channel capability) and never fails the call for provider reasons, so
+ * this is fire-and-forget: a lost signal only means a missing "typing…" line.
+ */
+export function useTypingSignal(conversationId: string, enabled: boolean): () => void {
+  const lastSent = useRef(0);
+  return useCallback(() => {
+    if (!enabled) return;
+    const now = Date.now();
+    if (now - lastSent.current < TYPING_SIGNAL_INTERVAL_MS) return;
+    lastSent.current = now;
+    void api
+      .POST("/api/v1/conversations/{conversation_id}/typing", {
+        params: { path: { conversation_id: conversationId } },
+      })
+      .catch(() => undefined);
+  }, [conversationId, enabled]);
 }

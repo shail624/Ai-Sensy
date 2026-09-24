@@ -185,7 +185,7 @@ export function manageNavGroups(
       { label: "Opt-in Management", path: "/opt-in", available: true,
         glyph: "O", icon: Shield, group: "Manage", permission: "settings:read",
         description: "Configure opt-in and opt-out keyword handling." },
-      { label: "Live Chat Settings", path: "/settings/application#inbox-policy", available: true,
+      { label: "Live Chat Settings", path: "/live-chat-settings", available: true,
         glyph: "L", icon: Inbox, group: "Manage", permission: "settings:read",
         description: "Routing, working hours, automatic replies and resolution." },
     ] : []),

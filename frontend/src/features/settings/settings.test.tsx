@@ -91,6 +91,7 @@ function inboxOperationsFixture(
     assignment_mode: "manual",
     auto_mark_read: true,
     send_read_receipts: true,
+    show_typing_indicators: false,
     consent: {
       enabled: false,
       opt_in_keywords: ["START", "YES"],
@@ -581,6 +582,7 @@ describe("ApplicationPanel", () => {
           assignment_mode: "least_open",
           auto_mark_read: false,
           send_read_receipts: false,
+          show_typing_indicators: false,
           consent: {
             enabled: true,
             opt_in_keywords: ["JOIN", "YES"],

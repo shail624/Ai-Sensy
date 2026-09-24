@@ -49,6 +49,8 @@ class Capability(StrEnum):
     REACTION = "reaction"
     #: Provider acknowledgement that an inbound message was read by an operator.
     READ_RECEIPTS = "read_receipts"
+    #: A short "typing…" signal to the customer, sent with a read acknowledgement.
+    TYPING_INDICATOR = "typing_indicator"
     #: Throughput sending — the flag Doc 07 §5.2 uses to distinguish Meta from a manual connector.
     BULK = "bulk"
     #: Drives whether the CRM offers Broadcast at all (§5.2).

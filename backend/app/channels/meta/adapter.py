@@ -86,6 +86,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.TEMPLATE,
             Capability.REACTION,
             Capability.READ_RECEIPTS,
+            Capability.TYPING_INDICATOR,
             Capability.BULK,
             Capability.CAMPAIGNS,
             Capability.OFFICIAL_WEBHOOKS,
@@ -193,6 +194,20 @@ class MetaChannelAdapter(ChannelAdapter):
                 "messaging_product": _PRODUCT,
                 "status": "read",
                 "message_id": channel_message_id,
+            },
+        )
+
+    async def show_typing(self, channel_message_id: str) -> None:
+        """Show "typing…" for up to 25s. Meta only accepts it with a read status on that message."""
+        self.require(Capability.TYPING_INDICATOR)
+        number = self._client.credentials.require_phone_number()
+        await self._client.post(
+            f"{number}/messages",
+            json={
+                "messaging_product": _PRODUCT,
+                "status": "read",
+                "message_id": channel_message_id,
+                "typing_indicator": {"type": "text"},
             },
         )
 

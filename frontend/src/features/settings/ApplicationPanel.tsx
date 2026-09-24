@@ -215,6 +215,8 @@ function OperationalPolicyPanel({ canManage }: { canManage: boolean }): JSX.Elem
       assignment_mode: draft.assignmentMode,
       auto_mark_read: draft.autoMarkRead,
       send_read_receipts: draft.sendReadReceipts,
+      // Edited on the Live Chat Settings page; carried through so this form never resets it.
+      show_typing_indicators: policy.data?.show_typing_indicators ?? false,
       consent: {
         enabled: draft.consentEnabled,
         opt_in_keywords: optIn,

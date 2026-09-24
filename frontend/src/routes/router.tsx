@@ -35,6 +35,7 @@ const AdminPage = lazyNamed(() => import("@/pages/AdminPage"), "AdminPage");
 const AnalyticsPage = lazyNamed(() => import("@/pages/AnalyticsPage"), "AnalyticsPage");
 const AutomationPage = lazyNamed(() => import("@/pages/AutomationPage"), "AutomationPage");
 const BroadcastsPage = lazyNamed(() => import("@/pages/BroadcastsPage"), "BroadcastsPage");
+const LiveChatSettingsPage = lazyNamed(() => import("@/pages/LiveChatSettingsPage"), "LiveChatSettingsPage");
 const OptInPage = lazyNamed(() => import("@/pages/OptInPage"), "OptInPage");
 const CampaignCreatePage = lazyNamed(() => import("@/pages/CampaignCreatePage"), "CampaignCreatePage");
 const CampaignDetailPage = lazyNamed(() => import("@/pages/CampaignDetailPage"), "CampaignDetailPage");
@@ -372,6 +373,12 @@ export const router = createBrowserRouter([
             path: "opt-in",
             element: <RequirePermission code="settings:read" />,
             children: [{ index: true, element: lazyElement(OptInPage) }],
+          },
+          {
+            // Manage → Live Chat Settings: the Live Chat slice of the inbox policy on its own page.
+            path: "live-chat-settings",
+            element: <RequirePermission code="settings:read" />,
+            children: [{ index: true, element: lazyElement(LiveChatSettingsPage) }],
           },
           {
             // Each section carries the permission its own endpoints enforce. Preferences is on

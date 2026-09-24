@@ -171,6 +171,9 @@ class InboxOperationsSettings(BaseModel):
     assignment_mode: Literal["manual", "least_open"] = "manual"
     auto_mark_read: bool = True
     send_read_receipts: bool = True
+    #: Off by default. Meta sends it together with a read status, so it only ever fires while
+    #: read receipts are also on — it can never reveal a read the organization chose to hide.
+    show_typing_indicators: bool = False
     consent: ConsentKeywordSettings = Field(default_factory=ConsentKeywordSettings)
     working_hours: WorkingHoursSettings = Field(default_factory=WorkingHoursSettings)
     automatic_replies: AutomaticReplySettings = Field(default_factory=AutomaticReplySettings)

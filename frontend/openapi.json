@@ -9555,6 +9555,55 @@
         }
       }
     },
+    "/api/v1/conversations/{conversation_id}/typing": {
+      "post": {
+        "tags": [
+          "Inbox"
+        ],
+        "summary": "Show the customer a typing indicator (best effort)",
+        "description": "Signal \"typing…\" while an agent composes. Never fails for provider reasons; ``sent`` says\nwhether it went out — see :meth:`InboxService.show_typing` for when it is skipped.",
+        "operationId": "show_conversation_typing_api_v1_conversations__conversation_id__typing_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypingIndicatorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conversations/{conversation_id}/notes": {
       "get": {
         "tags": [
@@ -25975,6 +26024,11 @@
             "title": "Send Read Receipts",
             "default": true
           },
+          "show_typing_indicators": {
+            "type": "boolean",
+            "title": "Show Typing Indicators",
+            "default": false
+          },
           "consent": {
             "$ref": "#/components/schemas/ConsentKeywordSettings"
           },
@@ -26037,6 +26091,11 @@
             "type": "boolean",
             "title": "Send Read Receipts",
             "default": true
+          },
+          "show_typing_indicators": {
+            "type": "boolean",
+            "title": "Show Typing Indicators",
+            "default": false
           },
           "consent": {
             "$ref": "#/components/schemas/ConsentKeywordSettings"
@@ -35043,6 +35102,20 @@
           "config"
         ],
         "title": "TriggerNode"
+      },
+      "TypingIndicatorResponse": {
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "title": "Sent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent"
+        ],
+        "title": "TypingIndicatorResponse",
+        "description": "``POST /conversations/{id}/typing`` — whether the best-effort signal was sent."
       },
       "UnreadCountResponse": {
         "properties": {

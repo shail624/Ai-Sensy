@@ -1,13 +1,21 @@
 import { Pencil, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ErrorState, Modal, Spinner } from "@/components/ui";
+import { ErrorState, Spinner } from "@/components/ui";
 import {
   apiErrorMessage,
   useHasPermission,
   useInboxOperations,
   useUpdateInboxOperations,
 } from "@/features/settings/api";
+import {
+  ConfigureDialog,
+  MANAGE_CARD,
+  MANAGE_OUTLINE,
+  MANAGE_PRIMARY,
+  ResponsePreview,
+  Toggle,
+} from "@/features/settings/managePrimitives";
 import type { InboxOperationsPolicy, InboxOperationsUpdate } from "@/features/settings/types";
 
 type Kind = "opt-out" | "opt-in";
@@ -33,9 +41,6 @@ const COPY: Record<Kind, { title: string; description: string; response: string;
   },
 };
 
-const PRIMARY = "inline-flex h-[37px] items-center justify-center rounded-md bg-[var(--color-nav-bg)] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#08393d] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
-const OUTLINE = "inline-flex h-[30px] items-center justify-center rounded-md border border-[rgba(10,71,76,0.5)] px-[9px] text-[13px] font-medium text-[var(--color-nav-bg)] transition-colors duration-200 hover:border-[var(--color-nav-bg)] hover:bg-[#ebf5f3] disabled:opacity-50 dark:text-accent";
-const CARD = "rounded-[8px] bg-surface";
 
 function fromPolicy(policy: InboxOperationsPolicy): ConsentDraft {
   const consent = policy.consent;
@@ -61,6 +66,7 @@ function toUpdate(policy: InboxOperationsPolicy, draft: ConsentDraft): InboxOper
     assignment_mode: policy.assignment_mode,
     auto_mark_read: policy.auto_mark_read,
     send_read_receipts: policy.send_read_receipts,
+    show_typing_indicators: policy.show_typing_indicators ?? false,
     working_hours: policy.working_hours,
     automatic_replies: policy.automatic_replies,
     auto_resolve: policy.auto_resolve,
@@ -91,75 +97,8 @@ export function validateConsent(draft: ConsentDraft): string | null {
   return null;
 }
 
-function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }): JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-[14px] w-[34px] shrink-0 items-center rounded-full transition-colors duration-150 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${checked ? "bg-[rgba(10,71,76,0.5)]" : "bg-black/25"}`}
-    >
-      <span className={`absolute h-5 w-5 rounded-full shadow-[0_2px_1px_-1px_rgba(0,0,0,0.2),0_1px_1px_rgba(0,0,0,0.14),0_1px_3px_rgba(0,0,0,0.12)] transition-[left,background-color] duration-150 ${checked ? "left-[17px] bg-[var(--color-nav-bg)]" : "-left-[3px] bg-[#fafafa]"}`} />
-    </button>
-  );
-}
 
-function ConfigureDialog({ kind, enabled, body, onSave, onClose }: { kind: Kind; enabled: boolean; body: string; onSave: (enabled: boolean, body: string) => void; onClose: () => void }): JSX.Element {
-  const [on, setOn] = useState(enabled);
-  const [text, setText] = useState(body);
-  return (
-    <Modal title="Configure Message" onClose={onClose} panelClassName="!max-w-[959px] !rounded-md" contentClassName="!px-6">
-      <p className="text-sm text-[#6e6e6e] dark:text-text-secondary">
-        Send a regular text message to the customer after their {kind === "opt-in" ? "opt-in" : "opt-out"} is recorded.
-      </p>
-      <div className="mt-5 grid gap-6 md:grid-cols-[1fr_260px]">
-        <div className="space-y-4">
-          <label className="flex items-center justify-between gap-3 rounded-[8px] bg-[#f5f5f5] px-4 py-3 text-sm text-[#4a4a4a] dark:bg-surface-2 dark:text-text-primary">
-            Send this response
-            <Toggle checked={on} onChange={setOn} label={`Send ${kind} response`} />
-          </label>
-          <div>
-            <label htmlFor={`${kind}-response`} className="text-sm font-medium text-text-primary">Message</label>
-            <p className="text-xs text-[#6e6e6e] dark:text-text-secondary">Your message can be up to 1,000 characters long.</p>
-            <textarea
-              id={`${kind}-response`}
-              value={text}
-              maxLength={1000}
-              rows={6}
-              disabled={!on}
-              onChange={(event) => setText(event.target.value)}
-              placeholder="Enter the confirmation message"
-              className="mt-2 w-full resize-y rounded-[8px] bg-[#f0f0f0] px-4 py-3 text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50 dark:bg-surface-2 dark:text-text-primary"
-            />
-            <p className="text-right text-xs text-text-disabled">{text.length}/1,000</p>
-          </div>
-        </div>
-        <ResponsePreview body={on ? text : ""} />
-      </div>
-      <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
-        <button type="button" onClick={onClose} className="h-9 rounded-md px-4 text-sm font-medium text-[#4a4a4a] hover:bg-hover dark:text-text-secondary">Cancel</button>
-        <button type="button" onClick={() => { onSave(on, text); onClose(); }} className={PRIMARY}>Save Configuration</button>
-      </div>
-    </Modal>
-  );
-}
 
-function ResponsePreview({ body }: { body: string }): JSX.Element {
-  return (
-    <div className="chat-wallpaper flex min-h-[120px] items-start justify-center rounded-[8px] p-4">
-      {body.trim() ? (
-        <div className="w-[250px] rounded-[0_5px_5px_5px] bg-surface px-4 py-2 text-sm leading-[19px] whitespace-pre-wrap break-words text-[var(--color-nav-bg)] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] dark:text-text-primary">
-          {body}
-        </div>
-      ) : (
-        <p className="self-center text-xs text-[#808080]">No response configured</p>
-      )}
-    </div>
-  );
-}
 
 /**
  * The reference Opt-in Management page: a consent switch, then one card per direction with the
@@ -199,7 +138,7 @@ export function OptInManagement(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      <section className={`${CARD} px-8 py-8`} aria-labelledby="consent-switch-title">
+      <section className={`${MANAGE_CARD} px-8 py-8`} aria-labelledby="consent-switch-title">
         <div className="flex items-start justify-between gap-6">
           <div>
             <h2 id="consent-switch-title" className="text-base font-normal text-black dark:text-text-primary">Recognize consent keywords</h2>
@@ -224,7 +163,7 @@ export function OptInManagement(): JSX.Element {
         const copy = COPY[kind];
         const side = current[kind];
         return (
-          <section key={kind} aria-labelledby={`${kind}-title`} className={`${CARD} grid gap-8 px-[42px] pb-[35px] pt-[42px] lg:grid-cols-2`}>
+          <section key={kind} aria-labelledby={`${kind}-title`} className={`${MANAGE_CARD} grid gap-8 px-[42px] pb-[35px] pt-[42px] lg:grid-cols-2`}>
             <div>
               <h2 id={`${kind}-title`} className="text-base font-normal text-[#4a4a4a] dark:text-text-primary">{copy.title}</h2>
               <p className="mt-3 text-sm leading-[21px] text-[#6e6e6e] dark:text-text-secondary">{copy.description}</p>
@@ -258,7 +197,7 @@ export function OptInManagement(): JSX.Element {
                     <Plus aria-hidden className="h-4 w-4" /> Add more
                   </button>
                   <div className="mt-8">
-                    <button type="button" onClick={() => save()} disabled={update.isPending} className={PRIMARY}>
+                    <button type="button" onClick={() => save()} disabled={update.isPending} className={MANAGE_PRIMARY}>
                       {update.isPending ? "Saving…" : "Save Settings"}
                     </button>
                   </div>
@@ -269,7 +208,7 @@ export function OptInManagement(): JSX.Element {
               <div className="flex items-start justify-between gap-3">
                 <h3 className="pt-1 text-base font-normal text-[#4a4a4a] dark:text-text-primary">{copy.response}</h3>
                 {!locked ? (
-                  <button type="button" onClick={() => setConfiguring(kind)} className={`${OUTLINE} gap-2`}><Pencil aria-hidden className="h-[18px] w-[18px]" />Configure</button>
+                  <button type="button" onClick={() => setConfiguring(kind)} className={MANAGE_OUTLINE}><Pencil aria-hidden className="h-[18px] w-[18px]" />Configure</button>
                 ) : null}
               </div>
               <p className="mt-2 text-sm text-[#6e6e6e] dark:text-text-secondary">{copy.responseHelp}</p>
@@ -288,7 +227,8 @@ export function OptInManagement(): JSX.Element {
 
       {configuring ? (
         <ConfigureDialog
-          kind={configuring}
+          description={`Send a regular text message to the customer after their ${configuring} is recorded.`}
+          switchLabel={`Send ${configuring} response`}
           enabled={current[configuring].responseEnabled}
           body={current[configuring].response}
           onClose={() => setConfiguring(null)}

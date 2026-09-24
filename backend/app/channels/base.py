@@ -154,6 +154,11 @@ class ChannelAdapter(ABC):
         self.require(Capability.READ_RECEIPTS)
         raise ChannelNotSupported(f"{self.connector_type!r} cannot emit read receipts")
 
+    async def show_typing(self, channel_message_id: str) -> None:
+        """Show the customer a typing indicator against their inbound message, when supported."""
+        self.require(Capability.TYPING_INDICATOR)
+        raise ChannelNotSupported(f"{self.connector_type!r} cannot show typing indicators")
+
     # --- Templates (§5.2 "Outbound messaging" — the registry behind a template send) ---------
     async def list_templates(self, account_id: str | None = None) -> list[ChannelTemplate]:
         """Every template the channel holds for this account (FR-TPL-01)."""

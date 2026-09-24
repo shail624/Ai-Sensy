@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ErrorState } from "@/components/ui";
-import { apiErrorMessage, useQuickReplies, useSendMessage } from "@/features/inbox/api";
+import { apiErrorMessage, useQuickReplies, useSendMessage, useTypingSignal } from "@/features/inbox/api";
 import type { Conversation } from "@/features/inbox/types";
 import { isWahaConversation } from "@/features/inbox/types";
 import { useWhatsAppQrStatus } from "@/features/whatsapp-qr/api";
@@ -41,6 +41,8 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
   const wahaNotConnected = isWaha && !qrStatus.isLoading && qrStatus.data?.connected !== true;
   const refused = metaWindowClosed || wahaNotConnected || wahaStatusUnknown;
   const disabled = !canSend || !to || send.isPending || refused;
+  // Typing indicators are a Meta Cloud API feature; the server applies the workspace policy.
+  const signalTyping = useTypingSignal(conversation.id, !isWaha && !disabled);
 
   function submit(): void {
     if (!body.trim() || disabled) return;
@@ -118,7 +120,10 @@ export function MessageComposer({ conversation }: Props): JSX.Element {
         rows={2}
         value={body}
         disabled={disabled}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          setBody(event.target.value);
+          if (event.target.value.trim()) signalTyping();
+        }}
         onKeyDown={(event) => {
           // Enter sends; Shift+Enter inserts a newline.
           if (event.key === "Enter" && !event.shiftKey) {

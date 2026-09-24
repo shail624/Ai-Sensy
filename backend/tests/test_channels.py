@@ -141,6 +141,30 @@ async def test_meta_marks_provider_message_read() -> None:
     }
 
 
+@pytest.mark.anyio
+async def test_meta_typing_indicator_posts_read_status_with_typing() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return _json({"success": True})
+
+    adapter = _adapter(handler)
+    await adapter.show_typing("wamid.INBOUND")
+    await adapter.close()
+
+    assert captured == {
+        "path": f"/v21.0/{NUMBER}/messages",
+        "json": {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": "wamid.INBOUND",
+            "typing_indicator": {"type": "text"},
+        },
+    }
+
+
 async def test_undeclared_capability_raises_not_supported() -> None:
     """The gate is on the base class, so an adapter cannot forget it."""
 

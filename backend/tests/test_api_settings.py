@@ -66,6 +66,7 @@ async def test_inbox_operations_defaults_are_available_to_every_authenticated_us
         "assignment_mode": "manual",
         "auto_mark_read": True,
         "send_read_receipts": True,
+        "show_typing_indicators": False,
         "consent": {
             "enabled": False,
             "opt_in_keywords": ["START", "YES"],

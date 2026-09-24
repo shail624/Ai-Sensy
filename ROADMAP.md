@@ -1,5 +1,31 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-03 — Manage → Live Chat Settings matched to the AiSensy reference, plus typing indicators and timezone (2026-09-24)
+
+Third Manage page of the reference match. The reference page was only viewed.
+
+- Live Chat Settings has its own page (`/live-chat-settings`, `settings:read`) in the reference
+  order: Auto Resolve Chats, read behaviour, Welcome / Off Hours messages side by side with
+  Configure dialogs and bubble previews, and day-wise Working Hours. Toggles save immediately (as
+  the reference does); times and hours save on a button. The project's extra controls (clear unread
+  on open, assignment rule, auto-resolve hours) are kept in the same design. The old
+  `/settings/application#inbox-policy` view still works.
+- Opt-in Management and Live Chat Settings now share one set of primitives
+  (`managePrimitives.tsx`: switch, Configure dialog, bubble preview, button/field styles).
+- New: Show Typing Indicators. Policy flag `show_typing_indicators` (default off, no migration — it
+  lives in the validated policy JSON); `POST /api/v1/conversations/{id}/typing` (`inbox:write`)
+  sends Meta's read-status-with-typing against the newest inbound message. It is best effort and
+  never errors for provider reasons, and it only fires while read receipts are also on, because
+  Meta pairs it with a read tick. The composer signals at most once per 20s on Meta threads.
+- New: the workspace timezone is editable from this page through the existing audited organization
+  update, from the browser's IANA zone list.
+- Fixed before it shipped: the Opt-in page and the combined settings form resend the whole policy
+  and would have silently reset the new typing flag; both now carry it through (caught by types).
+- PASS: backend Ruff, strict mypy (332 files), full suite 1,792 passed, 0 failed; OpenAPI 249 paths,
+  no drift; frontend 67 files / 1,050 tests, TypeScript, ESLint, production build.
+- PENDING – live check of "typing…" on a customer's phone, once Meta WhatsApp is reconnected.
+- No module percentage change.
+
 ## UI-AIS-02 — Manage → Opt-in Management matched to the AiSensy reference (2026-09-24)
 
 Second Manage page of the screen-by-screen reference match (UI-AIS-01). The reference was only

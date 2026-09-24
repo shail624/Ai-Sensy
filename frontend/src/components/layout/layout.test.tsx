@@ -56,7 +56,7 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Manage" }));
     expect(screen.getByRole("link", { name: "Template Message" })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("link", { name: /media/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Live Chat Settings" })).toHaveAttribute("href", "/settings/application#inbox-policy");
+    expect(screen.getByRole("link", { name: "Live Chat Settings" })).toHaveAttribute("href", "/live-chat-settings");
     expect(screen.getByRole("link", { name: "Opt-in Management" })).toHaveAttribute("href", "/opt-in");
     expect(screen.getByRole("link", { name: "Analytics" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Developer" })).toHaveAttribute("href", "/operations/api");

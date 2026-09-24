@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.capabilities import Capability
+from app.channels.errors import ChannelError
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
@@ -347,6 +348,42 @@ class InboxService:
             row_version=conversation.row_version,
             updated_at=conversation.updated_at,
         )
+
+    async def show_typing(self, *, organization_id: int, public_id: uuidlib.UUID) -> bool:
+        """Best-effort "typing…" to the customer while an agent composes a reply.
+
+        Returns whether the signal was sent. It is skipped — never an error — when the policy has it
+        off, when read receipts are off (Meta pairs it with a read status, so sending it would reveal
+        a read the organization hides), when there is no inbound provider message to attach it to,
+        when the channel lacks the capability, or when the provider refuses it. Nothing is stored.
+        """
+        conversation = await self._conversation(organization_id, public_id)
+        policy = await InboxOperationsService(self._session).get(organization_id)
+        if not (policy.show_typing_indicators and policy.send_read_receipts):
+            return False
+        inbound = await self._messages.latest_receiptable_inbound(conversation.id)
+        if inbound is None or not inbound.wamid or conversation.phone_number_id is None:
+            return False
+        number = await self._numbers.get_by_id(conversation.phone_number_id)
+        if number is None or number.organization_id != organization_id:
+            return False
+        waba = await self._wabas.get_by_id(number.waba_id)
+        if waba is None or waba.organization_id != organization_id:
+            return False
+        adapter = WabaService(self._session).adapter_for(waba, phone_number_id=number.phone_number_id)
+        try:
+            if not adapter.supports(Capability.TYPING_INDICATOR):
+                return False
+            await adapter.show_typing(inbound.wamid)
+        except ChannelError as exc:
+            logger.info(
+                "typing_indicator_skipped",
+                extra={"conversation": conversation.id, "reason": str(exc)},
+            )
+            return False
+        finally:
+            await adapter.close()
+        return True
 
     # --- Notes ---------------------------------------------------------------
     async def add_note(

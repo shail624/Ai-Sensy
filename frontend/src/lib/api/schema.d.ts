@@ -2894,6 +2894,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Show the customer a typing indicator (best effort)
+         * @description Signal "typing…" while an agent composes. Never fails for provider reasons; ``sent`` says
+         *     whether it went out — see :meth:`InboxService.show_typing` for when it is skipped.
+         */
+        post: operations["show_conversation_typing_api_v1_conversations__conversation_id__typing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/notes": {
         parameters: {
             query?: never;
@@ -7609,6 +7630,11 @@ export interface components {
              * @default true
              */
             send_read_receipts: boolean;
+            /**
+             * Show Typing Indicators
+             * @default false
+             */
+            show_typing_indicators: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
@@ -7641,6 +7667,11 @@ export interface components {
              * @default true
              */
             send_read_receipts: boolean;
+            /**
+             * Show Typing Indicators
+             * @default false
+             */
+            show_typing_indicators: boolean;
             consent?: components["schemas"]["ConsentKeywordSettings"];
             working_hours?: components["schemas"]["WorkingHoursSettings"];
             automatic_replies?: components["schemas"]["AutomaticReplySettings"];
@@ -10887,6 +10918,14 @@ export interface components {
              */
             kind: "trigger";
             config: components["schemas"]["TriggerConfig"];
+        };
+        /**
+         * TypingIndicatorResponse
+         * @description ``POST /conversations/{id}/typing`` — whether the best-effort signal was sent.
+         */
+        TypingIndicatorResponse: {
+            /** Sent */
+            sent: boolean;
         };
         /** UnreadCountResponse */
         UnreadCountResponse: {
@@ -17216,6 +17255,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConversationReadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_conversation_typing_api_v1_conversations__conversation_id__typing_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TypingIndicatorResponse"];
                 };
             };
             /** @description Validation Error */

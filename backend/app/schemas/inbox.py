@@ -52,6 +52,12 @@ class ConversationStateResponse(BaseModel):
         )
 
 
+class TypingIndicatorResponse(BaseModel):
+    """``POST /conversations/{id}/typing`` — whether the best-effort signal was sent."""
+
+    sent: bool
+
+
 class ConversationReadResponse(BaseModel):
     """A conversation after its unread counter is reset (Doc 04 §18.1).
 
