@@ -1,5 +1,18 @@
 # Module Status
 
+## UI-AIS-12 — Voice notes and videos play in Live Chat (2026-09-24)
+
+Owner report: a voice note arrived but would not play.
+
+- Root cause: the production Content-Security-Policy allowed `blob:` for images only; `<audio>`
+  and `<video>` fell back to `default-src 'self'`, so the browser refused the file
+  (MEDIA_ERR_SRC_NOT_SUPPORTED) although the download and the OGG/Opus file were fine.
+  `deploy/nginx/nginx.conf` now adds `media-src 'self' blob:` (nginx reloaded, config test passed).
+- Hardening: each message file keeps one object URL for the page's lifetime instead of being
+  revoked on re-render, so a player never points at a released URL.
+- Live check: the inbound 13 KB voice note now loads (duration 5.8 s, no media error).
+- PASS: frontend inbox 76 tests, TypeScript, ESLint, build; `nginx -t`. No backend change.
+
 ## UI-AIS-11 — Customer photo on official-API chats (2026-09-24)
 
 Owner report: the customer's DP showed on QR chats but not on API chats.

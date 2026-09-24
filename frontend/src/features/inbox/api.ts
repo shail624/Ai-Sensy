@@ -556,33 +556,32 @@ export function useSendLocation(conversationId: string) {
  * file is fetched in the background after the message arrives, so a "not yet" answer is retried
  * for a minute before giving up.
  */
+/** Object URLs for message files already downloaded this page load, by message id. */
+const mediaUrls = new Map<string, string>();
+
 export function useMessageMedia(messageId: string, enabled: boolean): { url: string | null; loading: boolean; failed: boolean } {
   const media = useQuery({
     // Outside `inboxKeys.all`: a file never changes, so sending a reply must not re-download it.
     queryKey: ["message-media", messageId],
-    queryFn: async (): Promise<Blob> => {
+    queryFn: async (): Promise<string> => {
+      const cached = mediaUrls.get(messageId);
+      if (cached) return cached;
       const { data, response } = await api.GET("/api/v1/messages/{message_id}/media", {
         params: { path: { message_id: messageId } },
         parseAs: "blob",
       });
       if (response.status !== 200 || !(data instanceof Blob)) throw new Error(`media ${response.status}`);
-      return data;
+      // One object URL per message for the life of the page. Revoking it when a component
+      // re-renders broke voice notes and videos, which the browser only reads when played.
+      const url = URL.createObjectURL(data);
+      mediaUrls.set(messageId, url);
+      return url;
     },
     enabled: enabled && Boolean(messageId),
     staleTime: Infinity,
-    gcTime: 30 * 60_000,
+    gcTime: Infinity,
     retry: 12,
     retryDelay: 5_000,
   });
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!media.data) {
-      setUrl(null);
-      return undefined;
-    }
-    const objectUrl = URL.createObjectURL(media.data);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [media.data]);
-  return { url, loading: media.isLoading || media.isFetching, failed: media.isError };
+  return { url: media.data ?? null, loading: media.isLoading || media.isFetching, failed: media.isError };
 }
