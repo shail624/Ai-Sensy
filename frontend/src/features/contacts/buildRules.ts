@@ -7,6 +7,8 @@ export interface ContactFilters {
   tagId: string;
   /** Custom-attribute filters: `key_name` → selected enum value ("" = none). */
   attributes: Record<string, string>;
+  /** Sale status set from Live Chat ("" or absent = any). */
+  sale?: string;
 }
 
 export const emptyFilters: ContactFilters = { search: "", tagId: "", attributes: {} };
@@ -15,6 +17,7 @@ export function hasActiveFilters(filters: ContactFilters): boolean {
   return (
     filters.search.trim() !== "" ||
     filters.tagId !== "" ||
+    Boolean(filters.sale) ||
     Object.values(filters.attributes).some((value) => value !== "")
   );
 }
@@ -45,6 +48,16 @@ export function buildRules(
       field_key: field,
       operator: "contains",
       value: query,
+    });
+  }
+
+  if (filters.sale) {
+    rules.push({
+      group_index: group++,
+      field_source: "contact",
+      field_key: "sale_status",
+      operator: "eq",
+      value: filters.sale,
     });
   }
 

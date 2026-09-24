@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid as uuidlib
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
@@ -52,6 +52,10 @@ class ContactResponse(BaseModel):
     last_outbound_at: datetime | None
     last_contacted_at: datetime | None
     source: str | None
+    #: Where the sale stands (``SALE_STATUSES``), set from Live Chat; ``null`` when not marked.
+    sale_status: str | None = None
+    #: The customer's number release date, when one is recorded.
+    release_date: date | None = None
     tags: list[TagSummary]
     attributes: dict[str, Any]
     created_at: datetime
@@ -81,6 +85,8 @@ class ContactResponse(BaseModel):
             last_outbound_at=contact.last_outbound_at,
             last_contacted_at=contact.last_contacted_at,
             source=contact.source,
+            sale_status=contact.sale_status,
+            release_date=contact.release_date,
             created_at=contact.created_at,
             updated_at=contact.updated_at,
             row_version=contact.row_version,

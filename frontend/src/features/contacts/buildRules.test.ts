@@ -83,3 +83,13 @@ describe("buildRules", () => {
     expect(buildRules({ ...emptyFilters, attributes: { unknown: "x" } }, tags, defs)).toEqual([]);
   });
 });
+
+describe("sale status filter", () => {
+  it("adds a sale_status rule set from Live Chat", () => {
+    const rules = buildRules({ search: "", tagId: "", attributes: {}, sale: "sale_done" }, [], []);
+    expect(rules).toEqual([
+      { group_index: 0, field_source: "contact", field_key: "sale_status", operator: "eq", value: "sale_done" },
+    ]);
+    expect(hasActiveFilters({ search: "", tagId: "", attributes: {}, sale: "sale_done" })).toBe(true);
+  });
+});

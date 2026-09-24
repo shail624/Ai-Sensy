@@ -1,5 +1,25 @@
 # Changelog
 
+## UI-AIS-13 — Contacts page matched to AiSensy, with sale status and release date (2026-09-24)
+
+Owner request: Contacts like AiSensy (list, filter, import) showing sale status and release date.
+
+- Reference (viewed read-only): header, Quick Guide, Filter · Broadcast · Add Contact · Import ·
+  Actions, and a wide table (Name, Mobile Number, Tags, Source, Lead Stage, Status, Last Active,
+  Created At, Opted In …) with "25 per page".
+- Contacts page now uses the Manage header and Quick Guide; buttons Broadcast (→ /broadcasts),
+  Add Contact, Import, Actions; sale status tabs (All + 7 statuses) kept in the URL (`?sale=`).
+- Table: Name · Mobile Number · Tags · Source · Sale Status (coloured pill) · Release Date ·
+  Opted In (Yes/No/Unknown) · Last Active · Created At (reference timestamp format); phone cards
+  show the sale pill too. Pagination reads "25 per page · N contacts".
+- Backend: `ContactResponse` carries `sale_status` and `release_date`; the contact search/segment
+  compiler accepts `sale_status` (text operators) and `release_date` (date operators) rules, so
+  segments and campaign audiences can use them too.
+- Live check: the Follow-up tab narrows the list to the one customer marked Follow-up
+  (release date 25 Sept 2026).
+- PASS: backend 1,831 (full suite), ruff, mypy on changed modules, OpenAPI `--check`; frontend
+  contacts 76 + buildRules 8 tests, full suite, TypeScript, ESLint, build. No migration.
+
 ## UI-AIS-12 — Voice notes and videos play in Live Chat (2026-09-24)
 
 Owner report: a voice note arrived but would not play.

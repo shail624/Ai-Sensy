@@ -14,6 +14,7 @@ import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
  * all of Live Chat, and each Manage list page once it renders `ManagePageHeader`.
  */
 const MANAGE_HEADER_PAGES = new Set([
+  "/contacts",
   "/templates",
   "/opt-in",
   "/live-chat-settings",

@@ -96,6 +96,9 @@ _CONTACT_FIELDS: dict[str, tuple[Any, str]] = {
     "locale": (Contact.locale, _STR),
     "opt_in_status": (Contact.opt_in_status, _STR),
     "source": (Contact.source, _STR),
+    # Set from Live Chat (UI-AIS-06); filterable on the Contacts page (UI-AIS-13).
+    "sale_status": (Contact.sale_status, _STR),
+    "release_date": (Contact.release_date, _DT),
     "is_active_on_wa": (Contact.is_active_on_wa, _BOOL),
     "created_at": (Contact.created_at, _DT),
 }

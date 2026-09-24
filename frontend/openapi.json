@@ -23211,6 +23211,29 @@
             ],
             "title": "Source"
           },
+          "sale_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sale Status"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
           "tags": {
             "items": {
               "$ref": "#/components/schemas/TagSummary"

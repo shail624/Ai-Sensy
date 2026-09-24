@@ -6551,6 +6551,10 @@ export interface components {
             last_contacted_at: string | null;
             /** Source */
             source: string | null;
+            /** Sale Status */
+            sale_status?: string | null;
+            /** Release Date */
+            release_date?: string | null;
             /** Tags */
             tags: components["schemas"]["TagSummary"][];
             /** Attributes */

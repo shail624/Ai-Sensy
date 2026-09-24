@@ -158,3 +158,33 @@ async def test_due_release_date_notifies_the_agent(db_session, organization, mak
     # Scans converge: the same due date never notifies twice.
     again = await TaskService(db_session).dispatch_due_notifications(now=datetime(2026, 10, 5, 6))
     assert again == {"notified": 0}
+
+
+@pytest.mark.anyio
+async def test_contacts_search_filters_by_sale_status_and_release_date(
+    db_session, organization, make_user
+) -> None:
+    """The Contacts page filters on the fields Live Chat sets (UI-AIS-13)."""
+    from app.services.contact_search_service import ContactSearchService
+
+    actor = (await make_user(email="sale-search@vi.co", is_superuser=True)).user
+    done = await _thread(db_session, organization.id, "919990050505", "SS1")
+    await _thread(db_session, organization.id, "919990060606", "SS2")
+    await SaleStatusService(db_session).update(
+        organization_id=organization.id,
+        actor=actor,
+        conversation_public_id=uuidlib.UUID(bytes=done.uuid),
+        sale_status="sale_done",
+        release_date=date(2026, 10, 5),
+    )
+
+    async def matching(rules: list[dict]) -> list[int]:
+        result = await ContactSearchService(db_session).search(
+            organization.id, match_type="all", rules=rules, limit=10, cursor=None
+        )
+        return [contact.id for contact in result.contacts]
+
+    rule = {"field_source": "contact", "field_key": "sale_status", "operator": "eq"}
+    assert await matching([rule | {"value": "sale_done"}]) == [done.contact_id]
+    released = {"field_source": "contact", "field_key": "release_date", "operator": "lte"}
+    assert await matching([released | {"value": "2026-10-10T00:00:00"}]) == [done.contact_id]

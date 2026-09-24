@@ -1,9 +1,11 @@
-import { Contact as ContactIcon, Plus, Upload } from "lucide-react";
+import { Contact as ContactIcon, Megaphone, Plus, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Badge, Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components/ui";
+import { ManagePageHeader, MANAGE_PRIMARY_ACTION } from "@/components/layout";
+import { Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components/ui";
+import { SALE_STATUS_OPTIONS } from "@/features/inbox/saleStatus";
+import { QuickGuide } from "@/features/settings/QuickGuide";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
@@ -19,10 +21,19 @@ import { useHasPermission } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
 
+const MANAGE_OUTLINE_BUTTON =
+  "inline-flex h-[37px] items-center gap-1.5 rounded-md border border-[rgba(10,71,76,0.5)] px-3 text-sm font-medium text-[var(--color-nav-bg)] transition-colors hover:bg-[#ebf5f3] dark:text-accent";
+
+const SALE_FILTERS = [
+  { label: "All status", value: "", pill: "bg-surface text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+  ...SALE_STATUS_OPTIONS.map((option) => ({ label: option.label, value: option.value as string, pill: option.pill })),
+];
+
 function filtersToParams(filters: ContactFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.search.trim()) params.set("q", filters.search.trim());
   if (filters.tagId) params.set("tag", filters.tagId);
+  if (filters.sale) params.set("sale", filters.sale);
   for (const [key, value] of Object.entries(filters.attributes)) {
     if (value) params.set(`attr_${key}`, value);
   }
@@ -58,6 +69,7 @@ export function ContactsList(): JSX.Element {
   const [created, setCreated] = useState(false);
   const canCreate = useHasPermission("contacts:write");
   const canImport = useHasPermission("contacts:import");
+  const canBroadcast = useHasPermission("campaigns:read");
 
   const filters = useMemo<ContactFilters>(() => {
     const attributes: Record<string, string> = {};
@@ -67,6 +79,7 @@ export function ContactsList(): JSX.Element {
     return {
       search: searchParams.get("q") ?? "",
       tagId: searchParams.get("tag") ?? "",
+      sale: searchParams.get("sale") ?? "",
       attributes,
     };
   }, [searchParams]);
@@ -117,28 +130,35 @@ export function ContactsList(): JSX.Element {
   }
 
   return (
-    <PageContainer>
-      <div style={{ paddingBottom: dockedSpace }}>
-        <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
-        <PageHeader
-          eyebrow="Customer data"
-          title="Contacts"
-          description="All your customers in one place."
-          meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
-          actions={<div className="flex flex-wrap gap-2">
-            {canCreate ? <Button variant="secondary" leftIcon={<Plus className="h-4 w-4" />} onClick={() => { setCreated(false); setCreating(true); }}>Add Contact</Button> : null}
-            {canImport ? (
-            <Button
-              variant="secondary"
-              leftIcon={<Upload className="h-4 w-4" />}
-              onClick={() => setImporting(true)}
-            >
-              Import
-            </Button>
-          ) : null}
-            <ContactsActions rules={rules} />
-          </div>}
+    <div className="min-h-full bg-[#f9f9f9] dark:bg-canvas">
+      <ManagePageHeader title="Contacts" />
+      <div className="space-y-4 px-4 py-6 sm:px-[30px]" style={{ paddingBottom: dockedSpace || undefined }}>
+        <QuickGuide
+          eyebrow="Contacts quick guide"
+          text="All your customers in one place: search, filter by tag or sale status, import a sheet, or open a customer to see their chats and details."
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="mr-auto text-sm text-[#6e6e6e] dark:text-text-secondary">
+            {page?.total != null ? `${page.total.toLocaleString("en-IN")} contacts` : "Contacts"}
+          </p>
+          {canBroadcast ? (
+            <Link to="/broadcasts" className={MANAGE_OUTLINE_BUTTON}>
+              <Megaphone aria-hidden className="h-4 w-4" /> Broadcast
+            </Link>
+          ) : null}
+          {canCreate ? (
+            <button type="button" onClick={() => { setCreated(false); setCreating(true); }} className={MANAGE_OUTLINE_BUTTON}>
+              <Plus aria-hidden className="h-4 w-4" /> Add Contact
+            </button>
+          ) : null}
+          {canImport ? (
+            <button type="button" onClick={() => setImporting(true)} className={MANAGE_PRIMARY_ACTION}>
+              <Upload aria-hidden className="mr-1 h-4 w-4" /> Import
+            </button>
+          ) : null}
+          <ContactsActions rules={rules} />
+        </div>
 
         {created ? <p role="status" className="mb-4 text-sm text-text-secondary">Contact created. Your current filters are preserved; clear them if the new contact is not visible.</p> : null}
         {creating ? <CreateContactDialog onClose={() => setCreating(false)} onCreated={() => { setCreating(false); setCreated(true); }} /> : null}
@@ -158,6 +178,24 @@ export function ContactsList(): JSX.Element {
             tags={tags.data ?? []}
             enumAttributes={enumAttributes}
           />
+          <div role="group" aria-label="Sale status" className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {SALE_FILTERS.map((choice) => {
+              const active = (filters.sale ?? "") === choice.value;
+              return (
+                <button
+                  key={choice.label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => applyFilters({ ...filters, sale: choice.value })}
+                  className={`h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors ${
+                    active ? "bg-[var(--color-nav-bg)] text-white" : `${choice.pill} hover:opacity-80`
+                  }`}
+                >
+                  {choice.label}
+                </button>
+              );
+            })}
+          </div>
           <ContactSavedViews filters={filters} onApply={applyFilters} />
         </div>
 
@@ -184,7 +222,7 @@ export function ContactsList(): JSX.Element {
               }
               action={
                 hasActiveFilters(filters) ? (
-                  <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
+                  <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", sale: "", attributes: {} })}>
                     Clear filters
                   </Button>
                 ) : canImport ? (
@@ -214,11 +252,11 @@ export function ContactsList(): JSX.Element {
               onNext={() => {
                 if (page?.next_cursor) goToCursor(page.next_cursor);
               }}
-              summary={page?.total != null ? `${page.total.toLocaleString()} total contacts` : undefined}
+              summary={page?.total != null ? `${PAGE_SIZE} per page · ${page.total.toLocaleString("en-IN")} contacts` : undefined}
             />
           </>
         )}
       </div>
-    </PageContainer>
+    </div>
   );
 }
