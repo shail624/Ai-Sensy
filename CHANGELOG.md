@@ -1,5 +1,23 @@
 # Changelog
 
+## UI-AIS-21 — Polish: the real font, smooth transitions, dialog and page animation (2026-09-24)
+
+Owner feedback: still not as polished and smooth as AiSensy.
+
+- Root cause of the "unfinished" look: the app asked for the Inter font but never shipped it, so
+  Windows fell back to Segoe UI everywhere (`document.fonts` showed nothing loaded). The reference
+  uses Roboto (Material) with Inter headings. Both are now bundled locally via `@fontsource/roboto`
+  (300/400/500/700) and `@fontsource/inter` (400/500/600) — no external font requests, CSP
+  unchanged — and Roboto is the interface font with the reference body tracking (0.00938em),
+  Inter for h1/h2. Verified live: Roboto 400/500/700 and Inter 400/600 loaded.
+- Smoothness: every button, link, tab, menu item and field eases colour/border/shadow changes
+  (160ms, Material curve); buttons give a slight press (scale 0.97); each page fades up into place
+  (220ms, keyed by path so query changes do not replay it); dialogs fade their backdrop and grow
+  into place with the Material dialog shadow and a larger plain title. All motion is disabled
+  under `prefers-reduced-motion`.
+- PASS: frontend 1,092 tests, TypeScript, build (fonts emitted as hashed woff2 assets); live font
+  check. No backend change.
+
 ## UI-AIS-20 — AiSensy audit pass 2: placeholder AI panels removed, Customer page, Developer header (2026-09-24)
 
 - The "AI copilot / Provider not connected" placeholder (with governed-AI wording) is removed from

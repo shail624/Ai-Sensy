@@ -197,7 +197,10 @@ export function AppLayout(): JSX.Element {
           immersive={isImmersive(location.pathname)}
         />
         <main id="main-content" className="relative flex-1 overflow-auto pb-16 lg:pb-0">
-          <Outlet />
+          {/* Keyed by page so each new page fades in; query changes within a page do not replay it. */}
+          <div key={location.pathname} className="page-enter h-full">
+            <Outlet />
+          </div>
         </main>
         <nav aria-label="Mobile primary" className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_94%,transparent)] px-2 backdrop-blur-xl lg:hidden">
           {mobileItems.map((item) => {

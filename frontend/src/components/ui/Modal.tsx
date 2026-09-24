@@ -92,7 +92,7 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/50 ${SHELL[variant]}`}
+      className={`modal-backdrop-enter fixed inset-0 z-50 bg-black/50 ${SHELL[variant]}`}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -103,10 +103,10 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`border border-border bg-surface shadow-lg focus:outline-none ${PANEL[variant]} ${panelClassName}`}
+        className={`modal-panel-enter border border-border bg-surface shadow-[0_11px_15px_-7px_rgba(0,0,0,0.2),0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12)] focus:outline-none ${PANEL[variant]} ${panelClassName}`}
       >
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
+          <h2 className="text-lg font-normal text-black dark:text-text-primary">{title}</h2>
           <button
             type="button"
             onClick={onClose}

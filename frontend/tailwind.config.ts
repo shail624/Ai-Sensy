@@ -109,7 +109,8 @@ const config: Config = {
         overlay: "16px",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        sans: ["Roboto", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        heading: ["Inter", "Roboto", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       ringColor: {
