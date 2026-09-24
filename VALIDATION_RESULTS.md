@@ -63,9 +63,11 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 
 ## CORE-WH-01 — Retry-safe inbound webhook handoff (2026-09-24)
 
-- PASS: injected broker publish failure leaves Meta and QR events retryable; subsequent successful publish settles them. Targeted webhook suites: 55 passed.
-- PASS: Ruff on changed Python modules.
-- PENDING – Host Machine Validation: full backend suite in progress; record final count before milestone closeout.
+- PASS: injected broker publish failure leaves Meta and QR events retryable; subsequent successful publish settles them. Targeted webhook suites including delay-warning privacy test: 56 passed.
+- PASS: full backend suite with a fresh isolated test-temp directory: 1,839 passed in 12:02. The initial run had 1,716 passed and 122 setup errors, all from access denied to the shared Windows temp directory; no test assertion failures.
+- PASS: Ruff on changed Python modules, mypy on the changed service, OpenAPI `--check`, and `git diff --check`.
+- PASS: local API and realtime-worker images rebuilt and both containers reported healthy; worker registered as ready.
+- PENDING – Host Machine Validation: fresh real inbound message after this deployment, to verify Meta-to-app delivery rather than only local processing.
 - Live evidence: Meta posted a fresh text at 07:54:43 UTC; the local inbound task applied it in 0.08 seconds. The prior missing text had no matching edge request. No claim that this code change repairs upstream non-delivery.
 
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)

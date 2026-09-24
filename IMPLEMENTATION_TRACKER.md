@@ -63,7 +63,7 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 
 ## CORE-WH-01 — Retry-safe inbound webhook handoff (2026-09-24)
 
-Implemented on the existing Meta/QR pipeline: publish inbound work before settling the persisted event; retry broker publication failures; warn on provider-to-ingress delay without personal data. Targeted webhook tests: 55 passed. Full backend validation pending. No migration or contract change. The live missing text had no ingress request in available logs, so its cause remains unproven.
+Implemented on the existing Meta/QR pipeline: publish inbound work before settling the persisted event; retry broker publication failures; warn on provider-to-ingress delay without personal data. Full backend suite: 1,839 passed using an isolated test-temp directory. An initial run had 122 setup errors from an inaccessible shared Windows temp directory, not test assertions. Ruff, changed-module mypy and OpenAPI check passed. No migration or contract change. The live missing text had no ingress request in available logs, so its cause remains unproven.
 
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 

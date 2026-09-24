@@ -343,6 +343,61 @@ async def test_process_routes_and_settles_an_event(
     assert after.attempts == 1
 
 
+async def test_failed_inbound_publish_leaves_event_retryable(
+    client, make_user, session_factory, monkeypatch, dispatched
+) -> None:
+    """A broker failure must not settle the event before the inbox task exists."""
+    from kombu.exceptions import OperationalError as BrokerOperationalError
+
+    from app.queue.retry import FailureClass, classify
+
+    await _seed_number(client, make_user, session_factory, monkeypatch)
+    await _post(client, _delivery(messages=[_message()]))
+    (row,) = await _events(session_factory)
+
+    def broker_down(_event_pk: int) -> None:
+        raise BrokerOperationalError("broker unavailable")
+
+    async with session_factory() as session:
+        with pytest.raises(BrokerOperationalError):
+            await WebhookService(session).process(row.id, dispatch_inbound=broker_down)
+
+    (after_failure,) = await _events(session_factory)
+    assert after_failure.status == WH_RECEIVED
+    assert after_failure.processed_at is None
+    assert after_failure.attempts == 1
+    assert classify(BrokerOperationalError("broker unavailable")) is FailureClass.TRANSIENT_PROC
+
+    routed: list[int] = []
+    async with session_factory() as session:
+        result = await WebhookService(session).process(row.id, dispatch_inbound=routed.append)
+
+    assert result["status"] == WH_PROCESSED
+    assert routed == [row.id]
+    (after_retry,) = await _events(session_factory)
+    assert after_retry.status == WH_PROCESSED and after_retry.attempts == 2
+
+
+async def test_late_provider_delivery_warns_without_customer_data(
+    client, monkeypatch, dispatched
+) -> None:
+    warnings: list[tuple[str, dict]] = []
+
+    def capture(message: str, *, extra: dict) -> None:
+        warnings.append((message, extra))
+
+    monkeypatch.setattr("app.services.webhook_service.logger.warning", capture)
+    response = await _post(client, _delivery(messages=[_message(body="private message body")]))
+
+    assert response.status_code == 200
+    late = [fields for name, fields in warnings if name == "webhook_provider_delivery_delayed"]
+    assert len(late) == 1
+    assert late[0]["delay_seconds"] >= 30
+    assert late[0]["connector_type"] == "meta_cloud"
+    assert "private message body" not in str(late)
+    assert "919990329329" not in str(late)
+
+
 async def test_redelivered_event_is_marked_duplicate_and_not_reapplied(
     client, make_user, session_factory, monkeypatch, dispatched
 ) -> None:

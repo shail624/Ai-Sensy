@@ -1361,6 +1361,41 @@ async def test_phone_sent_message_is_stored_as_outbound(db_session, organization
 
 
 @pytest.mark.anyio
+async def test_phone_echo_publish_failure_does_not_settle_event(
+    db_session, organization, make_user
+) -> None:
+    """A QR phone echo remains retryable when the inbound queue is unavailable."""
+    from kombu.exceptions import OperationalError as BrokerOperationalError
+
+    from app.models.webhook import WH_PROCESSED, WH_RECEIVED, WebhookEvent
+
+    actor = (await make_user(email="echo-publish-fail@vi.co", is_superuser=True)).user
+    await _enable_flags(db_session, organization.id)
+    await _waha_endpoint(db_session, organization.id, actor, suffix="ECHORETRY")
+    echo = _waha_delivery(
+        event="message.any",
+        envelope_id="echo-publish-fail",
+        session="waha-session-ECHORETRY",
+        body="from the phone",
+        from_id="919990020203@c.us",
+        from_me=True,
+    )
+    (event_pk,) = await _ingest_waha(db_session, echo)
+
+    def broker_down(_event_pk: int) -> None:
+        raise BrokerOperationalError("broker unavailable")
+
+    with pytest.raises(BrokerOperationalError):
+        await WebhookService(db_session).process(event_pk, dispatch_inbound=broker_down)
+    row = await db_session.get(WebhookEvent, event_pk)
+    assert row is not None and row.status == WH_RECEIVED and row.attempts == 1
+
+    routed: list[int] = []
+    result = await WebhookService(db_session).process(event_pk, dispatch_inbound=routed.append)
+    assert result["status"] == WH_PROCESSED and routed == [event_pk]
+
+
+@pytest.mark.anyio
 async def test_echo_of_our_own_send_is_not_stored_twice(db_session, organization, make_user) -> None:
     actor = (await make_user(email="echo-own@vi.co", is_superuser=True)).user
     await _enable_flags(db_session, organization.id)

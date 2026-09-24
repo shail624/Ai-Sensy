@@ -66,6 +66,7 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 - Meta messages and QR phone echoes are settled only after their inbound task is accepted by the broker. A failed publish stays retryable instead of silently skipping the customer message.
 - Broker operational errors use the existing transient retry policy. Signed inbound messages delayed more than 30 seconds before ingress emit a privacy-safe structured warning.
 - No schema, API contract or frontend change. This hardens messages that reach our webhook; it cannot recover a message Meta never delivered to it.
+- Validation: 1,839 backend tests passed with isolated test-temp storage; 56 focused webhook tests passed.
 
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 

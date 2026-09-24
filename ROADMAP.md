@@ -63,7 +63,7 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 
 ## CORE-WH-01 — Retry-safe inbound webhook handoff (2026-09-24)
 
-Current milestone: close the local event-settled-before-publish loss window without a new model or migration; test broker failure and retry on both Meta and QR paths. Provider non-delivery remains separately diagnosable through Meta delivery evidence; the app cannot reconstruct a webhook it never received. Next operational action after validation: verify Meta's delivery history for the 13:17 message and rotate previously disclosed credentials.
+Milestone validated: the local event-settled-before-publish loss window is closed without a new model or migration, with broker failure and retry tests on both Meta and QR paths and 1,839 backend tests passing. Provider non-delivery remains separately diagnosable through Meta delivery evidence; the app cannot reconstruct a webhook it never received. Next operational actions: verify Meta's delivery history for the 13:17 message and rotate previously disclosed credentials.
 
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 

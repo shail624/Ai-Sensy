@@ -65,6 +65,8 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 
 The local handoff-loss window is closed for Meta messages and QR phone echoes: broker publication precedes event settlement. This does not guarantee Meta will post every incoming message. The observed fresh text reached the webhook and was applied within 0.1 seconds; the earlier missing text had no matching ingress request. No completion-percentage change.
 
+Validation: 1,839 backend tests passed with isolated test-temp storage; 56 focused webhook tests passed. Local API and realtime-worker containers were rebuilt and reported healthy. A post-deployment real inbound message is still pending owner send.
+
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 
 Follow-up to UI-AIS-17: the Campaigns strip showed "Not reported yet" for the tier.

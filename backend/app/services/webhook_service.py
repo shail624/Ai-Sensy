@@ -19,6 +19,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from kombu.exceptions import OperationalError as BrokerOperationalError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,6 +63,8 @@ _ROUTABLE = (InboundEventType.MESSAGES.value, InboundEventType.STATUSES.value)
 #: Attempts before a QR-endpoint receipt with no matching stored message is treated as another
 #: sender's (the phone app's) rather than a race with our own send.
 _UNMATCHED_RECEIPT_ATTEMPTS = 3
+# Warn when provider-to-ingress delay, not inbox processing, dominates the customer wait.
+_INBOUND_PROVIDER_DELAY_WARNING_SECONDS = 30
 
 
 class WebhookUnprocessable(Exception):
@@ -81,6 +84,10 @@ def _classify_webhook(exc: BaseException) -> FailureClass | None:
     """Register the classes this module owns with the retry engine (Doc 06 §6.6, D12)."""
     if isinstance(exc, WebhookUnprocessable | LedgerError):
         return FailureClass.TERMINAL_DATA
+    if isinstance(exc, BrokerOperationalError):
+        # Publishing the next lane failed. The event remains received and must be retried,
+        # never dead-lettered as an unknown data error while the broker is unavailable.
+        return FailureClass.TRANSIENT_PROC
     if isinstance(exc, IntegrityError) and _is_duplicate_key(exc):
         # Two deliveries of one provider message (WAHA sends `message` and `message.any`) can race
         # to create the same new Contact or thread. The loser retries, finds the winner's rows, and
@@ -191,6 +198,18 @@ class WebhookService:
             "webhook_ingested",
             extra={"events": len(rows), "unreadable": unreadable, "routed": len(routing)},
         )
+        now = utcnow()
+        for event in events:
+            if event.type != InboundEventType.MESSAGES or event.occurred_at is None:
+                continue
+            delay_seconds = (now - event.occurred_at).total_seconds()
+            if delay_seconds >= _INBOUND_PROVIDER_DELAY_WARNING_SECONDS:
+                # No customer identifier or message body in operational logs. This identifies
+                # upstream lateness only; it cannot recover a webhook Meta never delivers.
+                logger.warning(
+                    "webhook_provider_delivery_delayed",
+                    extra={"delay_seconds": round(delay_seconds), "connector_type": self._connector_type},
+                )
         return [row.id for row in rows]
 
     def _read(self, adapter: ChannelAdapter, body: bytes) -> tuple[list[InboundEvent], bool]:
@@ -247,10 +266,10 @@ class WebhookService:
         if row.object_type == InboundEventType.ECHOES.value and row.channel_endpoint_id is not None:
             # A message the QR-connected phone sent: routed like an inbound message, where the
             # message lane stores it unless it is one of ours (UI-AIS-09).
+            dispatch_inbound(row.id)
             row.status = WH_PROCESSED
             row.processed_at = utcnow()
             await self._session.commit()
-            dispatch_inbound(row.id)
             return {
                 "status": WH_PROCESSED,
                 "event_pk": event_pk,
@@ -320,14 +339,15 @@ class WebhookService:
                     "outcome": "unmatched_receipt",
                 }
 
+        if row.object_type == InboundEventType.MESSAGES.value:
+            # The row was committed at ingest. Publish before settling it: if the broker
+            # refuses this task, a retry must still see a received event. A crash after
+            # publish may enqueue twice, which the inbound message ledger deduplicates.
+            dispatch_inbound(row.id)
+            outcome = "routed"
         row.status = WH_PROCESSED
         row.processed_at = utcnow()
         await self._session.commit()
-
-        if row.object_type == InboundEventType.MESSAGES.value:
-            # After the commit, never before: the task must not outrun the row it reads.
-            dispatch_inbound(row.id)
-            outcome = "routed"
         return {
             "status": WH_PROCESSED,
             "event_pk": event_pk,

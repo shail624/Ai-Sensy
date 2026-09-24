@@ -65,6 +65,8 @@ Reference pages were viewed read-only in the app browser (nothing changed there)
 
 Inbound WhatsApp: local broker-handoff durability improved for official API messages and QR phone echoes. Provider-to-ingress lateness now has a privacy-safe warning. External Meta delivery remains an operational dependency; no module percentage change.
 
+Validation: 1,839 backend tests and 56 focused webhook tests passed. Local API and realtime worker were rebuilt and reported healthy; a post-deployment real inbound message remains to be checked.
+
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 
 Follow-up to UI-AIS-17: the Campaigns strip showed "Not reported yet" for the tier.
