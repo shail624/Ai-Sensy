@@ -1,5 +1,28 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-07 — Attachments, emoji and location in Live Chat (API and QR) (2026-09-24)
+
+Owner request: both chats had no way to send attachments; add what WhatsApp Web offers —
+documents, emoji, music, videos, maps.
+
+- Composer: 😊 emoji picker (built-in set, inserts at the cursor) and 📎 menu — Photos & videos,
+  Document, Audio / music, Location. A chosen file shows a preview (thumbnail for photos, name and
+  size otherwise); the typed text becomes its caption. Files WhatsApp would refuse (type or size)
+  are explained before any upload.
+- Files are uploaded to the media library, then sent by `media_asset_id`: the official API uploads
+  them to Meta as before; QR chats now send the file inline — WAHA adapter declares `MEDIA`
+  (photo → sendImage, MP4 → sendVideo, OGG → sendVoice, everything else → sendFile).
+  `accept_endpoint` accepts stored-file media only; templates/interactive stay refused on QR.
+  WAHA server tier checked: CORE accepts media sends.
+- Location: new `location` send type (`latitude`, `longitude`, optional `name`/`address`) for both
+  providers (Meta Graph `location`; WAHA `sendLocation`), `Capability.LOCATION` declared by both.
+  The dialog takes "Use my current location", a pasted Google Maps link or coordinates. Previews
+  show "📍 <place>".
+- Note: uploading needs `media:write` in addition to `messages:send`.
+- PASS: backend 1,822 (full suite), ruff, mypy on changed modules, OpenAPI `--check` (252 paths);
+  frontend 72 files / 1,078 tests, TypeScript, ESLint, build. Live UI check of the new menu. No
+  real file or location sent yet (awaiting owner permission). No migration. No module % change.
+
 ## UI-AIS-06 — Sale status, number release date, chat reminders, API/QR badge, easier notes (2026-09-24)
 
 Owner request: mark each customer's sale status from the chat, record the number release date and

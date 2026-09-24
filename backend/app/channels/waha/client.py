@@ -25,6 +25,7 @@ anything diagnostic.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
@@ -227,9 +228,7 @@ class WahaClient:
                 f"WAHA request timed out after {self._timeout}s: {request.url.path}"
             ) from exc
         except httpx.HTTPError as exc:
-            raise ChannelTransportError(
-                f"WAHA server is unavailable: {request.url.path}"
-            ) from exc
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
         return self._decode(response)
 
     def _decode(self, response: httpx.Response) -> dict[str, Any]:
@@ -321,9 +320,7 @@ class WahaClient:
         if isinstance(failing, dict) and failing:
             # Component *names* only; component payloads may contain paths and are not echoed.
             detail = "unhealthy components: " + ", ".join(sorted(failing))
-        return WahaServerHealth(
-            healthy=status_text == "ok", status=status_text, detail=detail
-        )
+        return WahaServerHealth(healthy=status_text == "ok", status=status_text, detail=detail)
 
     # --- Session lifecycle read (QR-02) -------------------------------------
     async def session_status(self, name: str) -> WahaSessionSnapshot:
@@ -404,9 +401,7 @@ class WahaClient:
     async def _get_bytes(self, path: str) -> tuple[bytes, str]:
         """Authenticated GET returning raw bytes and content type, for non-JSON provider media."""
         self._credentials.require()
-        request = httpx.Request(
-            "GET", self.url(path), headers=self._headers(accept="image/png")
-        )
+        request = httpx.Request("GET", self.url(path), headers=self._headers(accept="image/png"))
         try:
             response = await self._client().send(request)
         except httpx.TimeoutException as exc:
@@ -477,6 +472,66 @@ class WahaClient:
                 "Reconcile before any resend — the message may already have been delivered."
             ) from exc
 
+    async def send_file(
+        self,
+        *,
+        chat_id: str,
+        kind: str,
+        data: bytes,
+        mime_type: str,
+        filename: str | None,
+        caption: str | None,
+    ) -> dict[str, Any]:
+        """Send a photo, video, voice note or document through the configured session.
+
+        WAHA takes the file inline (base64). A photo goes as an image and an MP4 as a video so the
+        customer sees them inline; an OGG/Opus clip goes as a voice note; anything else — PDFs,
+        MP3 music, other formats — goes as a document so WhatsApp never re-encodes or rejects it.
+        Like :meth:`send_text`, a transport failure is ambiguous and raised as indeterminate.
+        """
+        session = self._credentials.require_session()
+        path = _file_endpoint(kind, mime_type)
+        file_obj: dict[str, Any] = {
+            "mimetype": mime_type,
+            "filename": filename or _default_filename(kind, mime_type),
+            "data": base64.b64encode(data).decode("ascii"),
+        }
+        payload: dict[str, Any] = {"session": session, "chatId": chat_id, "file": file_obj}
+        if caption and path != "/api/sendVoice":
+            payload["caption"] = caption
+        try:
+            return await self._post(path, payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
+    async def send_location(
+        self,
+        *,
+        chat_id: str,
+        latitude: float,
+        longitude: float,
+        title: str | None,
+    ) -> dict[str, Any]:
+        """``POST /api/sendLocation``; a transport failure is indeterminate, as for text."""
+        session = self._credentials.require_session()
+        payload: dict[str, Any] = {
+            "session": session,
+            "chatId": chat_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "title": title or "",
+        }
+        try:
+            return await self._post("/api/sendLocation", payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
     async def message_exists(self, *, chat_id: str, canonical_id: str) -> bool:
         """Whether ``canonical_id`` is present in this session's copy of ``chat_id``.
 
@@ -486,8 +541,7 @@ class WahaClient:
         """
         session = self._credentials.require_session()
         path = (
-            f"/api/{session}/chats/{quote(chat_id, safe='')}/messages"
-            "?limit=50&downloadMedia=false"
+            f"/api/{session}/chats/{quote(chat_id, safe='')}/messages?limit=50&downloadMedia=false"
         )
         body = await self._get_list(path)
         for entry in body:
@@ -528,7 +582,9 @@ class WahaClient:
         """
         parsed = urlsplit(url)
         host = (parsed.hostname or "").lower()
-        if parsed.scheme != "https" or not (host == "whatsapp.net" or host.endswith(".whatsapp.net")):
+        if parsed.scheme != "https" or not (
+            host == "whatsapp.net" or host.endswith(".whatsapp.net")
+        ):
             return None
         try:
             async with self._client().stream("GET", url, timeout=self._timeout) as response:
@@ -574,3 +630,20 @@ class WahaClient:
         if self._http is not None:
             await self._http.aclose()
             self._http = None
+
+
+def _file_endpoint(kind: str, mime_type: str) -> str:
+    """Which WAHA send endpoint shows a file best (see :meth:`WahaClient.send_file`)."""
+    mime = mime_type.lower()
+    if kind in ("image", "sticker") and mime in ("image/jpeg", "image/png", "image/webp"):
+        return "/api/sendImage"
+    if kind == "video" and mime == "video/mp4":
+        return "/api/sendVideo"
+    if kind == "audio" and mime.startswith("audio/ogg"):
+        return "/api/sendVoice"
+    return "/api/sendFile"
+
+
+def _default_filename(kind: str, mime_type: str) -> str:
+    extension = mime_type.split("/")[-1].split(";")[0] or "bin"
+    return f"{kind}.{extension}"

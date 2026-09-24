@@ -93,6 +93,8 @@ def test_declares_only_implemented_capabilities() -> None:
             Capability.QR_AUTH,
             Capability.SESSION_STREAM,
             Capability.TEXT,
+            Capability.MEDIA,
+            Capability.LOCATION,
             Capability.SESSION_RECONNECT,
             Capability.SESSION_LOGOUT,
         }
@@ -103,12 +105,10 @@ def test_declares_only_implemented_capabilities() -> None:
     "capability",
     [
         Capability.HISTORY_SYNC,
-        Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,
         Capability.INTERACTIVE,
         Capability.REACTION,
-        Capability.LOCATION,
         Capability.CONTACT,
     ],
 )

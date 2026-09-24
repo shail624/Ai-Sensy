@@ -23,6 +23,7 @@ marketing: waiting cannot fix that, so it fails the message (§5.4).
 from __future__ import annotations
 
 import uuid as uuidlib
+from dataclasses import replace
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,7 @@ from app.channels.base import ChannelAdapter, get_adapter
 from app.channels.errors import ChannelError
 from app.channels.models import (
     InteractiveContent,
+    LocationContent,
     MediaContent,
     MediaKind,
     MessageType,
@@ -84,6 +86,7 @@ from app.services.template_validation import (
     render,
 )
 from app.services.waba_service import WabaService
+from app.storage.base import get_provider
 
 logger = get_logger(__name__)
 
@@ -96,7 +99,13 @@ SOURCE_API = "api"
 
 #: Free-form types need an open window; a template is the only type that may cross a closed one
 #: (Doc 04 §18.2, FR-WA-12). A reaction is free-form too (Doc 04 §18.2 v1.4).
-FREE_FORM = (MessageType.TEXT, MessageType.MEDIA, MessageType.INTERACTIVE, MessageType.REACTION)
+FREE_FORM = (
+    MessageType.TEXT,
+    MessageType.MEDIA,
+    MessageType.INTERACTIVE,
+    MessageType.REACTION,
+    MessageType.LOCATION,
+)
 
 
 class WindowClosedError(ValidationError):
@@ -392,9 +401,9 @@ class SendService:
 
         # `ck_conv_endpoint_owner` guarantees exactly one of the two is set.
         assert conversation.channel_endpoint_id is not None
-        if message_type is not MessageType.TEXT:
+        if message_type not in (MessageType.TEXT, MessageType.MEDIA, MessageType.LOCATION):
             raise ChannelCapabilityNotSupportedError(
-                "This WhatsApp number only supports text messages."
+                "This WhatsApp number can send text, files and locations only."
             )
         endpoint = await self._endpoints.get_by_id(conversation.channel_endpoint_id)
         if endpoint is None:
@@ -406,6 +415,8 @@ class SendService:
             conversation=conversation,
             contact=contact,
             body=content.get("body", ""),
+            media=content.get("media") if message_type is MessageType.MEDIA else None,
+            location=content.get("location") if message_type is MessageType.LOCATION else None,
         )
 
     async def accept_endpoint(
@@ -417,8 +428,10 @@ class SendService:
         conversation: Conversation,
         contact: Contact,
         body: str,
+        media: dict[str, Any] | None = None,
+        location: dict[str, Any] | None = None,
     ) -> Message:
-        """Accept a text reply on a channel-endpoint-owned (WAHA) thread (QR-08).
+        """Accept a text (or, with ``media``, a file) reply on a channel-endpoint-owned (WAHA) thread (QR-08).
 
         The provider-neutral analogue of :meth:`accept`, deliberately not the same method: it skips
         every Meta-only compliance rule this text send does not carry — the 24-hour window (a Meta
@@ -429,7 +442,16 @@ class SendService:
         """
         if contact.opt_in_status == OPT_IN_OPTED_OUT:
             raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
-        if not body.strip():
+        asset: MediaAsset | None = None
+        if media is not None:
+            # WAHA sends the file itself, so only a file stored here can go — not a link or an id
+            # that belongs to another provider.
+            if not media.get("media_asset_id"):
+                raise ValidationError(
+                    "Attach a file uploaded to this app to send it on this number."
+                )
+            asset = await self._asset_for(organization_id, {"media": media})
+        elif location is None and not body.strip():
             raise ValidationError("A text message requires a non-empty body.")
         session_row = await self._sessions.get_current_for_connection(
             organization_id, endpoint.connection_id
@@ -449,15 +471,25 @@ class SendService:
             )
 
         now = utcnow()
-        content = {"body": body}
+        content: dict[str, Any]
+        if media is not None:
+            content, message_type = {"media": media}, str(media["kind"])
+        elif location is not None:
+            content, message_type = {"location": location}, MessageType.LOCATION.value
+        else:
+            content, message_type = {"body": body}, MessageType.TEXT.value
+        if asset is not None:
+            # What keeps an asset a message depends on from being deleted (Doc 04 §16 → 409).
+            asset.usage_count += 1
         message = Message(
             organization_id=organization_id,
             conversation_id=conversation.id,
             channel_endpoint_id=endpoint.id,
             contact_id=contact.id,
             direction=DIRECTION_OUTBOUND,
-            message_type=MessageType.TEXT.value,
+            message_type=message_type,
             content_json=content,
+            media_asset_id=asset.id if asset is not None else None,
             status=MSG_ACCEPTED,
             created_at=now,
         )
@@ -465,7 +497,7 @@ class SendService:
         await self._conversations.record_outbound_message(
             conversation,
             contact=contact,
-            preview=ConversationService.preview_of(MessageType.TEXT.value, content),
+            preview=ConversationService.preview_of(message_type, content),
             occurred_at=now,
         )
         await self._audit.record(
@@ -810,7 +842,10 @@ class SendService:
 
         adapter = get_adapter(connection.connector_type)
         try:
-            result = await adapter.send(self._outbound(message, to=recipient))
+            outbound = self._outbound(message, to=recipient)
+            if message.media_asset_id is not None:
+                outbound = await self._with_file_bytes(outbound, message)
+            result = await adapter.send(outbound)
         except ChannelError as exc:
             # Deliberately not re-raised through `sends`'s classifier: an unclassified exception is
             # `FailureClass.UNKNOWN` (`max_attempts=0`), so the task fails this attempt once and
@@ -827,6 +862,26 @@ class SendService:
         await self._messages.flush()
         await self._session.commit()
         return {"status": "sent", "message_pk": message.id, "wamid": message.wamid}
+
+    async def _with_file_bytes(
+        self, outbound: OutboundMessage, message: Message
+    ) -> OutboundMessage:
+        """Attach the stored file itself, for a connector that sends bytes inline (WAHA)."""
+        asset = await self._assets.get_by_id(message.media_asset_id or 0)
+        if asset is None:
+            raise ChannelError(f"media asset {message.media_asset_id} no longer exists")
+        data = await get_provider(asset.storage_backend).get(asset.storage_key)
+        media = outbound.content
+        assert isinstance(media, MediaContent)
+        return replace(
+            outbound,
+            content=replace(
+                media,
+                data=data,
+                mime_type=asset.mime_type,
+                filename=media.filename or asset.file_name,
+            ),
+        )
 
     async def _resolve_media(self, message: Message, adapter: ChannelAdapter) -> str | None:
         """Upload the referenced asset to the channel and return its id (Doc 07 §17.3)."""
@@ -870,6 +925,18 @@ class SendService:
                 to=to,
                 type=MessageType.INTERACTIVE,
                 content=InteractiveContent(payload=content["interactive"]),
+            )
+        if "location" in content:
+            pin = content["location"]
+            return OutboundMessage(
+                to=to,
+                type=MessageType.LOCATION,
+                content=LocationContent(
+                    latitude=float(pin["latitude"]),
+                    longitude=float(pin["longitude"]),
+                    name=pin.get("name"),
+                    address=pin.get("address"),
+                ),
             )
         if "reaction" in content:
             reaction = content["reaction"]

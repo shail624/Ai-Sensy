@@ -422,12 +422,10 @@ def test_text_declared() -> None:
 
 def test_qr05_declares_no_later_capability() -> None:
     withheld = {
-        Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,
         Capability.INTERACTIVE,
         Capability.REACTION,
-        Capability.LOCATION,
         Capability.CONTACT,
         Capability.HISTORY_SYNC,
     }
@@ -460,3 +458,73 @@ def test_qr05_adds_no_teardown_or_history_surface() -> None:
     for name in ("delete_session", "destroy_session", "sync_history"):
         assert not hasattr(WahaChannelAdapter, name)
         assert not hasattr(WahaClient, name)
+
+
+# --- Files (UI-AIS-07) ------------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("kind", "mime", "path"),
+    [
+        (MediaKind.IMAGE, "image/jpeg", "/api/sendImage"),
+        (MediaKind.VIDEO, "video/mp4", "/api/sendVideo"),
+        (MediaKind.AUDIO, "audio/ogg; codecs=opus", "/api/sendVoice"),
+        (MediaKind.AUDIO, "audio/mpeg", "/api/sendFile"),
+        (MediaKind.DOCUMENT, "application/pdf", "/api/sendFile"),
+        (MediaKind.VIDEO, "video/quicktime", "/api/sendFile"),
+    ],
+)
+async def test_file_goes_inline_to_the_right_endpoint(kind, mime, path) -> None:
+    import base64
+    import json
+
+    seen: list[tuple[str, dict]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(201, json=SEND_BODY)
+
+    adapter = _adapter(handler)
+    result = await adapter.send(
+        OutboundMessage(
+            to="918376035760@c.us",
+            type=MessageType.MEDIA,
+            content=MediaContent(
+                kind=kind, data=b"file-bytes", mime_type=mime, filename="f", caption="hello"
+            ),
+        )
+    )
+    assert result.accepted
+    sent_path, payload = seen[0]
+    assert sent_path == path
+    assert payload["chatId"] == "918376035760@c.us"
+    assert payload["file"]["mimetype"] == mime
+    assert base64.b64decode(payload["file"]["data"]) == b"file-bytes"
+    # A voice note carries no caption on WhatsApp.
+    assert ("caption" in payload) == (path != "/api/sendVoice")
+
+
+@pytest.mark.anyio
+async def test_location_pin_is_sent() -> None:
+    import json
+
+    from app.channels.models import LocationContent
+
+    seen: list[tuple[str, dict]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(201, json=SEND_BODY)
+
+    await _adapter(handler).send(
+        OutboundMessage(
+            to="918376035760@c.us",
+            type=MessageType.LOCATION,
+            content=LocationContent(latitude=28.61, longitude=77.2, name="Vi Store", address="CP"),
+        )
+    )
+    ((path, payload),) = seen
+    assert path == "/api/sendLocation"
+    assert payload["latitude"] == 28.61 and payload["longitude"] == 77.2
+    assert payload["title"] == "Vi Store, CP"

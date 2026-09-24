@@ -43,6 +43,15 @@ class MediaPayload(BaseModel):
         return self
 
 
+class LocationPayload(BaseModel):
+    """A map pin to send."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    name: str | None = Field(default=None, max_length=200)
+    address: str | None = Field(default=None, max_length=300)
+
+
 class TemplateButtonPayload(BaseModel):
     """A value bound to one of the template's buttons (Doc 04 §18.2 `buttons[]`)."""
 
@@ -102,16 +111,19 @@ class MessageSendRequest(BaseModel):
     #: it (QR-08).
     conversation_id: uuidlib.UUID | None = None
     to: str | None = Field(default=None, min_length=5, max_length=24, examples=["+14155552671"])
-    type: Literal["text", "media", "interactive", "template"]
+    type: Literal["text", "media", "interactive", "template", "location"]
     text: TextPayload | None = None
     media: MediaPayload | None = None
+    location: LocationPayload | None = None
     interactive: dict[str, Any] | None = None
     template: TemplatePayload | None = None
 
     @model_validator(mode="after")
     def _payload_matches_type(self) -> MessageSendRequest:
         supplied = {
-            name for name in ("text", "media", "interactive", "template") if getattr(self, name)
+            name
+            for name in ("text", "media", "interactive", "template", "location")
+            if getattr(self, name)
         }
         if supplied != {self.type}:
             raise ValueError(f"type {self.type!r} requires exactly the {self.type!r} payload")
@@ -149,6 +161,8 @@ class MessageSendRequest(BaseModel):
             }
         if self.template is not None:
             return {"template": self._template_content()}
+        if self.location is not None:
+            return {"location": self.location.model_dump()}
         return {"interactive": self.interactive or {}}
 
     def _template_content(self) -> dict[str, Any]:

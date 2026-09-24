@@ -484,7 +484,6 @@ def test_session_stream_declared() -> None:
 def test_qr04_declares_no_later_capability() -> None:
     withheld = {
         Capability.HISTORY_SYNC,
-        Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,
     }

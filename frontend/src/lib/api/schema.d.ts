@@ -8291,6 +8291,20 @@ export interface components {
             /** Is Terminal */
             is_terminal?: boolean | null;
         };
+        /**
+         * LocationPayload
+         * @description A map pin to send.
+         */
+        LocationPayload: {
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+            /** Name */
+            name?: string | null;
+            /** Address */
+            address?: string | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -8504,9 +8518,10 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "text" | "media" | "interactive" | "template";
+            type: "text" | "media" | "interactive" | "template" | "location";
             text?: components["schemas"]["TextPayload"] | null;
             media?: components["schemas"]["MediaPayload"] | null;
+            location?: components["schemas"]["LocationPayload"] | null;
             /** Interactive */
             interactive?: {
                 [key: string]: unknown;

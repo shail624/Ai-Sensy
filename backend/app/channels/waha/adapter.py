@@ -53,8 +53,10 @@ both implemented here and evidenced end-to-end, so only ``HEALTH`` is declared.
 | ``SESSION_RECONNECT`` / ``SESSION_LOGOUT`` | **yes** | QR-06. Start/stop/logout are implemented behind a runtime lease, with bounded reconnect planning that never guesses from an ambiguous provider status. |
 | ``HISTORY_SYNC`` | no | QR-06; cursor stability also unproven (selection record: PENDING). |
 | ``TEXT`` | **yes** | QR-05. :meth:`_dispatch` sends text through the configured session, and certification proved an external cross-account delivery reaching ``READ``. |
-| ``MEDIA`` / ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | QR-05 sends text only; media transfer is a later milestone. |
-| ``INTERACTIVE`` / ``REACTION`` / ``LOCATION`` / ``CONTACT`` | no | Neither implemented nor evidenced. |
+| ``MEDIA`` | **yes** | UI-AIS-07. Photos, videos, voice notes and documents are sent inline (base64) by :meth:`_dispatch`. |
+| ``MEDIA_UPLOAD`` / ``MEDIA_DOWNLOAD`` | no | There is no separate provider upload step; files travel with the send. |
+| ``LOCATION`` | **yes** | UI-AIS-07. A map pin via ``/api/sendLocation``. |
+| ``INTERACTIVE`` / ``REACTION`` / ``CONTACT`` | no | Neither implemented nor evidenced. |
 | ``BULK`` / ``CAMPAIGNS`` / ``TEMPLATE`` | **never** | Permanently prohibited — see below. |
 
 ## Permanently prohibited capabilities
@@ -94,6 +96,8 @@ from app.channels.models import (
     HealthSignal,
     InboundEvent,
     InboundMessage,
+    LocationContent,
+    MediaContent,
     MessageType,
     OutboundMessage,
     SendResult,
@@ -142,6 +146,8 @@ class WahaChannelAdapter(ChannelAdapter):
             Capability.QR_AUTH,
             Capability.SESSION_STREAM,
             Capability.TEXT,
+            Capability.MEDIA,
+            Capability.LOCATION,
             Capability.SESSION_RECONNECT,
             Capability.SESSION_LOGOUT,
         }
@@ -460,7 +466,9 @@ class WahaChannelAdapter(ChannelAdapter):
             max_attempts=max_attempts,
         )
 
-    async def reconnect_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+    async def reconnect_session(
+        self, name: str, *, lease: RuntimeLease | None = None
+    ) -> WahaSessionSnapshot:
         """Resume an existing session. Never creates one, never pairs, never fetches a QR.
 
         Idempotent against an already-working session: the provider is asked to start, and a session
@@ -472,7 +480,9 @@ class WahaChannelAdapter(ChannelAdapter):
         self._assert_session_engine(snapshot)
         return snapshot
 
-    async def stop_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+    async def stop_session(
+        self, name: str, *, lease: RuntimeLease | None = None
+    ) -> WahaSessionSnapshot:
         """Halt a session while leaving its stored credentials intact.
 
         Non-destructive to pairing — see :meth:`logout_session` for the destructive counterpart.
@@ -483,7 +493,9 @@ class WahaChannelAdapter(ChannelAdapter):
         self._assert_session_engine(snapshot)
         return snapshot
 
-    async def logout_session(self, name: str, *, lease: RuntimeLease | None = None) -> WahaSessionSnapshot:
+    async def logout_session(
+        self, name: str, *, lease: RuntimeLease | None = None
+    ) -> WahaSessionSnapshot:
         """Invalidate the session's WhatsApp credentials, requiring a fresh scan afterwards.
 
         The resulting re-authentication-required state is the **intended** outcome, not a fault to
@@ -512,22 +524,44 @@ class WahaChannelAdapter(ChannelAdapter):
 
     # --- Outbound (QR-05) ----------------------------------------------------
     async def _dispatch(self, message: OutboundMessage) -> SendResult:
-        """Send one text through the configured session.
+        """Send one text or one file through the configured session.
 
-        Only text is implemented, so a non-text message is refused rather than silently degraded
-        into one. A transport failure surfaces as :class:`WahaSendIndeterminate`, which is **not**
-        retry-safe: reconcile with :meth:`reconcile_send` before considering any resend.
+        Other message types are refused rather than silently degraded into text. A transport
+        failure surfaces as :class:`WahaSendIndeterminate`, which is **not** retry-safe: reconcile
+        with :meth:`reconcile_send` before considering any resend.
         """
-        if message.type is not MessageType.TEXT:
-            raise ChannelNotSupported(
-                f"{self.connector_type!r} can send text only at QR-05; "
-                f"{message.type.value!r} is not implemented."
-            )
         content = message.content
-        if not isinstance(content, TextContent):
-            raise ChannelNotSupported("A text send requires TextContent.")
-
-        body = await self._client.send_text(chat_id=message.to, text=content.body)
+        if message.type is MessageType.MEDIA:
+            if not isinstance(content, MediaContent) or content.data is None:
+                raise ChannelNotSupported(
+                    "A WAHA media send needs the file bytes (MediaContent.data)."
+                )
+            body = await self._client.send_file(
+                chat_id=message.to,
+                kind=content.kind.value,
+                data=content.data,
+                mime_type=content.mime_type or "application/octet-stream",
+                filename=content.filename,
+                caption=content.caption,
+            )
+        elif message.type is MessageType.LOCATION:
+            if not isinstance(content, LocationContent):
+                raise ChannelNotSupported("A location send requires LocationContent.")
+            title = ", ".join(part for part in (content.name, content.address) if part) or None
+            body = await self._client.send_location(
+                chat_id=message.to,
+                latitude=content.latitude,
+                longitude=content.longitude,
+                title=title,
+            )
+        elif message.type is MessageType.TEXT:
+            if not isinstance(content, TextContent):
+                raise ChannelNotSupported("A text send requires TextContent.")
+            body = await self._client.send_text(chat_id=message.to, text=content.body)
+        else:
+            raise ChannelNotSupported(
+                f"{self.connector_type!r} cannot send {message.type.value!r} messages."
+            )
         provider_id = extract_sent_id(body)
         # `accepted` is false without an id: the provider answered, but nothing identifies the
         # message, so it can never be correlated to an acknowledgement or reconciled later.

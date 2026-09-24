@@ -361,7 +361,6 @@ def test_lifecycle_capabilities_are_earned_not_assumed() -> None:
 
     unimplemented = {
         Capability.HISTORY_SYNC,
-        Capability.MEDIA,
         Capability.MEDIA_UPLOAD,
         Capability.MEDIA_DOWNLOAD,
     }

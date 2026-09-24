@@ -492,3 +492,62 @@ export function useUpdateSaleDetails(conversationId: string) {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
   });
 }
+
+export type AttachmentKind = "image" | "video" | "audio" | "document";
+
+/**
+ * Upload a file to the media library, then send it in this chat. The server picks the provider:
+ * the official API uploads it to Meta; a QR chat sends the file itself.
+ */
+export function useSendAttachment(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async ({ file, kind, caption }: { file: File; kind: AttachmentKind; caption: string }) => {
+      const asset = unwrap(
+        await api.POST("/api/v1/media/upload", {
+          body: { file: file as unknown as string, media_type: kind },
+          bodySerializer(body) {
+            const form = new FormData();
+            form.append("file", body.file as unknown as File);
+            form.append("media_type", body.media_type);
+            return form;
+          },
+        }),
+      );
+      return unwrap(
+        await api.POST("/api/v1/messages/send", {
+          headers: { "Idempotency-Key": createIdempotencyKey() },
+          body: {
+            conversation_id: conversationId,
+            type: "media",
+            media: {
+              kind,
+              media_asset_id: asset.id,
+              caption: caption.trim() || null,
+              filename: kind === "document" || kind === "audio" ? file.name : null,
+            },
+          },
+        }),
+      );
+    },
+  );
+}
+
+export interface LocationPin {
+  latitude: number;
+  longitude: number;
+  name?: string | null;
+  address?: string | null;
+}
+
+/** Send a map pin in this chat. */
+export function useSendLocation(conversationId: string) {
+  return useConversationMutation(conversationId, async (location: LocationPin) =>
+    unwrap(
+      await api.POST("/api/v1/messages/send", {
+        headers: { "Idempotency-Key": createIdempotencyKey() },
+        body: { conversation_id: conversationId, type: "location", location },
+      }),
+    ),
+  );
+}

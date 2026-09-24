@@ -27789,6 +27789,53 @@
         "type": "object",
         "title": "LeadStageUpdateRequest"
       },
+      "LocationPayload": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "LocationPayload",
+        "description": "A map pin to send."
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -28337,7 +28384,8 @@
               "text",
               "media",
               "interactive",
-              "template"
+              "template",
+              "location"
             ],
             "title": "Type"
           },
@@ -28355,6 +28403,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/MediaPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationPayload"
               },
               {
                 "type": "null"

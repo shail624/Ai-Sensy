@@ -43,6 +43,7 @@ from app.channels.models import (
     InboundEvent,
     InboundMessage,
     InteractiveContent,
+    LocationContent,
     MediaContent,
     MessageType,
     OutboundMessage,
@@ -85,6 +86,7 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.INTERACTIVE,
             Capability.TEMPLATE,
             Capability.REACTION,
+            Capability.LOCATION,
             Capability.READ_RECEIPTS,
             Capability.TYPING_INDICATOR,
             Capability.BULK,
@@ -113,7 +115,9 @@ class MetaChannelAdapter(ChannelAdapter):
     async def authenticate(self) -> ChannelStatus:
         """Verify the token by reading the configured number — cheap and side-effect free."""
         number = self._client.credentials.require_phone_number()
-        body = await self._client.get(number, params={"fields": "display_phone_number,verified_name"})
+        body = await self._client.get(
+            number, params={"fields": "display_phone_number,verified_name"}
+        )
         return ChannelStatus(
             connected=True,
             identity=body.get("display_phone_number"),
@@ -142,9 +146,7 @@ class MetaChannelAdapter(ChannelAdapter):
 
         if message.type is MessageType.MEDIA and isinstance(content, MediaContent):
             if bool(content.media_id) == bool(content.link):
-                raise ChannelConfigError(
-                    "media requires exactly one of media_id or link"
-                )
+                raise ChannelConfigError("media requires exactly one of media_id or link")
             obj: dict[str, Any] = (
                 {"id": content.media_id} if content.media_id else {"link": content.link}
             )
@@ -174,6 +176,17 @@ class MetaChannelAdapter(ChannelAdapter):
                 "type": "reaction",
                 "reaction": {"message_id": content.message_id, "emoji": content.emoji},
             }
+
+        if message.type is MessageType.LOCATION and isinstance(content, LocationContent):
+            location: dict[str, Any] = {
+                "latitude": content.latitude,
+                "longitude": content.longitude,
+            }
+            if content.name:
+                location["name"] = content.name
+            if content.address:
+                location["address"] = content.address
+            return base | {"type": "location", "location": location}
 
         raise ChannelConfigError(f"unsupported message content for type {message.type!r}")
 
@@ -335,8 +348,14 @@ class MetaChannelAdapter(ChannelAdapter):
         )
         # The create reply carries id/status only; the rest is what we just submitted.
         return to_channel_template(
-            {"id": body.get("id"), "status": body.get("status"), "category": body.get("category"),
-             "name": name, "language": language, "components": []}
+            {
+                "id": body.get("id"),
+                "status": body.get("status"),
+                "category": body.get("category"),
+                "name": name,
+                "language": language,
+                "components": [],
+            }
         )
 
     async def delete_template(self, name: str, *, account_id: str | None = None) -> None:

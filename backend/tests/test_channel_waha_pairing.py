@@ -425,7 +425,6 @@ def test_qr03_declares_no_runtime_or_messaging_capability() -> None:
     """``SESSION_STREAM`` left this list when QR-04 implemented ingestion; runtime/messaging stay."""
     withheld = {
         Capability.HISTORY_SYNC,
-        Capability.MEDIA,
     }
     assert not (WahaChannelAdapter.capabilities & withheld)
 

@@ -493,12 +493,8 @@ class ConversationService:
         Called only when a message was actually inserted, so a redelivery can never inflate the
         unread badge (FR-WA-07).
         """
-        if (
-            conversation.status == CONV_RESOLVED
-            and (
-                conversation.last_message_at is None
-                or occurred_at >= conversation.last_message_at
-            )
+        if conversation.status == CONV_RESOLVED and (
+            conversation.last_message_at is None or occurred_at >= conversation.last_message_at
         ):
             conversation.status = CONV_OPEN
             await self._audit.record(
@@ -540,4 +536,8 @@ class ConversationService:
         caption = (content.get("media") or {}).get("caption") if content else None
         if isinstance(caption, str) and caption.strip():
             return caption.strip()
+        pin = content.get("location") if content else None
+        if isinstance(pin, dict):
+            place = pin.get("name") or pin.get("address")
+            return f"📍 {place}" if isinstance(place, str) and place.strip() else "📍 Location"
         return f"[{message_type}]"

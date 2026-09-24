@@ -749,7 +749,7 @@ async def test_media_message_stores_a_canonical_reference(
     assert conversation.last_message_preview == "my bill"
 
 
-async def test_unsupported_type_preview_falls_back_to_the_type(
+async def test_location_preview_shows_a_pin(
     client, make_user, session_factory, monkeypatch, dispatched
 ) -> None:
     location = {
@@ -761,7 +761,7 @@ async def test_unsupported_type_preview_falls_back_to_the_type(
     }
     await _inbound(client, make_user, session_factory, monkeypatch, message=location)
     (conversation,) = await _rows(session_factory, Conversation)
-    assert conversation.last_message_preview == "[location]"
+    assert conversation.last_message_preview == "📍 Location"  # UI-AIS-07: a pin, not "[location]"
     (message,) = await _rows(session_factory, Message)
     assert message.content_json["location"]["latitude"] == 12.9
 
