@@ -1,5 +1,4 @@
-import { ChevronRight, Home } from "lucide-react";
-import { Fragment } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export interface Crumb {
@@ -7,42 +6,21 @@ export interface Crumb {
   to?: string;
 }
 
-/** Reusable breadcrumb trail. The last crumb is the current page (`aria-current`). */
-export function Breadcrumbs({ items }: { items: Crumb[] }): JSX.Element {
+/**
+ * The reference has no breadcrumb trail: a top-level page shows nothing, and a page inside
+ * another (a campaign, a customer, a template) shows one "← Back to …" link to its parent.
+ */
+export function Breadcrumbs({ items }: { items: Crumb[] }): JSX.Element | null {
+  const parent = [...items.slice(0, -1)].reverse().find((crumb) => crumb.to && crumb.label !== "Dashboard");
+  if (!parent?.to) return null;
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 text-xs text-text-secondary">
-      <ol className="flex min-h-6 flex-wrap items-center gap-1.5">
-        {items.map((crumb, index) => {
-          const isLast = index === items.length - 1;
-          return (
-            <Fragment key={`${crumb.label}-${index}`}>
-              <li>
-                {crumb.to && !isLast ? (
-                  <Link
-                    to={crumb.to}
-                    className="inline-flex items-center gap-1 rounded-md hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                  >
-                    {index === 0 && crumb.label === "Dashboard" ? <Home aria-hidden className="h-3.5 w-3.5" /> : null}
-                    {crumb.label}
-                  </Link>
-                ) : (
-                  <span
-                    aria-current={isLast ? "page" : undefined}
-                    className={isLast ? "text-text-primary" : undefined}
-                  >
-                    {crumb.label}
-                  </span>
-                )}
-              </li>
-              {!isLast ? (
-                <li aria-hidden className="text-text-disabled">
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </li>
-              ) : null}
-            </Fragment>
-          );
-        })}
-      </ol>
+    <nav aria-label="Breadcrumb" className="pt-3 text-sm">
+      <Link
+        to={parent.to}
+        className="inline-flex items-center gap-1.5 rounded-md font-medium text-[var(--color-nav-bg)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-accent"
+      >
+        <ArrowLeft aria-hidden className="h-4 w-4" /> Back to {parent.label}
+      </Link>
     </nav>
   );
 }

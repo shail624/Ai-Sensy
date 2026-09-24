@@ -471,7 +471,7 @@ describe("governed Reactivation pipeline", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: /History/ }));
-    expect(screen.getByText("Immutable stage history")).toBeInTheDocument();
+    expect(screen.getByText("Stage history")).toBeInTheDocument();
     expect(screen.getByText("Customer prefers a weekday callback")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Tasks/ }));
     expect(screen.getByText("Persisted task workspace")).toBeInTheDocument();

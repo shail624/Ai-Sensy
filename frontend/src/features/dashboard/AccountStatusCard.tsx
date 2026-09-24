@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 
+import { useMessagingQuota } from "@/features/campaigns/CampaignQuotaStrip";
+import { useHasPermission } from "@/lib/auth";
+
 import { InfoTooltip, Skeleton } from "@/components/ui";
 import { QUALITY_EXPLANATIONS } from "@/features/channels/types";
 import {
@@ -36,6 +39,9 @@ interface AccountStatusCardProps {
 
 /** AiSensy's first card: API status, quality rating and the sending allowance, side by side. */
 export function AccountStatusCard({ summary, loading, canManage }: AccountStatusCardProps): JSX.Element {
+  const canSeeQuota = useHasPermission("campaigns:read");
+  const quota = useMessagingQuota(canSeeQuota);
+  const remaining = quota.data?.[0]?.remaining ?? null;
   if (loading) {
     return (
       <section aria-label="WhatsApp account status" className={`${DASH_CARD} px-8 py-6`}>
@@ -82,10 +88,15 @@ export function AccountStatusCard({ summary, loading, canManage }: AccountStatus
         </div>
       </div>
       <div>
-        <Heading label="Messaging Limit" lines={["New customers you can message in 24 hours.", "Meta raises it while your quality stays high."]} />
+        <Heading
+          label="Remaining Quota"
+          lines={["New customers you can still message first today (estimate from this app's sends).", "Meta raises the limit while your quality stays high."]}
+        />
         <p className="mt-2 text-xl leading-[23px] text-[var(--color-nav-bg)] dark:text-accent">
-          {limit ?? "—"}
-          {tier && tier !== "TIER_UNLIMITED" ? <span className="ml-1 text-xs text-text-secondary">/ 24h</span> : null}
+          {remaining != null ? remaining.toLocaleString("en-IN") : limit ?? "—"}
+          {limit && tier !== "TIER_UNLIMITED" ? (
+            <span className="ml-1 text-xs text-text-secondary">{remaining != null ? `of ${limit} / 24h` : "/ 24h"}</span>
+          ) : null}
         </p>
       </div>
     </section>

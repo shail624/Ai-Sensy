@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 interface PageHeaderProps {
   title: string;
   description?: string;
-  /** Small context label above the title, useful for a product area or lifecycle state. */
+  /** Accepted for compatibility; not shown (the reference uses a plain title). */
   eyebrow?: string;
   /** Optional right-aligned actions (buttons, links). */
   actions?: ReactNode;
@@ -11,37 +11,28 @@ interface PageHeaderProps {
   meta?: ReactNode;
 }
 
-/** Standard enterprise page title block with stable action and metadata alignment. */
-export function PageHeader({
-  title,
-  description,
-  actions,
-  meta,
-}: PageHeaderProps): JSX.Element {
+/**
+ * The reference page header: a white bar across the top of the page with a plain 20px title,
+ * a short grey explanation under it and the page's actions on the right.
+ */
+export function PageHeader({ title, description, actions, meta }: PageHeaderProps): JSX.Element {
   return (
-    <header data-slot="page-header" className="mb-5 border-b border-border pb-5 sm:mb-6 sm:pb-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <header
+      data-slot="page-header"
+      className="-mx-4 mb-5 bg-surface px-4 py-4 shadow-card sm:-mx-6 sm:px-6 lg:-mx-[30px] lg:px-[30px]"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
-          {/* `eyebrow` is accepted for compatibility but no longer shown: the reference screens use a
-              plain title, and the category labels read as jargon to the people using them. */}
-          <h1 className="text-[26px] font-bold leading-8 tracking-[-0.025em] text-text-primary sm:text-[30px] sm:leading-9">
-            {title}
-          </h1>
+          <h1 className="text-xl font-normal leading-7 text-black dark:text-text-primary">{title}</h1>
           {description ? (
-            <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-text-secondary">
-              {description}
-            </p>
+            <p className="mt-0.5 max-w-4xl text-[13px] leading-relaxed text-[#6e6e6e] dark:text-text-secondary">{description}</p>
           ) : null}
           {meta ? (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-text-secondary">
-              {meta}
-            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-text-secondary">{meta}</div>
           ) : null}
         </div>
         {actions ? (
-          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-            {actions}
-          </div>
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div>
         ) : null}
       </div>
     </header>

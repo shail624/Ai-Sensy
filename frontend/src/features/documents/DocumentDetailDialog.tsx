@@ -129,7 +129,7 @@ export function DocumentDetailDialog({ document, onClose, onAddVersion }: Props)
 
         <section aria-labelledby="versions-heading">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <div><h3 id="versions-heading" className="text-sm font-semibold text-text-primary">Version history</h3><p className="mt-0.5 text-xs text-text-secondary">Every submitted file remains immutable and traceable.</p></div>
+            <div><h3 id="versions-heading" className="text-sm font-semibold text-text-primary">Version history</h3><p className="mt-0.5 text-xs text-text-secondary">Every uploaded file is kept as it was, with who uploaded it.</p></div>
             {canWrite && document.status !== "archived" ? <Button size="sm" variant="secondary" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={onAddVersion}>New version</Button> : null}
           </div>
           <div className="space-y-2">

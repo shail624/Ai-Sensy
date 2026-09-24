@@ -216,5 +216,5 @@ export function WebhooksPanel(): JSX.Element {
 }
 
 export function LogsPanel(): JSX.Element {
-  return <Card><EmptyState title="Logs are queried in production observability" description="The application emits structured, redacted logs, but the repository intentionally exposes no log-search API. Connect the production log sink to provide retention, access controls, and queries without weakening tenant or secret boundaries." /></Card>;
+  return <Card><EmptyState title="Logs are not shown here" description="The app writes its logs to the server's logging system. Ask your technical team to search them there — this keeps private data out of the app." /></Card>;
 }

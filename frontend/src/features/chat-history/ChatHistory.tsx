@@ -4,7 +4,6 @@ import {
   ChevronRight,
   ExternalLink,
   FileDown,
-  History,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -18,7 +17,6 @@ import {
   EmptyState,
   ErrorState,
   Field,
-  Input,
   Select,
   Spinner,
   TagChip,
@@ -35,6 +33,7 @@ import {
   useMessages,
 } from "@/features/inbox/api";
 import { collateReactions } from "@/features/inbox/messageContent";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { MessageBubble } from "@/features/inbox/MessageBubble";
 import type { ConversationStatus, InboxFilters } from "@/features/inbox/types";
 import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
@@ -96,9 +95,6 @@ function contactLabel(contact: { name: string | null; phone: string } | null): s
   return contact?.name ?? contact?.phone ?? "Unknown contact";
 }
 
-function contactInitial(contact: { name: string | null; phone: string } | null): string {
-  return contactLabel(contact).trim().charAt(0).toUpperCase() || "?";
-}
 
 function hasActiveFilter(filters: InboxFilters): boolean {
   return Boolean(
@@ -206,47 +202,41 @@ export function ChatHistory(): JSX.Element {
   const thread = selectedConversation.data ?? null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-canvas">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface px-4 py-3.5">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-sm font-bold text-text-primary">
-            <History aria-hidden className="h-4 w-4 text-accent" />
-            Chat History
-          </h1>
-          <p className="mt-1 max-w-2xl text-xs text-text-secondary">
-            Read-only conversation and message history. To reply, assign, tag or resolve a
-            conversation, open it in Live Chat. Authorized managers can generate a complete or
-            date-bounded transcript for secure delivery through Download Center.
-          </p>
-        </div>
-        {canAudit ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<ShieldCheck aria-hidden className="h-4 w-4" />}
-            onClick={() => navigate("/admin/audit")}
-          >
-            Open audit trail
-          </Button>
-        ) : null}
-      </header>
+    <div className="flex h-full min-h-0 flex-col bg-[#f9f9f9] dark:bg-canvas">
+      <h1 className="sr-only">Chat History</h1>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
-          className={`${selectedId ? "hidden lg:flex" : "flex"} w-full shrink-0 flex-col border-b border-border bg-surface lg:w-[380px] lg:border-b-0 lg:border-r`}
+          className={`${selectedId ? "hidden lg:flex" : "flex"} w-full shrink-0 flex-col border-b border-border bg-[#fdfffc] dark:bg-surface lg:w-[360px] lg:border-b-0 lg:border-r`}
         >
-          <div className="space-y-3 border-b border-border p-3">
-            <Input
-              id="chat-history-search"
-              type="search"
-              value={filters.q ?? ""}
-              onChange={(event) =>
-                applyFilters({ ...filters, q: event.target.value || undefined })
-              }
-              placeholder="Search by customer name or number…"
-              aria-label="Search chat history"
-              leadingIcon={<Search aria-hidden className="h-4 w-4" />}
-            />
+          <div className="space-y-3 border-b border-[#f2f2f2] p-3 dark:border-border">
+            <div className="flex items-center gap-2">
+              <div className="flex h-[36px] min-w-0 flex-1 items-center gap-2 rounded-lg bg-[#f0f0f0] pl-[15px] pr-2 dark:bg-surface-2">
+                <input
+                  id="chat-history-search"
+                  type="search"
+                  value={filters.q ?? ""}
+                  onChange={(event) =>
+                    applyFilters({ ...filters, q: event.target.value || undefined })
+                  }
+                  placeholder="Search name or mobile number"
+                  aria-label="Search chat history"
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary"
+                />
+                <Search aria-hidden className="h-4 w-4 text-black/50" />
+              </div>
+              {canAudit ? (
+                <button
+                  type="button"
+                  aria-label="Open audit trail"
+                  title="Open audit trail"
+                  onClick={() => navigate("/admin/audit")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-black/55 hover:bg-black/5 dark:text-text-secondary"
+                >
+                  <ShieldCheck aria-hidden className="h-5 w-5" />
+                </button>
+              ) : null}
+            </div>
 
             <div className="flex items-center gap-2">
               <Button
@@ -397,7 +387,7 @@ export function ChatHistory(): JSX.Element {
                 />
               )
             ) : (
-              <ul aria-label="Conversation history" className="divide-y divide-border">
+              <ul aria-label="Conversation history" className="divide-y divide-[#f2f2f2] dark:divide-border">
                 {rows.map((conversation) => {
                   const selected = conversation.id === selectedId;
                   const name = contactLabel(conversation.contact);
@@ -411,14 +401,12 @@ export function ChatHistory(): JSX.Element {
                         type="button"
                         aria-current={selected ? "true" : undefined}
                         onClick={() => select(conversation.id)}
-                        className={`flex w-full gap-3 border-l-2 px-3 py-3 text-left transition-colors hover:bg-hover ${selected ? "border-l-accent bg-surface-2" : "border-l-transparent"}`}
+                        className={`flex w-full gap-3 px-3 py-3 text-left transition-colors ${selected ? "bg-[#ebf5f3] dark:bg-accent-soft" : "hover:bg-black/[0.03] dark:hover:bg-hover"}`}
                       >
-                        <span
-                          aria-hidden
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent"
-                        >
-                          {contactInitial(conversation.contact)}
-                        </span>
+                        <CustomerAvatar
+                          conversation={conversation}
+                          className="h-10 w-10 bg-[#f5efdf] text-lg text-black dark:bg-surface-2 dark:text-text-primary"
+                        />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-start justify-between gap-2">
                             <span className="truncate text-sm font-semibold text-text-primary">
@@ -494,11 +482,11 @@ export function ChatHistory(): JSX.Element {
 
         <div className={`${selectedId ? "flex" : "hidden lg:flex"} min-h-0 min-w-0 flex-1 flex-col`}>
           {!selectedId ? (
-            <div className="p-6">
-              <EmptyState
-                title="Select a conversation"
-                description="Choose a conversation to read its full message history."
-              />
+            <div className="chat-wallpaper flex h-full flex-col items-center justify-center gap-5 p-6 text-center">
+              <p className="text-lg text-black dark:text-text-primary">Select a chat to continue!</p>
+              <p className="max-w-sm text-sm text-[#6e6e6e] dark:text-text-secondary">
+                Every past conversation is kept here to read. To reply, tag or close a chat, open it in Live Chat.
+              </p>
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col">
@@ -524,18 +512,21 @@ export function ChatHistory(): JSX.Element {
                 </div>
               ) : (
                 <>
-                  <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm font-semibold text-text-primary">
+                  <header className="flex flex-wrap items-center justify-between gap-3 bg-[var(--color-nav-bg)] px-4 py-2 text-white">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <CustomerAvatar conversation={thread} className="h-9 w-9 bg-[#f5efdf] text-base text-black" />
+                      <div className="min-w-0">
+                      <h2 className="truncate text-base font-normal">
                         {contactLabel(thread.contact)}
                       </h2>
-                      <p className="truncate text-xs text-text-secondary">
+                      <p className="truncate text-xs text-white/75">
                         {thread.contact?.phone} ·{" "}
                         {STATUS_LABELS[thread.status as ConversationStatus] ?? thread.status} ·{" "}
                         {thread.assigned_to
                           ? (assigneeName.get(thread.assigned_to) ?? "Assigned agent")
                           : "Unassigned"}
                       </p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {canExport ? (
@@ -559,7 +550,7 @@ export function ChatHistory(): JSX.Element {
                     </div>
                   </header>
 
-                  <div className="min-h-0 flex-1 overflow-y-auto bg-canvas/50 p-3 sm:p-4">
+                  <div className="chat-wallpaper min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
                     {messages.isLoading ? (
                       <Spinner label="Loading messages…" />
                     ) : messages.isError ? (

@@ -40,8 +40,8 @@ export function ConversationHistorySection({ contactId }: { contactId: string })
 
   if (rows.length === 0) {
     return (
-      <Section title="WhatsApp conversations" description="Exact contact-scoped history from the shared Inbox ledger.">
-        <EmptyState compact title="No conversations yet" description="A persisted WhatsApp thread will appear here after the first inbound or governed outbound message." />
+      <Section title="WhatsApp conversations" description="Every WhatsApp chat with this customer.">
+        <EmptyState compact title="No conversations yet" description="A chat appears here after the first message to or from this customer." />
       </Section>
     );
   }
@@ -86,7 +86,7 @@ export function ConversationHistorySection({ contactId }: { contactId: string })
           <Button variant="secondary" leftIcon={<ExternalLink aria-hidden className="h-4 w-4" />} onClick={() => navigate(`/inbox?conversation=${active.id}`)}>Open in Inbox</Button>
         </header>
         <div className="min-h-72 flex-1 overflow-y-auto bg-canvas/50 p-3 sm:p-4">
-          {messages.isLoading ? <div className="space-y-3"><Skeleton className="h-14 w-2/3" /><Skeleton className="ml-auto h-14 w-3/5" /><Skeleton className="h-14 w-1/2" /></div> : messages.isError ? <ErrorState message={apiErrorMessage(messages.error)} onRetry={() => void messages.refetch()} /> : thread.length === 0 ? <EmptyState compact title="No messages in this thread" description="Conversation metadata is persisted, but the message ledger has no visible entries." /> : <ul className="space-y-2">{messages.hasNextPage ? <li className="text-center"><Button variant="secondary" onClick={() => void messages.fetchNextPage()} disabled={messages.isFetchingNextPage}>{messages.isFetchingNextPage ? "Loading…" : "Load older messages"}</Button></li> : null}{thread.map((message) => <MessageBubble key={message.id} message={message} canReact={false} onReact={() => undefined} />)}</ul>}
+          {messages.isLoading ? <div className="space-y-3"><Skeleton className="h-14 w-2/3" /><Skeleton className="ml-auto h-14 w-3/5" /><Skeleton className="h-14 w-1/2" /></div> : messages.isError ? <ErrorState message={apiErrorMessage(messages.error)} onRetry={() => void messages.refetch()} /> : thread.length === 0 ? <EmptyState compact title="No messages in this thread" description="This chat has no messages to show yet." /> : <ul className="space-y-2">{messages.hasNextPage ? <li className="text-center"><Button variant="secondary" onClick={() => void messages.fetchNextPage()} disabled={messages.isFetchingNextPage}>{messages.isFetchingNextPage ? "Loading…" : "Load older messages"}</Button></li> : null}{thread.map((message) => <MessageBubble key={message.id} message={message} canReact={false} onReact={() => undefined} />)}</ul>}
         </div>
       </section>
     </div>

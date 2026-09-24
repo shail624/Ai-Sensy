@@ -285,10 +285,14 @@ describe("AppLayout mobile navigation", () => {
 });
 
 describe("Breadcrumbs", () => {
-  it("links earlier crumbs and marks the last as current", () => {
-    renderAt(<Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Inbox" }]} />);
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
-    expect(screen.getByText("Inbox")).toHaveAttribute("aria-current", "page");
+  it("shows only a back link to the parent page, as the reference does", () => {
+    renderAt(<Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Campaigns", to: "/campaigns" }, { label: "July offer" }]} />);
+    expect(screen.getByRole("link", { name: "Back to Campaigns" })).toHaveAttribute("href", "/campaigns");
+  });
+
+  it("shows nothing on a top-level page", () => {
+    const { container } = renderAt(<Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Inbox" }]} />);
+    expect(container.querySelector("nav")).toBeNull();
   });
 });
 

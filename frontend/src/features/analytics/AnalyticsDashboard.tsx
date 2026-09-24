@@ -243,7 +243,7 @@ export function AnalyticsDashboard(): JSX.Element {
         </div>
 
         <div id="analytics-employees" className="scroll-mt-20 xl:col-span-2">
-        <Section title="Team productivity" description="Historical throughput from immutable conversation and task events, plus a separate current-work snapshot.">
+        <Section title="Team productivity" description="How much each person finished over time, plus what they are working on right now.">
           <div className="grid gap-4 xl:grid-cols-2">
             <BreakdownTable
               title="Conversation productivity"
@@ -311,7 +311,7 @@ export function AnalyticsDashboard(): JSX.Element {
       <div id="analytics-outcomes" className="scroll-mt-20">
         <Section
           title="Business outcomes"
-          description="Reactivation, KYC, fulfilment and SLA facts from the immutable operational event ledger."
+          description="Reactivation, KYC, delivery and on-time numbers from every recorded step."
         >
           <div className="grid gap-4 xl:grid-cols-2">
             <BreakdownTable
@@ -355,7 +355,7 @@ export function AnalyticsDashboard(): JSX.Element {
       </div>
 
       <div id="analytics-exports" className="scroll-mt-20">
-        <Section title="Export center" description="Create governed CSV, Excel, JSON, or PDF evidence from the active date range.">
+        <Section title="Export center" description="Download these numbers as CSV, Excel, JSON or PDF for the dates you picked.">
           <ExportActions filters={filters} />
         </Section>
         <Section title="Scheduled reports" description="Recurring executive evidence packs, delivered automatically.">

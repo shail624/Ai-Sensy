@@ -139,7 +139,7 @@ describe("CORE-04 governed KYC workspace", () => {
     fireEvent.change(panSelect, { target: { value: "doc-2" } });
     expect(mocks.setDocument).toHaveBeenCalledWith(expect.objectContaining({ purpose: "pan", documentId: "doc-2", expectedRowVersion: 4 }));
     fireEvent.click(screen.getByRole("tab", { name: /Appointments/ }));
-    expect(screen.getByText(/shared Task authority/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved as tasks/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Date and time"), { target: { value: "2026-08-06T10:30" } });
     fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
     expect(mocks.schedule).toHaveBeenCalledWith(expect.objectContaining({ kycId: "kyc-1", expectedRowVersion: 4 }), expect.any(Object));

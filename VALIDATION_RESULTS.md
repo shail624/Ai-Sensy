@@ -1,5 +1,39 @@
 # Validation Results
 
+## UI-AIS-19 — Full AiSensy audit, pass 1: shared header, History, Flows, Dashboard, plain copy (2026-09-24)
+
+Owner request: the UI is close to AiSensy but still differs; audit everything and fill the gaps.
+Reference pages were viewed read-only in the app browser (nothing changed there).
+
+- Shared page layout (44 pages at once): `PageHeader` is now the reference white top bar (plain
+  20px title, short grey line, actions on the right); `PageContainer` uses the reference light-grey
+  canvas at full width; breadcrumb trails are gone — a top-level page shows none and a nested page
+  shows one "← Back to …" link, as the reference does.
+- History: reference three-pane look — search pill + filter/audit icons over an avatar list; the
+  empty centre shows the WhatsApp wallpaper with "Select a chat to continue!"; an open chat has the
+  teal Live Chat header with the customer's photo and the wallpaper behind messages. Full-height,
+  own header. All filters, saved views, export and "Open in Live Chat" unchanged.
+- Flows: page renamed "Flow Builder" with a Quick Guide and an Active Flows ring (published / all);
+  the "Versioned authoring / Human approval / approval proposals" jargon replaced by one plain
+  sentence (flows never message customers on their own).
+- Dashboard: "Remaining Quota" (from `/campaigns/messaging-quota`, falls back to the limit) instead
+  of "Messaging Limit"; the business profile photo now shows — the CSP `img-src` allows
+  `https://pps.whatsapp.net`, WhatsApp's profile-image host (nginx reloaded, `nginx -t` passed).
+- Plain language: 20+ remaining technical strings rewritten (governed, immutable, ledger, tenant,
+  contract, projection …) across Analytics, Customer 360, Documents, KYC, Reactivation, Scan and
+  Operations.
+- Not built (AiSensy commercial features with no counterpart here): AI Agent, Ads Manager, WA
+  Payments, Integrations marketplace, flow-template gallery, credits/plan/referral cards.
+- PASS: frontend 1,092 tests, TypeScript, ESLint, build; live check of History, Flow Builder and
+  Dashboard. No backend change.
+
+## CORE-WH-01 — Retry-safe inbound webhook handoff (2026-09-24)
+
+- PASS: injected broker publish failure leaves Meta and QR events retryable; subsequent successful publish settles them. Targeted webhook suites: 55 passed.
+- PASS: Ruff on changed Python modules.
+- PENDING – Host Machine Validation: full backend suite in progress; record final count before milestone closeout.
+- Live evidence: Meta posted a fresh text at 07:54:43 UTC; the local inbound task applied it in 0.08 seconds. The prior missing text had no matching edge request. No claim that this code change repairs upstream non-delivery.
+
 ## UI-AIS-18 — Messaging tier read from Meta's portfolio-level limit (2026-09-24)
 
 Follow-up to UI-AIS-17: the Campaigns strip showed "Not reported yet" for the tier.

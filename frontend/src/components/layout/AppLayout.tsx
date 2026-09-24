@@ -17,6 +17,8 @@ const MANAGE_HEADER_PAGES = new Set([
   "/contacts",
   "/campaigns",
   "/campaigns/new",
+  "/automation",
+  "/chat-history",
   "/templates",
   "/opt-in",
   "/live-chat-settings",

@@ -71,7 +71,7 @@ export function DocumentFormDialog({ contactId, document, onClose, onSaved }: Pr
         <div className="flex items-start gap-3 rounded-xl border border-success/20 bg-success/5 p-3">
           <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-success" />
           <div>
-            <p className="text-xs font-semibold text-text-primary">Governed and traceable</p>
+            <p className="text-xs font-semibold text-text-primary">Safe and tracked</p>
             <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
               Every file version is immutable, scanned, tenant-isolated, and recorded in customer history.
             </p>

@@ -733,11 +733,11 @@ describe("ChatHistory", () => {
 
     const row = await screen.findByRole("button", { name: /Ramesh K\./ });
     expect(row).not.toHaveAttribute("aria-current");
-    expect(row).toHaveClass("border-l-transparent");
+    expect(row).not.toHaveClass("bg-[#ebf5f3]");
     expect(row.querySelector('[aria-hidden="true"]')).toHaveTextContent("R");
     fireEvent.click(row);
     await waitFor(() => expect(row).toHaveAttribute("aria-current", "true"));
-    expect(row).toHaveClass("border-l-accent", "bg-surface-2");
+    expect(row).toHaveClass("bg-[#ebf5f3]");
   });
 
   it("makes no conversation-detail or message request until a conversation is selected", async () => {

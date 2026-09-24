@@ -19,8 +19,9 @@ const TIER_NUMBER: Record<string, string> = {
   TIER_UNLIMITED: "Unlimited",
 };
 
-export function useMessagingQuota() {
+export function useMessagingQuota(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["campaigns", "messaging-quota"],
     queryFn: async () => unwrap(await api.GET("/api/v1/campaigns/messaging-quota")),
     refetchInterval: 60_000,
