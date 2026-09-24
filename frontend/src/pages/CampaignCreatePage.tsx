@@ -1,8 +1,6 @@
-import { Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { ManagePageHeader } from "@/components/layout";
-import { AiFoundationPanel } from "@/features/ai";
 import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
 import {
   contactsToForm,
@@ -52,24 +50,6 @@ export function CampaignCreatePage(): JSX.Element {
           ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
           : "Choose who gets it, pick an approved template, then send now or schedule it. Nothing is sent until you confirm."}
       </p>
-      <details className="group mx-auto mb-4 max-w-5xl rounded-xl border border-border bg-surface">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-          <span className="flex items-center gap-2">
-            <Sparkles aria-hidden className="h-4 w-4 text-accent" />
-            AI planning assistant
-            <span className="font-normal text-text-disabled">Optional</span>
-          </span>
-          <span className="text-xs font-medium text-accent group-open:hidden">Show</span>
-          <span className="hidden text-xs font-medium text-accent group-open:inline">Hide</span>
-        </summary>
-        <div className="border-t border-border p-2">
-          <AiFoundationPanel
-            compact
-            capabilities={["campaign", "audience"]}
-            context="the campaign objective and selected audience"
-          />
-        </div>
-      </details>
       <CampaignWizard
         initialValues={
           source

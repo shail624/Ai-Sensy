@@ -1,7 +1,6 @@
 import { BarChart3, FileCheck2, PackageCheck, ScanSearch } from "lucide-react";
 
 import { Card, ErrorState, Section, Spinner } from "@/components/ui";
-import { AiFoundationPanel } from "@/features/ai";
 import { apiErrorMessage, useAnalyticsSummary } from "@/features/analytics/api";
 import { EngagementFunnel } from "@/features/analytics/EngagementFunnel";
 import { ExportActions } from "@/features/analytics/ExportActions";
@@ -24,7 +23,6 @@ export function ReactivationReports(): JSX.Element {
       <ReportBoundary icon={PackageCheck} title="SIM" />
       <ReportBoundary icon={ScanSearch} title="Scan" />
     </div>
-    <AiFoundationPanel capabilities={["insights"]} context="verified engagement rollups; reactivation, KYC, SIM, scan, and revenue dimensions remain unavailable" />
   </div>;
 }
 

@@ -1,5 +1,21 @@
 # Project State
 
+## UI-AIS-20 — AiSensy audit pass 2: placeholder AI panels removed, Customer page, Developer header (2026-09-24)
+
+- The "AI copilot / Provider not connected" placeholder (with governed-AI wording) is removed from
+  Segments, Live Chat's Chat Profile ("AI Assist"), the campaign wizard ("AI planning assistant"),
+  Analytics and Reactivation reports. It never worked (no AI provider is connected); the reference
+  shows nothing there. The component stays for when a real provider is connected.
+- Customer page: "Single customer identity / Persisted since" → "Customer since …" and "Details
+  last updated …"; "Engagement facts … no synthetic score" → "Activity" with "Last message from /
+  to customer"; the internal WhatsApp identity and record-version rows removed. Basic information
+  now shows Opt-in in words (Yes / No / Not asked yet), **Sale status** (coloured pill) and
+  **Release date**.
+- Developer Hub: no self-referencing "Back to Developer" link; page titles no longer show a focus
+  outline when the page opens.
+- PASS: frontend 1,092 tests, TypeScript, ESLint, build; live check of Customer and Segments pages.
+  No backend change.
+
 ## UI-AIS-19 — Full AiSensy audit, pass 1: shared header, History, Flows, Dashboard, plain copy (2026-09-24)
 
 Owner request: the UI is close to AiSensy but still differs; audit everything and fill the gaps.

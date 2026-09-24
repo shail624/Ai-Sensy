@@ -19,7 +19,6 @@ import { KpiCards } from "@/features/analytics/KpiCards";
 import { TeamWorkloadTable } from "@/features/analytics/TeamWorkloadTable";
 import { SeriesChart } from "@/features/analytics/SeriesChart";
 import { EngagementFunnel } from "@/features/analytics/EngagementFunnel";
-import { AiFoundationPanel } from "@/features/ai";
 import type {
   AnalyticsFilterState,
   Compare,
@@ -363,7 +362,6 @@ export function AnalyticsDashboard(): JSX.Element {
         </Section>
       </div>
 
-      <AiFoundationPanel capabilities={["insights"]} context="the verified analytics rollups and selected date range" />
     </div>
   );
 }

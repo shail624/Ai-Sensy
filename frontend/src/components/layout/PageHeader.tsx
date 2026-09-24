@@ -23,7 +23,7 @@ export function PageHeader({ title, description, actions, meta }: PageHeaderProp
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-normal leading-7 text-black dark:text-text-primary">{title}</h1>
+          <h1 className="text-xl font-normal leading-7 text-black focus:outline-none dark:text-text-primary">{title}</h1>
           {description ? (
             <p className="mt-0.5 max-w-4xl text-[13px] leading-relaxed text-[#6e6e6e] dark:text-text-secondary">{description}</p>
           ) : null}

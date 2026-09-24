@@ -26,16 +26,15 @@ export function OperationsPage(): JSX.Element {
 
   return (
     <PageContainer>
-      <Breadcrumbs
-        items={[
-          { label: "Dashboard", to: "/" },
-          {
-            label: isDeveloperWorkspace ? "Developer" : "Operations",
-            to: isDeveloperWorkspace ? active.path : sections[0]?.path,
-          },
-          ...(active ? [{ label: active.label }] : []),
-        ]}
-      />
+      {isDeveloperWorkspace ? null : (
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", to: "/" },
+            { label: "Operations", to: sections[0]?.path },
+            ...(active ? [{ label: active.label }] : []),
+          ]}
+        />
+      )}
       <PageHeader
         title={isDeveloperWorkspace ? "Developer Hub" : "Operations"}
         description={

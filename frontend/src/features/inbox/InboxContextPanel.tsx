@@ -3,7 +3,6 @@ import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { EmptyState } from "@/components/ui";
-import { AiFoundationPanel } from "@/features/ai";
 import { ConversationTags } from "@/features/inbox/ConversationControls";
 import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { NotesPanel } from "@/features/inbox/NotesPanel";
@@ -98,9 +97,6 @@ export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePin
         </Section>
         <Section title="Notes" defaultOpen>
           <NotesPanel conversationId={conversation.id} />
-        </Section>
-        <Section title="AI Assist">
-          <AiFoundationPanel compact capabilities={["reply", "summary"]} context={`conversation with ${name}`} />
         </Section>
 
         <div className="grid grid-cols-2 gap-2">
