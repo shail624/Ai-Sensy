@@ -13,7 +13,17 @@ import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
  * Screens that carry their own reference-style top bar, so the app header steps aside on desktop:
  * all of Live Chat, and each Manage list page once it renders `ManagePageHeader`.
  */
-const MANAGE_HEADER_PAGES = new Set(["/templates", "/opt-in", "/live-chat-settings", "/user-attributes"]);
+const MANAGE_HEADER_PAGES = new Set([
+  "/templates",
+  "/opt-in",
+  "/live-chat-settings",
+  "/user-attributes",
+  "/canned-messages",
+  "/team",
+  "/tags",
+  "/chat-analytics",
+  "/notification-preferences",
+]);
 
 export function isImmersive(pathname: string): boolean {
   return pathname === "/inbox" || pathname.startsWith("/inbox/") || MANAGE_HEADER_PAGES.has(pathname);

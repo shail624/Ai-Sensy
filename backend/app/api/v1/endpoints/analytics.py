@@ -20,10 +20,12 @@ lesson of the Phase 7 inbox hardening (Doc 15 §18).
 from __future__ import annotations
 
 import uuid as uuidlib
+from datetime import date as date_type
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import BaseModel
 
 from app.api.deps import SessionDep, require_permissions
 from app.core.config import settings
@@ -58,6 +60,7 @@ from app.services.analytics_query_service import (
     RangeSpec,
     resolve_range,
 )
+from app.services.chat_activity_service import ChatActivityService
 from app.services.export_service import ExportService
 from app.services.report_schedule_service import ReportScheduleService
 from app.services.report_view_service import ReportViewService
@@ -830,4 +833,49 @@ async def analytics_service_levels(
         ],
         spec=spec,
         limit=limit,
+    )
+
+
+class ChatActivityDay(BaseModel):
+    date: date_type
+    user_messages: int
+    business_messages: int
+    chatbot_messages: int
+    closed: int
+    intervened: int
+
+
+class ChatActivityResponse(BaseModel):
+    timezone: str
+    data: list[ChatActivityDay]
+
+
+@router.get(
+    "/analytics/chat-activity",
+    response_model=ChatActivityResponse,
+    summary="Messages and agent activity per day (Manage → Analytics)",
+)
+async def chat_activity(
+    session: SessionDep,
+    actor: AnalyticsReader,
+    days: Annotated[int, Query(ge=1, le=31)] = 7,
+    timezone: Annotated[str, Query(max_length=64)] = "Asia/Kolkata",
+) -> ChatActivityResponse:
+    """Customer, business and chatbot messages, plus chats closed and intervened, per day."""
+    rows = await ChatActivityService(session).daily(
+        organization_id=actor.organization_id, days=days, timezone=timezone
+    )
+    return ChatActivityResponse(
+        timezone=timezone,
+        data=[
+            ChatActivityDay(
+                date=row.day,
+                user_messages=row.user_messages,
+                business_messages=row.business_messages,
+                chatbot_messages=row.chatbot_messages,
+                closed=row.closed,
+                intervened=row.intervened,
+            )
+            for row in rows
+        ],
     )

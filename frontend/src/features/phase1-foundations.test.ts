@@ -54,7 +54,7 @@ describe("Phase 1 information architecture", () => {
     expect(manageNavGroups((code) => code === "contacts:read").flatMap((group) => group.items)
       .some((item) => item.label === "Team" || item.label === "Opt-in Management")).toBe(false);
     expect(manageNavGroups((code) => code === "auth:self").flatMap((group) => group.items)
-      .map((item) => item.path)).toEqual(["/settings/preferences"]);
+      .map((item) => item.path)).toEqual(["/notification-preferences"]);
   });
 
   it("does not expose permission-gated modules without an entitlement", () => {

@@ -190,13 +190,17 @@ export function manageNavGroups(
         description: "Routing, working hours, automatic replies and resolution." },
     ] : []),
     ...setting("user-attributes").map((item) => ({ ...item, path: "/user-attributes" })),
-    ...setting("canned-messages"),
+    ...setting("canned-messages").map((item) => ({ ...item, path: "/canned-messages" })),
     ...(hasPermission(team.permission) ? [{
-      ...team, label: "Team", available: true, glyph: "T", icon: Users, group: "Manage",
+      ...team, label: "Team", path: "/team", available: true, glyph: "T", icon: Users, group: "Manage",
     }] : []),
-    ...setting("tags"),
-    ...destination("/analytics"),
-    ...setting("preferences"),
+    ...setting("tags").map((item) => ({ ...item, path: "/tags" })),
+    ...(hasPermission("analytics:read") ? [{
+      label: "Analytics", path: "/chat-analytics", available: true, glyph: "A", icon: BarChart3,
+      group: "Manage", permission: "analytics:read",
+      description: "Messages and agent activity per day.",
+    }] : []),
+    ...setting("preferences").map((item) => ({ ...item, label: "Notification Preferences", path: "/notification-preferences" })),
   ];
   const covered = new Set(["/templates", "/analytics", "/settings", "/admin"]);
   const additional = secondaryNavGroups(hasPermission)

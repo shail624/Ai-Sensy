@@ -1,17 +1,14 @@
-import { MessageSquareText, Plus, Search } from "lucide-react";
+import { MessageSquareText, Pencil, Plus, Search, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
   Badge,
   Button,
   DefinitionRow,
-  EmptyState,
   ErrorState,
   Field,
-  FilterBar,
   Input,
   Modal,
-  Section,
   Select,
   Spinner,
   Textarea,
@@ -35,7 +32,10 @@ import {
   validateShortcut,
   validateTitle,
 } from "@/features/settings/types";
-import { formatCount, formatDateTime } from "@/lib/format";
+import { MANAGE_FIELD, MANAGE_OUTLINE, MANAGE_PRIMARY } from "@/features/settings/managePrimitives";
+import { QuickGuide, ROW_ICON } from "@/features/settings/QuickGuide";
+import { useFavouriteIds } from "@/features/settings/favourites";
+import { formatCount } from "@/lib/format";
 
 interface EditorState {
   /** The reply being amended, or `null` when creating a new one. */
@@ -81,6 +81,7 @@ export function CannedMessagesPanel(): JSX.Element {
   const [scope, setScope] = useState<QuickReplyScopeFilter>("all");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<QuickReply | null>(null);
+  const [favourites, toggleFavourite] = useFavouriteIds("wa.canned-favourites.v1");
 
   const all = [...(replies.data ?? [])].sort((a, b) => a.shortcut.localeCompare(b.shortcut));
   const matching = all.filter((reply) => matchesQuickReplyFilter(reply, search, scope));
@@ -127,141 +128,136 @@ export function CannedMessagesPanel(): JSX.Element {
   }
 
   const newReplyButton = canManage ? (
-    <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => openEditor(emptyEditor())}>
-      New canned message
-    </Button>
+    <button type="button" aria-label="New canned message" onClick={() => openEditor(emptyEditor())} className={MANAGE_PRIMARY}>
+      <Plus aria-hidden className="mr-1 h-4 w-4" /> Create
+    </button>
   ) : null;
 
+  const ordered = [...matching].sort((a, b) => Number(favourites.has(b.id)) - Number(favourites.has(a.id)));
+
   return (
-    <Section
-      title="Canned Messages"
-      description="Personal and shared quick replies an agent inserts into the message composer by /shortcut."
-      action={newReplyButton}
-    >
-      <p className="mb-3 text-sm text-text-secondary">
-        {all.length === 0
-          ? "No canned messages exist yet."
-          : `${formatCount(all.length)} canned message${all.length === 1 ? "" : "s"} · ${formatCount(sharedCount)} shared`}
-      </p>
+    <div className="space-y-5">
+      <QuickGuide
+        eyebrow="Canned message quick guide"
+        text="Save replies you send often and insert them in Live Chat: type / in the message box, or press Quick replies."
+      />
 
-      {all.length > 0 ? (
-        <div className="mb-3">
-          <FilterBar label="Canned message search and filters" contentClassName="w-full">
-            <Input
-              id="canned-messages-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search shortcut, title or body…"
-              aria-label="Search canned messages"
-              leadingIcon={<Search aria-hidden className="h-4 w-4" />}
-              containerClassName="min-w-0 flex-1 sm:min-w-[220px]"
-            />
-            <Select
-              aria-label="Filter by scope"
-              value={scope}
-              onChange={(event) => setScope(event.target.value as QuickReplyScopeFilter)}
-              className="min-w-[10rem] !w-auto"
-            >
-              <option value="all">All</option>
-              <option value="personal">Personal</option>
-              <option value="shared">Shared</option>
-            </Select>
-          </FilterBar>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-[38px] w-full max-w-[300px] items-center gap-2 rounded-[8px] bg-surface px-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <Search aria-hidden className="h-4 w-4 shrink-0 text-black/40" />
+          <input
+            id="canned-messages-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search canned message by name"
+            aria-label="Search canned messages"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary"
+          />
         </div>
-      ) : null}
+        <select
+          aria-label="Filter by scope"
+          value={scope}
+          onChange={(event) => setScope(event.target.value as QuickReplyScopeFilter)}
+          className={`${MANAGE_FIELD} h-[38px] w-[150px] pr-7`}
+        >
+          <option value="all">All</option>
+          <option value="personal">Only me</option>
+          <option value="shared">Whole team</option>
+        </select>
+        <span className="text-sm text-[#6e6e6e] dark:text-text-secondary">
+          {formatCount(all.length)} saved · {formatCount(sharedCount)} for the whole team
+        </span>
+        <span className="ml-auto">{newReplyButton}</span>
+      </div>
 
-      {all.length === 0 ? (
-        <EmptyState
-          icon={<MessageSquareText aria-hidden className="h-6 w-6" />}
-          title="No canned messages yet"
-          description={
-            canManage
-              ? "Create the first canned message so agents can insert it from the composer."
-              : "Nobody has created a canned message yet. You need the inbox write permission to add one."
-          }
-          action={newReplyButton}
-        />
-      ) : matching.length === 0 ? (
-        <EmptyState
-          title="No canned messages match"
-          description="No canned message matches this search and filter."
-          action={
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSearch("");
-                setScope("all");
-              }}
-            >
-              Clear filters
-            </Button>
-          }
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
+      <div className="overflow-x-auto rounded-[8px] bg-surface">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-[#f0f0f0] text-[13px] text-[var(--color-nav-bg)] dark:border-border dark:text-accent">
+            <tr className="h-[50px]">
+              <th scope="col" className="pl-6 pr-3 font-normal">Name</th>
+              <th scope="col" className="px-3 font-normal">Type</th>
+              <th scope="col" className="px-3 font-normal">Text</th>
+              <th scope="col" className="hidden px-3 font-normal md:table-cell">Visible to</th>
+              {canManage ? <th scope="col" className="px-3 text-center font-normal">Action</th> : null}
+              <th scope="col" className="pl-3 pr-6 text-center font-normal">Favourite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {all.length === 0 || ordered.length === 0 ? (
               <tr>
-                <th scope="col" className="px-3 py-2">Shortcut</th>
-                <th scope="col" className="px-3 py-2">Title</th>
-                <th scope="col" className="px-3 py-2">Scope</th>
-                <th scope="col" className="hidden px-3 py-2 md:table-cell">Body</th>
-                <th scope="col" className="hidden px-3 py-2 lg:table-cell">Updated At</th>
-                {canManage ? (
-                  <th scope="col" className="px-3 py-2 text-right">Actions</th>
-                ) : null}
+                <td colSpan={6} className="py-12 text-center text-sm text-[#6e6e6e] dark:text-text-secondary">
+                  {all.length === 0 ? (
+                    <>
+                      <MessageSquareText aria-hidden className="mx-auto mb-2 h-6 w-6 text-black/30" />
+                      <p className="font-medium text-text-primary">No canned messages yet</p>
+                      <p className="mt-1">
+                        {canManage
+                          ? "Press Create to save your first reply."
+                          : "Nobody has saved a canned message yet. Ask an admin for access to add one."}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-text-primary">No canned messages match</p>
+                      <button type="button" className={`${MANAGE_OUTLINE} mt-3`} onClick={() => { setSearch(""); setScope("all"); }}>
+                        Clear filters
+                      </button>
+                    </>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {matching.map((reply) => (
-                <tr key={reply.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 align-top font-mono text-xs text-text-primary">
-                    {reply.shortcut}
-                  </td>
-                  <td className="px-3 py-2 align-top text-text-primary">{reply.title}</td>
-                  <td className="px-3 py-2 align-top">
-                    <ScopeBadge shared={reply.shared} />
-                  </td>
-                  <td className="hidden max-w-xs px-3 py-2 align-top text-xs text-text-secondary md:table-cell">
-                    {previewQuickReplyBody(reply.body)}
-                  </td>
-                  <td className="hidden px-3 py-2 align-top text-xs text-text-secondary lg:table-cell">
-                    {formatDateTime(reply.updated_at)}
-                  </td>
-                  {canManage ? (
-                    <td className="px-3 py-2 align-top">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          aria-label={`Edit ${reply.title}`}
-                          onClick={() => openEditor(editorFor(reply))}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          aria-label={`Delete ${reply.title}`}
-                          onClick={() => openDeleteConfirm(reply)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+            ) : (
+              ordered.map((reply) => {
+                const favourite = favourites.has(reply.id);
+                return (
+                  <tr key={reply.id} className="border-b border-[#f0f0f0] last:border-0 dark:border-border">
+                    <td className="py-3 pl-6 pr-3 align-middle">
+                      <p className="text-sm text-black dark:text-text-primary">{reply.title}</p>
+                      <p className="font-mono text-xs text-[#808080]">/{reply.shortcut}</p>
                     </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    <td className="px-3 align-middle text-[#4a4a4a] dark:text-text-secondary">Text</td>
+                    <td className="max-w-[320px] px-3 align-middle text-xs text-[#6e6e6e] dark:text-text-secondary">
+                      {previewQuickReplyBody(reply.body)}
+                    </td>
+                    <td className="hidden px-3 align-middle md:table-cell">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${reply.shared ? "bg-[#ebf5f3] text-[var(--color-nav-bg)]" : "bg-[#f0f0f0] text-[#6e6e6e]"}`}>
+                        {reply.shared ? "Whole team" : "Only me"}
+                      </span>
+                    </td>
+                    {canManage ? (
+                      <td className="px-3 align-middle">
+                        <div className="flex justify-center gap-1">
+                          <button type="button" aria-label={`Edit ${reply.title}`} title="Edit" onClick={() => openEditor(editorFor(reply))} className={ROW_ICON}>
+                            <Pencil aria-hidden className="h-[17px] w-[17px]" />
+                          </button>
+                          <button type="button" aria-label={`Delete ${reply.title}`} title="Delete" onClick={() => openDeleteConfirm(reply)} className={`${ROW_ICON} hover:!bg-danger-soft hover:!text-danger`}>
+                            <Trash2 aria-hidden className="h-[17px] w-[17px]" />
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
+                    <td className="pl-3 pr-6 text-center align-middle">
+                      <button
+                        type="button"
+                        aria-pressed={favourite}
+                        aria-label={`${favourite ? "Remove" : "Mark"} ${reply.title} ${favourite ? "from" : "as"} favourite`}
+                        onClick={() => toggleFavourite(reply.id)}
+                        className={ROW_ICON}
+                      >
+                        <Star aria-hidden className={`h-[18px] w-[18px] ${favourite ? "fill-[#f5a623] text-[#f5a623]" : ""}`} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {!canManage ? (
-        <p className="mt-3 text-xs text-text-disabled">
-          Read-only — changing canned messages needs the inbox write permission.
-        </p>
+        <p className="text-xs text-text-disabled">Read-only — adding or changing canned messages needs Live Chat edit access.</p>
       ) : null}
 
       {editor ? (
@@ -426,6 +422,6 @@ export function CannedMessagesPanel(): JSX.Element {
           </div>
         </Modal>
       ) : null}
-    </Section>
+    </div>
   );
 }

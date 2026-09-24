@@ -47,6 +47,16 @@ from app.services.inbox_operations_service import InboxOperationsService
 SOURCE_WEBHOOK = "webhook"
 
 
+#: What the inbox list shows for a file without a caption, instead of a bracketed type name.
+_FRIENDLY_PREVIEW = {
+    "image": "📷 Photo",
+    "video": "🎬 Video",
+    "audio": "🎧 Audio",
+    "document": "📄 Document",
+    "sticker": "🏷 Sticker",
+}
+
+
 class ConversationService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -540,4 +550,4 @@ class ConversationService:
         if isinstance(pin, dict):
             place = pin.get("name") or pin.get("address")
             return f"📍 {place}" if isinstance(place, str) and place.strip() else "📍 Location"
-        return f"[{message_type}]"
+        return _FRIENDLY_PREVIEW.get(message_type, f"[{message_type}]")

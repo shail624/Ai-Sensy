@@ -1,4 +1,4 @@
-import { Plus, Search, Tag as TagIcon } from "lucide-react";
+import { Pencil, Plus, Search, Tag as TagIcon, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
@@ -7,12 +7,9 @@ import {
   EmptyState,
   ErrorState,
   Field,
-  FilterBar,
   Input,
   Modal,
   Pagination,
-  Section,
-  Select,
   Spinner,
   TagChip,
 } from "@/components/ui";
@@ -33,6 +30,8 @@ import {
   validateTagDescription,
   validateTagName,
 } from "@/features/settings/types";
+import { MANAGE_FIELD, MANAGE_PRIMARY } from "@/features/settings/managePrimitives";
+import { QuickGuide, ROW_ICON } from "@/features/settings/QuickGuide";
 import { formatCount, formatDateTime } from "@/lib/format";
 
 /** The list endpoint returns every tag at once, so paging is done here to keep the table readable. */
@@ -171,49 +170,48 @@ export function TagsPanel(): JSX.Element {
   }
 
   const newTagButton = canManage ? (
-    <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => openEditor(emptyEditor())}>
-      New tag
-    </Button>
+    <button type="button" aria-label="New tag" onClick={() => openEditor(emptyEditor())} className={MANAGE_PRIMARY}>
+      <Plus aria-hidden className="mr-1 h-4 w-4" /> Create
+    </button>
   ) : null;
 
   return (
-    <Section
-      title="Tags"
-      description="The shared tag vocabulary for contacts and conversations. Renaming a tag updates it everywhere it is already applied."
-      action={newTagButton}
-    >
-      <p className="mb-3 text-sm text-text-secondary">
-        {all.length === 0
-          ? "No tags exist yet."
-          : `${formatCount(all.length)} tag${all.length === 1 ? "" : "s"} · ${formatCount(inUse)} in use`}
-      </p>
+    <div className="space-y-5">
+      <QuickGuide
+        eyebrow="Tag quick guide"
+        text="Tags group your customers (for example by offer or interest). A first message tag is added automatically when a customer's first message matches its keywords."
+      />
 
-      {all.length > 0 ? (
-        <div className="mb-3">
-          <FilterBar label="Tag search and filters" contentClassName="w-full">
-            <Input
-              id="tags-search"
-              type="search"
-              value={search}
-              onChange={(event) => narrow(() => setSearch(event.target.value))}
-              placeholder="Search name or description…"
-              aria-label="Search tags"
-              leadingIcon={<Search aria-hidden className="h-4 w-4" />}
-              containerClassName="min-w-0 flex-1 sm:min-w-[220px]"
-            />
-            <Select
-              aria-label="Filter by usage"
-              value={usage}
-              onChange={(event) => narrow(() => setUsage(event.target.value as TagUsageFilter))}
-              className="min-w-[10rem] !w-auto"
-            >
-              <option value="all">All tags</option>
-              <option value="used">In use</option>
-              <option value="unused">Unused</option>
-            </Select>
-          </FilterBar>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-[38px] w-full max-w-[300px] items-center gap-2 rounded-[8px] bg-surface px-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <Search aria-hidden className="h-4 w-4 shrink-0 text-black/40" />
+          <input
+            id="tags-search"
+            type="search"
+            value={search}
+            onChange={(event) => narrow(() => setSearch(event.target.value))}
+            placeholder="Search by name & description"
+            aria-label="Search tags"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary"
+          />
         </div>
-      ) : null}
+        <select
+          aria-label="Filter by usage"
+          value={usage}
+          onChange={(event) => narrow(() => setUsage(event.target.value as TagUsageFilter))}
+          className={`${MANAGE_FIELD} h-[38px] w-[160px] pr-7`}
+        >
+          <option value="all">All</option>
+          <option value="used">In use</option>
+          <option value="unused">Unused</option>
+        </select>
+        <span className="text-sm text-[#6e6e6e] dark:text-text-secondary">
+          {all.length === 0
+            ? "No tags exist yet."
+            : `${formatCount(all.length)} tag${all.length === 1 ? "" : "s"} · ${formatCount(inUse)} in use`}
+        </span>
+        <span className="ml-auto">{newTagButton}</span>
+      </div>
 
       {all.length === 0 ? (
         <EmptyState
@@ -246,33 +244,33 @@ export function TagsPanel(): JSX.Element {
         />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-md border border-border">
+          <div className="overflow-x-auto rounded-[8px] bg-surface">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
-                <tr>
-                  <th scope="col" className="px-3 py-2">
-                    Tag name
+              <thead className="border-b border-[#f0f0f0] text-[13px] text-[var(--color-nav-bg)] dark:border-border dark:text-accent">
+                <tr className="h-[50px]">
+                  <th scope="col" className="pl-6 pr-3 font-normal">
+                    Tag Name
                   </th>
-                  <th scope="col" className="hidden px-3 py-2 md:table-cell">
-                    First message
+                  <th scope="col" className="hidden px-3 font-normal md:table-cell">
+                    First Message
                   </th>
-                  <th scope="col" className="px-3 py-2">
-                    Usage
+                  <th scope="col" className="px-3 font-normal">
+                    Customers
                   </th>
-                  <th scope="col" className="hidden px-3 py-2 lg:table-cell">
+                  <th scope="col" className="hidden px-3 font-normal lg:table-cell">
                     Last updated
                   </th>
                   {canManage ? (
-                    <th scope="col" className="px-3 py-2 text-right">
-                      Actions
+                    <th scope="col" className="pl-3 pr-6 text-center font-normal">
+                      Action
                     </th>
                   ) : null}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((tag) => (
-                  <tr key={tag.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 align-top">
+                  <tr key={tag.id} className="border-b border-[#f0f0f0] last:border-0 dark:border-border">
+                    <td className="py-3 pl-6 pr-3 align-middle">
                       <TagChip name={tag.name} color={tag.color} />
                       {tag.description ? (
                         <p className="mt-1 max-w-md text-xs text-text-secondary">
@@ -312,23 +310,25 @@ export function TagsPanel(): JSX.Element {
 
                     {canManage ? (
                       <td className="px-3 py-2 align-top">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Button
-                            variant="secondary"
-                            size="sm"
+                        <div className="flex justify-center gap-1">
+                          <button
+                            type="button"
                             aria-label={`Edit ${tag.name}`}
+                            title="Edit"
                             onClick={() => openEditor(editorFor(tag))}
+                            className={ROW_ICON}
                           >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
+                            <Pencil aria-hidden className="h-[17px] w-[17px]" />
+                          </button>
+                          <button
+                            type="button"
                             aria-label={`Delete ${tag.name}`}
+                            title="Delete"
                             onClick={() => openDeleteConfirm(tag)}
+                            className={`${ROW_ICON} hover:!bg-danger-soft hover:!text-danger`}
                           >
-                            Delete
-                          </Button>
+                            <Trash2 aria-hidden className="h-[17px] w-[17px]" />
+                          </button>
                         </div>
                       </td>
                     ) : null}
@@ -528,6 +528,6 @@ export function TagsPanel(): JSX.Element {
           </div>
         </Modal>
       ) : null}
-    </Section>
+    </div>
   );
 }

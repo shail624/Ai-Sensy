@@ -528,8 +528,8 @@ async def test_pairing_lifecycle_is_runtime_owned_persisted_and_no_store(
     # saved-view paths (231 -> 233). PAR-VIEW-05 adds Reports views (233 -> 235). Raw secret
     # shapes must still never appear.
     # UI-AIS-01 adds the live WhatsApp Business profile path (247 -> 248); UI-AIS-03 the typing
-    # indicator (248 -> 249); UI-AIS-05 QR new chats and customer photos (249 -> 251); UI-AIS-06 sale details (251 -> 252); UI-AIS-08 message media (252 -> 253).
-    assert len(create_app().openapi()["paths"]) == 253
+    # indicator (248 -> 249); UI-AIS-05 QR new chats and customer photos (249 -> 251); UI-AIS-06 sale details (251 -> 252); UI-AIS-08 message media (252 -> 253); UI-AIS-10 chat activity (253 -> 254).
+    assert len(create_app().openapi()["paths"]) == 254
     assert "qr_payload" not in openapi
     assert "pairing_secret" not in openapi
     assert "pairing_reason_code" not in openapi

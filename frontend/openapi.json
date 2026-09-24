@@ -14259,6 +14259,68 @@
         }
       }
     },
+    "/api/v1/analytics/chat-activity": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Messages and agent activity per day (Manage → Analytics)",
+        "description": "Customer, business and chatbot messages, plus chats closed and intervened, per day.",
+        "operationId": "chat_activity_api_v1_analytics_chat_activity_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 31,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "default": "Asia/Kolkata",
+              "title": "Timezone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatActivityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/automations/{automation_id}/handoffs": {
       "post": {
         "tags": [
@@ -22419,6 +22481,66 @@
           "new_password"
         ],
         "title": "ChangePasswordRequest"
+      },
+      "ChatActivityDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "user_messages": {
+            "type": "integer",
+            "title": "User Messages"
+          },
+          "business_messages": {
+            "type": "integer",
+            "title": "Business Messages"
+          },
+          "chatbot_messages": {
+            "type": "integer",
+            "title": "Chatbot Messages"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "intervened": {
+            "type": "integer",
+            "title": "Intervened"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "user_messages",
+          "business_messages",
+          "chatbot_messages",
+          "closed",
+          "intervened"
+        ],
+        "title": "ChatActivityDay"
+      },
+      "ChatActivityResponse": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ChatActivityDay"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone",
+          "data"
+        ],
+        "title": "ChatActivityResponse"
       },
       "ConditionConfig": {
         "properties": {

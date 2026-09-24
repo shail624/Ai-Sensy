@@ -1,5 +1,35 @@
 # Final Product Implementation Roadmap
 
+## UI-AIS-10 — Remaining Manage pages matched to AiSensy; quieter API/QR badge; stuck template explained (2026-09-24)
+
+Owner request: build Canned Message, Team, Tags, Analytics and Notification Preferences like the
+AiSensy reference (viewed read-only), make the API/QR badge less loud, investigate message #2.
+
+- New Manage routes with the reference header and a Quick Guide strip: `/canned-messages`, `/team`,
+  `/tags`, `/chat-analytics`, `/notification-preferences`; the Manage menu points to them (the old
+  `/settings/*` and `/admin/users` screens still work).
+- Canned Messages: search pill, scope filter, Create; table Name (/shortcut) · Type · Text ·
+  Visible to · Action (round icons) · Favourite (star, per browser, favourites first).
+- Tags: same toolbar and table style (Tag Name · First Message · Customers · Last updated · Action).
+- Team Members: summary strip and one card per member (initial, username, Online / last seen /
+  never signed in / cannot sign in, role); add, edit and stop/restore sign-in (never yourself or
+  the owner).
+- Analytics: new `GET /analytics/chat-activity?days=&timezone=` (`analytics:read`, 1-31 days):
+  user, business and chatbot messages per day from the ledger (automatic replies identified by
+  their system-actor audit), plus chats closed and intervened from the audit trail. Page shows
+  totals and bar charts for 7/14/30 days. 254 OpenAPI paths.
+- Notification Preferences: sound switch with "Test sound", desktop push switch for this device
+  (asks browser permission, explains when blocked), then the existing bell categories.
+- Live Chat: API/QR badge made small and quiet (9px tinted label); file previews read
+  "📷 Photo / 🎬 Video / 🎧 Audio / 📄 Document" instead of "[image]" (3 stored previews updated).
+- Message #2 (template to 9891000010, stuck at `accepted`): sent 01:00:45 with a real wamid, but
+  the first Meta webhook reached the platform only at 06:28 (Meta's dashboard test) — the webhook
+  subscription did not exist yet, so its sent/delivered/read callbacks were never delivered and
+  Meta offers no API to fetch them later. Left unchanged (honest "accepted"); later sends update
+  normally. The dead-letter list still holds 14 entries from the pre-setup period.
+- PASS: backend 1,829 (full suite), ruff, OpenAPI `--check`; frontend 1,085 tests, TypeScript,
+  ESLint, build; live check of all five pages. No migration. No module percentage change.
+
 ## UI-AIS-09 — Messages sent from the QR phone shown in Live Chat (2026-09-24)
 
 Owner request (deferred earlier): show messages typed directly on the QR-connected phone.

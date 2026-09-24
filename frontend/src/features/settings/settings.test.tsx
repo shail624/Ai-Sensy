@@ -829,8 +829,8 @@ describe("TagsPanel", () => {
     withProviders(<TagsPanel />);
 
     expect(await screen.findByText("Prepaid")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Tag name" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "First message" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Tag Name" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "First Message" })).toBeInTheDocument();
     expect(screen.getByText("Enabled")).toBeInTheDocument();
     expect(screen.getByText("2 exact matches")).toBeInTheDocument();
     expect(screen.getByText("3 contacts")).toBeInTheDocument();
@@ -989,8 +989,8 @@ describe("TagsPanel", () => {
     expect(screen.getByRole("button", { name: "Delete Prepaid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Postpaid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Postpaid" })).toBeInTheDocument();
-    // The visible label stays the shared design-system text; only the accessible name is per-row.
-    expect(screen.getAllByText("Edit")).toHaveLength(2);
+    // Icon buttons: the visible hint is a tooltip; only the accessible name is per-row.
+    expect(screen.getAllByTitle("Edit")).toHaveLength(2);
   });
 
   it("keeps the create dialog open with the typed name intact when it conflicts", async () => {
@@ -1151,7 +1151,7 @@ describe("CannedMessagesPanel", () => {
 
     expect(await screen.findByText("No canned messages yet")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/inbox write permission/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Live Chat edit access|Ask an admin/).length).toBeGreaterThan(0);
   });
 
   it("lists replies with a Personal or Shared badge", async () => {
@@ -1165,8 +1165,8 @@ describe("CannedMessagesPanel", () => {
 
     await screen.findByText("Greeting");
     const table = screen.getByRole("table");
-    expect(within(table).getByText("Personal")).toBeInTheDocument();
-    expect(within(table).getByText("Shared")).toBeInTheDocument();
+    expect(within(table).getByText("Only me")).toBeInTheDocument();
+    expect(within(table).getByText("Whole team")).toBeInTheDocument();
   });
 
   it("narrows the list by search across shortcut, title and body", async () => {
@@ -1431,7 +1431,7 @@ describe("CannedMessagesPanel", () => {
     expect(screen.queryByRole("button", { name: "New canned message" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit Greeting" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Greeting" })).not.toBeInTheDocument();
-    expect(screen.getByText(/inbox write permission/)).toBeInTheDocument();
+    expect(screen.getByText(/Live Chat edit access/)).toBeInTheDocument();
   });
 
   it("names each row action after its own canned message", async () => {
@@ -1449,7 +1449,7 @@ describe("CannedMessagesPanel", () => {
     expect(screen.getByRole("button", { name: "Edit Sign-off" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Sign-off" })).toBeInTheDocument();
     // The visible label stays the shared design-system text; only the accessible name is per-row.
-    expect(screen.getAllByText("Edit")).toHaveLength(2);
+    expect(screen.getAllByTitle("Edit")).toHaveLength(2);
   });
 
   it("offers a retry when the list fails to load", async () => {

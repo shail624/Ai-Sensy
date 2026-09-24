@@ -3919,6 +3919,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/chat-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Messages and agent activity per day (Manage → Analytics)
+         * @description Customer, business and chatbot messages, plus chats closed and intervened, per day.
+         */
+        get: operations["chat_activity_api_v1_analytics_chat_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/automations/{automation_id}/handoffs": {
         parameters: {
             query?: never;
@@ -6288,6 +6308,31 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** ChatActivityDay */
+        ChatActivityDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** User Messages */
+            user_messages: number;
+            /** Business Messages */
+            business_messages: number;
+            /** Chatbot Messages */
+            chatbot_messages: number;
+            /** Closed */
+            closed: number;
+            /** Intervened */
+            intervened: number;
+        };
+        /** ChatActivityResponse */
+        ChatActivityResponse: {
+            /** Timezone */
+            timezone: string;
+            /** Data */
+            data: components["schemas"]["ChatActivityDay"][];
         };
         /** ConditionConfig */
         ConditionConfig: {
@@ -19417,6 +19462,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnalyticsBreakdownResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_activity_api_v1_analytics_chat_activity_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                timezone?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatActivityResponse"];
                 };
             };
             /** @description Validation Error */

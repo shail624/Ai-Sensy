@@ -9,15 +9,18 @@ import { connectorLabel, isWahaConversation } from "@/features/inbox/types";
  */
 export function ChannelBadge({ conversation, onDark = false }: { conversation: Pick<Conversation, "connector_type">; onDark?: boolean }): JSX.Element {
   const qr = isWahaConversation(conversation as Conversation);
-  const colours = qr
-    ? onDark ? "bg-[#dbeafe] text-[#1d4ed8]" : "bg-[#dbeafe] text-[#1d4ed8] ring-1 ring-[#93c5fd]"
-    : onDark ? "bg-[#dcfce7] text-[#15803d]" : "bg-[#dcfce7] text-[#15803d] ring-1 ring-[#86efac]";
+  // Kept quiet on purpose (owner feedback): a small tinted label, not a highlighted pill.
+  const colours = onDark
+    ? "bg-white/15 text-white"
+    : qr
+      ? "bg-[#eff6ff] text-[#3b6fd8]"
+      : "bg-[#f0fdf4] text-[#2f8a4f]";
   return (
     <span
       title={connectorLabel(conversation as Conversation)}
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${colours}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 text-[9px] font-semibold uppercase leading-[14px] ${colours}`}
     >
-      {qr ? <QrCode aria-hidden className="h-3.5 w-3.5" strokeWidth={2.5} /> : <ShieldCheck aria-hidden className="h-3.5 w-3.5" strokeWidth={2.5} />}
+      {qr ? <QrCode aria-hidden className="h-2.5 w-2.5" /> : <ShieldCheck aria-hidden className="h-2.5 w-2.5" />}
       {qr ? "QR" : "API"}
       <span className="sr-only">{connectorLabel(conversation as Conversation)}</span>
     </span>

@@ -36,6 +36,11 @@ const AnalyticsPage = lazyNamed(() => import("@/pages/AnalyticsPage"), "Analytic
 const AutomationPage = lazyNamed(() => import("@/pages/AutomationPage"), "AutomationPage");
 const BroadcastsPage = lazyNamed(() => import("@/pages/BroadcastsPage"), "BroadcastsPage");
 const UserAttributesPage = lazyNamed(() => import("@/pages/UserAttributesPage"), "UserAttributesPage");
+const CannedMessagesPage = lazyNamed(() => import("@/pages/CannedMessagesPage"), "CannedMessagesPage");
+const TagsPage = lazyNamed(() => import("@/pages/TagsPage"), "TagsPage");
+const TeamPage = lazyNamed(() => import("@/pages/TeamPage"), "TeamPage");
+const ChatAnalyticsPage = lazyNamed(() => import("@/pages/ChatAnalyticsPage"), "ChatAnalyticsPage");
+const NotificationPreferencesPage = lazyNamed(() => import("@/pages/NotificationPreferencesPage"), "NotificationPreferencesPage");
 const LiveChatSettingsPage = lazyNamed(() => import("@/pages/LiveChatSettingsPage"), "LiveChatSettingsPage");
 const OptInPage = lazyNamed(() => import("@/pages/OptInPage"), "OptInPage");
 const CampaignCreatePage = lazyNamed(() => import("@/pages/CampaignCreatePage"), "CampaignCreatePage");
@@ -385,6 +390,32 @@ export const router = createBrowserRouter([
             path: "user-attributes",
             element: <RequirePermission code="contacts:read" />,
             children: [{ index: true, element: lazyElement(UserAttributesPage) }],
+          },
+          // Manage → Canned Message / Team / Tags / Analytics / Notification Preferences (UI-AIS-10).
+          {
+            path: "canned-messages",
+            element: <RequirePermission code="inbox:read" />,
+            children: [{ index: true, element: lazyElement(CannedMessagesPage) }],
+          },
+          {
+            path: "team",
+            element: <RequirePermission code="users:read" />,
+            children: [{ index: true, element: lazyElement(TeamPage) }],
+          },
+          {
+            path: "tags",
+            element: <RequirePermission code="contacts:read" />,
+            children: [{ index: true, element: lazyElement(TagsPage) }],
+          },
+          {
+            path: "chat-analytics",
+            element: <RequirePermission code="analytics:read" />,
+            children: [{ index: true, element: lazyElement(ChatAnalyticsPage) }],
+          },
+          {
+            path: "notification-preferences",
+            element: <RequirePermission code="auth:self" />,
+            children: [{ index: true, element: lazyElement(NotificationPreferencesPage) }],
           },
           {
             // Each section carries the permission its own endpoints enforce. Preferences is on

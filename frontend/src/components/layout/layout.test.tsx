@@ -122,7 +122,7 @@ describe("Sidebar", () => {
   });
 
   it("supports moving into Manage and closing it with the keyboard", () => {
-    renderAt(<Sidebar collapsed />, "/settings/tags");
+    renderAt(<Sidebar collapsed />, "/tags");
     const trigger = screen.getByRole("button", { name: "Manage" });
     fireEvent.keyDown(trigger, { key: "ArrowRight" });
     expect(screen.getByRole("link", { name: "Template Message" })).toHaveFocus();

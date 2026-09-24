@@ -218,8 +218,8 @@ async def test_vi_openapi_exposes_typed_permission_scoped_foundation(client) -> 
     # the KYC saved-view paths (231 -> 233), and PAR-VIEW-05 adds Reports views (233 -> 235).
     # UI-AIS-01 adds the live WhatsApp Business profile read/write path (247 -> 248); UI-AIS-03
     # adds the best-effort conversation typing indicator (248 -> 249); UI-AIS-05 adds QR new-chat
-    # and customer-photo paths (249 -> 251); UI-AIS-06 sale details (251 -> 252); UI-AIS-08 message media (252 -> 253).
-    assert len(schema["paths"]) == 253
+    # and customer-photo paths (249 -> 251); UI-AIS-06 sale details (251 -> 252); UI-AIS-08 message media (252 -> 253); UI-AIS-10 chat activity (253 -> 254).
+    assert len(schema["paths"]) == 254
     assert "ReactivationCaseResponse" in schema["components"]["schemas"]
     assert "ActivationRecordResponse" in schema["components"]["schemas"]
     assert "KycOperationsResponse" in schema["components"]["schemas"]
