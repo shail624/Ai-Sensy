@@ -16,6 +16,7 @@ import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
 const MANAGE_HEADER_PAGES = new Set([
   "/contacts",
   "/campaigns",
+  "/campaigns/new",
   "/templates",
   "/opt-in",
   "/live-chat-settings",

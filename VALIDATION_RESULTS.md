@@ -1,5 +1,23 @@
 # Validation Results
 
+## UI-AIS-15 — Campaign launch wizard matched to AiSensy (2026-09-24)
+
+Owner request: make the campaign creation page like AiSensy's.
+
+- Reference (viewed read-only, nothing submitted): "Create Campaign" with a Quality Rating /
+  Messaging Tier / Remaining Quota strip, three stages Campaign Details · Create Message ·
+  Test & Preview, and Campaign Name + Select Audience on the first stage.
+- `/campaigns/new` now uses the Manage header ("Create Campaign", Back to campaigns), a sending
+  number strip (number, Quality Rating High/Medium/Low, Template Messaging Tier), and a three-stage
+  tab bar mapped onto the existing steps (Audience → Campaign Details; Template + Preview → Create
+  Message; Schedule + Approval + Confirmation → Test & Preview). The detailed step rail, approval
+  gate and "nothing sends before confirmation" behaviour are unchanged.
+- Campaign Name moved to the first stage with the audience (validated there); buttons use the
+  reference teal styles. Remaining quota is not shown: the platform does not track Meta's live
+  24-hour quota, so no number is invented.
+- PASS: frontend 1,088 tests (new stage mapping test), TypeScript, ESLint, build; live page check.
+  No backend change.
+
 ## UI-AIS-14 — Campaigns page matched to AiSensy (2026-09-24)
 
 Owner request: Campaigns / Broadcast page like AiSensy.

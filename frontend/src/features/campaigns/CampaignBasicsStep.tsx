@@ -59,20 +59,7 @@ export function CampaignBasicsStep({ form }: Props): JSX.Element {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-border bg-surface-subtle p-4">
-        <div>
-          <label htmlFor="campaign-name" className={LABEL_CLASS}>
-            Campaign name
-          </label>
-          <input
-            id="campaign-name"
-            {...register("name")}
-            placeholder="e.g. July reactivation offer"
-            className={FIELD_CLASS}
-          />
-          {errors.name ? <p className="mt-1 text-xs text-danger">{errors.name.message}</p> : null}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
           <label htmlFor="campaign-number" className={LABEL_CLASS}>
             Send from

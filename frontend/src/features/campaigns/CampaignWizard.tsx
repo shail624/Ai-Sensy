@@ -27,6 +27,7 @@ import {
 import { CampaignAudienceStep } from "@/features/campaigns/CampaignAudienceStep";
 import { CampaignBasicsStep } from "@/features/campaigns/CampaignBasicsStep";
 import { CampaignScheduleFields } from "@/features/campaigns/CampaignScheduleFields";
+import { CampaignStageBar, NumberHealthStrip } from "@/features/campaigns/CampaignStageBar";
 import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgress";
 import type { Delivery } from "@/features/campaigns/CampaignReviewStep";
 import { CampaignReviewStep } from "@/features/campaigns/CampaignReviewStep";
@@ -92,9 +93,8 @@ const STEP_META: Record<
 
 /** Which fields each step owns, so "Next" validates only what is on screen. */
 const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
-  audience: ["audience_type", "segment_id", "tag_ids", "contact_ids"],
+  audience: ["name", "audience_type", "segment_id", "tag_ids", "contact_ids"],
   basics: [
-    "name",
     "phone_number_id",
     "template_id",
     "header",
@@ -109,9 +109,9 @@ const STEP_FIELDS: Record<StepKey, FieldPath<CampaignFormValues>[]> = {
 };
 
 const BUTTON_CLASS =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50";
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-[rgba(10,71,76,0.5)] bg-surface px-4 py-2 text-sm font-medium text-[var(--color-nav-bg)] transition-colors hover:bg-[#ebf5f3] disabled:opacity-50 dark:text-accent";
 const PRIMARY_CLASS =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent-strong disabled:opacity-50";
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-nav-bg)] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-[#08393d] disabled:opacity-50";
 
 interface Props {
   /** Absent → create a new campaign; present → edit that campaign's definition. */
@@ -240,7 +240,9 @@ export function CampaignWizard({ campaign, initialValues }: Props): JSX.Element 
   if (templates.isLoading) return <Spinner label="Loading…" />;
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-5xl">
+    <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-4">
+      <NumberHealthStrip form={form} />
+      <CampaignStageBar step={step} />
       <CampaignWizardProgress
         steps={steps.map((key) => ({ key, label: STEP_LABELS[key] }))}
         currentIndex={stepIndex}

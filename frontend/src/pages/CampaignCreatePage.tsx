@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
+import { ManagePageHeader } from "@/components/layout";
 import { AiFoundationPanel } from "@/features/ai";
 import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
 import {
@@ -31,28 +31,27 @@ export function CampaignCreatePage(): JSX.Element {
   const contactIds = state?.contactIds;
 
   return (
-    <PageContainer>
-      <Breadcrumbs
-        items={[
-          { label: "Campaigns", to: "/campaigns" },
-          { label: followUp ? "Follow-up campaign" : source ? "Duplicate campaign" : "New campaign" },
-        ]}
-      />
-      <PageHeader
-        eyebrow="Campaign builder"
+    <div className="min-h-full bg-[#f9f9f9] dark:bg-canvas">
+      <ManagePageHeader
         title={
           followUp
             ? `Follow up "${source?.name ?? "campaign"}"`
             : source
               ? `Duplicate "${source.name}"`
-              : "New campaign"
+              : "Create Campaign"
         }
-        description={
-          followUp
-            ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
-            : "Choose the message, the audience and when it goes out. Nothing is sent until you say so."
+        actions={
+          <Link to="/campaigns" className="text-sm font-medium text-[var(--color-nav-bg)] hover:underline dark:text-accent">
+            Back to campaigns
+          </Link>
         }
       />
+      <div className="px-4 py-6 sm:px-[30px]">
+      <p className="mx-auto mb-4 max-w-5xl text-sm text-[#6e6e6e] dark:text-text-secondary">
+        {followUp
+          ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
+          : "Choose who gets it, pick an approved template, then send now or schedule it. Nothing is sent until you confirm."}
+      </p>
       <details className="group mx-auto mb-4 max-w-5xl rounded-xl border border-border bg-surface">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
           <span className="flex items-center gap-2">
@@ -82,6 +81,7 @@ export function CampaignCreatePage(): JSX.Element {
               : undefined
         }
       />
-    </PageContainer>
+      </div>
+    </div>
   );
 }
