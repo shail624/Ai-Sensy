@@ -1,5 +1,22 @@
 # Project State
 
+## UI-AIS-14 — Campaigns page matched to AiSensy (2026-09-24)
+
+Owner request: Campaigns / Broadcast page like AiSensy.
+
+- Reference (viewed read-only): header, Quick Guide, "Launch" button, tabs All · Broadcast · API ·
+  Scheduled · QRScan, Refresh / Download Report, table Campaign · Type · Created At · Status ·
+  Audience, 10 rows per page.
+- `/campaigns` now uses the Manage header and a Quick Guide; pill tabs All · Scheduled · Running ·
+  Completed · Drafts (server status filter, kept in the URL); Refresh, Report downloads and a teal
+  "Launch" button (accessible name "Launch campaign", → the existing create wizard).
+- Table restyled to the reference: Campaign · Type (BROADCAST + audience kind) · Created At ·
+  Status · Audience (recipients) · Progress · Actions. The wizard, scheduling, detail page and
+  saved views are unchanged. QR broadcasts are intentionally not offered (bulk sending over the QR
+  number stays prohibited).
+- PASS: frontend 1,086 tests, TypeScript, ESLint, build; live page check (no campaigns exist yet,
+  so the table itself was verified by tests). No backend change.
+
 ## UI-AIS-13 — Contacts page matched to AiSensy, with sale status and release date (2026-09-24)
 
 Owner request: Contacts like AiSensy (list, filter, import) showing sale status and release date.

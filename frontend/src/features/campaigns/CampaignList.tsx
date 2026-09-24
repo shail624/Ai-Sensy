@@ -1,6 +1,8 @@
+import { Rocket } from "lucide-react";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { MANAGE_PRIMARY_ACTION } from "@/components/layout";
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import { apiErrorMessage, useCampaigns, useHasPermission } from "@/features/campaigns/api";
 import { CampaignFilters } from "@/features/campaigns/CampaignFilters";
@@ -10,6 +12,15 @@ import { formatCount } from "@/features/campaigns/format";
 import { PAGE_SIZE, selectCampaignPage } from "@/features/campaigns/selectors";
 import type { CampaignListQuery, CampaignSort } from "@/features/campaigns/types";
 import { CAMPAIGN_STATUSES, DEFAULT_LIST_QUERY } from "@/features/campaigns/types";
+
+/** The reference's tabs, mapped onto the statuses a campaign moves through. */
+const CATEGORY_TABS: { label: string; status: string }[] = [
+  { label: "All", status: "" },
+  { label: "Scheduled", status: "scheduled" },
+  { label: "Running", status: "running" },
+  { label: "Completed", status: "completed" },
+  { label: "Drafts", status: "draft" },
+];
 
 const BUTTON_CLASS =
   "rounded-md border border-border px-3 py-1 text-sm hover:bg-hover disabled:opacity-50";
@@ -80,34 +91,27 @@ export function CampaignList(): JSX.Element {
   return (
     <>
       <div className="mb-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border">
-          <div role="tablist" aria-label="Campaign categories" className="flex items-center gap-1">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={query.status === ""}
-              className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                query.status === ""
-                  ? "border-accent text-text-primary"
-                  : "border-transparent text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => apply({ ...query, status: "", page: 1 })}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={query.status === "scheduled"}
-              className={`border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                query.status === "scheduled"
-                  ? "border-accent text-text-primary"
-                  : "border-transparent text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => apply({ ...query, status: "scheduled", page: 1 })}
-            >
-              Scheduled
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div role="tablist" aria-label="Campaign categories" className="flex flex-wrap items-center gap-1.5 pb-2">
+            {CATEGORY_TABS.map((tab) => {
+              const active = query.status === tab.status;
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`h-8 rounded-full px-4 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-[var(--color-nav-bg)] text-white"
+                      : "bg-surface text-[#4a4a4a] hover:bg-[#ebf5f3] dark:bg-surface-2 dark:text-text-secondary"
+                  }`}
+                  onClick={() => apply({ ...query, status: tab.status, page: 1 })}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -125,11 +129,8 @@ export function CampaignList(): JSX.Element {
               </Link>
             ) : null}
             {canWrite ? (
-              <Link
-                to="/campaigns/new"
-                className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              >
-                Launch campaign
+              <Link to="/campaigns/new" aria-label="Launch campaign" className={MANAGE_PRIMARY_ACTION}>
+                <Rocket aria-hidden className="mr-1.5 h-4 w-4" /> Launch
               </Link>
             ) : null}
           </div>
