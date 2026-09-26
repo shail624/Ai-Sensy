@@ -44,6 +44,11 @@ class AuditLog(Base):
     entity_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     entity_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
     ip_address: Mapped[bytes | None] = mapped_column(packed_ip(), nullable=True)
+    #: The browser or client string the action arrived with. Deliberately outside ``_row_hash``,
+    #: as ``ip_address`` already was: widening the canonical form would invalidate the digest of
+    #: every row ever written, and a tamper-evidence scheme that cannot verify yesterday is worth
+    #: less than one covering one field fewer.
+    user_agent: Mapped[str | None] = mapped_column(String(400), nullable=True)
     before_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     after_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

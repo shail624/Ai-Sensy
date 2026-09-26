@@ -6,6 +6,15 @@ export type TemplateList = components["schemas"]["TemplateListResponse"];
 export type TemplateCreateRequest = components["schemas"]["TemplateCreateRequest"];
 export type TemplateUpdateRequest = components["schemas"]["TemplateUpdateRequest"];
 export type TemplatePreview = components["schemas"]["TemplatePreviewResponse"];
+export type RenderedButton = components["schemas"]["RenderedButton"];
+export type PreviewExpects = components["schemas"]["PreviewExpects"];
+
+/** Sample values for one preview — positional, exactly as a send supplies them. */
+export interface PreviewValues {
+  header: string[];
+  body: string[];
+  buttons: string[];
+}
 export type TemplateVersion = components["schemas"]["TemplateVersionEntry"];
 export type TemplateVersions = components["schemas"]["TemplateVersionsResponse"];
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
@@ -40,6 +49,19 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUSES: string[] = Object.keys(STATUS_LABELS);
+
+/** The reference's "Action Required" tab: every status Meta has taken out of service. */
+export const ACTION_REQUIRED = "action_required";
+export const ACTION_REQUIRED_STATUSES = ["rejected", "paused", "disabled"];
+
+/** Status tabs in the reference order; "" is All. */
+export const STATUS_TABS: { value: string; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "draft", label: "Draft" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: ACTION_REQUIRED, label: "Action Required" },
+];
 
 /** What each approval status means for the operator, shown beside the badge on the detail page. */
 export const STATUS_EXPLANATIONS: Record<string, string> = {
@@ -92,3 +114,5 @@ export const DEFAULT_LIST_QUERY: TemplateListQuery = {
   sort: "-created_at",
   page: 1,
 };
+
+export type TemplateUsage = components["schemas"]["TemplateUsageResponse"];

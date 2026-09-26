@@ -12,7 +12,7 @@ export function BroadcastsPage(): JSX.Element {
       <PageHeader
         eyebrow="Customer engagement"
         title="Broadcast Center"
-        description="Plan, launch, and monitor high-volume WhatsApp engagement from one governed workspace."
+        description="Send WhatsApp messages to many customers at once and track the results."
       />
 
       <div className="mb-6 grid gap-3 md:grid-cols-3">

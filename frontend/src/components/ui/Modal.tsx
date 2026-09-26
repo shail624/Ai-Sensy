@@ -26,6 +26,9 @@ const PANEL: Record<"center" | "sheet" | "drawer", string> = {
     "max-h-[92vh] w-full overflow-y-auto rounded-t-2xl sm:h-full sm:max-h-none sm:max-w-2xl sm:rounded-none sm:rounded-l-2xl",
 };
 
+let openModalCount = 0;
+let previousBodyOverflow = "";
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -42,6 +45,11 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
 
   useEffect(() => {
     const invoker = document.activeElement as HTMLElement | null;
+    if (openModalCount === 0) {
+      previousBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    openModalCount += 1;
     panelRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent): void {
@@ -75,6 +83,8 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      openModalCount = Math.max(openModalCount - 1, 0);
+      if (openModalCount === 0) document.body.style.overflow = previousBodyOverflow;
       // Returning focus to the invoker keeps a keyboard user where they were (DS-10).
       invoker?.focus?.();
     };
@@ -82,7 +92,7 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/50 ${SHELL[variant]}`}
+      className={`modal-backdrop-enter fixed inset-0 z-50 bg-black/50 ${SHELL[variant]}`}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -93,10 +103,10 @@ export function Modal({ title, onClose, children, variant = "center", panelClass
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`border border-border bg-surface shadow-lg focus:outline-none ${PANEL[variant]} ${panelClassName}`}
+        className={`modal-panel-enter border border-border bg-surface shadow-[0_11px_15px_-7px_rgba(0,0,0,0.2),0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12)] focus:outline-none ${PANEL[variant]} ${panelClassName}`}
       >
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
+          <h2 className="text-lg font-normal text-black dark:text-text-primary">{title}</h2>
           <button
             type="button"
             onClick={onClose}

@@ -4,6 +4,8 @@ import type {
   EligibilityCheck,
   ReactivationCard,
   ReactivationFilters,
+  ReactivationView,
+  ReactivationViewCreate,
   ReactivationNote,
   ReactivationLabel,
   ReactivationPipeline,
@@ -18,12 +20,43 @@ export { apiErrorMessage } from "@/lib/api/errors";
 export const reactivationKeys = {
   all: ["reactivation"] as const,
   pipeline: (filters: ReactivationFilters) => ["reactivation", "pipeline", filters] as const,
+  views: ["reactivation", "views"] as const,
   events: (caseId: string) => ["reactivation", "events", caseId] as const,
   notes: (caseId: string) => ["reactivation", "notes", caseId] as const,
   eligibility: (caseId: string) => ["reactivation", "eligibility", caseId] as const,
 };
 
-export function useReactivationPipeline(filters: ReactivationFilters) {
+export function useReactivationViews() {
+  return useQuery({
+    queryKey: reactivationKeys.views,
+    queryFn: async (): Promise<ReactivationView[]> =>
+      unwrap(await api.GET("/api/v1/reactivation/views")).data,
+  });
+}
+
+export function useCreateReactivationView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: ReactivationViewCreate): Promise<ReactivationView> =>
+      unwrap(await api.POST("/api/v1/reactivation/views", { body })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: reactivationKeys.views }),
+  });
+}
+
+export function useDeleteReactivationView() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await api.DELETE("/api/v1/reactivation/views/{view_id}", {
+        params: { path: { view_id: id } },
+      });
+      if (error !== undefined) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: reactivationKeys.views }),
+  });
+}
+
+export function useReactivationPipeline(filters: ReactivationFilters, enabled = true) {
   return useQuery({
     queryKey: reactivationKeys.pipeline(filters),
     queryFn: async (): Promise<ReactivationPipeline> =>
@@ -33,6 +66,7 @@ export function useReactivationPipeline(filters: ReactivationFilters) {
         }),
       ),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

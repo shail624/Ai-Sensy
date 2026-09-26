@@ -43,6 +43,7 @@ from app.channels.models import (
     InboundEvent,
     InboundMessage,
     InteractiveContent,
+    LocationContent,
     MediaContent,
     MessageType,
     OutboundMessage,
@@ -56,17 +57,29 @@ from app.channels.models import (
 #: Graph's messaging envelope constant.
 _PRODUCT = "whatsapp"
 #: Fields that describe a number's sending health (Doc 06 §5/§28).
+_PROFILE_FIELDS = "about,address,description,email,profile_picture_url,websites,vertical"
+#: Fields an operator may write back; Meta owns the picture handle flow, so it is read-only here.
+PROFILE_WRITABLE_FIELDS = ("about", "address", "description", "email", "websites", "vertical")
+
 _HEALTH_FIELDS = (
     "display_phone_number,verified_name,quality_rating,throughput,"
-    "messaging_limit_tier,platform_type"
+    "messaging_limit_tier,whatsapp_business_manager_messaging_limit,platform_type"
 )
 #: Fields read when enumerating a WABA's templates (Doc 03 §7.1 columns).
 _TEMPLATE_FIELDS = "id,name,language,category,status,components,quality_score,rejected_reason"
 #: Fields read when enumerating a WABA's numbers (Doc 03 §5.2 columns).
 _NUMBER_FIELDS = (
     "id,display_phone_number,verified_name,quality_rating,throughput,"
-    "messaging_limit_tier,code_verification_status,status"
+    "messaging_limit_tier,whatsapp_business_manager_messaging_limit,"
+    "code_verification_status,status"
 )
+
+
+def _messaging_tier(node: dict[str, Any]) -> str | None:
+    """Meta moved the messaging limit to the business portfolio: newer Graph versions report it as
+    ``whatsapp_business_manager_messaging_limit`` and leave ``messaging_limit_tier`` empty."""
+    tier = node.get("messaging_limit_tier") or node.get("whatsapp_business_manager_messaging_limit")
+    return str(tier) if tier else None
 
 
 class MetaChannelAdapter(ChannelAdapter):
@@ -81,12 +94,16 @@ class MetaChannelAdapter(ChannelAdapter):
             Capability.INTERACTIVE,
             Capability.TEMPLATE,
             Capability.REACTION,
+            Capability.LOCATION,
+            Capability.READ_RECEIPTS,
+            Capability.TYPING_INDICATOR,
             Capability.BULK,
             Capability.CAMPAIGNS,
             Capability.OFFICIAL_WEBHOOKS,
             Capability.MEDIA_UPLOAD,
             Capability.MEDIA_DOWNLOAD,
             Capability.HEALTH,
+            Capability.BUSINESS_PROFILE,
         }
     )
 
@@ -106,7 +123,9 @@ class MetaChannelAdapter(ChannelAdapter):
     async def authenticate(self) -> ChannelStatus:
         """Verify the token by reading the configured number — cheap and side-effect free."""
         number = self._client.credentials.require_phone_number()
-        body = await self._client.get(number, params={"fields": "display_phone_number,verified_name"})
+        body = await self._client.get(
+            number, params={"fields": "display_phone_number,verified_name"}
+        )
         return ChannelStatus(
             connected=True,
             identity=body.get("display_phone_number"),
@@ -135,9 +154,7 @@ class MetaChannelAdapter(ChannelAdapter):
 
         if message.type is MessageType.MEDIA and isinstance(content, MediaContent):
             if bool(content.media_id) == bool(content.link):
-                raise ChannelConfigError(
-                    "media requires exactly one of media_id or link"
-                )
+                raise ChannelConfigError("media requires exactly one of media_id or link")
             obj: dict[str, Any] = (
                 {"id": content.media_id} if content.media_id else {"link": content.link}
             )
@@ -168,6 +185,17 @@ class MetaChannelAdapter(ChannelAdapter):
                 "reaction": {"message_id": content.message_id, "emoji": content.emoji},
             }
 
+        if message.type is MessageType.LOCATION and isinstance(content, LocationContent):
+            location: dict[str, Any] = {
+                "latitude": content.latitude,
+                "longitude": content.longitude,
+            }
+            if content.name:
+                location["name"] = content.name
+            if content.address:
+                location["address"] = content.address
+            return base | {"type": "location", "location": location}
+
         raise ChannelConfigError(f"unsupported message content for type {message.type!r}")
 
     async def _dispatch(self, message: OutboundMessage) -> SendResult:
@@ -176,6 +204,33 @@ class MetaChannelAdapter(ChannelAdapter):
         messages = body.get("messages") or []
         wamid = messages[0].get("id") if messages else None
         return SendResult(to=message.to, channel_message_id=wamid, accepted=bool(wamid), raw=body)
+
+    async def mark_read(self, channel_message_id: str) -> None:
+        """Mark one inbound WhatsApp message as read through Graph."""
+        self.require(Capability.READ_RECEIPTS)
+        number = self._client.credentials.require_phone_number()
+        await self._client.post(
+            f"{number}/messages",
+            json={
+                "messaging_product": _PRODUCT,
+                "status": "read",
+                "message_id": channel_message_id,
+            },
+        )
+
+    async def show_typing(self, channel_message_id: str) -> None:
+        """Show "typing…" for up to 25s. Meta only accepts it with a read status on that message."""
+        self.require(Capability.TYPING_INDICATOR)
+        number = self._client.credentials.require_phone_number()
+        await self._client.post(
+            f"{number}/messages",
+            json={
+                "messaging_product": _PRODUCT,
+                "status": "read",
+                "message_id": channel_message_id,
+                "typing_indicator": {"type": "text"},
+            },
+        )
 
     # --- Inbound stream (Doc 06 §11; Doc 04 §23) -----------------------------
     def webhook_challenge(self, params: Mapping[str, str]) -> str | None:
@@ -246,7 +301,7 @@ class MetaChannelAdapter(ChannelAdapter):
             display_number=node.get("display_phone_number", ""),
             verified_name=node.get("verified_name"),
             quality_rating=node.get("quality_rating"),
-            messaging_tier=node.get("messaging_limit_tier"),
+            messaging_tier=_messaging_tier(node),
             throughput_level=(node.get("throughput") or {}).get("level"),
             status=node.get("status") or node.get("code_verification_status"),
         )
@@ -301,8 +356,14 @@ class MetaChannelAdapter(ChannelAdapter):
         )
         # The create reply carries id/status only; the rest is what we just submitted.
         return to_channel_template(
-            {"id": body.get("id"), "status": body.get("status"), "category": body.get("category"),
-             "name": name, "language": language, "components": []}
+            {
+                "id": body.get("id"),
+                "status": body.get("status"),
+                "category": body.get("category"),
+                "name": name,
+                "language": language,
+                "components": [],
+            }
         )
 
     async def delete_template(self, name: str, *, account_id: str | None = None) -> None:
@@ -324,9 +385,30 @@ class MetaChannelAdapter(ChannelAdapter):
             # Meta reports RED when a number is at risk of restriction (Doc 06 §28).
             healthy=quality not in ("RED", "FLAGGED"),
             quality_rating=quality,
-            messaging_tier=body.get("messaging_limit_tier"),
+            messaging_tier=_messaging_tier(body),
             throughput_limit=throughput,
             detail=body.get("verified_name"),
+        )
+
+    async def business_profile(self) -> dict[str, Any]:
+        """The number's public WhatsApp Business profile, as Meta holds it right now."""
+        self.require(Capability.BUSINESS_PROFILE)
+        number = self._client.credentials.require_phone_number()
+        body = await self._client.get(
+            f"{number}/whatsapp_business_profile", params={"fields": _PROFILE_FIELDS}
+        )
+        rows = body.get("data") or [{}]
+        profile = rows[0] if isinstance(rows[0], dict) else {}
+        return {key: profile.get(key) for key in (*PROFILE_WRITABLE_FIELDS, "profile_picture_url")}
+
+    async def update_business_profile(self, fields: Mapping[str, Any]) -> None:
+        """Write the given operator-editable profile fields back to Meta."""
+        self.require(Capability.BUSINESS_PROFILE)
+        number = self._client.credentials.require_phone_number()
+        payload = {k: v for k, v in fields.items() if k in PROFILE_WRITABLE_FIELDS}
+        await self._client.post(
+            f"{number}/whatsapp_business_profile",
+            json={"messaging_product": "whatsapp", **payload},
         )
 
     async def close(self) -> None:

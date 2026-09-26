@@ -178,7 +178,7 @@ export function UsersPanel(): JSX.Element {
             onClick={() => setCreating(true)}
             className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
-            New user
+            Add team member
           </button>
         ) : null}
       </div>

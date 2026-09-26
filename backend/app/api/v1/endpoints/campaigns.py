@@ -15,12 +15,13 @@ import uuid as uuidlib
 from dataclasses import asdict
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from pydantic import BaseModel
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import decode_cursor
+from app.api.pagination import Page, decode_cursor, encode_cursor
 from app.core.config import settings
-from app.models.campaign import Campaign
+from app.models.campaign import CAMPAIGN_STATUSES, Campaign
 from app.models.user import User
 from app.schemas.campaign import (
     CampaignCreateRequest,
@@ -35,15 +36,24 @@ from app.schemas.campaign import (
     CampaignScheduleResponse,
     CampaignStateResponse,
     CampaignUpdateRequest,
+    CampaignViewCreate,
+    CampaignViewResponse,
+    CampaignViewsResponse,
     RecipientEntry,
     RecipientsResponse,
+    RecipientStatusName,
     ScheduleEntry,
 )
+from app.schemas.export_job import CampaignResultsExportRequest, ExportProgressResponse
+from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.services.campaign_dispatch_service import CampaignDispatchService
 from app.services.campaign_lifecycle_service import CampaignLifecycleService
 from app.services.campaign_schedule_service import CampaignScheduleService
 from app.services.campaign_service import CampaignService
+from app.services.campaign_view_service import CampaignViewService
 from app.services.cost_estimation_service import CostEstimationService
+from app.services.export_service import ExportService
+from app.services.messaging_quota_service import MessagingQuotaService
 
 router = APIRouter()
 
@@ -51,10 +61,12 @@ CampaignReader = Annotated[User, Depends(require_permissions("campaigns:read"))]
 CampaignWriter = Annotated[User, Depends(require_permissions("campaigns:write"))]
 CampaignSender = Annotated[User, Depends(require_permissions("campaigns:send"))]
 CampaignManager = Annotated[User, Depends(require_permissions("campaigns:manage"))]
+CampaignExporter = Annotated[User, Depends(require_permissions("campaigns:export"))]
 
 #: How many sample renders a preview returns (Doc 04 §17 "sample renders").
 PREVIEW_SAMPLES = 5
 RECIPIENT_PAGE = 50
+CAMPAIGN_STATUS_PATTERN = "^(?:" + "|".join(CAMPAIGN_STATUSES) + ")$"
 
 
 async def _render(service: CampaignService, campaign: Campaign) -> CampaignResponse:
@@ -66,14 +78,22 @@ async def _render(service: CampaignService, campaign: Campaign) -> CampaignRespo
 
 @router.get("/campaigns", response_model=CampaignListResponse, summary="List campaigns")
 async def list_campaigns(
-    request: Request, session: SessionDep, actor: CampaignReader
+    session: SessionDep,
+    actor: CampaignReader,
+    q: Annotated[str | None, Query(description="Filter by campaign name.")] = None,
+    status: Annotated[
+        str | None, Query(pattern=CAMPAIGN_STATUS_PATTERN, description="Filter by campaign status.")
+    ] = None,
+    legacy_status: Annotated[
+        str | None,
+        Query(alias="filter[status][eq]", pattern=CAMPAIGN_STATUS_PATTERN, include_in_schema=False),
+    ] = None,
 ) -> CampaignListResponse:
-    params = request.query_params
     service = CampaignService(session)
     campaigns = await service.list_campaigns(
         actor.organization_id,
-        status=params.get("filter[status][eq]") or params.get("status"),
-        q=params.get("q"),
+        status=legacy_status or status,
+        q=q,
     )
     return CampaignListResponse(data=[await _render(service, c) for c in campaigns])
 
@@ -100,6 +120,92 @@ async def create_campaign(
         variable_map=payload.variable_map.model_dump(mode="json"),
     )
     return await _render(service, campaign)
+
+
+@router.get(
+    "/campaigns/views",
+    response_model=CampaignViewsResponse,
+    summary="List personal and team-shared Campaign views",
+)
+async def list_campaign_views(
+    session: SessionDep,
+    actor: CampaignReader,
+) -> CampaignViewsResponse:
+    rows, can_manage_shared = await CampaignViewService(session).list(actor)
+    return CampaignViewsResponse(
+        data=[
+            CampaignViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/campaigns/views",
+    response_model=CampaignViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared Campaign view",
+)
+async def create_campaign_view(
+    payload: CampaignViewCreate,
+    session: SessionDep,
+    actor: CampaignReader,
+) -> CampaignViewResponse:
+    service = CampaignViewService(session)
+    row = await service.create(actor, payload)
+    return CampaignViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/campaigns/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team Campaign view",
+)
+async def delete_campaign_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: CampaignReader,
+) -> None:
+    await CampaignViewService(session).delete(actor, view_id)
+
+
+class NumberQuotaResponse(BaseModel):
+    phone_number_id: str
+    display_number: str
+    quality_rating: str | None
+    messaging_tier: str | None
+    daily_limit: int | None
+    used_last_24h: int
+    remaining: int | None
+
+
+@router.get(
+    "/campaigns/messaging-quota",
+    response_model=list[NumberQuotaResponse],
+    summary="Quality, tier and estimated remaining 24h quota per sending number",
+)
+async def messaging_quota(session: SessionDep, actor: CampaignReader) -> list[NumberQuotaResponse]:
+    """Remaining quota is an estimate from this platform's own sends (Meta does not report it)."""
+    return [
+        NumberQuotaResponse(
+            phone_number_id=q.phone_number_id,
+            display_number=q.display_number,
+            quality_rating=q.quality_rating,
+            messaging_tier=q.messaging_tier,
+            daily_limit=q.daily_limit,
+            used_last_24h=q.used_last_24h,
+            remaining=q.remaining,
+        )
+        for q in await MessagingQuotaService(session).for_organization(actor.organization_id)
+    ]
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse, summary="Get a campaign")
@@ -210,21 +316,84 @@ async def campaign_recipients(
     request: Request,
     session: SessionDep,
     actor: CampaignReader,
+    recipient_status: Annotated[RecipientStatusName | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = RECIPIENT_PAGE,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> RecipientsResponse:
     service = CampaignService(session)
     campaign = await service.get_campaign(actor.organization_id, campaign_id)
-    raw_cursor = request.query_params.get("cursor")
-    rows, has_more, contacts = await service.recipients(
+    # Keep the JSON:API-style status spelling accepted by the earlier endpoint while the declared
+    # `status` query is now the generated-client authority.
+    legacy_status = request.query_params.get("filter[status][eq]")
+    selected_status = recipient_status or legacy_status
+    rows, has_more, total, contacts = await service.recipients(
         campaign,
-        status=request.query_params.get("filter[status][eq]")
-        or request.query_params.get("status"),
-        limit=RECIPIENT_PAGE,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        status=selected_status,
+        limit=limit,
+        cursor=decode_cursor(cursor) if cursor else None,
     )
+    next_cursor = encode_cursor(rows[-1].created_at, rows[-1].id) if has_more and rows else None
     return RecipientsResponse(
         data=[RecipientEntry.from_recipient(r, contacts.get(r.contact_id)) for r in rows],
+        page=Page(limit=limit, has_more=has_more, next_cursor=next_cursor, total=total),
         has_more=has_more,
     )
+
+
+@router.post(
+    "/campaigns/{campaign_id}/exports",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start a governed campaign recipient-results export",
+)
+async def start_campaign_results_export(
+    campaign_id: uuidlib.UUID,
+    payload: CampaignResultsExportRequest,
+    session: SessionDep,
+    actor: CampaignExporter,
+) -> JobAcceptedResponse:
+    """Queue the persisted roster; no campaign recipient rows are read on the request path."""
+    from app.crm.tasks import run_campaign_results_export
+
+    job = await ExportService(session).start_campaign_results(
+        organization_id=actor.organization_id,
+        actor=actor,
+        campaign_id=campaign_id,
+        file_format=payload.format,
+        recipient_status=payload.status,
+        dispatch=lambda export_id, task_id: run_campaign_results_export.apply_async(
+            args=[export_id], task_id=task_id
+        ),
+    )
+    return JobAcceptedResponse(
+        job=JobEnvelope(
+            id=job.public_id,
+            type="export",
+            status="queued",
+            poll_url=(f"{settings.api_v1_prefix}/campaigns/{campaign_id}/exports/{job.public_id}"),
+        )
+    )
+
+
+@router.get(
+    "/campaigns/{campaign_id}/exports/{export_id}",
+    response_model=ExportProgressResponse,
+    summary="Campaign-results export progress and signed download link",
+)
+async def campaign_results_export_progress(
+    campaign_id: uuidlib.UUID,
+    export_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: CampaignExporter,
+) -> ExportProgressResponse:
+    service = ExportService(session)
+    job = await service.get_campaign_results_owned(
+        actor.organization_id,
+        actor.id,
+        campaign_id,
+        export_id,
+    )
+    return ExportProgressResponse.from_job(job, await service.download_url(job))
 
 
 @router.post(

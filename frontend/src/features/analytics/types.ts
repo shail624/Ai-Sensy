@@ -13,6 +13,13 @@ export type SeriesPoint = components["schemas"]["SeriesPoint"];
 export type ReportExportRequest = components["schemas"]["ReportExportRequest"];
 export type ExportProgress = components["schemas"]["ExportProgressResponse"];
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
+export type ReportSchedule = components["schemas"]["ReportScheduleResponse"];
+export type ReportScheduleCreate = components["schemas"]["ReportScheduleCreate"];
+export type ReportScheduleUpdate = components["schemas"]["ReportScheduleUpdate"];
+export type ReportView = components["schemas"]["ReportViewResponse"];
+export type ReportViewCreate = components["schemas"]["ReportViewCreate"];
+export type TeamWorkload = components["schemas"]["TeamWorkloadResponse"];
+export type TeamWorkloadRow = components["schemas"]["TeamWorkloadRow"];
 
 type SeriesQuery = operations["analytics_series_api_v1_analytics_series_get"]["parameters"]["query"];
 
@@ -61,9 +68,33 @@ export const REPORTS: { value: ReportName; label: string }[] = [
   { value: "tasks", label: "Tasks" },
   { value: "customers", label: "Customers" },
   { value: "costs", label: "Costs" },
+  { value: "reactivation", label: "Reactivation outcomes" },
+  { value: "kyc", label: "KYC outcomes" },
+  { value: "service_levels", label: "Service levels" },
+  { value: "team_productivity", label: "Team productivity" },
 ];
 
-export const EXPORT_FORMATS: ExportFormat[] = ["csv", "xlsx", "json"];
+export const EXPORT_FORMATS: ExportFormat[] = ["csv", "xlsx", "json", "pdf"];
+
+export const SCHEDULE_FORMATS = ["pdf", "xlsx", "csv"] as const;
+export const SCHEDULE_PRESETS = PRESETS.filter((preset) => preset.value !== "today");
+export const SCHEDULE_GRANULARITIES = GRANULARITIES.filter(
+  (granularity) => granularity.value !== "hour",
+);
+export const SCHEDULE_CADENCES = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+] as const;
+export const WEEKDAYS = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+] as const;
 
 /**
  * KPI cards shown on the dashboard (Doc 15 §11).
@@ -93,6 +124,10 @@ export const KPI_CARDS: KpiSpec[] = [
   { key: "task_on_time_rate", label: "Tasks on time", kind: "rate" },
   { key: "opt_out_rate", label: "Opt-out rate", kind: "rate" },
   { key: "cost_per_delivered_micros", label: "Cost per delivered", kind: "micros", executive: true },
+  { key: "reactivation_conversion_rate", label: "Reactivation conversion", kind: "rate" },
+  { key: "kyc_approval_rate", label: "KYC approval", kind: "rate" },
+  { key: "sla_breach_rate", label: "SLA breach", kind: "rate" },
+  { key: "avg_kyc_turnaround_seconds", label: "Avg KYC turnaround", kind: "duration" },
 ];
 
 /** The dashboard's default chart metrics — the delivery funnel over time (Doc 15 §11.1). */

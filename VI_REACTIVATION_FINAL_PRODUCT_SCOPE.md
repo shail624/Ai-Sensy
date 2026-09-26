@@ -1,5 +1,12 @@
 # Private Vi Reactivation Operations Platform
 
+Owner UI clarification (2026-09-13): supplied screenshots are the concrete target for approved
+tabs, buttons, navigation and screen organization, not merely a general quality benchmark.
+This supersedes layout-originality wording where it prevents close alignment. Source code,
+branding/assets, security and Vi behavior remain repository-owned. All-screen equivalence is
+not certified. The excluded-product list below is not implemented by UI-REF-01; literal
+all-AiSensy scope still needs reconciliation with it. See Design Document 72.
+
 **Status:** Final approved product scope with GOV-02 premium product-goal lock
 **Product type:** Private internal software  
 **Users:** Owner/Admin, Manager, 5–10 internal agents  

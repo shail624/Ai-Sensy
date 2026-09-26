@@ -18,6 +18,7 @@ const conversation: Conversation = {
   type: "conversation",
   status: "open",
   channel_type: "whatsapp",
+  connector_type: "meta_cloud",
   assigned_to: "agent-1",
   contact: { id: "contact-1", name: "Asha", phone: "+919900000001" },
   tags: [{ id: "tag-1", name: "Priority", color: "#4f46e5" }],

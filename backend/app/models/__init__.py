@@ -12,6 +12,7 @@ from app.models.analytics import (
     AnalyticsCampaignRollup,
     AnalyticsContactRollup,
     AnalyticsConversationRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsFailureRollup,
     AnalyticsMessageRollup,
     AnalyticsRollupRun,
@@ -26,6 +27,7 @@ from app.models.automation import (
     AutomationRun,
     AutomationStepAttempt,
     AutomationTriggerReceipt,
+    AutomationWaitSubscription,
 )
 from app.models.business_event import BusinessEvent, BusinessEventType
 from app.models.campaign import (
@@ -35,6 +37,13 @@ from app.models.campaign import (
     CampaignRetry,
     CampaignSchedule,
 )
+from app.models.channel_connection import (
+    ChannelConnection,
+    ChannelEndpoint,
+    ChannelSecret,
+)
+from app.models.channel_session import ChannelSession
+from app.models.channel_sync import ChannelSyncCheckpoint, MediaChannelReference
 from app.models.contact import Contact
 from app.models.contact_document import (
     ContactDocument,
@@ -42,7 +51,13 @@ from app.models.contact_document import (
     ContactDocumentVersion,
 )
 from app.models.contact_event import ContactEvent
+from app.models.contact_identity import (
+    ContactIdentity,
+    IdentityConflict,
+    IdentityMergeRecommendation,
+)
 from app.models.conversation import Conversation
+from app.models.conversation_history_view import ConversationHistoryView
 from app.models.conversation_tag import conversation_tags
 from app.models.internal_note import InternalNote
 from app.models.job import DeadLetter, JobMetadata
@@ -54,6 +69,8 @@ from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.quick_reply import QuickReply
 from app.models.rate_card import RateCard
+from app.models.reactivation_view import ReactivationView, WorkspaceView
+from app.models.report_schedule import ReportSchedule
 from app.models.role import Permission, Role, UserRole, role_permissions
 from app.models.segment import Segment, SegmentRule
 from app.models.settings import FeatureFlag, Setting
@@ -88,6 +105,7 @@ __all__ = [
     "AutomationRun",
     "AutomationStepAttempt",
     "AutomationTriggerReceipt",
+    "AutomationWaitSubscription",
     "BusinessEvent",
     "BusinessEventType",
     "BulkJob",
@@ -96,13 +114,23 @@ __all__ = [
     "CampaignRecipient",
     "CampaignRetry",
     "CampaignSchedule",
+    "ChannelConnection",
+    "ChannelEndpoint",
+    "ChannelSecret",
+    "ChannelSession",
+    "ChannelSyncCheckpoint",
+    "MediaChannelReference",
     "Contact",
+    "ContactIdentity",
+    "IdentityConflict",
+    "IdentityMergeRecommendation",
     "ContactDocument",
     "ContactDocumentEvent",
     "ContactDocumentVersion",
     "ContactAttributeValue",
     "ContactEvent",
     "Conversation",
+    "ConversationHistoryView",
     "CustomAttributeDefinition",
     "conversation_tags",
     "DeadLetter",
@@ -121,7 +149,10 @@ __all__ = [
     "Organization",
     "Permission",
     "QuickReply",
+    "ReactivationView",
+    "WorkspaceView",
     "RateCard",
+    "ReportSchedule",
     "PhoneNumber",
     "RefreshToken",
     "Role",
@@ -132,6 +163,7 @@ __all__ = [
     "AnalyticsCampaignRollup",
     "AnalyticsContactRollup",
     "AnalyticsConversationRollup",
+    "AnalyticsDomainOutcomeRollup",
     "AnalyticsFailureRollup",
     "AnalyticsMessageRollup",
     "AnalyticsRollupRun",

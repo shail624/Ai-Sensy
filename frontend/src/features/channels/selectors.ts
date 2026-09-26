@@ -6,7 +6,7 @@ import type {
   WabaListQuery,
   WabaSort,
 } from "@/features/channels/types";
-import { isNumberHealthy, NUMBER_STATUS_CONNECTED, tokenState } from "@/features/channels/types";
+import { isNumberConnected, isNumberHealthy, NUMBER_STATUS_CONNECTED, tokenState } from "@/features/channels/types";
 
 // --- WABAs --------------------------------------------------------------------------------------
 
@@ -128,11 +128,11 @@ export interface NumberSummary {
 export function numberSummary(numbers: PhoneNumber[]): NumberSummary {
   return {
     total: numbers.length,
-    connected: numbers.filter((number) => number.status === NUMBER_STATUS_CONNECTED).length,
+    connected: numbers.filter(isNumberConnected).length,
     healthy: numbers.filter(isNumberHealthy).length,
     degraded: numbers.filter((number) => number.quality_rating === "RED").length,
     capacity: numbers
-      .filter((number) => number.status === NUMBER_STATUS_CONNECTED)
+      .filter(isNumberConnected)
       .reduce((total, number) => total + number.mps_limit, 0),
   };
 }

@@ -26,6 +26,7 @@ class MessageType(StrEnum):
     INTERACTIVE = "interactive"
     TEMPLATE = "template"
     REACTION = "reaction"
+    LOCATION = "location"
 
 
 class MediaKind(StrEnum):
@@ -45,6 +46,7 @@ CAPABILITY_FOR_TYPE: dict[MessageType, Capability] = {
     MessageType.INTERACTIVE: Capability.INTERACTIVE,
     MessageType.TEMPLATE: Capability.TEMPLATE,
     MessageType.REACTION: Capability.REACTION,
+    MessageType.LOCATION: Capability.LOCATION,
 }
 
 
@@ -56,13 +58,29 @@ class TextContent:
 
 @dataclass(frozen=True, slots=True)
 class MediaContent:
-    """Media to send. Exactly one of ``media_id`` (already uploaded) or ``link`` is used."""
+    """Media to send. Exactly one of ``media_id`` (already uploaded), ``link`` or ``data`` is used.
+
+    ``data`` carries the file itself, for a connector that takes the bytes in the send request
+    (WAHA) rather than a pre-uploaded id; ``mime_type`` then says what the bytes are.
+    """
 
     kind: MediaKind
     media_id: str | None = None
     link: str | None = None
     caption: str | None = None
     filename: str | None = None
+    data: bytes | None = field(default=None, repr=False)
+    mime_type: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LocationContent:
+    """A map pin: coordinates plus an optional place name and address."""
+
+    latitude: float
+    longitude: float
+    name: str | None = None
+    address: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +154,14 @@ class ReactionContent:
     emoji: str
 
 
-Content = TextContent | MediaContent | TemplateContent | InteractiveContent | ReactionContent
+Content = (
+    TextContent
+    | MediaContent
+    | TemplateContent
+    | InteractiveContent
+    | ReactionContent
+    | LocationContent
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +197,9 @@ class InboundEventType(StrEnum):
 
     MESSAGES = "messages"
     STATUSES = "statuses"
+    #: A copy of a message this account itself sent (from the phone app or through the API). It is
+    #: understood — just not applied — so it settles as processed instead of being dead-lettered.
+    ECHOES = "echoes"
     UNKNOWN = "unknown"
 
 
@@ -212,6 +240,10 @@ class InboundMessage:
     from_id: str
     message_type: str
     content: dict[str, Any]
+    #: A provider-supplied alternate address for the same sender.  This is routing/identity
+    #: evidence, not a replacement for ``from_id``; for example NOWEB may deliver ``@lid`` as the
+    #: primary address and the corresponding phone JID as ``remoteJidAlt``.
+    alternate_from_id: str | None = None
     #: The sender's display name as the channel knows it (Doc 03 ``contacts.profile_name``).
     profile_name: str | None = None
     occurred_at: datetime | None = None

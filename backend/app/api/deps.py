@@ -21,6 +21,12 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.dependencies import (
+    ChannelFoundation,
+    build_channel_feature_flag_resolver,
+    get_channel_foundation,
+)
+from app.channels.flags import ChannelFeatureFlagResolver
 from app.core.config import Settings, get_settings
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import AccessTokenClaims, decode_access_token
@@ -32,6 +38,18 @@ from app.services.rbac_service import RBACService
 # Re-exported typed dependencies for concise endpoint signatures.
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+ChannelFoundationDep = Annotated[ChannelFoundation, Depends(get_channel_foundation)]
+
+
+def get_channel_feature_flag_resolver(
+    session: SessionDep,
+) -> ChannelFeatureFlagResolver:
+    return build_channel_feature_flag_resolver(session)
+
+
+ChannelFeatureFlagResolverDep = Annotated[
+    ChannelFeatureFlagResolver, Depends(get_channel_feature_flag_resolver)
+]
 
 # HTTP Bearer scheme (documented in OpenAPI); auto_error off so we raise RFC 7807 problems.
 _bearer_scheme = HTTPBearer(auto_error=False, description="JWT access token")

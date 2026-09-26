@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Spinner } from "@/components/ui";
+import { EmptyState, ErrorState, ScrollRegion, Spinner } from "@/components/ui";
 import { apiErrorMessage } from "@/features/analytics/api";
 import { formatCount, formatMicros, formatRate } from "@/features/analytics/format";
 import type { AnalyticsBreakdown } from "@/features/analytics/types";
@@ -35,7 +35,7 @@ export function BreakdownTable({ title, query, columns, rateKey, rateLabel }: Pr
   if (rows.length === 0) return <EmptyState title="No data for this period" />;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <ScrollRegion label={`${title} breakdown table`} className="rounded-lg border border-border">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border bg-surface-2 text-xs text-text-secondary">
           <tr>
@@ -68,6 +68,6 @@ export function BreakdownTable({ title, query, columns, rateKey, rateLabel }: Pr
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }

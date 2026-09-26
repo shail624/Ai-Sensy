@@ -3,5 +3,5 @@ import { Badge } from "@/components/ui";
 import { ScanWorkspace } from "@/features/scan";
 
 export function ScanPage(): JSX.Element {
-  return <PageContainer><Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Scan Studio" }]} /><PageHeader eyebrow="Independent number intelligence" title="Scan Studio" description="Prepare, monitor, compare, export, segment, and activate verified scan batches through a module isolated from Meta Cloud API." meta={<><Badge tone="info" dot>Phase 3 integration seam</Badge><span>Separate adapter and queue required</span></>} /><ScanWorkspace /></PageContainer>;
+  return <PageContainer><Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Scan Studio" }]} /><PageHeader eyebrow="Independent number intelligence" title="Scan Studio" description="Check lists of numbers before you message them." meta={<><Badge tone="info" dot>Coming soon</Badge><span>Not connected to a scanning service yet</span></>} /><ScanWorkspace /></PageContainer>;
 }

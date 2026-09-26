@@ -15,18 +15,18 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium text-text-secondary">Internal notes</span>
+      <span className="text-xs text-text-secondary">Only your team can see notes. The customer never sees them.</span>
 
       {notes.isLoading ? (
         <Spinner label="Loading notes…" />
       ) : notes.isError ? (
         <ErrorState message={apiErrorMessage(notes.error)} onRetry={() => void notes.refetch()} />
       ) : (notes.data ?? []).length === 0 ? (
-        <EmptyState title="No notes" description="Notes are visible to your team only." />
+        <EmptyState compact title="No notes yet" />
       ) : (
         <ul className="space-y-2">
           {(notes.data ?? []).map((note) => (
-            <li key={note.id} className="rounded-md border border-border px-2 py-1.5 text-sm">
+            <li key={note.id} className="rounded-md border border-[#fde68a] bg-[#fffbeb] px-3 py-2 text-sm dark:border-border dark:bg-surface-2">
               <p className="whitespace-pre-wrap text-text-primary">{note.body}</p>
               <div className="mt-1 flex items-center justify-between gap-2 text-xs text-text-secondary">
                 <span>
@@ -56,11 +56,17 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
           </label>
           <textarea
             id="note-body"
-            rows={2}
+            rows={3}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Add an internal note or mention a teammate…"
-            className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && draft.trim() && !addNote.isPending) {
+                event.preventDefault();
+                addNote.mutate(draft.trim(), { onSuccess: () => setDraft("") });
+              }
+            }}
+            placeholder="Write a note… (Ctrl + Enter to save)"
+            className="w-full rounded-[8px] bg-[#f0f0f0] px-3 py-2 text-sm text-[#4a4a4a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:bg-surface-2 dark:text-text-primary"
           />
           {(teammates.data ?? []).length > 0 ? (
             <div className="flex gap-1 overflow-x-auto pb-1" aria-label="Mention a teammate">
@@ -76,9 +82,6 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
               ))}
             </div>
           ) : null}
-          <p className="text-[11px] leading-relaxed text-text-disabled">
-            Mentions are preserved in the staff-only note. Notification delivery is not claimed by the current API.
-          </p>
           {addNote.error ? <ErrorState message={apiErrorMessage(addNote.error)} /> : null}
           <button
             type="button"
@@ -86,9 +89,9 @@ export function NotesPanel({ conversationId }: { conversationId: string }): JSX.
             onClick={() =>
               addNote.mutate(draft.trim(), { onSuccess: () => setDraft("") })
             }
-            className="rounded-md border border-border px-2 py-1 text-xs hover:bg-hover disabled:opacity-50"
+            className="inline-flex h-9 items-center rounded-md bg-[var(--color-nav-bg)] px-4 text-sm font-medium text-white transition-colors hover:bg-[#08393d] disabled:opacity-60"
           >
-            {addNote.isPending ? "Saving…" : "Add note"}
+            {addNote.isPending ? "Saving…" : "Save note"}
           </button>
         </div>
       ) : null}

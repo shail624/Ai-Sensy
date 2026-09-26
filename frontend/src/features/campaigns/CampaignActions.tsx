@@ -27,7 +27,7 @@ import {
 const ACTION_CLASS =
   "rounded-md border border-border px-2 py-1 text-xs text-text-primary hover:bg-hover disabled:opacity-50";
 
-type Confirmation = "dispatch" | "cancel" | "delete" | null;
+type Confirmation = "dispatch" | "retry" | "cancel" | "delete" | null;
 
 interface Props {
   campaign: Campaign;
@@ -35,6 +35,8 @@ interface Props {
   onDeleted?: () => void;
   /** Opens the schedule dialog — offered on the detail page, where there is room for it. */
   onSchedule?: () => void;
+  /** Opens the governed full-ledger export sheet on the detail page. */
+  onExport?: () => void;
 }
 
 /**
@@ -48,13 +50,14 @@ interface Props {
  *
  * One implementation, used identically by the list rows and the detail page.
  */
-export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX.Element {
+export function CampaignActions({ campaign, onDeleted, onSchedule, onExport }: Props): JSX.Element {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState<Confirmation>(null);
 
   const canWrite = useHasPermission("campaigns:write");
   const canSend = useHasPermission("campaigns:send");
   const canManage = useHasPermission("campaigns:manage");
+  const canExport = useHasPermission("campaigns:export");
 
   const dispatch = useDispatchCampaign();
   const pause = usePauseCampaign();
@@ -72,7 +75,7 @@ export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX
     remove.isPending;
 
   // Inline errors are for the actions taken directly; the confirmed ones report inside the dialog.
-  const inlineError = pause.error ?? resume.error ?? retry.error;
+  const inlineError = pause.error ?? resume.error;
 
   const editable = isEditable(campaign);
 
@@ -105,6 +108,12 @@ export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX
             }
           >
             {isTerminal(campaign) ? "Create follow-up" : "Duplicate"}
+          </button>
+        ) : null}
+
+        {canExport && onExport ? (
+          <button type="button" className={ACTION_CLASS} onClick={onExport}>
+            Export results
           </button>
         ) : null}
 
@@ -152,7 +161,7 @@ export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX
             type="button"
             className={ACTION_CLASS}
             disabled={pending}
-            onClick={() => retry.mutate(campaign.id)}
+            onClick={() => setConfirming("retry")}
           >
             Retry {formatCount(campaign.failed_count)} failed
           </button>
@@ -209,6 +218,20 @@ export function CampaignActions({ campaign, onDeleted, onSchedule }: Props): JSX
           error={cancel.error}
           onClose={() => setConfirming(null)}
           onConfirm={() => cancel.mutate(campaign.id, { onSuccess: () => setConfirming(null) })}
+        />
+      ) : null}
+
+      {confirming === "retry" ? (
+        <ConfirmDialog
+          title="Retry failed recipients?"
+          body={`This re-queues ${formatCount(
+            campaign.failed_count,
+          )} failed recipients. Successful recipients are not sent again, and every new attempt still passes the campaign rate limit and smart-retry policy.`}
+          confirmLabel={`Retry ${formatCount(campaign.failed_count)} failed`}
+          pending={retry.isPending}
+          error={retry.error}
+          onClose={() => setConfirming(null)}
+          onConfirm={() => retry.mutate(campaign.id, { onSuccess: () => setConfirming(null) })}
         />
       ) : null}
 

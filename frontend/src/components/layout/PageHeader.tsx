@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 interface PageHeaderProps {
   title: string;
   description?: string;
-  /** Small context label above the title, useful for a product area or lifecycle state. */
+  /** Accepted for compatibility; not shown (the reference uses a plain title). */
   eyebrow?: string;
   /** Optional right-aligned actions (buttons, links). */
   actions?: ReactNode;
@@ -11,17 +11,30 @@ interface PageHeaderProps {
   meta?: ReactNode;
 }
 
-/** Standard page title block. */
-export function PageHeader({ title, description, eyebrow, actions, meta }: PageHeaderProps): JSX.Element {
+/**
+ * The reference page header: a white bar across the top of the page with a plain 20px title,
+ * a short grey explanation under it and the page's actions on the right.
+ */
+export function PageHeader({ title, description, actions, meta }: PageHeaderProps): JSX.Element {
   return (
-    <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
-        {eyebrow ? <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-accent">{eyebrow}</p> : null}
-        <h1 className="text-2xl font-bold tracking-[-0.025em] text-text-primary sm:text-[28px] sm:leading-9">{title}</h1>
-        {description ? <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-text-secondary">{description}</p> : null}
-        {meta ? <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-secondary">{meta}</div> : null}
+    <header
+      data-slot="page-header"
+      className="-mx-4 mb-5 bg-surface px-4 py-4 shadow-card sm:-mx-6 sm:px-6 lg:-mx-[30px] lg:px-[30px]"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-normal leading-7 text-black focus:outline-none dark:text-text-primary">{title}</h1>
+          {description ? (
+            <p className="mt-0.5 max-w-4xl text-[13px] leading-relaxed text-[#6e6e6e] dark:text-text-secondary">{description}</p>
+          ) : null}
+          {meta ? (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-text-secondary">{meta}</div>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">{actions}</div>
+        ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

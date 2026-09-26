@@ -10,6 +10,8 @@ import { AuditDetailDialog } from "@/features/admin/AuditDetailDialog";
 import { PermissionMatrix } from "@/features/admin/PermissionMatrix";
 import {
   auditChanges,
+  auditFieldLabel,
+  auditValueLabel,
   auditFacets,
   canToggleActive,
   filterAudit,
@@ -107,10 +109,12 @@ function auditFixture(overrides: Partial<AuditEntry> = {}): AuditEntry {
     entity_type: "user",
     entity_id: 7,
     ip_address: "10.0.0.4",
+    user_agent: "ViDesk/2.1 (Windows)",
     before: { full_name: "Priya", is_active: true },
     after: { full_name: "Priya S.", is_active: true },
     metadata: null,
     created_at: "2026-07-22T09:00:00Z",
+    integrity: "verified",
     ...overrides,
   };
 }
@@ -456,6 +460,62 @@ describe("AuditDetailDialog", () => {
     );
     expect(screen.getByText("Security")).toBeInTheDocument();
   });
+
+  it("shows where the action came from, not only who did it", () => {
+    withProviders(<AuditDetailDialog entry={auditFixture()} onClose={vi.fn()} />);
+    expect(screen.getByText("Device")).toBeInTheDocument();
+    expect(screen.getByText("ViDesk/2.1 (Windows)")).toBeInTheDocument();
+  });
+
+  it("says when an entry no longer reproduces its own digest", () => {
+    withProviders(
+      <AuditDetailDialog entry={auditFixture({ integrity: "mismatch" })} onClose={vi.fn()} />,
+    );
+    expect(screen.getByText("Does not match")).toBeInTheDocument();
+  });
+
+  it("reads the snapshot the way a person would say it", () => {
+    // null meant the string "null", a boolean meant "true", and a timestamp meant a raw ISO
+    // string: three things an investigator had to translate in their head on every row.
+    expect(auditValueLabel(null)).toBe("Not set");
+    expect(auditValueLabel(true)).toBe("Yes");
+    expect(auditValueLabel(false)).toBe("No");
+    expect(auditValueLabel("")).toBe("Empty");
+    expect(auditValueLabel([])).toBe("None");
+    expect(auditValueLabel(["gold", "silver"])).toBe("gold, silver");
+    expect(auditValueLabel("2026-07-22T09:00:00Z")).not.toContain("T09:00:00Z");
+    // An internal id stays an id: turning 42 into a name needs the API to carry the name, and
+    // inventing one here would be a guess presented as evidence.
+    expect(auditValueLabel(42)).toBe("42");
+  });
+
+  it("names the changed field without leaking the column it came from", () => {
+    expect(auditFieldLabel("checklist_purpose")).toBe("Checklist purpose");
+    expect(auditFieldLabel("assigned_user_id")).toBe("Assigned user");
+    expect(auditFieldLabel("status")).toBe("Status");
+  });
+
+  it("marks a protected read so a compliance review can find it", () => {
+    withProviders(
+      <AuditDetailDialog
+        entry={auditFixture({ action: "contact_document.accessed" })}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Data access")).toBeInTheDocument();
+    // Not the Security chip: that one means something went wrong, and an authorised read has not.
+    expect(screen.queryByText("Security")).not.toBeInTheDocument();
+  });
+
+  it("does not raise an alarm over a row written before the timestamp was covered", () => {
+    // These pre-date the fix, and their content is intact — flagging the whole existing history as
+    // tampered would make the verdict worthless on the day it was first needed.
+    withProviders(
+      <AuditDetailDialog entry={auditFixture({ integrity: "verified_legacy" })} onClose={vi.fn()} />,
+    );
+    expect(screen.getByText("Content verified")).toBeInTheDocument();
+    expect(screen.queryByText("Does not match")).not.toBeInTheDocument();
+  });
 });
 
 // --- Shared pagination ----------------------------------------------------------------------------
@@ -538,6 +598,18 @@ describe("UsersPanel", () => {
     const row = screen.getAllByRole("row").find((entry) => within(entry).queryByText("Anita"))!;
     expect(within(row).getByText("Active")).toBeInTheDocument();
     expect(within(row).getAllByText("agent").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Add team member" })).toBeInTheDocument();
+  });
+
+  it("opens the team-member creation workflow from the primary action", async () => {
+    seed([userFixture({ id: "u-other", full_name: "Anita" })]);
+    withProviders(<UsersPanel />);
+
+    await screen.findByText("Anita");
+    fireEvent.click(screen.getByRole("button", { name: "Add team member" }));
+
+    expect(screen.getByRole("dialog", { name: "Create Team Member" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create team member" })).toBeInTheDocument();
   });
 
   it("offers Disable for other accounts but not for your own", async () => {
@@ -563,7 +635,7 @@ describe("UsersPanel", () => {
     withProviders(<UsersPanel />);
 
     await screen.findByText("Anita");
-    expect(screen.queryByRole("button", { name: "New user" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add team member" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 

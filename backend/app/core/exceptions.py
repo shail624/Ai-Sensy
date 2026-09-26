@@ -99,6 +99,23 @@ class VersionConflictError(ConflictError):
     title = "Version Conflict"
 
 
+class PayloadTooLargeError(AppError):
+    """The request body exceeded a bound this endpoint enforces before doing any work.
+
+    Deliberately a client error, not a server one: the caller sent something oversized and the
+    server correctly declined it. That distinction is operationally load-bearing for at-least-once
+    webhook senders, which retry a ``5xx`` but treat a ``4xx`` as final — returning ``500`` for an
+    over-bound body invites an infinite redelivery loop (QR-09-D3).
+    """
+
+    # Numeric literal for the same reason `ValidationError` uses one: the 413 constant was renamed
+    # (`HTTP_413_REQUEST_ENTITY_TOO_LARGE` -> `HTTP_413_CONTENT_TOO_LARGE`) across Starlette
+    # versions, and the status code itself is the stable thing.
+    status_code = 413
+    code = "payload_too_large"
+    title = "Payload Too Large"
+
+
 class ValidationError(AppError):
     status_code = 422  # numeric literal — 422 constant name differs across Starlette versions
     code = "validation_error"

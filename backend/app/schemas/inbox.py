@@ -7,7 +7,7 @@ list/detail/search *read* surfaces live in :mod:`app.schemas.conversation`.
 from __future__ import annotations
 
 import uuid as uuidlib
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -50,6 +50,41 @@ class ConversationStateResponse(BaseModel):
             row_version=state.row_version,
             updated_at=state.updated_at,
         )
+
+
+#: Mirrors ``app.models.contact.SALE_STATUSES``.
+SaleStatusName = Literal[
+    "follow_up",
+    "sale_reminder",
+    "sale_in_field",
+    "sale_confirmed",
+    "sale_done",
+    "activated_elsewhere",
+    "not_interested",
+]
+
+
+class SaleDetailsRequest(BaseModel):
+    """Change the customer's sale status and/or number release date.
+
+    Only the fields sent change; ``null`` clears one.
+    """
+
+    sale_status: SaleStatusName | None = None
+    release_date: date | None = None
+
+
+class SaleDetailsResponse(BaseModel):
+    sale_status: SaleStatusName | None
+    release_date: date | None
+    #: The reminder task that fires on the release date, when one is set.
+    release_task_id: str | None
+
+
+class TypingIndicatorResponse(BaseModel):
+    """``POST /conversations/{id}/typing`` — whether the best-effort signal was sent."""
+
+    sent: bool
 
 
 class ConversationReadResponse(BaseModel):

@@ -11,6 +11,7 @@ from app.models.audit import AuditLog
 from app.models.automation import (
     AUTOMATION_ATTEMPT_INTERRUPTED,
     AUTOMATION_ATTEMPT_RUNNING,
+    AUTOMATION_ATTEMPT_SKIPPED,
     AUTOMATION_ATTEMPT_SUCCEEDED,
     AUTOMATION_RUN_RUNNING,
     AutomationRun,
@@ -68,11 +69,112 @@ def _graph() -> dict:
     }
 
 
-async def _published(client, headers) -> dict:
+def _branch_graph() -> dict:
+    graph = _graph()
+    graph["nodes"].append(
+        {
+            "id": "notify-no",
+            "kind": "notification",
+            "config": {"message": "Notify when not gold"},
+        }
+    )
+    graph["edges"][1]["label"] = "yes"
+    graph["edges"].append(
+        {
+            "id": "edge-no",
+            "source": "condition-1",
+            "target": "notify-no",
+            "label": "no",
+        }
+    )
+    return graph
+
+
+def _multi_step_branch_graph() -> dict:
+    graph = _branch_graph()
+    graph["nodes"].extend(
+        [
+            {
+                "id": "task-yes",
+                "kind": "action",
+                "config": {
+                    "action": "create_task",
+                    "title": "Follow up with gold lead",
+                    "task_type": "call",
+                    "priority": "high",
+                    "due_in_minutes": 90,
+                },
+            },
+            {
+                "id": "task-no",
+                "kind": "action",
+                "config": {
+                    "action": "create_task",
+                    "title": "Review standard lead",
+                    "task_type": "custom",
+                    "priority": "medium",
+                    "due_in_minutes": 1440,
+                },
+            },
+        ]
+    )
+    graph["edges"].extend(
+        [
+            {"id": "edge-yes-task", "source": "notify-1", "target": "task-yes"},
+            {"id": "edge-no-task", "source": "notify-no", "target": "task-no"},
+        ]
+    )
+    return graph
+
+
+def _merged_branch_graph() -> dict:
+    graph = _branch_graph()
+    graph["nodes"].append(
+        {
+            "id": "task-shared",
+            "kind": "action",
+            "config": {
+                "action": "create_task",
+                "title": "Review qualified lead",
+                "task_type": "call",
+                "priority": "high",
+                "due_in_minutes": 90,
+            },
+        }
+    )
+    graph["edges"].extend(
+        [
+            {"id": "edge-yes-shared", "source": "notify-1", "target": "task-shared"},
+            {"id": "edge-no-shared", "source": "notify-no", "target": "task-shared"},
+        ]
+    )
+    return graph
+
+
+def _delayed_merged_branch_graph() -> dict:
+    graph = _merged_branch_graph()
+    graph["nodes"].insert(
+        -1,
+        {"id": "delay-shared", "kind": "delay", "config": {"seconds": 60}},
+    )
+    graph["edges"] = [
+        edge for edge in graph["edges"] if edge["target"] != "task-shared"
+    ]
+    graph["edges"].extend(
+        [
+            {"id": "edge-yes-delay", "source": "notify-1", "target": "delay-shared"},
+            {"id": "edge-no-delay", "source": "notify-no", "target": "delay-shared"},
+            {"id": "edge-delay-shared", "source": "delay-shared", "target": "task-shared"},
+        ]
+    )
+    return graph
+
+
+async def _published(client, headers, *, graph: dict | None = None) -> dict:
     created = await client.post(
         AUTOMATIONS,
         headers=headers,
-        json={"name": "Lead qualification", "graph": _graph()},
+        json={"name": "Lead qualification", "graph": graph or _graph()},
     )
     assert created.status_code == 201, created.text
     response = await client.post(
@@ -188,6 +290,157 @@ async def test_worker_executes_pinned_graph_in_order_without_effects(
     ]
     assert body["attempts"][1]["output"]["matched"] is True
     assert body["attempts"][2]["output"]["simulated"] is True
+
+
+async def test_safe_test_run_selects_one_bounded_branch_without_effects(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    owner = await _headers(
+        client, make_user, email="runtime-branch@example.com", is_superuser=True
+    )
+    flow = await _published(client, owner, graph=_branch_graph())
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.automations.execute_automation_test_run.apply_async",
+        lambda **_: None,
+    )
+    created = await client.post(
+        f"{AUTOMATIONS}/{flow['id']}/test-runs",
+        headers={**owner, "Idempotency-Key": _key()},
+        json={"input": {"contact": {"tier": "silver"}}},
+    )
+    assert created.status_code == 202, created.text
+    async with session_factory() as session:
+        run = (await session.scalars(select(AutomationRun))).one()
+        assert await AutomationRuntimeService(session).execute_test_run(run.id) == "succeeded"
+
+    detail = await client.get(
+        f"/api/v1/automation-runs/{created.json()['id']}", headers=owner
+    )
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    attempts = {attempt["node_id"]: attempt for attempt in body["attempts"]}
+    assert body["completed_steps"] == body["total_steps"] == 4
+    assert attempts["notify-1"]["status"] == AUTOMATION_ATTEMPT_SKIPPED
+    assert attempts["notify-1"]["output"] == {
+        "reason": "branch_not_selected",
+        "selected_branch": "no",
+        "condition_node_id": "condition-1",
+    }
+    assert attempts["notify-no"]["status"] == AUTOMATION_ATTEMPT_SUCCEEDED
+    assert attempts["notify-no"]["output"]["simulated"] is True
+
+
+async def test_safe_test_run_simulates_two_selected_branch_steps_and_skips_two(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    owner = await _headers(
+        client, make_user, email="runtime-two-step-branch@example.com", is_superuser=True
+    )
+    flow = await _published(client, owner, graph=_multi_step_branch_graph())
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.automations.execute_automation_test_run.apply_async",
+        lambda **_: None,
+    )
+    created = await client.post(
+        f"{AUTOMATIONS}/{flow['id']}/test-runs",
+        headers={**owner, "Idempotency-Key": _key()},
+        json={"input": {"contact": {"tier": "silver"}}},
+    )
+    assert created.status_code == 202, created.text
+    async with session_factory() as session:
+        run = (await session.scalars(select(AutomationRun))).one()
+        assert await AutomationRuntimeService(session).execute_test_run(run.id) == "succeeded"
+
+    detail = await client.get(
+        f"/api/v1/automation-runs/{created.json()['id']}", headers=owner
+    )
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    attempts = {attempt["node_id"]: attempt for attempt in body["attempts"]}
+    assert body["completed_steps"] == body["total_steps"] == 6
+    for node_id in ("notify-1", "task-yes"):
+        assert attempts[node_id]["status"] == AUTOMATION_ATTEMPT_SKIPPED
+        assert attempts[node_id]["output"] == {
+            "reason": "branch_not_selected",
+            "selected_branch": "no",
+            "condition_node_id": "condition-1",
+        }
+    for node_id in ("notify-no", "task-no"):
+        assert attempts[node_id]["status"] == AUTOMATION_ATTEMPT_SUCCEEDED
+        assert attempts[node_id]["output"]["simulated"] is True
+
+
+async def test_safe_test_run_simulates_shared_follow_up_after_selected_branch(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    owner = await _headers(
+        client, make_user, email="runtime-shared-branch@example.com", is_superuser=True
+    )
+    flow = await _published(client, owner, graph=_merged_branch_graph())
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.automations.execute_automation_test_run.apply_async",
+        lambda **_: None,
+    )
+    created = await client.post(
+        f"{AUTOMATIONS}/{flow['id']}/test-runs",
+        headers={**owner, "Idempotency-Key": _key()},
+        json={"input": {"contact": {"tier": "silver"}}},
+    )
+    assert created.status_code == 202, created.text
+    async with session_factory() as session:
+        run = (await session.scalars(select(AutomationRun))).one()
+        assert await AutomationRuntimeService(session).execute_test_run(run.id) == "succeeded"
+
+    detail = await client.get(
+        f"/api/v1/automation-runs/{created.json()['id']}", headers=owner
+    )
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    attempts = {attempt["node_id"]: attempt for attempt in body["attempts"]}
+    assert body["completed_steps"] == body["total_steps"] == 5
+    assert attempts["notify-1"]["status"] == AUTOMATION_ATTEMPT_SKIPPED
+    assert attempts["notify-1"]["output"] == {
+        "reason": "branch_not_selected",
+        "selected_branch": "no",
+        "condition_node_id": "condition-1",
+    }
+    for node_id in ("notify-no", "task-shared"):
+        assert attempts[node_id]["status"] == AUTOMATION_ATTEMPT_SUCCEEDED
+        assert attempts[node_id]["output"]["simulated"] is True
+
+
+async def test_safe_test_run_simulates_shared_delay_before_follow_up(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    owner = await _headers(
+        client, make_user, email="runtime-shared-delay@example.com", is_superuser=True
+    )
+    flow = await _published(client, owner, graph=_delayed_merged_branch_graph())
+    monkeypatch.setattr(
+        "app.api.v1.endpoints.automations.execute_automation_test_run.apply_async",
+        lambda **_: None,
+    )
+    created = await client.post(
+        f"{AUTOMATIONS}/{flow['id']}/test-runs",
+        headers={**owner, "Idempotency-Key": _key()},
+        json={"input": {"contact": {"tier": "silver"}}},
+    )
+    assert created.status_code == 202, created.text
+    async with session_factory() as session:
+        run = (await session.scalars(select(AutomationRun))).one()
+        assert await AutomationRuntimeService(session).execute_test_run(run.id) == "succeeded"
+
+    detail = await client.get(
+        f"/api/v1/automation-runs/{created.json()['id']}", headers=owner
+    )
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    attempts = {attempt["node_id"]: attempt for attempt in body["attempts"]}
+    assert body["completed_steps"] == body["total_steps"] == 6
+    assert attempts["notify-1"]["status"] == AUTOMATION_ATTEMPT_SKIPPED
+    for node_id in ("notify-no", "delay-shared", "task-shared"):
+        assert attempts[node_id]["status"] == AUTOMATION_ATTEMPT_SUCCEEDED
+        assert attempts[node_id]["output"]["simulated"] is True
 
 
 async def test_redelivery_resumes_successful_checkpoints(

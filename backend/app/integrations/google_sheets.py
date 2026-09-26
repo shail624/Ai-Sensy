@@ -1,0 +1,299 @@
+"""Read a Google Sheet tab with a service account (scope §21, "Integrations — Limited").
+
+Deliberately built on the two libraries already here -- PyJWT for the RS256 assertion and httpx for
+the two HTTP calls -- rather than pulling in ``google-api-python-client``. The whole protocol is a
+signed JWT exchanged for a bearer token and one ``GET``; a client library for that would be more
+code to audit, not less, and every dependency on the ingest side of a customer-data path is one
+more thing to keep patched.
+
+**A service account, not an operator's Google login.** A personal account's password change, 2FA
+enrolment or departure would silently stop every sync, and the failure would look like an empty
+sheet rather than a broken credential. The service account also lets the sheet be shared read-only
+with exactly one robot identity, which is auditable from the Google side.
+
+The key never leaves this module's memory: it is not logged, not returned by any endpoint and not
+written to the database. What *is* persisted is the sheet's content, as an ordinary contact import.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass
+from typing import Any
+from urllib.parse import quote
+
+import httpx
+import jwt
+
+from app.core.config import settings
+
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets"
+JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+#: Google rejects an assertion whose lifetime exceeds an hour; a short one limits replay value.
+_ASSERTION_LIFETIME_SECONDS = 600
+
+
+def _segment(value: str) -> str:
+    """One URL path segment, with every reserved character encoded.
+
+    Written out rather than left to httpx because the obvious shortcut is wrong in two ways that
+    only show up on real sheet names. ``httpx.URL(path=tab).path`` returns the *decoded* path, so a
+    tab called ``Prepaid/Postpaid`` -- an ordinary name here -- kept its slash and addressed a
+    different Sheets endpoint, and the operator was told their tab name was misspelled when it was
+    not. A tab containing ``?`` or ``#`` raised ``httpx.InvalidURL``, which is not a
+    :class:`GoogleSheetsError`, so it escaped this module's error mapping as a 500.
+
+    ``safe=""`` is the point: ``/``, ``?`` and ``#`` are exactly the characters that must not
+    survive into the URL as themselves. Google decodes the segment before reading it as a range, so
+    an encoded ``!`` in ``Sheet1!A1:C10`` is still a range.
+    """
+    return quote(value, safe="")
+
+
+class GoogleSheetsError(Exception):
+    """Anything that stopped the sheet being read, phrased for an operator.
+
+    One exception type on purpose: from the caller's side "the credential is wrong", "the sheet is
+    not shared with the robot" and "that tab does not exist" are the same kind of event -- the
+    import cannot start and the operator must fix something in Google. What differs is the message,
+    which is why it carries one written for a human rather than a status code.
+    """
+
+
+class GoogleSheetsNotConfigured(GoogleSheetsError):
+    """No service account key is set, so the integration is off rather than broken."""
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceAccount:
+    client_email: str
+    private_key: str
+
+    @classmethod
+    def from_settings(cls) -> ServiceAccount:
+        raw = settings.google_service_account_json.strip()
+        if not raw:
+            raise GoogleSheetsNotConfigured(
+                "No Google service account is configured. Set GOOGLE_SERVICE_ACCOUNT_JSON to the "
+                "contents of the key file, then share the sheet with that account's email."
+            )
+        try:
+            parsed: Any = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            # Deliberately does not echo the value: it contains a private key.
+            raise GoogleSheetsError(
+                "The configured Google service account is not valid JSON. Paste the key file's "
+                "whole contents, including the surrounding braces."
+            ) from exc
+        if not isinstance(parsed, dict):
+            raise GoogleSheetsError("The Google service account key must be a JSON object.")
+        email, key = parsed.get("client_email"), parsed.get("private_key")
+        if not isinstance(email, str) or not isinstance(key, str):
+            raise GoogleSheetsError(
+                "The Google service account key is missing 'client_email' or 'private_key'. "
+                "Download a fresh JSON key from the service account's Keys tab."
+            )
+        return cls(client_email=email, private_key=key)
+
+
+def _body(response: httpx.Response) -> dict[str, Any]:
+    """Google's JSON, or one operator message instead of a decoder traceback.
+
+    A proxy, a captive portal or an outage page answers with HTML and a 200, and ``response.json()``
+    then raises a ``JSONDecodeError`` -- not a :class:`GoogleSheetsError` -- which reaches the
+    operator as a 500 with nothing to act on.
+    """
+    try:
+        parsed: Any = response.json()
+    except ValueError as exc:
+        raise GoogleSheetsError(
+            "Google's reply was not JSON. Something between this server and Google is answering "
+            "instead of Google -- check the outbound proxy or firewall."
+        ) from exc
+    return parsed if isinstance(parsed, dict) else {}
+
+
+class GoogleSheetsClient:
+    """Reads tabs and writes only explicitly named export tabs in an operator-supplied sheet."""
+
+    def __init__(
+        self,
+        *,
+        account: ServiceAccount | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        # `transport` exists so the tests exercise this module's real request building, signing and
+        # error mapping against a fake network rather than mocking the module out entirely.
+        self._account = account or ServiceAccount.from_settings()
+        self._transport = transport
+        self._access_token: str | None = None
+        self._access_token_expires_at = 0.0
+
+    def _assertion(self) -> str:
+        now = int(time.time())
+        try:
+            return jwt.encode(
+                {
+                    "iss": self._account.client_email,
+                    "scope": settings.google_sheets_scope,
+                    "aud": TOKEN_URL,
+                    "iat": now,
+                    "exp": now + _ASSERTION_LIFETIME_SECONDS,
+                },
+                self._account.private_key,
+                algorithm="RS256",
+            )
+        except Exception as exc:  # noqa: BLE001 - any signing failure is one operator message
+            raise GoogleSheetsError(
+                "The Google service account's private key could not be used to sign a request. "
+                "The key file may be truncated; download a fresh one."
+            ) from exc
+
+    async def _token(self, client: httpx.AsyncClient) -> str:
+        if self._access_token and time.time() < self._access_token_expires_at - 30:
+            return self._access_token
+        response = await client.post(
+            TOKEN_URL,
+            data={"grant_type": JWT_BEARER, "assertion": self._assertion()},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if response.status_code != 200:
+            raise GoogleSheetsError(
+                "Google refused the service account's credentials. Check that the key is current "
+                "and that the Sheets API is enabled for its project."
+            )
+        token_body = _body(response)
+        token = token_body.get("access_token")
+        if not isinstance(token, str):
+            raise GoogleSheetsError("Google's token response did not contain an access token.")
+        expires_in = token_body.get("expires_in", 3600)
+        lifetime = expires_in if isinstance(expires_in, (int, float)) else 3600
+        self._access_token = token
+        self._access_token_expires_at = time.time() + max(float(lifetime), 60.0)
+        return token
+
+    async def fetch_rows(self, spreadsheet_id: str, tab: str) -> list[list[str]]:
+        """Every populated row of one tab, as rows of strings.
+
+        Google returns ragged rows -- trailing empty cells are omitted entirely rather than sent as
+        blanks -- so rows are padded to the widest one. A CSV writer would otherwise produce short
+        lines and the column an operator mapped would silently shift on rows that happened to end
+        early.
+        """
+        async with httpx.AsyncClient(
+            transport=self._transport,
+            timeout=settings.google_sheets_timeout_seconds,
+            trust_env=False,
+        ) as client:
+            token = await self._token(client)
+            response = await client.get(
+                f"{SHEETS_BASE}/{_segment(spreadsheet_id)}/values/{_segment(tab)}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        if response.status_code == 403:
+            raise GoogleSheetsError(
+                f"The sheet is not shared with {self._account.client_email}. Open the sheet, press "
+                "Share, and give that address Viewer access."
+            )
+        if response.status_code == 404:
+            raise GoogleSheetsError(
+                "No sheet with that id was found. Copy the id out of the sheet's URL, between "
+                "'/d/' and the next '/'."
+            )
+        if response.status_code == 400:
+            raise GoogleSheetsError(
+                f"Google rejected the request for tab {tab!r}. Check the tab name matches exactly, "
+                "including spaces and capitals."
+            )
+        if response.status_code != 200:
+            raise GoogleSheetsError(
+                f"Google returned an unexpected {response.status_code} for that sheet."
+            )
+
+        values: Any = _body(response).get("values", [])
+        if not isinstance(values, list):
+            raise GoogleSheetsError("Google's response did not contain a grid of values.")
+        rows = [[str(cell) for cell in row] for row in values if isinstance(row, list)]
+        width = max((len(row) for row in rows), default=0)
+        return [row + [""] * (width - len(row)) for row in rows]
+
+    async def ensure_export_tab(self, spreadsheet_id: str, tab: str, *, resume: bool = False) -> None:
+        """Create the job-owned tab; only a recorded retry may clear and reuse it."""
+        async with httpx.AsyncClient(
+            transport=self._transport,
+            timeout=settings.google_sheets_timeout_seconds,
+            trust_env=False,
+        ) as client:
+            token = await self._token(client)
+            headers = {"Authorization": f"Bearer {token}"}
+            metadata = await client.get(
+                f"{SHEETS_BASE}/{_segment(spreadsheet_id)}",
+                params={"fields": "sheets.properties.title"},
+                headers=headers,
+            )
+            self._raise_write_error(metadata, spreadsheet_id)
+            existing = {
+                item.get("properties", {}).get("title")
+                for item in _body(metadata).get("sheets", [])
+                if isinstance(item, dict)
+            }
+            if tab in existing:
+                if not resume:
+                    raise GoogleSheetsError(
+                        "A tab already uses the export's generated name. No existing tab was changed; "
+                        "start the export again to generate a different name."
+                    )
+                clear = await client.post(
+                    f"{SHEETS_BASE}/{_segment(spreadsheet_id)}/values/{_segment(tab)}:clear",
+                    headers=headers,
+                    json={},
+                )
+                self._raise_write_error(clear, spreadsheet_id)
+                return
+            created = await client.post(
+                f"{SHEETS_BASE}/{_segment(spreadsheet_id)}:batchUpdate",
+                headers=headers,
+                json={"requests": [{"addSheet": {"properties": {"title": tab}}}]},
+            )
+            self._raise_write_error(created, spreadsheet_id)
+
+    async def write_rows(
+        self, spreadsheet_id: str, tab: str, start_row: int, rows: list[list[Any]]
+    ) -> None:
+        """Write one bounded batch with RAW semantics so customer text cannot become a formula."""
+        if not rows:
+            return
+        escaped_tab = tab.replace("'", "''")
+        range_name = f"'{escaped_tab}'!A{start_row}"
+        async with httpx.AsyncClient(
+            transport=self._transport,
+            timeout=settings.google_sheets_timeout_seconds,
+            trust_env=False,
+        ) as client:
+            token = await self._token(client)
+            response = await client.put(
+                f"{SHEETS_BASE}/{_segment(spreadsheet_id)}/values/{_segment(range_name)}",
+                params={"valueInputOption": "RAW"},
+                headers={"Authorization": f"Bearer {token}"},
+                json={"majorDimension": "ROWS", "values": rows},
+            )
+            self._raise_write_error(response, spreadsheet_id)
+
+    def _raise_write_error(self, response: httpx.Response, spreadsheet_id: str) -> None:
+        if response.status_code in (200, 201):
+            return
+        if response.status_code == 403:
+            raise GoogleSheetsError(
+                f"The sheet is not shared with {self._account.client_email} as an Editor. "
+                "Open Share and give that address Editor access."
+            )
+        if response.status_code == 404:
+            raise GoogleSheetsError(
+                f"No sheet with id {spreadsheet_id!r} was found or shared with the service account."
+            )
+        raise GoogleSheetsError(
+            f"Google returned an unexpected {response.status_code} while writing the export."
+        )

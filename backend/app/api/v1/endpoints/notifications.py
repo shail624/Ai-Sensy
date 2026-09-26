@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.notification import (
     MarkAllReadResponse,
     NotificationResponse,
+    NotificationSettings,
     NotificationsPage,
     NotificationStatus,
     NotificationType,
@@ -58,6 +59,31 @@ async def list_notifications(
         data=[NotificationResponse(**item) for item in result.items],
         page=Page(limit=limit, has_more=result.has_more, next_cursor=result.next_cursor),
     )
+
+
+@router.get(
+    "/settings", response_model=NotificationSettings, summary="Own notification settings"
+)
+async def get_notification_settings(session: SessionDep, actor: Reader) -> NotificationSettings:
+    """The categories the signed-in user has chosen not to see."""
+    muted = await NotificationService(session).muted_types(actor)
+    return NotificationSettings(muted_types=list(muted))
+
+
+@router.put(
+    "/settings", response_model=NotificationSettings, summary="Update own notification settings"
+)
+async def update_notification_settings(
+    payload: NotificationSettings, session: SessionDep, actor: Reader
+) -> NotificationSettings:
+    """Mute or unmute categories for the signed-in user only.
+
+    Muting hides a category from this user's own list, unread count and mark-all-read; it never
+    stops the notification being recorded and never hides it from a supervisor's team view. The
+    body replaces the whole set, so unmuting is sending a shorter list rather than a second verb.
+    """
+    muted = await NotificationService(session).update_muted_types(actor, payload.muted_types)
+    return NotificationSettings(muted_types=list(muted))
 
 
 @router.get(

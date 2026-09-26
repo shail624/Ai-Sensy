@@ -14,9 +14,10 @@ interface Props {
 }
 
 /**
- * Confirmation gate for the campaign actions that reach real customers or destroy work — dispatch,
- * cancel and delete. The mutation's own error is rendered in place rather than closing the dialog,
- * so a rejected transition (the server's 409, Doc 04 §17) is read where the decision was made.
+ * Confirmation gate for campaign actions that reach real customers or destroy work — dispatch,
+ * retry, cancel and delete. The mutation's own error is rendered in place rather than closing the
+ * dialog, so a rejected transition (the server's 409, Doc 04 §17) is read where the decision was
+ * made.
  */
 export function ConfirmDialog({
   title,

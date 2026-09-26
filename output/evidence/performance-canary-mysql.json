@@ -1,0 +1,10 @@
+{
+  "endpoint": "GET /api/v1/contacts",
+  "samples": 40,
+  "warmup": 5,
+  "threshold_p95_ms": 300.0,
+  "observed_p50_ms": 4.457,
+  "observed_p95_ms": 4.811,
+  "observed_max_ms": 5.061,
+  "passed": true
+}

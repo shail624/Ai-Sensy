@@ -16,3 +16,9 @@ def test_mysql_url_uses_the_audited_async_driver() -> None:
     assert settings.sqlalchemy_database_uri == (
         "mysql+aiomysql://app:safe-password@mysql:3306/platform?charset=utf8mb4"
     )
+
+
+def test_empty_optional_waha_organization_scope_is_unconfigured() -> None:
+    assert Settings(waha_organization_id="").waha_organization_id is None
+    assert Settings(waha_organization_id="  ").waha_organization_id is None
+    assert Settings(waha_organization_id="42").waha_organization_id == 42

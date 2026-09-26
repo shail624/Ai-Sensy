@@ -1,156 +1,122 @@
-import {
-  ArrowUpRight,
-  CheckCircle2,
-  Clock3,
-  Eye,
-  Megaphone,
-  MessageSquareText,
-  Send,
-  TriangleAlert,
-} from "lucide-react";
+import { lazy, Suspense } from "react";
+import { FileText, MessageSquareText, Send, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { PageContainer, PageHeader } from "@/components/layout";
-import { Button, Card, CardHeader, SkeletonStat, StatCard } from "@/components/ui";
-import { useAnalyticsSummary } from "@/features/analytics/api";
-import { formatKpi } from "@/features/analytics/format";
-import type { AnalyticsFilterState } from "@/features/analytics/types";
-import { WhatsAppOverview } from "@/features/channels";
-import { MyWorkQueue } from "@/features/tasks";
-import { useAuth, useHasPermission } from "@/lib/auth";
+import { Skeleton } from "@/components/ui";
+import { useAccountSummary } from "@/features/channels/api";
+import { useCampaigns } from "@/features/campaigns";
+import { useContactSearch } from "@/features/contacts";
+import { AccountStatusCard } from "@/features/dashboard/AccountStatusCard";
+import { DASH_CARD } from "@/features/dashboard/dashboardStyles";
+import { SetupChecklist, buildSetupSteps } from "@/features/dashboard/SetupChecklist";
+import { WabaProfileCard } from "@/features/dashboard/WabaProfileCard";
+import { useTemplates } from "@/features/templates/api";
+import { isSendable } from "@/features/templates/types";
+import { useHasPermission } from "@/lib/auth";
 
-const DASH_FILTERS: AnalyticsFilterState = {
-  preset: "last_7d",
-  from: "",
-  to: "",
-  granularity: "day",
-  compare: "",
-};
+const OperationalDashboard = lazy(() =>
+  import("@/features/dashboard/OperationalDashboard").then((module) => ({
+    default: module.OperationalDashboard,
+  })),
+);
 
-function greeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-const HEADLINE = [
-  { key: "delivery_rate", label: "Delivery rate", kind: "rate", icon: Send },
-  { key: "read_rate", label: "Read rate", kind: "rate", icon: Eye },
-  { key: "failure_rate", label: "Failure rate", kind: "rate", icon: TriangleAlert },
-  { key: "avg_first_response_seconds", label: "First response", kind: "duration", icon: Clock3 },
-] as const;
-
-function KpiRow(): JSX.Element {
-  const summary = useAnalyticsSummary(DASH_FILTERS);
-  const kpis = summary.data?.kpis;
-
-  if (summary.isLoading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {HEADLINE.map((headline) => <SkeletonStat key={headline.key} />)}
-      </div>
-    );
-  }
-
+function DashboardLoading(): JSX.Element {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {HEADLINE.map((headline) => {
-        const Icon = headline.icon;
-        return (
-          <StatCard
-            key={headline.key}
-            label={headline.label}
-            value={formatKpi(kpis?.[headline.key] ?? null, headline.kind)}
-            icon={<Icon aria-hidden className="h-4 w-4" />}
-            hint="7 days"
-          />
-        );
-      })}
+    <div aria-label="Loading operational dashboard" className="space-y-4" role="status">
+      <Skeleton className="h-12 w-full" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-24 w-full" />
+        ))}
+      </div>
+      <span className="sr-only">Loading live operational intelligence</span>
     </div>
   );
 }
 
+const QUICK_ACTIONS = [
+  { label: "Live Chat", description: "Reply to waiting customers", path: "/inbox", icon: MessageSquareText, permission: "inbox:read" },
+  { label: "New Campaign", description: "Broadcast an approved template", path: "/campaigns/new", icon: Send, permission: "campaigns:write" },
+  { label: "Contacts", description: "Find or add a customer", path: "/contacts", icon: Users, permission: "contacts:read" },
+  { label: "Templates", description: "Create or check message templates", path: "/templates", icon: FileText, permission: "templates:read" },
+] as const;
+
+function QuickActions(): JSX.Element | null {
+  const allowed = {
+    "inbox:read": useHasPermission("inbox:read"),
+    "campaigns:write": useHasPermission("campaigns:write"),
+    "contacts:read": useHasPermission("contacts:read"),
+    "templates:read": useHasPermission("templates:read"),
+  };
+  const actions = QUICK_ACTIONS.filter((action) => allowed[action.permission]);
+  if (actions.length === 0) return null;
+  return (
+    <section aria-labelledby="quick-actions-title" className={`${DASH_CARD} px-5 py-2.5`}>
+      <h2 id="quick-actions-title" className="py-1.5 text-sm font-normal leading-[19px] text-text-primary">Quick actions</h2>
+      <ul className="grid grid-cols-2 gap-2 pb-2.5 pt-1">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <li key={action.path}>
+              <Link
+                to={action.path}
+                className="group flex h-full flex-col gap-1.5 rounded-[8px] border border-[#f0f0f0] p-3 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-transparent hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:border-border"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ebf5f3] text-[var(--color-nav-bg)] dark:bg-accent-soft dark:text-accent">
+                  <Icon aria-hidden className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-text-primary">{action.label}</span>
+                <span className="text-xs leading-4 text-[#6e6e6e] dark:text-text-secondary">{action.description}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export function DashboardPage(): JSX.Element {
-  const { user, hasPermission } = useAuth();
-  const canAnalytics = useHasPermission("analytics:read");
+  const canWaba = useHasPermission("waba:read");
+  const canManageWaba = useHasPermission("waba:manage");
+  const canTemplates = useHasPermission("templates:read");
+  const canContacts = useHasPermission("contacts:read");
   const canCampaigns = useHasPermission("campaigns:read");
-  const canInbox = useHasPermission("inbox:read");
-  const canTasks = useHasPermission("tasks:read");
-  const canChannels = useHasPermission("waba:read");
-  const firstName = user?.full_name.trim().split(/\s+/)[0] ?? "there";
-  const engagementActions = [
-    hasPermission("contacts:import") ? { label: "Import your contacts", path: "/contacts?import=1" } : null,
-    hasPermission("templates:write") ? { label: "Create a message template", path: "/templates/new" } : null,
-    hasPermission("campaigns:write") ? { label: "Launch a campaign", path: "/campaigns/new" } : null,
-  ].filter((item): item is { label: string; path: string } => item !== null);
+
+  const account = useAccountSummary(canWaba);
+  const templates = useTemplates(canTemplates);
+  const campaigns = useCampaigns(canCampaigns);
+  const contacts = useContactSearch({ rules: [], cursor: null, limit: 1 }, canContacts);
+
+  const steps = buildSetupSteps({
+    whatsappConnected: account.summary?.status === "live",
+    templateApproved: (templates.data ?? []).some(isSendable),
+    hasContacts: (contacts.data?.data.length ?? 0) > 0,
+    hasCampaign: (campaigns.data?.length ?? 0) > 0,
+  });
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Dashboard"
-        description={`${greeting()}, ${firstName}. Here’s what needs your attention today.`}
-        actions={
-          <>
-            {canInbox ? (
-              <Link to="/inbox">
-                <Button variant="secondary" leftIcon={<MessageSquareText className="h-4 w-4" />}>
-                  Live chat
-                </Button>
-              </Link>
-            ) : null}
-            {canCampaigns ? (
-              <Link to="/campaigns/new">
-                <Button leftIcon={<Megaphone className="h-4 w-4" />}>New campaign</Button>
-              </Link>
-            ) : null}
-          </>
-        }
-      />
-
-      {canChannels ? <WhatsAppOverview /> : null}
-
-      {canAnalytics ? (
-        <section aria-label="Key indicators" className="mb-5">
-          <KpiRow />
-        </section>
-      ) : null}
-
-      <div className={`grid grid-cols-1 gap-5 ${canTasks && engagementActions.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
-        {canTasks ? (
-          <Card padding={false} className="p-4 sm:p-5">
-            <CardHeader
-              title="My work"
-              description="Follow-ups assigned to you"
-              icon={<CheckCircle2 aria-hidden className="h-[18px] w-[18px]" />}
-              action={
-                <Link to="/tasks">
-                  <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>
-                    View all
-                  </Button>
-                </Link>
-              }
-            />
-            <div className="mt-3"><MyWorkQueue /></div>
-          </Card>
-        ) : null}
-
-        <aside className="space-y-4">
-          {engagementActions.length > 0 ? (
-            <Card>
-              <CardHeader title="Start engaging" description="Prepare an audience and send safely" />
-              <div className="mt-2 space-y-1">
-                {engagementActions.map((item, index) => (
-                  <Link key={item.path} to={item.path} className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-hover">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">{index + 1}</span>
-                    <span className="text-sm font-medium text-text-primary">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </Card>
+    <div className="mx-auto w-full max-w-[1264px] px-4 py-6 sm:px-4">
+      <h1 className="sr-only">Dashboard</h1>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_387px]">
+        <div className="min-w-0 space-y-4">
+          {canWaba ? (
+            <AccountStatusCard summary={account.summary} loading={account.isLoading} canManage={canManageWaba} />
           ) : null}
-        </aside>
+          <SetupChecklist steps={steps} />
+        </div>
+        <div className="min-w-0 space-y-4">
+          {canWaba ? <WabaProfileCard summary={account.summary} loading={account.isLoading} canManage={canManageWaba} /> : null}
+          <QuickActions />
+        </div>
       </div>
-    </PageContainer>
+
+      <section aria-labelledby="todays-work-title" className="mt-6">
+        <h2 id="todays-work-title" className="mb-3 text-lg font-normal leading-[21px] text-text-primary">Today&apos;s work</h2>
+        <Suspense fallback={<DashboardLoading />}>
+          <OperationalDashboard />
+        </Suspense>
+      </section>
+    </div>
   );
 }

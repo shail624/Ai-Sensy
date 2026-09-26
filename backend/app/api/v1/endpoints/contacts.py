@@ -14,11 +14,19 @@ import uuid as uuidlib
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from pydantic import BaseModel, Field
 from starlette.datastructures import QueryParams
 
 from app.api.deps import SessionDep, require_permissions
-from app.api.pagination import Page, clamp_limit, decode_cursor, encode_cursor
+from app.api.pagination import (
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+    Page,
+    clamp_limit,
+    decode_cursor,
+    encode_cursor,
+)
 from app.core.config import settings
 from app.core.exceptions import BadRequestError
 from app.models.job_records import BulkJob
@@ -36,10 +44,15 @@ from app.schemas.contact import (
     ContactResponse,
     ContactsPage,
     ContactUpdateRequest,
+    ContactViewCreate,
+    ContactViewResponse,
+    ContactViewsResponse,
 )
 from app.schemas.contact_event import ContactEventResponse, ContactTimelinePage
 from app.schemas.export_job import ExportCreateRequest, ExportProgressResponse
 from app.schemas.import_job import (
+    GoogleSheetStageRequest,
+    GoogleSheetStageResponse,
     ImportCreateRequest,
     ImportInspectRequest,
     ImportInspectResponse,
@@ -54,7 +67,11 @@ from app.services.bulk_service import BulkService
 from app.services.contact_event_service import ContactEventService
 from app.services.contact_search_service import ContactSearchService
 from app.services.contact_service import ContactService
+from app.services.contact_view_service import ContactViewService
+from app.services.csv_audience_service import MAX_ROWS as MAX_CSV_ROWS
+from app.services.csv_audience_service import CsvAudienceService
 from app.services.export_service import ExportService
+from app.services.google_sheet_import_service import GoogleSheetImportService
 from app.services.import_service import ImportService
 from app.services.tag_service import TagService
 
@@ -114,21 +131,37 @@ def _opt_in_filter(params: QueryParams) -> list[str] | None:
 
 @router.get("/contacts", response_model=ContactsPage, summary="List/search/filter contacts")
 async def list_contacts(
-    request: Request, session: SessionDep, actor: ContactsReadActor
+    request: Request,
+    session: SessionDep,
+    actor: ContactsReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
+    sort_param: Annotated[
+        str | None, Query(alias="sort", description="Sort key; prefix with '-' to reverse.")
+    ] = None,
+    q: Annotated[str | None, Query(description="Match a contact's name or number.")] = None,
 ) -> ContactsPage:
+    """Contacts, with search, sort and pagination declared per Doc 04 §6 and §7.2-7.3.
+
+    The `filter[field][op]` grammar of §7.1 stays on the raw request: it spans any field crossed
+    with eleven operators, so there is no finite set of parameters to declare.
+    """
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    sort = params.get("sort") or "-created_at"
-    raw_cursor = params.get("cursor")
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
+    sort = sort_param or "-created_at"
     sort_name, _ = ContactRepository.parse_sort(sort)
-    cursor = _decode_cursor(raw_cursor, sort_name) if raw_cursor else None
+    cursor = _decode_cursor(cursor_param, sort_name) if cursor_param else None
 
     result = await ContactService(session).list_contacts(
         actor.organization_id,
         limit=limit,
         sort=sort,
         cursor=cursor,
-        q=params.get("q"),
+        q=q,
         opt_in_status=_opt_in_filter(params),
         source=params.get("filter[source][eq]"),
         is_active_on_wa=_bool_param(params.get("filter[is_active_on_wa][bool]")),
@@ -142,7 +175,9 @@ async def list_contacts(
         next_cursor = _encode_cursor(result.next_sort, getattr(last, result.next_sort), last.id)
     return ContactsPage(
         data=data,
-        page=Page(limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total),
+        page=Page(
+            limit=limit, has_more=result.has_more, next_cursor=next_cursor, total=result.total
+        ),
     )
 
 
@@ -171,6 +206,61 @@ async def create_contact(
         },
     )
     return ContactResponse.from_contact(contact)
+
+
+@router.get(
+    "/contacts/views",
+    response_model=ContactViewsResponse,
+    summary="List personal and team-shared Contacts views",
+)
+async def list_contact_views(
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> ContactViewsResponse:
+    rows, can_manage_shared = await ContactViewService(session).list(actor)
+    return ContactViewsResponse(
+        data=[
+            ContactViewResponse.from_view(
+                row,
+                actor_user_id=actor.id,
+                can_manage_shared=can_manage_shared,
+            )
+            for row in rows
+        ]
+    )
+
+
+@router.post(
+    "/contacts/views",
+    response_model=ContactViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Save a personal or team-shared Contacts view",
+)
+async def create_contact_view(
+    payload: ContactViewCreate,
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> ContactViewResponse:
+    service = ContactViewService(session)
+    row = await service.create(actor, payload)
+    return ContactViewResponse.from_view(
+        row,
+        actor_user_id=actor.id,
+        can_manage_shared=payload.visibility == "shared",
+    )
+
+
+@router.delete(
+    "/contacts/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an owned personal or managed team Contacts view",
+)
+async def delete_contact_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: ContactsReadActor,
+) -> None:
+    await ContactViewService(session).delete(actor, view_id)
 
 
 @router.get("/contacts/{contact_id}", response_model=ContactResponse, summary="Get a contact")
@@ -316,15 +406,21 @@ async def contact_timeline(
     request: Request,
     session: SessionDep,
     actor: ContactsReadActor,
+    limit_param: Annotated[
+        int | None, Query(alias="limit", ge=1, le=MAX_LIMIT, description="Page size (default 50).")
+    ] = None,
+    cursor_param: Annotated[
+        str | None, Query(alias="cursor", description="Opaque token from a prior next_cursor.")
+    ] = None,
 ) -> ContactTimelinePage:
+    """A contact's event history, newest first, with declared pagination (Doc 04 §6)."""
     contact = await ContactService(session).get_contact(actor.organization_id, contact_id)
     params = request.query_params
-    limit = clamp_limit(params.get("limit"))
-    raw_cursor = params.get("cursor")
+    limit = limit_param if limit_param is not None else DEFAULT_LIMIT
     events, has_more, total = await ContactEventService(session).list_for_contact(
         contact.id,
         limit=limit,
-        cursor=decode_cursor(raw_cursor) if raw_cursor else None,
+        cursor=decode_cursor(cursor_param) if cursor_param else None,
         event_type=params.get("filter[event_type][eq]"),
     )
     next_cursor = (
@@ -337,6 +433,38 @@ async def contact_timeline(
 
 
 # --- Contact import (Doc 04 §14.1) — async only, always 202 -----------------
+@router.post(
+    "/contacts/import/google-sheet",
+    response_model=GoogleSheetStageResponse,
+    summary="Pull a Google Sheet tab in as an upload (imports nothing)",
+)
+async def stage_google_sheet(
+    payload: GoogleSheetStageRequest, session: SessionDep, actor: ContactsImportActor
+) -> GoogleSheetStageResponse:
+    """Fetch one tab with the configured service account and store it as a CSV upload.
+
+    Nothing about contacts happens here. The returned `upload_id` is the same one
+    `/contacts/import/inspect` and `/contacts/import` already take, so a sheet reaches contacts
+    through the one import pipeline — same mapping step, same dedup strategy, same per-row error
+    report, same audit trail. A second import path would be a second set of rules to keep in step,
+    and the one that drifted would be the one nobody was watching.
+
+    Requires `contacts:import`, the same permission as uploading a file, because it is the same
+    act: choosing which rows become customers.
+    """
+    staged = await GoogleSheetImportService(session).stage(
+        organization_id=actor.organization_id,
+        actor=actor,
+        spreadsheet_id=payload.spreadsheet_id,
+        tab=payload.tab,
+    )
+    return GoogleSheetStageResponse(
+        upload_id=uuidlib.UUID(staged.asset.public_id),
+        rows=staged.row_count,
+        columns=staged.column_count,
+    )
+
+
 @router.post(
     "/contacts/import/inspect",
     response_model=ImportInspectResponse,
@@ -431,6 +559,7 @@ async def start_export(
         file_format=payload.format,
         match_type=payload.match_type,
         rules=[r.model_dump() for r in payload.rules],
+        spreadsheet_id=payload.spreadsheet_id,
         dispatch=lambda export_id, task_id: run_contact_export.apply_async(
             args=[export_id], task_id=task_id
         ),
@@ -562,3 +691,44 @@ async def bulk_progress(
     service = BulkService(session)
     job = await service.get(actor.organization_id, bulk_id)
     return BulkProgressResponse.from_job(job, await service.error_report_url(job))
+
+
+class CsvAudienceRow(BaseModel):
+    phone: str = Field(min_length=1, max_length=40)
+    name: str | None = Field(default=None, max_length=160)
+
+
+class CsvAudienceRequest(BaseModel):
+    rows: list[CsvAudienceRow] = Field(min_length=1, max_length=MAX_CSV_ROWS)
+
+
+class CsvAudienceResponse(BaseModel):
+    contact_ids: list[str]
+    created: int
+    existing: int
+    invalid_rows: list[int]
+
+
+@router.post(
+    "/contacts/resolve-numbers",
+    response_model=CsvAudienceResponse,
+    summary="Turn uploaded numbers into contacts for a CSV broadcast",
+)
+async def resolve_numbers(
+    payload: CsvAudienceRequest, session: SessionDep, actor: ContactsWriteActor
+) -> CsvAudienceResponse:
+    """Find or create a contact for each number (10 digits = India); returns their ids in order.
+
+    The broadcast itself is then an ordinary campaign with a "Selected contacts" audience.
+    """
+    result = await CsvAudienceService(session).resolve(
+        organization_id=actor.organization_id,
+        actor=actor,
+        rows=[(row.phone, row.name) for row in payload.rows],
+    )
+    return CsvAudienceResponse(
+        contact_ids=result.contact_ids,
+        created=result.created,
+        existing=result.existing,
+        invalid_rows=result.invalid_rows,
+    )

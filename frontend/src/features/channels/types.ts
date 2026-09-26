@@ -11,6 +11,33 @@ export type PhoneNumberList = components["schemas"]["PhoneNumbersListResponse"];
 export type PhoneNumberUpdateRequest = components["schemas"]["PhoneNumberUpdateRequest"];
 export type PhoneNumberHealth = components["schemas"]["PhoneNumberHealthResponse"];
 
+export type BusinessProfile = components["schemas"]["BusinessProfileResponse"];
+export type BusinessProfileUpdateRequest = components["schemas"]["BusinessProfileUpdateRequest"];
+export type BusinessVertical = NonNullable<BusinessProfileUpdateRequest["vertical"]>;
+
+/** Meta's business categories, in words an operator recognises. */
+export const VERTICAL_LABELS: Record<BusinessVertical, string> = {
+  UNDEFINED: "Not set",
+  OTHER: "Other",
+  AUTO: "Automotive",
+  BEAUTY: "Beauty, Spa and Salon",
+  APPAREL: "Clothing and Apparel",
+  EDU: "Education",
+  ENTERTAIN: "Entertainment",
+  EVENT_PLAN: "Event Planning and Service",
+  FINANCE: "Finance and Banking",
+  GROCERY: "Food and Grocery",
+  GOVT: "Public Service",
+  HOTEL: "Hotel and Lodging",
+  HEALTH: "Medical and Health",
+  NONPROFIT: "Non-profit",
+  PROF_SERVICES: "Professional Services",
+  RETAIL: "Shopping and Retail",
+  TRAVEL: "Travel and Transportation",
+  RESTAURANT: "Restaurant",
+  NOT_A_BIZ: "Not a business",
+};
+
 export type JobAccepted = components["schemas"]["JobAcceptedResponse"];
 
 /**
@@ -37,13 +64,16 @@ export const WABA_STATUS_EXPLANATIONS: Record<string, string> = {
   disabled: "Switched off. Nothing sends, and it stays that way until it is re-enabled.",
 };
 
-/** Meta's quality buckets for a number (`ck_phone_quality`). Upper case on the wire. */
-export const QUALITY_RATINGS = ["GREEN", "YELLOW", "RED"];
+/** Meta's quality buckets for a number (`ck_phone_quality`). Upper case on the wire. UNKNOWN is
+ *  Meta's own value for a number with no messaging history yet to score — the normal state right
+ *  after a number is added, not an error case a shorter list could pretend does not happen. */
+export const QUALITY_RATINGS = ["GREEN", "YELLOW", "RED", "UNKNOWN"];
 
 export const QUALITY_EXPLANATIONS: Record<string, string> = {
   GREEN: "High quality. No delivery restrictions from Meta.",
   YELLOW: "Quality has dipped. Meta is watching this number — reduce low-value sends.",
   RED: "Low quality. Meta may restrict or downgrade this number's messaging limit.",
+  UNKNOWN: "Meta has not scored this number yet — it needs more messaging history first.",
 };
 
 /**
@@ -53,6 +83,10 @@ export const QUALITY_EXPLANATIONS: Record<string, string> = {
  * numbers actually loaded rather than from a list that would go stale.
  */
 export const NUMBER_STATUS_CONNECTED = "connected";
+
+export function isNumberConnected(number: PhoneNumber): boolean {
+  return number.status.toLowerCase() === NUMBER_STATUS_CONNECTED;
+}
 
 /**
  * Whether a token exists and is still in date.
@@ -96,7 +130,7 @@ export function isReactivatable(waba: Waba): boolean {
 
 /** A number is usable when it is connected and Meta has not marked it red. */
 export function isNumberHealthy(number: PhoneNumber): boolean {
-  return number.status === NUMBER_STATUS_CONNECTED && number.quality_rating !== "RED";
+  return isNumberConnected(number) && number.quality_rating !== "RED";
 }
 
 // --- List queries (client-side; see `api.ts` for why) --------------------------------------------

@@ -330,6 +330,18 @@ describe("WhatsAppOverview", () => {
     });
   });
 
+  it("treats a not-yet-scored number as ready, not degraded (0070)", () => {
+    // Meta reports UNKNOWN for a number with no messaging history yet to score -- the normal
+    // state right after a number is added, which is exactly when an operator is looking at this
+    // screen. It must read as "still counting", never alongside RED's "something is wrong".
+    expect(
+      buildWhatsAppOverview([wabaFixture()], [numberFixture({ quality_rating: "UNKNOWN" })]),
+    ).toMatchObject({
+      channelReady: true,
+      qualityLabel: "Scoring",
+    });
+  });
+
   it("renders real channel identity, quality and capacity with governed routes", async () => {
     responses["/api/v1/waba"] = { data: [wabaFixture()] };
     responses["/api/v1/phone-numbers"] = { data: [numberFixture({ is_default: true })] };

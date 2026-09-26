@@ -466,6 +466,18 @@ async def test_preview_renders_with_sample_values(client, make_user, meta) -> No
         "header": "Order #1234",
         "body": "Hi Priya, your order #1234 is shipped.",
         "footer": "",
+        # A fixed-destination button still appears: what the customer sees is the whole message,
+        # and a button is part of it whether or not the send supplies anything for it.
+        "buttons": [
+            {
+                "index": 0,
+                "type": "url",
+                "text": "Track",
+                "target": "https://vi.co/t",
+                "takes_value": False,
+            }
+        ],
+        "expects": {"header": 1, "body": 3, "buttons": 0},
     }
 
 
@@ -682,3 +694,130 @@ def test_template_sync_task_is_bound_to_the_sync_lane() -> None:
     import app.channels.tasks as tasks
 
     assert tasks.run_template_sync.queue_name == "templates.sync"
+
+
+# --- TMPL-02: the preview a mass send is checked against -----------------------------------------
+#: A reactivation template as the Vi desk would actually build one: the offer link carries the
+#: variable, which is the case no screen could show before.
+LINK_BUTTONS = {
+    "type": "buttons",
+    "buttons": [
+        {"type": "url", "text": "Recharge now", "url": "https://vi.co/pay/{{1}}"},
+        {"type": "phone_number", "text": "Talk to us", "phone_number": "+911234567890"},
+        {"type": "quick_reply", "text": "Not interested"},
+    ],
+}
+
+
+async def test_a_link_button_shows_where_it_will_actually_send_the_customer(
+    client, make_user, meta
+) -> None:
+    """The variable in a URL button appears on no other screen.
+
+    A button's label is readable from the template list; its destination is not, and a URL button
+    carries its variable inside the link. So a variable mapped to the wrong column produced a
+    broken link that nothing revealed until a customer tapped it — by which time the same link had
+    gone to everyone in the campaign.
+    """
+    headers = await _owner(client, make_user)
+    waba_id = await _waba(client, headers)
+    created = (
+        await client.post(
+            TEMPLATES_URL,
+            headers=headers,
+            json=_payload(waba_id, components=[BODY, LINK_BUTTONS]),
+        )
+    ).json()
+
+    resp = await client.get(
+        f"{TEMPLATES_URL}/{created['id']}/preview?body=Priya&body=%231234&body=due&button=TXN9931",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    buttons = resp.json()["buttons"]
+    assert buttons[0]["target"] == "https://vi.co/pay/TXN9931"
+    assert buttons[0]["takes_value"] is True
+    # A fixed destination is shown as it is, and consumes none of the supplied values.
+    assert buttons[1]["target"] == "+911234567890"
+    assert buttons[1]["takes_value"] is False
+    # A quick reply has no destination: the tap sends the label back.
+    assert buttons[2]["target"] == ""
+
+
+async def test_a_fixed_button_between_two_variable_ones_does_not_shift_the_values(
+    client, make_user, meta
+) -> None:
+    """The operator's second value belongs to the second *link*, not the second button."""
+    headers = await _owner(client, make_user)
+    waba_id = await _waba(client, headers)
+    components = [
+        BODY,
+        {
+            "type": "buttons",
+            "buttons": [
+                {"type": "url", "text": "Pay", "url": "https://vi.co/pay/{{1}}"},
+                {"type": "phone_number", "text": "Call", "phone_number": "+911111111111"},
+                {"type": "url", "text": "Offer", "url": "https://vi.co/offer/{{1}}"},
+            ],
+        },
+    ]
+    created = (
+        await client.post(
+            TEMPLATES_URL, headers=headers, json=_payload(waba_id, components=components)
+        )
+    ).json()
+
+    resp = await client.get(
+        f"{TEMPLATES_URL}/{created['id']}/preview?button=PAY1&button=OFF2", headers=headers
+    )
+
+    targets = [button["target"] for button in resp.json()["buttons"]]
+    assert targets == ["https://vi.co/pay/PAY1", "+911111111111", "https://vi.co/offer/OFF2"]
+
+
+async def test_a_value_nobody_supplied_stays_visible_as_a_placeholder(
+    client, make_user, meta
+) -> None:
+    """A preview must not invent a value — including inside a link.
+
+    Substituting a blank string would render a plausible-looking URL that goes somewhere wrong. The
+    unfilled `{{1}}` is the honest output, and it is what tells an operator the mapping is short.
+    """
+    headers = await _owner(client, make_user)
+    waba_id = await _waba(client, headers)
+    created = (
+        await client.post(
+            TEMPLATES_URL,
+            headers=headers,
+            json=_payload(waba_id, components=[BODY, LINK_BUTTONS]),
+        )
+    ).json()
+
+    resp = await client.get(f"{TEMPLATES_URL}/{created['id']}/preview", headers=headers)
+
+    body = resp.json()
+    assert body["buttons"][0]["target"] == "https://vi.co/pay/{{1}}"
+    assert body["body"] == "Hi {{1}}, your order {{2}} is {{3}}."
+
+
+async def test_the_preview_says_how_many_values_it_wants(client, make_user, meta) -> None:
+    """So the screen offers exactly that many boxes rather than counting placeholders itself.
+
+    Counting them in the browser would be a second implementation of Meta's numbering rules, and
+    the one that drifted would be the one never compared against a send.
+    """
+    headers = await _owner(client, make_user)
+    waba_id = await _waba(client, headers)
+    created = (
+        await client.post(
+            TEMPLATES_URL,
+            headers=headers,
+            json=_payload(waba_id, components=[HEADER, BODY, LINK_BUTTONS]),
+        )
+    ).json()
+
+    resp = await client.get(f"{TEMPLATES_URL}/{created['id']}/preview", headers=headers)
+
+    # Header {{1}}; body {{1}}{{2}}{{3}}; one of the three buttons carries a variable.
+    assert resp.json()["expects"] == {"header": 1, "body": 3, "buttons": 1}

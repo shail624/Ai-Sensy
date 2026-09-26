@@ -42,9 +42,9 @@ export function DocumentCenter(): JSX.Element {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
-        <DocumentCapability icon={ShieldCheck} title="Governed storage" text="Files are scanned, deduplicated, tenant-isolated, and available only through expiring signed links." />
+        <DocumentCapability icon={ShieldCheck} title="Safe storage" text="Every file is virus-checked, kept only for your company, and opened through a link that expires." />
         <DocumentCapability icon={FileCheck2} title="Human verification" text="Reviewers verify, reject with a reason, and handle expiry through explicit controlled transitions." />
-        <DocumentCapability icon={History} title="Immutable lineage" text="Every file version and decision remains attributable in document history and Customer 360." />
+        <DocumentCapability icon={History} title="Full history" text="Every version of a file, and who approved or rejected it, stays in the customer's history." />
       </div>
 
       <Card className="overflow-hidden" padding={false}>

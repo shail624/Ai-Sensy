@@ -1,6 +1,9 @@
-import { Check, Clock3, MessageCircle, Pin, PinOff } from "lucide-react";
+import { Check, Clock3, Pin, PinOff } from "lucide-react";
 
 import { TagChip } from "@/components/ui";
+import { ChannelBadge } from "@/features/inbox/ChannelBadge";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
+import { saleStatusOption } from "@/features/inbox/saleStatus";
 import type { Conversation, ConversationStatus } from "@/features/inbox/types";
 import { STATUS_LABELS } from "@/features/inbox/types";
 
@@ -18,14 +21,6 @@ function displayName(conversation: Conversation): string {
   return conversation.contact?.name ?? conversation.contact?.phone ?? "Unknown contact";
 }
 
-function initials(conversation: Conversation): string {
-  return displayName(conversation)
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
 
 function responseSignal(conversation: Conversation): { label: string; className: string } | null {
   if (conversation.unread_count === 0 || !conversation.last_message_at) return null;
@@ -57,21 +52,22 @@ export function ConversationList({
 }: Props): JSX.Element {
   const ordered = [...conversations].sort((left, right) => Number(pinnedIds.includes(right.id)) - Number(pinnedIds.includes(left.id)));
   return (
-    <ul className="divide-y divide-border" aria-label="Conversations">
+    <ul aria-label="Conversations">
       {ordered.map((conversation) => {
         const selected = conversation.id === selectedId;
         const checked = selection.includes(conversation.id);
         const pinned = pinnedIds.includes(conversation.id);
         const signal = responseSignal(conversation);
+        const status = STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status;
         return (
-          <li key={conversation.id} className="group relative">
+          <li key={conversation.id} className="group relative border-b border-[#f2f2f2] dark:border-border">
             <button
               type="button"
               role="checkbox"
               aria-label={`${checked ? "Remove" : "Add"} ${displayName(conversation)} ${checked ? "from" : "to"} bulk selection`}
               aria-checked={checked}
               onClick={() => onToggleSelection(conversation.id)}
-              className={`absolute left-2 top-3 z-10 flex h-5 w-5 items-center justify-center rounded border transition-opacity ${checked ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface text-transparent opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
+              className={`absolute left-2 top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded border transition-opacity ${checked ? "border-accent bg-accent text-accent-fg opacity-100" : "border-border bg-surface text-transparent opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
             >
               <Check aria-hidden className="h-3 w-3" />
             </button>
@@ -79,46 +75,57 @@ export function ConversationList({
               type="button"
               onClick={() => onSelect(conversation.id)}
               aria-current={selected ? "true" : undefined}
-              className={`w-full py-3 pl-9 pr-9 text-left transition-colors hover:bg-hover ${selected ? "bg-surface-2" : ""}`}
+              className={`flex h-[60px] w-full items-center gap-2 pl-2 pr-3 text-left transition-colors duration-150 ${selected ? "bg-[#ebf5f3] dark:bg-accent-soft" : "hover:bg-black/[0.03] dark:hover:bg-hover"}`}
             >
-              <div className="flex gap-2.5">
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${selected ? "bg-accent text-accent-fg" : "bg-accent-soft text-accent"}`}>
-                  {initials(conversation)}
+              <span className={`relative shrink-0 transition-opacity ${checked ? "opacity-0" : "group-hover:opacity-0"}`}>
+                <CustomerAvatar conversation={conversation} className="h-10 w-10 bg-[#f5efdf] text-xl text-black dark:bg-surface-2 dark:text-text-primary" />
+                {conversation.window.is_open ? (
+                  <span title="WhatsApp service window is open" className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#28c152] ring-2 ring-[#fdfbf7] dark:ring-surface">
+                    <span className="sr-only">Window open</span>
+                  </span>
+                ) : null}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-sm text-black dark:text-text-primary">{displayName(conversation)}</span>
+                  {conversation.contact?.name && conversation.contact.phone && conversation.contact.name !== conversation.contact.phone ? (
+                    <span className="shrink-0 text-[13px] text-[#6e6e6e] dark:text-text-secondary">{conversation.contact.phone}</span>
+                  ) : null}
+                  <ChannelBadge conversation={conversation} />
+                  <span className="sr-only">{status}</span>
+                  {conversation.tags.slice(0, 1).map((tag) => <TagChip key={tag.id} name={tag.name} color={tag.color} />)}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-text-primary">{displayName(conversation)}</span>
-                    <span className="shrink-0 text-[11px] text-text-disabled">{relativeTime(conversation.last_message_at)}</span>
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-text-secondary">{conversation.last_message_preview ?? "No messages yet"}</p>
-                  <div className="mt-2 flex min-h-5 items-center gap-1.5 overflow-hidden">
-                    <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-text-disabled">
-                      <span className={`h-1.5 w-1.5 rounded-full ${conversation.status === "open" ? "bg-success" : "bg-text-disabled"}`} />
-                      {STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status}
+                <span className="mt-px flex min-w-0 items-center gap-1.5">
+                  {saleStatusOption(conversation.contact?.sale_status) ? (
+                    <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-semibold ${saleStatusOption(conversation.contact?.sale_status)!.pill}`}>
+                      {saleStatusOption(conversation.contact?.sale_status)!.label}
                     </span>
-                    {conversation.window.is_open ? (
-                      <span title="WhatsApp service window is open" className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-success">
-                        <MessageCircle aria-hidden className="h-3 w-3" /> Window open
-                      </span>
-                    ) : null}
-                    {signal ? (
-                      <span title="Response indicator derived from unread wait time; not a server policy" className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${signal.className}`}>
-                        <Clock3 aria-hidden className="h-3 w-3" /> {signal.label}
-                      </span>
-                    ) : null}
-                    {conversation.tags.slice(0, 1).map((tag) => <TagChip key={tag.id} name={tag.name} color={tag.color} />)}
-                    {conversation.tags.length > 1 ? <span className="shrink-0 text-[10px] font-semibold text-text-disabled">+{conversation.tags.length - 1}</span> : null}
-                    {conversation.unread_count > 0 ? <span className="ml-auto shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-fg">{conversation.unread_count}</span> : null}
-                  </div>
-                </div>
-              </div>
+                  ) : null}
+                  <span className="truncate text-xs font-semibold text-[#808080] dark:text-text-secondary">
+                    {conversation.last_message_preview ?? "No messages yet"}
+                  </span>
+                </span>
+              </span>
+              <span className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-[10px] text-[#808080]">{relativeTime(conversation.last_message_at)}</span>
+                {signal ? (
+                  <span title="How long this customer has been waiting for a reply" className={`inline-flex items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold ${signal.className}`}>
+                    <Clock3 aria-hidden className="h-3 w-3" /> {signal.label}
+                  </span>
+                ) : null}
+              </span>
+              {conversation.unread_count > 0 ? (
+                <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-nav-bg)] px-1 text-xs text-white">
+                  {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
+                </span>
+              ) : null}
             </button>
             <button
               type="button"
               aria-label={pinned ? "Unpin conversation" : "Pin conversation"}
               aria-pressed={pinned}
               onClick={() => onTogglePinned(conversation.id)}
-              className={`absolute right-2 top-8 rounded-md p-1.5 transition-opacity hover:bg-hover focus:opacity-100 ${pinned ? "text-accent" : "text-text-disabled opacity-0 group-hover:opacity-100"}`}
+              className={`absolute right-11 top-1 rounded-md p-1 transition-opacity hover:bg-hover focus:opacity-100 ${pinned ? "text-accent" : "text-text-disabled opacity-0 group-hover:opacity-100"}`}
             >
               {pinned ? <PinOff aria-hidden className="h-3.5 w-3.5" /> : <Pin aria-hidden className="h-3.5 w-3.5" />}
             </button>

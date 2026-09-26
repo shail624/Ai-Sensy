@@ -7,6 +7,7 @@ import {
   mappingIsValid,
   parseCsv,
   readPreview,
+  sheetIdFrom,
   toRequestMapping,
 } from "@/features/contacts/importFile";
 import type { AttributeDefinition } from "@/features/contacts/types";
@@ -133,5 +134,27 @@ describe("formatBytes", () => {
     expect(formatBytes(512)).toBe("512 B");
     expect(formatBytes(2048)).toBe("2 KB");
     expect(formatBytes(3 * 1024 * 1024)).toBe("3.0 MB");
+  });
+});
+
+describe("sheetIdFrom", () => {
+  it("pulls the id out of a pasted sheet link", () => {
+    expect(
+      sheetIdFrom("https://docs.google.com/spreadsheets/d/1lLjGMP1rQQCzpNX2n/edit?pli=1#gid=617"),
+    ).toBe("1lLjGMP1rQQCzpNX2n");
+  });
+
+  it("accepts a bare id", () => {
+    expect(sheetIdFrom("  1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh  ")).toBe(
+      "1lLjGMP1rQQCzpNX2nAFFFrmqEeUsMnh",
+    );
+  });
+
+  it("refuses anything that is not an id, rather than passing it to Google", () => {
+    // Sending a mangled paste on would surface as Google's "not found", which sends the operator
+    // looking at sharing settings instead of at what they pasted.
+    for (const input of ["", "   ", "my sheet", "sheet/1lLjGMP", "short"]) {
+      expect(sheetIdFrom(input)).toBeNull();
+    }
   });
 });

@@ -19,6 +19,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from kombu.exceptions import OperationalError as BrokerOperationalError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
@@ -39,6 +41,7 @@ from app.models.webhook import (
     WebhookEvent,
 )
 from app.queue.retry import FailureClass, register_error_map
+from app.repositories.channel_connection import ChannelEndpointRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.repositories.webhook import WebhookDeadLetterRepository, WebhookEventRepository
 from app.services.audit_service import AuditAction, AuditService
@@ -57,6 +60,11 @@ INBOUND_TASK = "app.channels.tasks.process_inbound_message"
 
 #: Event types this module knows how to complete. Anything else is isolated (Doc 06 §11.6).
 _ROUTABLE = (InboundEventType.MESSAGES.value, InboundEventType.STATUSES.value)
+#: Attempts before a QR-endpoint receipt with no matching stored message is treated as another
+#: sender's (the phone app's) rather than a race with our own send.
+_UNMATCHED_RECEIPT_ATTEMPTS = 3
+# Warn when provider-to-ingress delay, not inbox processing, dominates the customer wait.
+_INBOUND_PROVIDER_DELAY_WARNING_SECONDS = 30
 
 
 class WebhookUnprocessable(Exception):
@@ -67,10 +75,24 @@ class WebhookUnprocessable(Exception):
     """
 
 
+def _is_duplicate_key(exc: IntegrityError) -> bool:
+    args: tuple[object, ...] = getattr(exc.orig, "args", ())
+    return len(args) > 0 and args[0] == 1062
+
+
 def _classify_webhook(exc: BaseException) -> FailureClass | None:
     """Register the classes this module owns with the retry engine (Doc 06 §6.6, D12)."""
     if isinstance(exc, WebhookUnprocessable | LedgerError):
         return FailureClass.TERMINAL_DATA
+    if isinstance(exc, BrokerOperationalError):
+        # Publishing the next lane failed. The event remains received and must be retried,
+        # never dead-lettered as an unknown data error while the broker is unavailable.
+        return FailureClass.TRANSIENT_PROC
+    if isinstance(exc, IntegrityError) and _is_duplicate_key(exc):
+        # Two deliveries of one provider message (WAHA sends `message` and `message.any`) can race
+        # to create the same new Contact or thread. The loser retries, finds the winner's rows, and
+        # the message-level check under the conversation lock stops a second copy.
+        return FailureClass.TRANSIENT_PROC
     if isinstance(exc, MessageNotFound):
         # A race with the send that created the message; a moment's backoff resolves it, and an
         # exhausted one dead-letters rather than vanishing (Doc 06 §11.3/§11.5).
@@ -97,7 +119,18 @@ class WebhookService:
         self._events = WebhookEventRepository(session)
         self._dlq = WebhookDeadLetterRepository(session)
         self._numbers = PhoneNumberRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
         self._audit = AuditService(session)
+
+    @property
+    def _endpoint_routed(self) -> bool:
+        """Whether this connector routes by ``channel_endpoints`` rather than ``phone_numbers``.
+
+        Meta is the one connector with a ``phone_numbers`` provisioning record (ADR-0020); every
+        other connector — WAHA today — is provisioned through the provider-neutral control plane
+        instead (QR-08), so it routes by ``channel_endpoint_id``.
+        """
+        return self._connector_type != CONNECTOR_META_CLOUD
 
     def adapter(self) -> ChannelAdapter:
         """The inbound adapter — no per-WABA credentials: a delivery is verified app-wide."""
@@ -131,14 +164,24 @@ class WebhookService:
             raise ForbiddenError("Invalid webhook signature.")
 
         events, unreadable = self._read(adapter, body)
-        routing = await self._events.resolve_numbers(
-            {event.channel_number_id for event in events if event.channel_number_id}
-        )
+        channel_number_ids = {
+            event.channel_number_id for event in events if event.channel_number_id
+        }
+        if self._endpoint_routed:
+            endpoint_routing = await self._events.resolve_endpoints(
+                channel_number_ids, connector_type=self._connector_type
+            )
+            number_routing: dict[str, int] = {}
+        else:
+            endpoint_routing = {}
+            number_routing = await self._events.resolve_numbers(channel_number_ids)
+        routing = endpoint_routing | number_routing
 
         rows = [
             WebhookEvent(
                 event_id=(event.event_id or None) and event.event_id[:128],
-                phone_number_id=routing.get(event.channel_number_id),
+                phone_number_id=number_routing.get(event.channel_number_id),
+                channel_endpoint_id=endpoint_routing.get(event.channel_number_id),
                 object_type=event.type.value,
                 signature_ok=True,
                 payload_json=event.payload,
@@ -155,6 +198,18 @@ class WebhookService:
             "webhook_ingested",
             extra={"events": len(rows), "unreadable": unreadable, "routed": len(routing)},
         )
+        now = utcnow()
+        for event in events:
+            if event.type != InboundEventType.MESSAGES or event.occurred_at is None:
+                continue
+            delay_seconds = (now - event.occurred_at).total_seconds()
+            if delay_seconds >= _INBOUND_PROVIDER_DELAY_WARNING_SECONDS:
+                # No customer identifier or message body in operational logs. This identifies
+                # upstream lateness only; it cannot recover a webhook Meta never delivers.
+                logger.warning(
+                    "webhook_provider_delivery_delayed",
+                    extra={"delay_seconds": round(delay_seconds), "connector_type": self._connector_type},
+                )
         return [row.id for row in rows]
 
     def _read(self, adapter: ChannelAdapter, body: bytes) -> tuple[list[InboundEvent], bool]:
@@ -183,7 +238,9 @@ class WebhookService:
             ], True
 
     # --- Process (Doc 06 §11.2 step 4) --------------------------------------
-    async def process(self, event_pk: int, *, dispatch_inbound: Callable[[int], Any]) -> dict[str, Any]:
+    async def process(
+        self, event_pk: int, *, dispatch_inbound: Callable[[int], Any]
+    ) -> dict[str, Any]:
         """Apply one persisted event, idempotently (FR-WA-07).
 
         Doc 06 §2.3 splits the work by cost: this lane **applies status callbacks** — a cheap
@@ -206,10 +263,36 @@ class WebhookService:
         row.attempts += 1
         await self._session.commit()
 
+        if row.object_type == InboundEventType.ECHOES.value and row.channel_endpoint_id is not None:
+            # A message the QR-connected phone sent: routed like an inbound message, where the
+            # message lane stores it unless it is one of ours (UI-AIS-09).
+            dispatch_inbound(row.id)
+            row.status = WH_PROCESSED
+            row.processed_at = utcnow()
+            await self._session.commit()
+            return {
+                "status": WH_PROCESSED,
+                "event_pk": event_pk,
+                "object_type": row.object_type,
+                "outcome": "routed",
+            }
+        if row.object_type == InboundEventType.ECHOES.value:
+            # Understood, deliberately not applied (see `InboundEventType.ECHOES`).
+            row.status = WH_PROCESSED
+            row.processed_at = utcnow()
+            await self._session.commit()
+            return {
+                "status": WH_PROCESSED,
+                "event_pk": event_pk,
+                "object_type": row.object_type,
+                "outcome": "echo",
+            }
         if row.object_type not in _ROUTABLE:
             raise WebhookUnprocessable(f"unknown event type {row.object_type!r}")
-        if row.phone_number_id is None:
-            raise WebhookUnprocessable("event is for a phone number this platform does not own")
+        if row.phone_number_id is None and row.channel_endpoint_id is None:
+            raise WebhookUnprocessable(
+                "event is for a number or channel endpoint this platform does not own"
+            )
         if row.event_id and await self._events.has_processed_sibling(
             row.event_id, exclude_id=row.id
         ):
@@ -220,25 +303,72 @@ class WebhookService:
 
         outcome = None
         if row.object_type == InboundEventType.STATUSES.value:
-            service = MessageService(self._session, connector_type=self._connector_type)
+            # The request-scoped connector has gone by the time this worker runs. Persisted event
+            # ownership is authoritative: endpoint -> connection -> connector for provider-neutral
+            # events, while phone-number ownership remains the Meta path.
+            connector_type = await self._persisted_connector_type(row)
+            service = MessageService(self._session, connector_type=connector_type)
             # One transaction for the applied status *and* the event that carried it: settling the
-            # event while the transition it describes rolled back would be a durable lie.
-            outcome = await service.apply_status(service.to_status_update(row.payload_json))
+            # event while the transition it describes rolled back would be a durable lie. Exactly
+            # one of `phone_number_id`/`channel_endpoint_id` is set (guaranteed non-None above); it
+            # scopes the reconciliation to the endpoint the callback arrived on (ADR-0020 provider
+            # message identity).
+            try:
+                outcome = await service.apply_status(
+                    service.to_status_update(row.payload_json),
+                    phone_number_id=row.phone_number_id,
+                    channel_endpoint_id=row.channel_endpoint_id,
+                )
+            except MessageNotFound:
+                # On a QR endpoint the account's own phone also sends, and its receipts arrive here
+                # for messages this platform never stored. A few retries cover the real race with
+                # our own send committing; past that the receipt is someone else's — settle it
+                # rather than filling the dead-letter store. Meta numbers keep the strict path.
+                if row.channel_endpoint_id is None or row.attempts < _UNMATCHED_RECEIPT_ATTEMPTS:
+                    raise
+                await self._session.rollback()
+                row = await self._events.get_by_id(event_pk)
+                assert row is not None
+                row.status = WH_PROCESSED
+                row.processed_at = utcnow()
+                await self._session.commit()
+                return {
+                    "status": WH_PROCESSED,
+                    "event_pk": event_pk,
+                    "object_type": row.object_type,
+                    "outcome": "unmatched_receipt",
+                }
 
+        if row.object_type == InboundEventType.MESSAGES.value:
+            # The row was committed at ingest. Publish before settling it: if the broker
+            # refuses this task, a retry must still see a received event. A crash after
+            # publish may enqueue twice, which the inbound message ledger deduplicates.
+            dispatch_inbound(row.id)
+            outcome = "routed"
         row.status = WH_PROCESSED
         row.processed_at = utcnow()
         await self._session.commit()
-
-        if row.object_type == InboundEventType.MESSAGES.value:
-            # After the commit, never before: the task must not outrun the row it reads.
-            dispatch_inbound(row.id)
-            outcome = "routed"
         return {
             "status": WH_PROCESSED,
             "event_pk": event_pk,
             "object_type": row.object_type,
             "outcome": outcome,
         }
+
+    async def _persisted_connector_type(self, row: WebhookEvent) -> str:
+        if (row.phone_number_id is None) == (row.channel_endpoint_id is None):
+            raise WebhookUnprocessable(
+                "event must be owned by exactly one phone number or channel endpoint"
+            )
+        if row.phone_number_id is not None:
+            return CONNECTOR_META_CLOUD
+        assert row.channel_endpoint_id is not None
+        connector_type = await self._endpoints.connector_type_for_id(row.channel_endpoint_id)
+        if connector_type is None:
+            raise WebhookUnprocessable(
+                f"channel endpoint {row.channel_endpoint_id} has no owning connection"
+            )
+        return connector_type
 
     # --- Dead letter (Doc 03 §9.4; Doc 06 §11.5/§11.6) ----------------------
     async def dead_letter(self, event_pk: int, *, error: str) -> WebhookDeadLetter:

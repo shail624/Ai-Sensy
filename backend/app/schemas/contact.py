@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
-from typing import Any
+import uuid as uuidlib
+from datetime import date, datetime
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
 
 from app.api.pagination import Page
 from app.models.contact import OPT_IN_STATUSES, Contact
+from app.models.reactivation_view import WorkspaceView
 from app.schemas.attribute import attributes_map
 from app.schemas.tag import TagSummary
 
@@ -50,6 +52,10 @@ class ContactResponse(BaseModel):
     last_outbound_at: datetime | None
     last_contacted_at: datetime | None
     source: str | None
+    #: Where the sale stands (``SALE_STATUSES``), set from Live Chat; ``null`` when not marked.
+    sale_status: str | None = None
+    #: The customer's number release date, when one is recorded.
+    release_date: date | None = None
     tags: list[TagSummary]
     attributes: dict[str, Any]
     created_at: datetime
@@ -79,6 +85,8 @@ class ContactResponse(BaseModel):
             last_outbound_at=contact.last_outbound_at,
             last_contacted_at=contact.last_contacted_at,
             source=contact.source,
+            sale_status=contact.sale_status,
+            release_date=contact.release_date,
             created_at=contact.created_at,
             updated_at=contact.updated_at,
             row_version=contact.row_version,
@@ -88,6 +96,78 @@ class ContactResponse(BaseModel):
 class ContactsPage(BaseModel):
     data: list[ContactResponse]
     page: Page
+
+
+ContactViewVisibility = Literal["private", "shared"]
+ContactViewAttributeKey = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=60,
+        pattern=r"^[A-Za-z][A-Za-z0-9_]*$",
+    ),
+]
+ContactViewAttributeValue = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=160),
+]
+
+
+class ContactViewFilters(BaseModel):
+    """Portable Contacts filters; cursor position is intentionally never persisted."""
+
+    q: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
+        | None
+    ) = None
+    tag_id: uuidlib.UUID | None = None
+    attributes: dict[ContactViewAttributeKey, ContactViewAttributeValue] = Field(
+        default_factory=dict,
+        max_length=25,
+    )
+
+
+class ContactViewCreate(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    visibility: ContactViewVisibility = "private"
+    display: Literal["list"] = "list"
+    filters: ContactViewFilters
+
+
+class ContactViewResponse(BaseModel):
+    id: uuidlib.UUID
+    name: str
+    visibility: ContactViewVisibility
+    display: Literal["list"]
+    filters: ContactViewFilters
+    is_owner: bool
+    can_delete: bool
+    created_at: datetime
+
+    @classmethod
+    def from_view(
+        cls,
+        row: WorkspaceView,
+        *,
+        actor_user_id: int,
+        can_manage_shared: bool,
+    ) -> ContactViewResponse:
+        is_owner = row.created_by_user_id == actor_user_id
+        return cls(
+            id=uuidlib.UUID(row.public_id),
+            name=row.name,
+            visibility=row.visibility,
+            display="list",
+            filters=ContactViewFilters.model_validate(row.filters_json),
+            is_owner=is_owner,
+            can_delete=is_owner if row.visibility == "private" else can_manage_shared,
+            created_at=row.created_at,
+        )
+
+
+class ContactViewsResponse(BaseModel):
+    data: list[ContactViewResponse]
 
 
 class ContactCreateRequest(BaseModel):

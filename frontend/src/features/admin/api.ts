@@ -237,12 +237,19 @@ export interface RotateResult {
 }
 
 /**
- * Rotate a key: issue a replacement, then revoke the original.
+ * Planned rotation: issue a replacement key, then revoke the original.
  *
- * There is no rotate endpoint, and composing it in this order is the point — the new secret exists
- * before the old one stops working, so an integration can be updated without a window in which
- * neither key is valid. If the revoke fails, the caller is told: two live keys is a state an
- * operator must know about, not one to paper over.
+ * Composing it in this order is the point — the new secret exists before the old one stops
+ * working, so an integration can be updated without a window in which neither key is valid. If
+ * the revoke fails, the caller is told: two live keys is a state an operator must know about, not
+ * one to paper over.
+ *
+ * `POST /api-keys/{id}/rotate` now exists and does the opposite trade: one atomic swap that keeps
+ * the key's identity, name, scopes and audit history, at the cost of cutting the old secret off
+ * immediately. That is the right shape for a *leaked* key, where instant cutover is the objective
+ * rather than the drawback, and it is the one this path cannot express. Which of the two an
+ * operator should get, and whether both belong in the UI, is an open product decision — this
+ * planned path is deliberately unchanged until it is made.
  */
 export function useRotateApiKey() {
   const queryClient = useQueryClient();

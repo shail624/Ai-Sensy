@@ -16,6 +16,7 @@ import { CampaignActions } from "@/features/campaigns/CampaignActions";
 import { AudienceChip, CampaignStatusChip } from "@/features/campaigns/CampaignBadges";
 import { CampaignPreviewPanel } from "@/features/campaigns/CampaignPreviewPanel";
 import { CampaignRecipients } from "@/features/campaigns/CampaignRecipients";
+import { CampaignResultsExportDialog } from "@/features/campaigns/CampaignResultsExportDialog";
 import { CampaignScheduleDialog } from "@/features/campaigns/CampaignScheduleDialog";
 import { CampaignStats } from "@/features/campaigns/CampaignStats";
 import { CampaignTimeline } from "@/features/campaigns/CampaignTimeline";
@@ -41,6 +42,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }): JSX.Elem
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("overview");
   const [scheduling, setScheduling] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const campaign = useCampaign(campaignId);
   // A finished campaign's numbers never change again, so it is read once rather than polled.
@@ -82,6 +84,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }): JSX.Elem
             campaign={data}
             onDeleted={() => navigate("/campaigns")}
             onSchedule={() => setScheduling(true)}
+            onExport={() => setExporting(true)}
           />
         }
       />
@@ -129,6 +132,9 @@ export function CampaignDetail({ campaignId }: { campaignId: string }): JSX.Elem
 
       {scheduling ? (
         <CampaignScheduleDialog campaign={data} onClose={() => setScheduling(false)} />
+      ) : null}
+      {exporting ? (
+        <CampaignResultsExportDialog campaign={data} onClose={() => setExporting(false)} />
       ) : null}
     </PageContainer>
   );

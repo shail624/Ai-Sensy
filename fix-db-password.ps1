@@ -1,0 +1,110 @@
+# Vi Platform - MySQL Password Recovery
+# Run this from the project folder as: powershell -ExecutionPolicy Bypass -File fix-db-password.ps1
+
+Set-Location $PSScriptRoot
+$ErrorActionPreference = "Stop"
+
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host " Vi Platform - MySQL Password Recovery" -ForegroundColor Cyan
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Read .env.production
+Write-Host "[1/6] .env.production padh raha hoon..." -ForegroundColor Yellow
+$envVars = @{}
+Get-Content ".env.production" | Where-Object { $_ -notmatch "^#" -and $_ -match "=" } | ForEach-Object {
+    $parts = $_ -split "=", 2
+    if ($parts.Count -eq 2) {
+        $envVars[$parts[0].Trim()] = $parts[1].Trim()
+    }
+}
+
+$rootPass  = $envVars["MYSQL_ROOT_PASSWORD"]
+$appUser   = $envVars["DB_USER"]
+$appPass   = $envVars["DB_PASSWORD"]
+
+if (-not $rootPass -or -not $appPass) {
+    Write-Host "ERROR: MYSQL_ROOT_PASSWORD ya DB_PASSWORD .env.production mein blank hai." -ForegroundColor Red
+    Write-Host "File check karo aur dobara run karo." -ForegroundColor Red
+    Read-Host "Enter dabao"
+    exit 1
+}
+Write-Host "    Passwords padh liye." -ForegroundColor Green
+
+# Stop MySQL container
+Write-Host "[2/6] MySQL band kar raha hoon..." -ForegroundColor Yellow
+docker stop wa-platform-mysql-1 2>$null | Out-Null
+Write-Host "    Done." -ForegroundColor Green
+
+# Start recovery container with skip-grant-tables using same volume
+Write-Host "[3/6] Recovery mode mein start kar raha hoon (30 sec)..." -ForegroundColor Yellow
+docker rm -f mysql-recovery 2>$null | Out-Null
+# MUST match the pinned image in docker-compose.production.yml — a newer MySQL
+# irreversibly upgrades the data dictionary and the pinned 8.0 then refuses to start.
+$pinnedMysql = "mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b"
+docker run -d --name mysql-recovery `
+    -v wa-platform_mysql-data:/var/lib/mysql `
+    $pinnedMysql `
+    mysqld --skip-grant-tables --skip-networking | Out-Null
+Start-Sleep 30
+Write-Host "    MySQL recovery ready." -ForegroundColor Green
+
+# Reset passwords
+Write-Host "[4/6] Passwords reset kar raha hoon..." -ForegroundColor Yellow
+$sql = "FLUSH PRIVILEGES; ALTER USER 'root'@'localhost' IDENTIFIED BY '$rootPass'; ALTER USER '$appUser'@'%' IDENTIFIED BY '$appPass'; FLUSH PRIVILEGES;"
+docker exec mysql-recovery mysql -u root -e $sql
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Password reset fail hua. Recovery container ki output dekho." -ForegroundColor Red
+    docker stop mysql-recovery; docker rm mysql-recovery | Out-Null
+    Read-Host "Enter dabao"
+    exit 1
+}
+Write-Host "    Passwords reset ho gaye." -ForegroundColor Green
+
+# Stop recovery, remove old MySQL container, recreate with correct healthcheck
+Write-Host "[5/6] MySQL ko fresh healthcheck ke saath restart kar raha hoon..." -ForegroundColor Yellow
+docker stop mysql-recovery | Out-Null
+docker rm mysql-recovery | Out-Null
+docker stop wa-platform-mysql-1 2>$null | Out-Null
+docker rm wa-platform-mysql-1 2>$null | Out-Null
+
+# Recreate MySQL container (keeps volume, picks up current MYSQL_ROOT_PASSWORD for healthcheck)
+$env:IMAGE_TAG = "latest"
+& docker compose -f docker-compose.production.yml --env-file .env.production up -d mysql
+
+# Wait for MySQL to become healthy (up to 120 seconds)
+Write-Host "    MySQL healthy hone ka wait kar raha hoon..." -ForegroundColor Yellow
+$waited = 0
+while ($waited -lt 120) {
+    $health = docker inspect wa-platform-mysql-1 --format "{{.State.Health.Status}}" 2>$null
+    if ($health -eq "healthy") {
+        Write-Host "    MySQL healthy! ($waited sec mein)" -ForegroundColor Green
+        break
+    }
+    Start-Sleep 5
+    $waited += 5
+    Write-Host "    Still starting... ($waited/120 sec)" -ForegroundColor Yellow
+}
+if ($waited -ge 120) {
+    Write-Host "ERROR: MySQL 120 sec mein healthy nahi hua. Claude ko batao." -ForegroundColor Red
+    Read-Host "Enter dabao"
+    exit 1
+}
+
+# Run migrations
+Write-Host "[6/6] Migrations aur services start kar raha hoon..." -ForegroundColor Yellow
+& docker compose -f docker-compose.production.yml --env-file .env.production up migrate
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Migration fail hui. Upar ka output Claude ko bhejo." -ForegroundColor Red
+    Read-Host "Enter dabao"
+    exit 1
+}
+
+& docker compose -f docker-compose.production.yml --env-file .env.production up -d
+
+Write-Host ""
+Write-Host "============================================" -ForegroundColor Green
+Write-Host " COMPLETE! Platform ready hai." -ForegroundColor Green
+Write-Host " Browser mein kholo: http://localhost" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Green
+Read-Host "Enter dabao"

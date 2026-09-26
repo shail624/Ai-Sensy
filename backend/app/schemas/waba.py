@@ -8,6 +8,7 @@ has an ``access_token`` field at all, rather than relying on a caller to remembe
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -183,3 +184,67 @@ __all__ = [
     "WabaResponse",
     "WabaUpdateRequest",
 ]
+
+
+#: Meta's business-category values for ``vertical`` (WhatsApp Cloud API business profile).
+BusinessVertical = Literal[
+    "UNDEFINED",
+    "OTHER",
+    "AUTO",
+    "BEAUTY",
+    "APPAREL",
+    "EDU",
+    "ENTERTAIN",
+    "EVENT_PLAN",
+    "FINANCE",
+    "GROCERY",
+    "GOVT",
+    "HOTEL",
+    "HEALTH",
+    "NONPROFIT",
+    "PROF_SERVICES",
+    "RETAIL",
+    "TRAVEL",
+    "RESTAURANT",
+    "NOT_A_BIZ",
+]
+
+
+class BusinessProfileResponse(BaseModel):
+    """``GET /phone-numbers/{uuid}/business-profile`` — read live from Meta, never stored."""
+
+    about: str | None = None
+    address: str | None = None
+    description: str | None = None
+    email: str | None = None
+    websites: list[str] = Field(default_factory=list)
+    vertical: str | None = None
+    profile_picture_url: str | None = None
+
+
+class BusinessProfileUpdateRequest(BaseModel):
+    """``POST /phone-numbers/{uuid}/business-profile`` — only the fields provided are written.
+
+    Limits are Meta's own, so a value Meta would reject fails here with a field error instead of
+    a 502 from the provider.
+    """
+
+    about: str | None = Field(default=None, min_length=1, max_length=139)
+    address: str | None = Field(default=None, max_length=256)
+    description: str | None = Field(default=None, max_length=512)
+    email: str | None = Field(
+        default=None, max_length=128, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    )
+    websites: list[str] | None = Field(default=None, max_length=2)
+    vertical: BusinessVertical | None = None
+
+    @field_validator("websites")
+    @classmethod
+    def _websites_are_urls(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned = [site.strip() for site in value if site.strip()]
+        for site in cleaned:
+            if len(site) > 256 or not site.startswith(("http://", "https://")):
+                raise ValueError("each website must start with http:// or https:// (max 256 chars)")
+        return cleaned

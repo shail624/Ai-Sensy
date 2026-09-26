@@ -1,0 +1,678 @@
+"""Minimal typed async WAHA client (QR-01 server probe, QR-02 lifecycle read, QR-03 pairing).
+
+Deliberately small, and grown one milestone at a time:
+
+* QR-01 — two authenticated reads: the server version/engine banner and the server health probe.
+* QR-02 — one more read: a single session's lifecycle status.
+* QR-03 — creating a session with the certified configuration, and fetching its transient QR.
+
+* QR-06 — starting, stopping and logging out an existing session.
+
+Webhook ingestion (QR-04) is handled at the adapter seam; media and history transfer remain
+unimplemented. ``DELETE /api/sessions/{name}`` is deliberately **not** exposed: QR-06 needs stop and
+logout, and permanently deleting a session record is neither required by this milestone nor
+recoverable if issued in error.
+
+Everything the platform catches is a channel-neutral error from :mod:`app.channels.errors`, so no
+WAHA exception type escapes the seam (Doc 07 §5.3). Deterministic mapping of every failure shape
+observed against the real certified build is in :meth:`WahaClient._decode` / :meth:`_raise`.
+
+**Secrets.** The API key is held in :class:`WahaCredentials`, sent only as the ``X-Api-Key``
+request header, and never logged, never echoed into an exception message, and never included in a
+``repr``. :func:`redact_headers` is the single place header redaction is defined and is applied to
+anything diagnostic.
+"""
+
+from __future__ import annotations
+
+import base64
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any, Final
+from urllib.parse import quote, urlsplit
+
+import httpx
+
+from app.channels.errors import (
+    ChannelApiError,
+    ChannelAuthError,
+    ChannelConfigError,
+    ChannelTransportError,
+)
+from app.channels.waha.delivery import WahaSendIndeterminate
+from app.channels.waha.lifecycle import (
+    WahaSessionNotFound,
+    WahaSessionSnapshot,
+    validate_session_name,
+)
+from app.channels.waha.pairing import WahaQrChallenge, build_session_config
+from app.channels.waha.webhook import canonical_message_id
+from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+#: Header carrying the server API key. Never logged with its value.
+API_KEY_HEADER: Final = "X-Api-Key"
+#: Upper bound on a downloaded WhatsApp profile photo; larger is treated as "no photo".
+MAX_PROFILE_PICTURE_BYTES: Final = 2 * 1024 * 1024
+#: WhatsApp's own ceiling for documents; no larger inbound file can arrive.
+MAX_INBOUND_FILE_BYTES: Final = 100 * 1024 * 1024
+
+#: Header names whose values must never appear in a log, error, trace or diagnostic payload.
+SENSITIVE_HEADERS: Final[frozenset[str]] = frozenset({"x-api-key", "authorization", "cookie"})
+
+_REDACTED: Final = "***redacted***"
+
+
+def redact_headers(headers: Mapping[str, str]) -> dict[str, str]:
+    """Copy of ``headers`` with every sensitive value replaced.
+
+    The one definition of what "redacted" means for this adapter, so a future diagnostic surface
+    cannot accidentally invent a laxer rule.
+    """
+    return {
+        name: (_REDACTED if name.lower() in SENSITIVE_HEADERS else value)
+        for name, value in headers.items()
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class WahaServerInfo:
+    """The server's self-reported build banner (``GET /api/server/version``).
+
+    Describes the **WAHA server**, not a WhatsApp account. A populated ``version``/``engine`` says
+    nothing about whether any WhatsApp session exists.
+    """
+
+    version: str
+    engine: str
+    tier: str | None = None
+    platform: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WahaServerHealth:
+    """The server's own health probe (``GET /health``) — storage headroom and dependencies.
+
+    Again server-scoped: ``healthy=True`` means the WAHA process is serving requests, **not** that a
+    WhatsApp session is paired or able to message.
+    """
+
+    healthy: bool
+    status: str
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WahaCredentials:
+    """Connection details for the self-hosted WAHA server.
+
+    Passed in explicitly rather than read inside the client, mirroring
+    :class:`~app.channels.meta.client.MetaCredentials`, so a per-connection credential loaded from
+    ``channel_secrets`` reaches the client the same way in a later milestone with no change here.
+    """
+
+    base_url: str = ""
+    api_key: str = ""
+    #: The session this connection sends through. **This is the endpoint scope**: a message id may
+    #: only ever be resolved within its own session, which is what prevents one endpoint from
+    #: advancing another's message. Mirrors Meta's ``require_phone_number()``.
+    session: str = ""
+
+    @classmethod
+    def from_settings(cls) -> WahaCredentials:
+        """Process-wide defaults. All are empty unless explicitly configured."""
+        return cls(
+            base_url=settings.waha_base_url,
+            api_key=settings.waha_api_key,
+            session=settings.waha_session_name,
+        )
+
+    def __repr__(self) -> str:  # pragma: no cover - defensive; exercised via test_no_secret_in_repr
+        """Never render the key, even in a traceback or debugger."""
+        return (
+            f"WahaCredentials(base_url={self.base_url!r}, session={self.session!r}, "
+            f"api_key={_REDACTED!r})"
+        )
+
+    def require_session(self) -> str:
+        """The session to act on, validated, or fail closed before any request is built.
+
+        Sending or reconciling without an explicit session would leave the endpoint scope implicit,
+        and an implicit scope is how one endpoint ends up resolving another's message.
+        """
+        if not self.session:
+            raise ChannelConfigError(
+                "WAHA session is not configured; set WAHA_SESSION_NAME. "
+                "A send must name the endpoint it goes through."
+            )
+        return validate_session_name(self.session)
+
+    @property
+    def configured(self) -> bool:
+        """Whether this deployment has been given a WAHA server at all."""
+        return bool(self.base_url and self.api_key)
+
+    @property
+    def root(self) -> str:
+        return self.base_url.rstrip("/")
+
+    def require(self) -> None:
+        """Fail closed before any socket is opened when the provider is not configured.
+
+        Separate from an auth *rejection*: this never reaches the network, and the message names
+        the environment variable to set without revealing anything secret.
+        """
+        if not self.base_url:
+            raise ChannelConfigError(
+                "WAHA base URL is not configured; set WAHA_BASE_URL. "
+                "The WAHA provider is unconfigured and disabled by default."
+            )
+        if not self.api_key:
+            raise ChannelConfigError(
+                "WAHA API key is not configured; set WAHA_API_KEY. "
+                "There is no default key — an unauthenticated WAHA server must never be used."
+            )
+
+
+class WahaClient:
+    """Async HTTP client for the two authenticated reads QR-01 needs.
+
+    ``http`` is injectable so tests drive it with an ``httpx.MockTransport`` and never touch the
+    network — the same pattern :class:`~app.channels.meta.client.MetaCloudClient` uses.
+    """
+
+    def __init__(
+        self,
+        credentials: WahaCredentials | None = None,
+        *,
+        http: httpx.AsyncClient | None = None,
+        timeout: float | None = None,
+    ) -> None:
+        self._credentials = credentials or WahaCredentials.from_settings()
+        self._http = http
+        self._timeout = timeout if timeout is not None else settings.waha_timeout_seconds
+
+    @property
+    def credentials(self) -> WahaCredentials:
+        return self._credentials
+
+    def _client(self) -> httpx.AsyncClient:
+        if self._http is None:
+            self._http = httpx.AsyncClient(timeout=self._timeout)
+        return self._http
+
+    def _headers(self, *, accept: str = "application/json") -> dict[str, str]:
+        """Authenticated headers with request-specific response negotiation.
+
+        WAHA's JSON API is the default, but its QR endpoint is content-negotiated: the certified
+        2026.7.2 runtime returns JSON when asked for JSON even with ``?format=image``. Binary
+        callers must therefore opt into the exact representation they validate rather than
+        inheriting the JSON default (QR-09-D7).
+        """
+        return {API_KEY_HEADER: self._credentials.api_key, "Accept": accept}
+
+    def url(self, path: str) -> str:
+        return f"{self._credentials.root}/{path.lstrip('/')}"
+
+    async def _get(self, path: str) -> dict[str, Any]:
+        """Authenticated GET returning a decoded object, or a channel-neutral error."""
+        self._credentials.require()
+        request = httpx.Request("GET", self.url(path), headers=self._headers())
+        try:
+            # Timeout lives on the send call, not the request: httpx.Request carries no timeout.
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            # Distinct from "unavailable": the server may be up but wedged. Both are transient to
+            # the retry engine, but the operator-facing text must not conflate them.
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        return self._decode(response)
+
+    def _decode(self, response: httpx.Response) -> dict[str, Any]:
+        if response.status_code >= 400:
+            self._raise(response)
+
+        # An unexpected content type is treated as a provider fault rather than parsed
+        # optimistically: the certified build answers every API route with JSON, so HTML here means
+        # a proxy, login page or error surface is in front of the server (observed: the root path
+        # returns `text/html` on 401).
+        content_type = response.headers.get("content-type", "")
+        if "json" not in content_type.lower():
+            raise ChannelApiError(
+                "WAHA returned an unexpected content type "
+                f"({content_type or 'none'}); expected JSON",
+                http_status=response.status_code,
+            )
+        try:
+            body = response.json()
+        except ValueError as exc:
+            # Body deliberately not included — it is provider output of unknown provenance.
+            raise ChannelApiError(
+                "WAHA returned a malformed (non-JSON) response",
+                http_status=response.status_code,
+            ) from exc
+        if not isinstance(body, dict):
+            raise ChannelApiError(
+                "WAHA returned an unexpected JSON shape; expected an object",
+                http_status=response.status_code,
+            )
+        return body
+
+    def _raise(self, response: httpx.Response) -> None:
+        """Deterministic mapping of every error shape observed on the certified build.
+
+        ``401``/``403`` → :class:`ChannelAuthError` (bad or missing API key). ``5xx`` and everything
+        else reached → :class:`ChannelApiError` carrying the status for the retry engine. The
+        provider's message is *not* interpolated into the exception, because an error body is
+        attacker-influencable and may echo request material.
+        """
+        status = response.status_code
+        # Status only — no body, no headers. Redaction is structural, not best-effort.
+        logger.warning("waha_api_error", extra={"status": status, "path": response.url.path})
+
+        if status in (401, 403):
+            raise ChannelAuthError(
+                "WAHA rejected the configured API key "
+                f"(HTTP {status}); check WAHA_API_KEY for this server.",
+                detail=f"http_{status}",
+            )
+        if status >= 500:
+            raise ChannelApiError(
+                f"WAHA server error (HTTP {status})",
+                code=status,
+                http_status=status,
+            )
+        raise ChannelApiError(
+            f"WAHA returned HTTP {status}",
+            code=status,
+            http_status=status,
+        )
+
+    # --- The two reads QR-01 needs ------------------------------------------
+    async def server_version(self) -> WahaServerInfo:
+        """``GET /api/server/version`` — the build banner used by the engine/version guard."""
+        body = await self._get("/api/server/version")
+        version = body.get("version")
+        engine = body.get("engine")
+        if not isinstance(version, str) or not isinstance(engine, str):
+            raise ChannelApiError(
+                "WAHA version response is missing 'version' or 'engine'",
+            )
+        tier = body.get("tier")
+        platform = body.get("platform")
+        return WahaServerInfo(
+            version=version,
+            engine=engine,
+            tier=tier if isinstance(tier, str) else None,
+            platform=platform if isinstance(platform, str) else None,
+        )
+
+    async def server_health(self) -> WahaServerHealth:
+        """``GET /health`` — the server's own probe. Not a WhatsApp session check."""
+        body = await self._get("/health")
+        status = body.get("status")
+        status_text = status if isinstance(status, str) else "unknown"
+        failing = body.get("error")
+        detail = None
+        if isinstance(failing, dict) and failing:
+            # Component *names* only; component payloads may contain paths and are not echoed.
+            detail = "unhealthy components: " + ", ".join(sorted(failing))
+        return WahaServerHealth(healthy=status_text == "ok", status=status_text, detail=detail)
+
+    # --- Session lifecycle read (QR-02) -------------------------------------
+    async def session_status(self, name: str) -> WahaSessionSnapshot:
+        """``GET /api/sessions/{name}`` — one session's lifecycle status.
+
+        A **read**. QR-02 deliberately adds no create/start/stop/restart/logout call: observing a
+        session is what the platform needs to map provider status onto its own lifecycle, and
+        mutating one belongs to the pairing and runtime milestones (QR-03/QR-06).
+
+        A ``404`` here is narrowed to :class:`WahaSessionNotFound` rather than left as a generic
+        :class:`ChannelApiError`. The provider answering "this session does not exist" is a real,
+        expected lifecycle fact the caller must be able to act on — it is not an outage and not an
+        unexpected fault, and QR-09 proved that leaving it generic surfaced as an operator-facing
+        HTTP 500 (QR-09-D2).
+        """
+        session = validate_session_name(name)
+        try:
+            body = await self._get(f"/api/sessions/{session}")
+        except ChannelApiError as exc:
+            if exc.http_status == 404:
+                raise WahaSessionNotFound(
+                    f"WAHA has no session named {session!r}",
+                    code=404,
+                    http_status=404,
+                ) from exc
+            raise
+        return WahaSessionSnapshot.from_payload(body)
+
+    # --- Pairing (QR-03) -----------------------------------------------------
+    async def create_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions`` — create and start a session with the certified configuration.
+
+        The only write QR-03 adds. Stop, restart and logout are QR-06 and are intentionally absent,
+        so this client still cannot tear a paired session down.
+
+        The store configuration comes from :func:`build_session_config` rather than being written
+        inline: certification proved a snake_case ``full_sync`` is accepted and then silently
+        ignored, which would leave a session that looks healthy with no history.
+        """
+        session = validate_session_name(name)
+        payload = {"name": session, "start": True, "config": build_session_config()}
+        body = await self._post("/api/sessions", payload)
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def qr_challenge(self, name: str) -> WahaQrChallenge:
+        """``GET /api/{session}/auth/qr`` — the transient QR image for a session awaiting a scan.
+
+        Returns raw image bytes, so it bypasses :meth:`_decode` (which requires JSON). The provider
+        answers ``422`` when the session is not awaiting a scan — already paired, still booting or
+        failed — and that is surfaced as a normal :class:`ChannelApiError` rather than being
+        smoothed over, because "no QR right now" is a real state the caller must handle.
+
+        The result is never logged or persisted; see :class:`WahaQrChallenge`.
+        """
+        session = validate_session_name(name)
+        content, content_type = await self._get_bytes(f"/api/{session}/auth/qr?format=image")
+        return WahaQrChallenge(session=session, mimetype=content_type, data=content)
+
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Authenticated JSON POST returning a decoded object, or a channel-neutral error."""
+        self._credentials.require()
+        request = httpx.Request(
+            "POST",
+            self.url(path),
+            headers={**self._headers(), "Content-Type": "application/json"},
+            json=payload,
+        )
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        return self._decode(response)
+
+    async def _get_bytes(self, path: str) -> tuple[bytes, str]:
+        """Authenticated GET returning raw bytes and content type, for non-JSON provider media."""
+        self._credentials.require()
+        request = httpx.Request("GET", self.url(path), headers=self._headers(accept="image/png"))
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        if response.status_code >= 400:
+            self._raise(response)
+        content_type = response.headers.get("content-type", "").split(";")[0].strip()
+        if not content_type.startswith("image/"):
+            raise ChannelApiError(
+                f"WAHA returned an unexpected QR content type ({content_type or 'none'})",
+                http_status=response.status_code,
+            )
+        return response.content, content_type
+
+    # --- Session lifecycle mutation (QR-06) ----------------------------------
+    async def start_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/start`` — resume an existing session.
+
+        Distinct from QR-03's ``create_session``: this resumes a session that already exists,
+        reusing whatever credentials it still holds, and never creates one. A session that does not
+        exist surfaces the provider's error rather than being silently created, because creating
+        one here would turn a reconnect into an unrequested new pairing.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/start", {})
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def stop_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/stop`` — halt the session, keeping credentials.
+
+        Non-destructive to pairing: certification showed a stopped session can be started again
+        without a new scan. See :meth:`logout_session` for the destructive counterpart.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/stop", {})
+        return WahaSessionSnapshot.from_payload(body)
+
+    async def logout_session(self, name: str) -> WahaSessionSnapshot:
+        """``POST /api/sessions/{session}/logout`` — invalidate the WhatsApp credentials.
+
+        **Destructive and intentional.** Certification proved the observable result:
+        ``WORKING → SCAN_QR_CODE``, ``me=null``, and the QR endpoint answering again. The session
+        will need a fresh scan afterwards; that is the point of the operation, not a fault.
+        """
+        session = validate_session_name(name)
+        body = await self._post(f"/api/sessions/{session}/logout", {})
+        return WahaSessionSnapshot.from_payload(body)
+
+    # --- Send / reconcile (QR-05) --------------------------------------------
+    async def send_text(self, *, chat_id: str, text: str) -> dict[str, Any]:
+        """``POST /api/sendText`` through the configured session.
+
+        A transport failure here is **ambiguous**, not a clean failure: the request may have reached
+        WhatsApp before the connection broke. It is raised as :class:`WahaSendIndeterminate` so no
+        caller can treat it as retry-safe.
+        """
+        session = self._credentials.require_session()
+        payload = {"session": session, "chatId": chat_id, "text": text}
+        try:
+            return await self._post("/api/sendText", payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
+    async def send_file(
+        self,
+        *,
+        chat_id: str,
+        kind: str,
+        data: bytes,
+        mime_type: str,
+        filename: str | None,
+        caption: str | None,
+    ) -> dict[str, Any]:
+        """Send a photo, video, voice note or document through the configured session.
+
+        WAHA takes the file inline (base64). A photo goes as an image and an MP4 as a video so the
+        customer sees them inline; an OGG/Opus clip goes as a voice note; anything else — PDFs,
+        MP3 music, other formats — goes as a document so WhatsApp never re-encodes or rejects it.
+        Like :meth:`send_text`, a transport failure is ambiguous and raised as indeterminate.
+        """
+        session = self._credentials.require_session()
+        path = _file_endpoint(kind, mime_type)
+        file_obj: dict[str, Any] = {
+            "mimetype": mime_type,
+            "filename": filename or _default_filename(kind, mime_type),
+            "data": base64.b64encode(data).decode("ascii"),
+        }
+        payload: dict[str, Any] = {"session": session, "chatId": chat_id, "file": file_obj}
+        if caption and path != "/api/sendVoice":
+            payload["caption"] = caption
+        try:
+            return await self._post(path, payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
+    async def send_location(
+        self,
+        *,
+        chat_id: str,
+        latitude: float,
+        longitude: float,
+        title: str | None,
+    ) -> dict[str, Any]:
+        """``POST /api/sendLocation``; a transport failure is indeterminate, as for text."""
+        session = self._credentials.require_session()
+        payload: dict[str, Any] = {
+            "session": session,
+            "chatId": chat_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "title": title or "",
+        }
+        try:
+            return await self._post("/api/sendLocation", payload)
+        except ChannelTransportError as exc:
+            raise WahaSendIndeterminate(
+                "WAHA send outcome is unknown: the transport failed after the request was issued. "
+                "Reconcile before any resend — the message may already have been delivered."
+            ) from exc
+
+    async def message_exists(self, *, chat_id: str, canonical_id: str) -> bool:
+        """Whether ``canonical_id`` is present in this session's copy of ``chat_id``.
+
+        The reconcile-before-resend primitive, and deliberately **endpoint-scoped**: the lookup runs
+        inside one session's own chat, so it can never confirm or advance a message belonging to a
+        different endpoint. There is no global provider-message search.
+        """
+        session = self._credentials.require_session()
+        path = (
+            f"/api/{session}/chats/{quote(chat_id, safe='')}/messages?limit=50&downloadMedia=false"
+        )
+        body = await self._get_list(path)
+        for entry in body:
+            if not isinstance(entry, dict):
+                continue
+            if canonical_message_id(entry.get("id")) == canonical_id:
+                return True
+        return False
+
+    async def check_exists(self, *, phone: str) -> str | None:
+        """The WhatsApp chat id for ``phone`` (digits, with country code), or ``None`` if the number
+        has no WhatsApp account. Read-only; nothing is sent to the number."""
+        session = self._credentials.require_session()
+        body = await self._get(
+            f"/api/contacts/check-exists?phone={quote(phone, safe='')}&session={quote(session, safe='')}"
+        )
+        if body.get("numberExists") is not True:
+            return None
+        chat_id = body.get("chatId")
+        return chat_id if isinstance(chat_id, str) and chat_id else None
+
+    async def profile_picture_url(self, *, contact_id: str) -> str | None:
+        """The contact's current WhatsApp profile photo URL, or ``None`` when hidden or unset."""
+        session = self._credentials.require_session()
+        body = await self._get(
+            f"/api/contacts/profile-picture?contactId={quote(contact_id, safe='')}"
+            f"&session={quote(session, safe='')}"
+        )
+        url = body.get("profilePictureURL")
+        return url if isinstance(url, str) and url else None
+
+    async def download_profile_picture(self, url: str) -> tuple[bytes, str] | None:
+        """Fetch a profile photo from WhatsApp's own image host, bounded and type-checked.
+
+        Only ``https`` URLs on ``*.whatsapp.net`` are followed — the URL comes from the provider, and
+        this must never become a way to make the server fetch arbitrary addresses. Anything too large
+        or not an image is treated as "no photo" rather than an error.
+        """
+        parsed = urlsplit(url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not (
+            host == "whatsapp.net" or host.endswith(".whatsapp.net")
+        ):
+            return None
+        try:
+            async with self._client().stream("GET", url, timeout=self._timeout) as response:
+                if response.status_code != 200:
+                    return None
+                content_type = response.headers.get("content-type", "").split(";")[0].strip()
+                if not content_type.startswith("image/"):
+                    return None
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_PROFILE_PICTURE_BYTES:
+                        return None
+                    chunks.append(chunk)
+                return b"".join(chunks), content_type
+        except httpx.HTTPError:
+            return None
+
+    async def download_file(self, path: str) -> tuple[bytes, str | None]:
+        """Fetch a file WAHA downloaded for an inbound message (``/api/files/…`` only), bounded."""
+        if not path.startswith("/api/files/") or ".." in path:
+            raise ChannelApiError(f"refusing to fetch a non-file WAHA path: {path!r}")
+        self._credentials.require()
+        try:
+            async with self._client().stream(
+                "GET", self.url(path), headers=self._headers(accept="*/*"), timeout=self._timeout
+            ) as response:
+                if response.status_code != 200:
+                    raise ChannelApiError(
+                        f"WAHA file download failed with HTTP {response.status_code}: {path}"
+                    )
+                content_type = response.headers.get("content-type")
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_INBOUND_FILE_BYTES:
+                        raise ChannelApiError("WAHA file is larger than the platform accepts")
+                    chunks.append(chunk)
+                return b"".join(chunks), content_type
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(f"WAHA file download timed out: {path}") from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA file download failed: {path}") from exc
+
+    async def _get_list(self, path: str) -> list[Any]:
+        """Authenticated GET returning a JSON array (the chat-messages shape)."""
+        self._credentials.require()
+        request = httpx.Request("GET", self.url(path), headers=self._headers())
+        try:
+            response = await self._client().send(request)
+        except httpx.TimeoutException as exc:
+            raise ChannelTransportError(
+                f"WAHA request timed out after {self._timeout}s: {request.url.path}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ChannelTransportError(f"WAHA server is unavailable: {request.url.path}") from exc
+        if response.status_code >= 400:
+            self._raise(response)
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise ChannelApiError("WAHA returned a malformed (non-JSON) response") from exc
+        if not isinstance(body, list):
+            raise ChannelApiError("WAHA returned an unexpected JSON shape; expected an array")
+        return body
+
+    async def close(self) -> None:
+        if self._http is not None:
+            await self._http.aclose()
+            self._http = None
+
+
+def _file_endpoint(kind: str, mime_type: str) -> str:
+    """Which WAHA send endpoint shows a file best (see :meth:`WahaClient.send_file`)."""
+    mime = mime_type.lower()
+    if kind in ("image", "sticker") and mime in ("image/jpeg", "image/png", "image/webp"):
+        return "/api/sendImage"
+    if kind == "video" and mime == "video/mp4":
+        return "/api/sendVideo"
+    if kind == "audio" and mime.startswith("audio/ogg"):
+        return "/api/sendVoice"
+    return "/api/sendFile"
+
+
+def _default_filename(kind: str, mime_type: str) -> str:
+    extension = mime_type.split("/")[-1].split(";")[0] or "bin"
+    return f"{kind}.{extension}"

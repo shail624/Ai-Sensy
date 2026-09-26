@@ -21,7 +21,7 @@ class AutomationAttemptResponse(BaseModel):
     node_id: str
     node_kind: str
     attempt_no: int
-    status: Literal["running", "succeeded", "failed", "interrupted"]
+    status: Literal["running", "succeeded", "skipped", "failed", "interrupted"]
     output: dict[str, Any] | None
     error_code: str | None
     error_detail: str | None
@@ -36,7 +36,8 @@ class AutomationAttemptResponse(BaseModel):
             node_kind=view.node_kind,
             attempt_no=view.attempt_no,
             status=cast(
-                Literal["running", "succeeded", "failed", "interrupted"], view.status
+                Literal["running", "succeeded", "skipped", "failed", "interrupted"],
+                view.status,
             ),
             output=view.output,
             error_code=view.error_code,
@@ -50,7 +51,7 @@ class AutomationRunResponse(BaseModel):
     id: str
     automation_id: str
     version_no: int
-    mode: Literal["test"]
+    mode: Literal["test", "live"]
     status: Literal["queued", "running", "retrying", "succeeded", "failed"]
     correlation_id: str
     total_steps: int
@@ -69,7 +70,7 @@ class AutomationRunResponse(BaseModel):
             id=view.id,
             automation_id=view.automation_id,
             version_no=view.version_no,
-            mode="test",
+            mode=cast(Literal["test", "live"], view.mode),
             status=cast(
                 Literal["queued", "running", "retrying", "succeeded", "failed"],
                 view.status,

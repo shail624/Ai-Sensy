@@ -19,8 +19,10 @@ from app.api.v1.endpoints import (
     automations,
     campaigns,
     contact_documents,
+    contact_identity,
     contacts,
     conversations,
+    downloads,
     jobs,
     leads,
     media,
@@ -28,6 +30,7 @@ from app.api.v1.endpoints import (
     notifications,
     organization,
     quick_replies,
+    reachability,
     roles,
     segments,
     settings,
@@ -37,7 +40,9 @@ from app.api.v1.endpoints import (
     users,
     vi_domain,
     waba,
+    webhook_ops,
     webhooks,
+    whatsapp_qr,
 )
 
 api_router = APIRouter()
@@ -53,6 +58,7 @@ api_router.include_router(audit.router, tags=["Audit"])
 
 # Module 2 — Contacts CRM (Doc 04 §14; Doc 07 §19/§23 lead model).
 api_router.include_router(contacts.router, tags=["Contacts"])
+api_router.include_router(contact_identity.router, tags=["Customer Identity"])
 api_router.include_router(contact_documents.router, tags=["Customer Documents"])
 api_router.include_router(tags.router, tags=["Tags"])
 api_router.include_router(attributes.router, tags=["Custom Attributes"])
@@ -66,13 +72,26 @@ api_router.include_router(jobs.router, tags=["Queue"])
 api_router.include_router(media.router, tags=["Media"])
 # Signed-URL download target for the artifacts background jobs produce (exports, error reports).
 api_router.include_router(artifacts.router, tags=["Media"])
+# Personal, permission-filtered history over generated export artifacts.
+api_router.include_router(downloads.router, tags=["Downloads"])
 
 # Module 4 — WhatsApp Core: WABAs & phone numbers (Doc 04 §13.2/§13.3; Doc 07 §5).
 api_router.include_router(waba.router, tags=["WhatsApp Infrastructure"])
 # Module 4 — inbound webhooks (Doc 04 §23; Doc 06 §11). Public + signature-gated, not authenticated.
 api_router.include_router(webhooks.router, tags=["Webhooks"])
+# Module 4 — webhook operations reads (Doc 04 §23). Authenticated and `webhooks:manage`-gated,
+# deliberately a separate module so the public file above stays wholly public.
+api_router.include_router(webhook_ops.router, tags=["Webhooks"])
 # Module 4 — outbound send + message reads (Doc 04 §18.2).
 api_router.include_router(messages.router, tags=["Messaging"])
+# SCAN-01 — WhatsApp reachability derived from campaign delivery evidence (scope §13). No
+# provider lookup exists and unofficial enumeration is excluded, so the answer comes from what
+# Meta already told us about messages we actually sent.
+api_router.include_router(reachability.router, tags=["WhatsApp Scan"])
+# QR-07 — WhatsApp Scan/Connect over the WAHA adapter (QR-01..06) and the existing M13-03/04/05
+# session/pairing control plane. Single-organization scope (ADR-0021); no secret ever crosses
+# this boundary and no QR byte is ever persisted.
+api_router.include_router(whatsapp_qr.router, tags=["WhatsApp QR Connection"])
 
 # Module 5 — template registry (Doc 04 §15; Doc 03 §7.1).
 api_router.include_router(templates.router, tags=["Templates"])

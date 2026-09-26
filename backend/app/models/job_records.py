@@ -32,7 +32,7 @@ DEDUP_MERGE = "merge"
 DEDUP_OVERWRITE = "overwrite"
 DEDUP_STRATEGIES = (DEDUP_SKIP, DEDUP_MERGE, DEDUP_OVERWRITE)
 
-EXPORT_FORMATS = ("csv", "xlsx", "json")
+EXPORT_FORMATS = ("csv", "xlsx", "json", "pdf")
 
 # --- Bulk operations (Doc 04 §30; FR-CON-06/07/08) --------------------------
 OP_BULK_UPDATE = "bulk_update"
@@ -102,7 +102,9 @@ class ExportJob(IntPKMixin, UUIDMixin, Base):
     __tablename__ = "exports"
     __table_args__ = (
         Index("ix_exports_org", "organization_id", "status", "created_at"),
-        CheckConstraint("format IN ('csv','xlsx','json')", name="ck_exports_format"),
+        CheckConstraint(
+            "format IN ('csv','xlsx','json','pdf','google_sheet')", name="ck_exports_format"
+        ),
         MYSQL_TABLE_ARGS,
     )
 

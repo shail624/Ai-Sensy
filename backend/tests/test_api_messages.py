@@ -528,3 +528,47 @@ async def test_unknown_number_is_404(
         SEND_URL, headers=headers | _key(), json=_body(str(uuid.uuid4()))
     )
     assert resp.status_code == 404, resp.text
+
+
+async def test_message_media_streams_the_attached_file(
+    client, make_user, session_factory, monkeypatch, dispatched, idem, sent, meta
+) -> None:
+    """Live Chat shows photos inline from ``/messages/{id}/media`` (UI-AIS-08)."""
+    from sqlalchemy import select
+
+    from app.models.user import User
+    from app.services.media_service import MediaService
+
+    message = await _accepted(client, make_user, session_factory, monkeypatch)
+    headers = await _headers(client, make_user, email="media-reader@vi.co", roles=("agent",))
+    url = f"/api/v1/messages/{message.public_id}/media"
+
+    # A text message has no file.
+    assert (await client.get(url, headers=headers)).status_code == 404
+
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082"
+    )
+    async with session_factory() as session:
+        stored = await session.get(Message, message.id)
+        uploader = await session.scalar(select(User).limit(1))
+        asset, _ = await MediaService(session).upload(
+            organization_id=stored.organization_id,
+            actor=uploader,
+            data=png,
+            media_type="image",
+            mime_type="image/png",
+            file_name="plan.png",
+        )
+        stored.media_asset_id = asset.id
+        await session.commit()
+
+    response = await client.get(url, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.content == png
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"].startswith("private")
+    assert (
+        await client.get(f"/api/v1/messages/{uuid.uuid4()}/media", headers=headers)
+    ).status_code == 404

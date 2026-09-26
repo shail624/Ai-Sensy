@@ -6,6 +6,8 @@ No network: every Meta call is served by an ``httpx.MockTransport`` (Doc 10 §8)
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -106,13 +108,62 @@ def test_meta_declares_the_capabilities_doc7_assigns_it() -> None:
         Capability.INTERACTIVE,
         Capability.TEMPLATE,
         Capability.REACTION,  # added by Doc 07 §5.2a (v1.1) — outbound reactions
+        Capability.LOCATION,  # owner request UI-AIS-07 — Graph `location` messages
+        Capability.READ_RECEIPTS,
         Capability.BULK,
         Capability.CAMPAIGNS,
     ):
         assert adapter.supports(capability)
     # Not in Meta's column — the CRM must not offer them.
-    for capability in (Capability.LOCATION, Capability.CONTACT, Capability.CALLS):
+    for capability in (Capability.CONTACT, Capability.CALLS):
         assert not adapter.supports(capability)
+
+
+@pytest.mark.anyio
+async def test_meta_marks_provider_message_read() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return _json({"success": True})
+
+    adapter = _adapter(handler)
+    await adapter.mark_read("wamid.INBOUND")
+    await adapter.close()
+
+    assert captured == {
+        "path": f"/v21.0/{NUMBER}/messages",
+        "json": {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": "wamid.INBOUND",
+        },
+    }
+
+
+@pytest.mark.anyio
+async def test_meta_typing_indicator_posts_read_status_with_typing() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return _json({"success": True})
+
+    adapter = _adapter(handler)
+    await adapter.show_typing("wamid.INBOUND")
+    await adapter.close()
+
+    assert captured == {
+        "path": f"/v21.0/{NUMBER}/messages",
+        "json": {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": "wamid.INBOUND",
+            "typing_indicator": {"type": "text"},
+        },
+    }
 
 
 async def test_undeclared_capability_raises_not_supported() -> None:
@@ -376,3 +427,34 @@ def test_outbound_message_is_immutable() -> None:
     message = OutboundMessage(to="1", type=MessageType.TEXT, content=TextContent("hi"))
     with pytest.raises((AttributeError, TypeError)):
         message.to = "2"  # type: ignore[misc]
+
+
+@pytest.mark.anyio
+async def test_meta_sends_a_location_pin() -> None:
+    from app.channels.models import LocationContent, MessageType, OutboundMessage
+
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return _json({"messages": [{"id": "wamid.LOC"}]})
+
+    result = await _adapter(handler).send(
+        OutboundMessage(
+            to="919891000010",
+            type=MessageType.LOCATION,
+            content=LocationContent(latitude=28.61, longitude=77.2, name="Vi Store"),
+        )
+    )
+    assert result.channel_message_id == "wamid.LOC"
+    assert captured["body"]["type"] == "location"
+    assert captured["body"]["location"] == {"latitude": 28.61, "longitude": 77.2, "name": "Vi Store"}
+
+
+def test_messaging_tier_reads_the_business_portfolio_limit() -> None:
+    """Newer Graph versions report the tier only as the portfolio-level limit (UI-AIS-18)."""
+    from app.channels.meta.adapter import _messaging_tier
+
+    assert _messaging_tier({"whatsapp_business_manager_messaging_limit": "TIER_10K"}) == "TIER_10K"
+    assert _messaging_tier({"messaging_limit_tier": "TIER_1K"}) == "TIER_1K"
+    assert _messaging_tier({}) is None

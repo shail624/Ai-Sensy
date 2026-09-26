@@ -71,7 +71,7 @@ describe("ContactsTable", () => {
       "href",
       "/contacts/c1",
     );
-    expect(screen.getByText("+15551234567")).toBeInTheDocument();
+    expect(screen.getByText("15551234567")).toBeInTheDocument();
   });
 
   it("toggles selection via the row checkbox", () => {
@@ -105,7 +105,7 @@ describe("ContactsTable — compact (below md)", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Priya Sharma" })).toHaveAttribute("href", "/contacts/c1");
     expect(screen.getByText("+15551234567")).toBeInTheDocument();
-    expect(screen.getByText("Opted in")).toBeInTheDocument();
+    expect(screen.getByText(/Opted in: Yes/)).toBeInTheDocument();
   });
 
   it("keeps a per-card checkbox and the select-all control", () => {

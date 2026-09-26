@@ -19,20 +19,34 @@ real-time transport.
 from __future__ import annotations
 
 import uuid as uuidlib
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.api.pagination import MAX_LIMIT, Page, clamp_limit, decode_cursor, encode_cursor
-from app.core.exceptions import BadRequestError
+from app.channels.capabilities import CONNECTOR_META_CLOUD
+from app.core.config import settings
+from app.core.exceptions import BadRequestError, ForbiddenError
 from app.models.user import User
 from app.schemas.conversation import (
+    ConversationCategoryCounts,
     ConversationMessagesPage,
     ConversationResponse,
     ConversationsPage,
 )
+from app.schemas.conversation_history import (
+    ConversationHistoryViewCreate,
+    ConversationHistoryViewResponse,
+    ConversationHistoryViewsResponse,
+)
 from app.schemas.conversation_tag import ConversationTagsRequest, ConversationTagsResponse
+from app.schemas.export_job import (
+    ConversationTranscriptExportRequest,
+    ExportProgressResponse,
+)
+from app.schemas.import_job import JobAcceptedResponse, JobEnvelope
 from app.schemas.inbox import (
     ConversationAssignRequest,
     ConversationReadResponse,
@@ -41,18 +55,130 @@ from app.schemas.inbox import (
     NoteCreateRequest,
     NoteResponse,
     NotesListResponse,
+    SaleDetailsRequest,
+    SaleDetailsResponse,
+    TypingIndicatorResponse,
 )
 from app.schemas.message import MessageResponse
 from app.schemas.tag import TagSummary
+from app.services.conversation_history_view_service import ConversationHistoryViewService
 from app.services.conversation_tag_service import ConversationTagService
+from app.services.export_service import ENTITY_CONVERSATION_TRANSCRIPT, ExportService
 from app.services.inbox_query_service import InboxQueryService
 from app.services.inbox_service import InboxService
+from app.services.rbac_service import RBACService
+from app.services.sale_status_service import SaleStatusService
 
 router = APIRouter()
 
 InboxReader = Annotated[User, Depends(require_permissions("inbox:read"))]
 InboxWriter = Annotated[User, Depends(require_permissions("inbox:write"))]
 InboxAssigner = Annotated[User, Depends(require_permissions("inbox:assign"))]
+TranscriptExporter = Annotated[User, Depends(require_permissions("inbox:export"))]
+HistoryViewManager = Annotated[User, Depends(require_permissions("inbox:views_manage"))]
+
+
+def _naive_utc(value: datetime | None) -> datetime | None:
+    if value is None or value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+@router.post(
+    "/conversation-transcripts/export",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start a governed conversation transcript export",
+)
+async def start_conversation_transcript_export(
+    payload: ConversationTranscriptExportRequest,
+    session: SessionDep,
+    actor: TranscriptExporter,
+) -> JobAcceptedResponse:
+    """Queue a selected thread; message rows are read only by the bounded exports worker."""
+    from app.crm.tasks import run_conversation_transcript_export
+
+    job = await ExportService(session).start_transcript(
+        organization_id=actor.organization_id,
+        actor=actor,
+        conversation_id=payload.conversation_id,
+        file_format=payload.format,
+        start=payload.from_,
+        end=payload.to,
+        dispatch=lambda export_id, task_id: run_conversation_transcript_export.apply_async(
+            args=[export_id], task_id=task_id
+        ),
+    )
+    return JobAcceptedResponse(
+        job=JobEnvelope(
+            id=job.public_id,
+            type="export",
+            status="queued",
+            poll_url=f"{settings.api_v1_prefix}/conversation-transcripts/export/{job.public_id}",
+        )
+    )
+
+
+@router.get(
+    "/conversation-transcripts/export/{export_id}",
+    response_model=ExportProgressResponse,
+    summary="Conversation transcript progress and signed download link",
+)
+async def conversation_transcript_export_progress(
+    export_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: TranscriptExporter,
+) -> ExportProgressResponse:
+    service = ExportService(session)
+    job = await service.get_owned(
+        actor.organization_id,
+        actor.id,
+        export_id,
+        entity=ENTITY_CONVERSATION_TRANSCRIPT,
+    )
+    return ExportProgressResponse.from_job(job, await service.download_url(job))
+
+
+@router.get(
+    "/conversation-history/views",
+    response_model=ConversationHistoryViewsResponse,
+    summary="List organization-shared Chat History views",
+)
+async def list_conversation_history_views(
+    session: SessionDep, actor: InboxReader
+) -> ConversationHistoryViewsResponse:
+    rows = await ConversationHistoryViewService(session).list(actor)
+    return ConversationHistoryViewsResponse(
+        data=[ConversationHistoryViewResponse.from_view(row) for row in rows]
+    )
+
+
+@router.post(
+    "/conversation-history/views",
+    response_model=ConversationHistoryViewResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an organization-shared Chat History view",
+)
+async def create_conversation_history_view(
+    payload: ConversationHistoryViewCreate,
+    session: SessionDep,
+    actor: HistoryViewManager,
+) -> ConversationHistoryViewResponse:
+    row = await ConversationHistoryViewService(session).create(actor, payload)
+    return ConversationHistoryViewResponse.from_view(row)
+
+
+@router.delete(
+    "/conversation-history/views/{view_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an organization-shared Chat History view",
+)
+async def delete_conversation_history_view(
+    view_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: HistoryViewManager,
+) -> None:
+    await ConversationHistoryViewService(session).delete(actor, view_id)
 
 
 @router.get("/conversations", response_model=ConversationsPage, summary="Inbox list")
@@ -67,6 +193,19 @@ async def list_conversations(
     number: Annotated[str | None, Query()] = None,
     tag: Annotated[list[str] | None, Query()] = None,
     q: Annotated[str | None, Query()] = None,
+    date_from: Annotated[datetime | None, Query(alias="from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="to")] = None,
+    campaign: Annotated[str | None, Query()] = None,
+    has_media: Annotated[bool, Query()] = False,
+    has_audit: Annotated[bool, Query()] = False,
+    sale_status: Annotated[
+        str | None,
+        Query(description="Only chats whose customer has this sale status; 'none' = not marked."),
+    ] = None,
+    channel: Annotated[
+        str | None,
+        Query(description="Only 'official' (WhatsApp API) or 'qr' (WhatsApp QR) chats."),
+    ] = None,
     filter_status: Annotated[str | None, Query(alias="filter[status][eq]")] = None,
     filter_assignee: Annotated[str | None, Query(alias="filter[assignee][eq]")] = None,
     filter_number: Annotated[str | None, Query(alias="filter[number][eq]")] = None,
@@ -88,6 +227,16 @@ async def list_conversations(
         raise BadRequestError(
             "The tag filter accepts a single tag; multi-tag filtering is not supported."
         )
+    normalized_from = _naive_utc(date_from)
+    normalized_to = _naive_utc(date_to)
+    if (
+        normalized_from is not None
+        and normalized_to is not None
+        and normalized_from >= normalized_to
+    ):
+        raise BadRequestError("The Chat History from value must be earlier than to.")
+    if has_audit and not await RBACService(session).has_permissions(actor, {"audit:read"}):
+        raise ForbiddenError("The audit-scoped filter requires audit:read permission.")
     page_limit = clamp_limit(str(limit) if limit is not None else None)
     result = await InboxQueryService(session).list_conversations(
         organization_id=actor.organization_id,
@@ -98,19 +247,31 @@ async def list_conversations(
         assignee=filter_assignee or assignee,
         number=filter_number or number,
         tag=tag_values[0] if tag_values else None,
+        date_from=normalized_from,
+        date_to=normalized_to,
+        campaign=campaign,
+        has_media=has_media,
+        has_audit=has_audit,
         q=q,
+        channel=channel,
+        sale_status=sale_status,
     )
     data = [
         ConversationResponse.from_conversation(
             c,
             contact=result.contacts.get(c.contact_id),
-            phone_number_public_id=result.numbers.get(c.phone_number_id),
+            phone_number_public_id=(
+                result.numbers.get(c.phone_number_id) if c.phone_number_id is not None else None
+            ),
             assigned_to=(
-                result.assignees.get(c.assigned_user_id)
-                if c.assigned_user_id is not None
-                else None
+                result.assignees.get(c.assigned_user_id) if c.assigned_user_id is not None else None
             ),
             tags=result.tags.get(c.id, []),
+            connector_type=(
+                result.endpoint_connectors.get(c.channel_endpoint_id, CONNECTOR_META_CLOUD)
+                if c.channel_endpoint_id is not None
+                else CONNECTOR_META_CLOUD
+            ),
         )
         for c in result.conversations
     ]
@@ -121,6 +282,32 @@ async def list_conversations(
         next_cursor = encode_cursor(last.last_message_at or last.created_at, last.id)
     return ConversationsPage(
         data=data, page=Page(limit=page_limit, has_more=result.has_more, next_cursor=next_cursor)
+    )
+
+
+@router.get(
+    "/conversations/counts",
+    response_model=ConversationCategoryCounts,
+    summary="Inbox category counts",
+)
+async def conversation_category_counts(
+    session: SessionDep,
+    actor: InboxReader,
+    q: Annotated[str | None, Query()] = None,
+) -> ConversationCategoryCounts:
+    """Totals for the three inbox categories, scoped by ``q`` alone.
+
+    Status, assignee and tag are deliberately not accepted: activating a category replaces them
+    and keeps only the search, so counting with them applied would label the chip with a result
+    the click never produces. Intervened always resolves against the caller.
+
+    Declared before ``/conversations/{conversation_id}`` so ``counts`` is not read as an id.
+    """
+    active, requesting, intervened = await InboxQueryService(session).category_counts(
+        organization_id=actor.organization_id, viewer_id=actor.id, q=q
+    )
+    return ConversationCategoryCounts(
+        active=active, requesting=requesting, intervened=intervened
     )
 
 
@@ -141,6 +328,7 @@ async def get_conversation(
         phone_number_public_id=detail.phone_number_public_id,
         assigned_to=detail.assigned_to,
         tags=detail.tags,
+        connector_type=detail.connector_type,
     )
 
 
@@ -177,6 +365,35 @@ async def list_conversation_messages(
     )
 
 
+@router.patch(
+    "/conversations/{conversation_id}/sale-details",
+    response_model=SaleDetailsResponse,
+    summary="Set the customer's sale status and number release date",
+)
+async def update_sale_details(
+    conversation_id: uuidlib.UUID,
+    payload: SaleDetailsRequest,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> SaleDetailsResponse:
+    """Only the fields sent change.
+
+    A release date creates (or moves) a reminder task for that day; clearing it cancels it.
+    """
+    changes = {name: getattr(payload, name) for name in payload.model_fields_set}
+    details = await SaleStatusService(session).update(
+        organization_id=actor.organization_id,
+        actor=actor,
+        conversation_public_id=conversation_id,
+        **changes,
+    )
+    return SaleDetailsResponse(
+        sale_status=details.sale_status,
+        release_date=details.release_date,
+        release_task_id=details.release_task_id,
+    )
+
+
 @router.post(
     "/conversations/{conversation_id}/assign",
     response_model=ConversationStateResponse,
@@ -194,6 +411,44 @@ async def assign_conversation(
         actor=actor,
         public_id=conversation_id,
         assignee_public_id=payload.assignee_id,
+    )
+    return ConversationStateResponse.from_state(state)
+
+
+@router.post(
+    "/conversations/{conversation_id}/intervene",
+    response_model=ConversationStateResponse,
+    summary="Intervene in a requested chat",
+)
+async def intervene_conversation(
+    conversation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> ConversationStateResponse:
+    """Atomically claim a requested chat for the current agent and make it active."""
+    state = await InboxService(session).intervene(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=conversation_id,
+    )
+    return ConversationStateResponse.from_state(state)
+
+
+@router.post(
+    "/conversations/{conversation_id}/resolve-intervention",
+    response_model=ConversationStateResponse,
+    summary="Resolve an intervened chat",
+)
+async def resolve_conversation_intervention(
+    conversation_id: uuidlib.UUID,
+    session: SessionDep,
+    actor: InboxWriter,
+) -> ConversationStateResponse:
+    """Resolve only when the current agent owns the active intervention."""
+    state = await InboxService(session).resolve_intervention(
+        organization_id=actor.organization_id,
+        actor=actor,
+        public_id=conversation_id,
     )
     return ConversationStateResponse.from_state(state)
 
@@ -236,6 +491,22 @@ async def mark_conversation_read(
         organization_id=actor.organization_id, public_id=conversation_id
     )
     return ConversationReadResponse.from_read_state(state)
+
+
+@router.post(
+    "/conversations/{conversation_id}/typing",
+    response_model=TypingIndicatorResponse,
+    summary="Show the customer a typing indicator (best effort)",
+)
+async def show_conversation_typing(
+    conversation_id: uuidlib.UUID, session: SessionDep, actor: InboxWriter
+) -> TypingIndicatorResponse:
+    """Signal "typing…" while an agent composes. Never fails for provider reasons; ``sent`` says
+    whether it went out — see :meth:`InboxService.show_typing` for when it is skipped."""
+    sent = await InboxService(session).show_typing(
+        organization_id=actor.organization_id, public_id=conversation_id
+    )
+    return TypingIndicatorResponse(sent=sent)
 
 
 @router.get(

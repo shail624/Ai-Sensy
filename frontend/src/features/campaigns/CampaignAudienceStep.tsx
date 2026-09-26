@@ -68,6 +68,24 @@ export function CampaignAudienceStep({ form }: Props): JSX.Element {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-surface-subtle p-4">
+        <label htmlFor="campaign-name" className={LABEL_CLASS}>
+          Campaign Name
+        </label>
+        <p className="mb-2 text-xs text-text-secondary">Pick something that describes your audience &amp; goals.</p>
+        <input
+          id="campaign-name"
+          {...register("name")}
+          placeholder="e.g. July reactivation offer"
+          className={FIELD_CLASS}
+        />
+        {formState.errors.name ? <p className="mt-1 text-xs text-danger">{formState.errors.name.message}</p> : null}
+      </div>
+
+      <p className="text-sm font-semibold text-text-primary">
+        Select Audience
+        <span className="block text-xs font-normal text-text-secondary">Pick your target group audience to follow up with.</span>
+      </p>
       <fieldset>
         <legend className="sr-only">Audience source</legend>
         <div className="grid gap-3 sm:grid-cols-3">

@@ -10,25 +10,54 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Badge, Button, Card, EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { apiErrorMessage, useKycOperations } from "@/features/kyc/api";
 import { KycCasePanel } from "@/features/kyc/KycCasePanel";
-import { KYC_STATUS_LABELS, type KycOperationsCard, type KycStatus } from "@/features/kyc/types";
+import {
+  KycSavedViews,
+  type KycPortableFilters,
+} from "@/features/kyc/KycSavedViews";
+import {
+  KYC_STATUSES,
+  KYC_STATUS_LABELS,
+  type KycOperationsCard,
+  type KycStatus,
+} from "@/features/kyc/types";
 import { useHasPermission } from "@/lib/auth";
 
 const STATUS_TABS: Array<{ value: KycStatus | ""; label: string }> = [
   { value: "", label: "All cases" },
+  { value: "pending", label: "Pending" },
   { value: "documents_pending", label: "Documents" },
   { value: "under_review", label: "Review" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
 ];
 
+function readFilters(params: URLSearchParams): KycPortableFilters {
+  const rawStatus = params.get("status") ?? "";
+  return {
+    q: params.get("q") ?? "",
+    status: KYC_STATUSES.includes(rawStatus as KycStatus)
+      ? (rawStatus as KycStatus)
+      : "",
+  };
+}
+
+function writeFilters(filters: KycPortableFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.status) params.set("status", filters.status);
+  return params;
+}
+
 export function KycOperationsWorkspace(): JSX.Element {
   const canRead = useHasPermission("kyc:read");
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState<KycStatus | "">("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useMemo(() => readFilters(searchParams), [searchParams]);
+  const { q, status } = filters;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const query = useKycOperations({ q: q.trim() || undefined, kyc_status: status ? [status] : undefined, limit: 200 });
   const rows = useMemo(() => query.data?.data ?? [], [query.data?.data]);
@@ -40,6 +69,11 @@ export function KycOperationsWorkspace(): JSX.Element {
     approved: rows.filter((row) => row.status === "approved").length,
   }), [query.data?.total, rows]);
 
+  function applyFilters(next: KycPortableFilters): void {
+    setSelectedId(null);
+    setSearchParams(writeFilters(next));
+  }
+
   if (!canRead) return <EmptyState icon={<ShieldCheck className="h-7 w-7" />} title="KYC operations are restricted" description="Your role does not include permission to view KYC cases." />;
 
   return <div className="space-y-5">
@@ -50,18 +84,20 @@ export function KycOperationsWorkspace(): JSX.Element {
       <Metric icon={CheckCircle2} label="Approved" value={counts.approved} detail="Manager-approved cases" success />
     </section>
 
+    <KycSavedViews filters={filters} onApply={applyFilters} />
+
     <Card className="overflow-hidden" padding={false}>
       <div className="border-b border-border p-4 sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative block w-full lg:max-w-md"><span className="sr-only">Search KYC cases</span><Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search customer, email or mobile" className="h-11 w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 text-sm text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-focus/20" /></label>
+          <label className="relative block w-full lg:max-w-md"><span className="sr-only">Search KYC cases</span><Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-disabled" /><input value={q} onChange={(event) => applyFilters({ ...filters, q: event.target.value })} placeholder="Search customer, email or mobile" className="h-11 w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 text-sm text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-focus/20" /></label>
           <Button variant="secondary" leftIcon={<RefreshCw className="h-4 w-4" />} onClick={() => void query.refetch()} loading={query.isFetching}>Refresh</Button>
         </div>
         <div className="mt-4 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="KYC status filters">
-          {STATUS_TABS.map((item) => <button key={item.value || "all"} type="button" role="tab" aria-selected={status === item.value} onClick={() => setStatus(item.value)} className={`min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition-colors ${status === item.value ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-text-primary"}`}>{item.label}</button>)}
+          {STATUS_TABS.map((item) => <button key={item.value || "all"} type="button" role="tab" aria-selected={status === item.value} onClick={() => applyFilters({ ...filters, status: item.value })} className={`min-h-11 shrink-0 border-b-2 px-4 text-sm font-semibold transition-colors ${status === item.value ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-text-primary"}`}>{item.label}</button>)}
         </div>
       </div>
 
-      {query.isLoading ? <LoadingTable /> : query.isError ? <div className="p-6"><ErrorState message={apiErrorMessage(query.error)} onRetry={() => void query.refetch()} /></div> : rows.length === 0 ? <div className="p-8"><EmptyState icon={<ClipboardCheck className="h-7 w-7" />} title={q || status ? "No KYC cases match these filters" : "No KYC cases yet"} description={q || status ? "Clear or adjust the search and status filter." : "Open KYC from an eligible Reactivation case; no placeholder records are shown."} action={q || status ? <Button variant="secondary" onClick={() => { setQ(""); setStatus(""); }}>Clear filters</Button> : undefined} /></div> : <><DesktopTable rows={rows} onSelect={setSelectedId} /><MobileCards rows={rows} onSelect={setSelectedId} /><div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-text-secondary"><span>{rows.length} visible of {query.data?.total ?? rows.length}</span><span>Real-time governed projection</span></div></>}
+      {query.isLoading ? <LoadingTable /> : query.isError ? <div className="p-6"><ErrorState message={apiErrorMessage(query.error)} onRetry={() => void query.refetch()} /></div> : rows.length === 0 ? <div className="p-8"><EmptyState icon={<ClipboardCheck className="h-7 w-7" />} title={q || status ? "No KYC cases match these filters" : "No KYC cases yet"} description={q || status ? "Clear or adjust the search and status filter." : "Open KYC from an eligible Reactivation case; no placeholder records are shown."} action={q || status ? <Button variant="secondary" onClick={() => applyFilters({ q: "", status: "" })}>Clear filters</Button> : undefined} /></div> : <><DesktopTable rows={rows} onSelect={setSelectedId} /><MobileCards rows={rows} onSelect={setSelectedId} /><div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-text-secondary"><span>{rows.length} visible of {query.data?.total ?? rows.length}</span><span>Live view</span></div></>}
     </Card>
     {selected ? <KycCasePanel card={selected} onClose={() => setSelectedId(null)} /> : null}
   </div>;

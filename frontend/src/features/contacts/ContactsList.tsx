@@ -1,25 +1,39 @@
-import { Contact as ContactIcon, Upload } from "lucide-react";
+import { Contact as ContactIcon, Megaphone, Plus, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { ManagePageHeader, MANAGE_PRIMARY_ACTION } from "@/components/layout";
+import { Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components/ui";
+import { SALE_STATUS_OPTIONS } from "@/features/inbox/saleStatus";
+import { QuickGuide } from "@/features/settings/QuickGuide";
 import { apiErrorMessage } from "@/lib/api/errors";
 import { useContactSearch } from "@/features/contacts/api";
 import { BulkActionsBar } from "@/features/contacts/BulkActionsBar";
 import { ImportWizard } from "@/features/contacts/ImportWizard";
+import { CreateContactDialog } from "@/features/contacts/CreateContactDialog";
 import { buildRules, hasActiveFilters, type ContactFilters } from "@/features/contacts/buildRules";
 import { ContactsTable } from "@/features/contacts/ContactsTable";
+import { ContactSavedViews } from "@/features/contacts/ContactSavedViews";
+import { ContactsActions } from "@/features/contacts/ContactsActions";
 import { ContactsToolbar } from "@/features/contacts/ContactsToolbar";
 import { useCustomAttributeDefinitions, useTags } from "@/features/customer-profile/api";
 import { useHasPermission } from "@/lib/auth";
 
 const PAGE_SIZE = 25;
 
+const MANAGE_OUTLINE_BUTTON =
+  "inline-flex h-[37px] items-center gap-1.5 rounded-md border border-[rgba(10,71,76,0.5)] px-3 text-sm font-medium text-[var(--color-nav-bg)] transition-colors hover:bg-[#ebf5f3] dark:text-accent";
+
+const SALE_FILTERS = [
+  { label: "All status", value: "", pill: "bg-surface text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+  ...SALE_STATUS_OPTIONS.map((option) => ({ label: option.label, value: option.value as string, pill: option.pill })),
+];
+
 function filtersToParams(filters: ContactFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.search.trim()) params.set("q", filters.search.trim());
   if (filters.tagId) params.set("tag", filters.tagId);
+  if (filters.sale) params.set("sale", filters.sale);
   for (const [key, value] of Object.entries(filters.attributes)) {
     if (value) params.set(`attr_${key}`, value);
   }
@@ -29,7 +43,7 @@ function filtersToParams(filters: ContactFilters): URLSearchParams {
 /** A table-shaped skeleton so the page keeps its layout while the first page loads. */
 function LoadingRows(): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-0">
           <Skeleton className="h-4 w-4" />
@@ -51,7 +65,11 @@ export function ContactsList(): JSX.Element {
   /** Room the docked bulk bar needs on phones — reported by the bar, which knows its own height. */
   const [dockedSpace, setDockedSpace] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
+  const canCreate = useHasPermission("contacts:write");
   const canImport = useHasPermission("contacts:import");
+  const canBroadcast = useHasPermission("campaigns:read");
 
   const filters = useMemo<ContactFilters>(() => {
     const attributes: Record<string, string> = {};
@@ -61,6 +79,7 @@ export function ContactsList(): JSX.Element {
     return {
       search: searchParams.get("q") ?? "",
       tagId: searchParams.get("tag") ?? "",
+      sale: searchParams.get("sale") ?? "",
       attributes,
     };
   }, [searchParams]);
@@ -111,114 +130,133 @@ export function ContactsList(): JSX.Element {
   }
 
   return (
-    <PageContainer>
-      <div style={{ paddingBottom: dockedSpace }}>
-      <Breadcrumbs items={[{ label: "Dashboard", to: "/" }, { label: "Contacts" }]} />
-      <PageHeader
-        eyebrow="Customer data"
-        title="Contacts"
-        description="Search, segment, and act on a complete customer record from one workspace."
-        meta={page?.total != null ? <Badge tone="neutral">{page.total.toLocaleString()} contacts</Badge> : undefined}
-        actions={canImport ? (
-          <Button
-            variant="secondary"
-            leftIcon={<Upload className="h-4 w-4" />}
-            onClick={() => setImporting(true)}
-          >
-            Import
-          </Button>
-        ) : undefined}
-      />
-
-      {importing ? (
-        <ImportWizard
-          onClose={() => {
-            setImporting(false);
-            void contacts.refetch();
-          }}
+    <div className="min-h-full bg-[#f9f9f9] dark:bg-canvas">
+      <ManagePageHeader title="Contacts" />
+      <div className="space-y-4 px-4 py-6 sm:px-[30px]" style={{ paddingBottom: dockedSpace || undefined }}>
+        <QuickGuide
+          eyebrow="Contacts quick guide"
+          text="All your customers in one place: search, filter by tag or sale status, import a sheet, or open a customer to see their chats and details."
         />
-      ) : null}
 
-      {/* Search + filters */}
-      <div className="mb-4">
-        <ContactsToolbar
-          filters={filters}
-          onChange={applyFilters}
-          tags={tags.data ?? []}
-          enumAttributes={enumAttributes}
-        />
-      </div>
-
-      {/* Bulk actions — docked to the bottom edge on phones (DS-14), inline from `md` up. */}
-      <BulkActionsBar
-        selectedIds={selectedIds}
-        onClear={() => setSelectedIds(new Set())}
-        rules={rules}
-        onDockedHeightChange={setDockedSpace}
-      />
-
-      {contacts.isLoading ? (
-        <LoadingRows />
-      ) : contacts.isError ? (
-        <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
-      ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface shadow-sm">
-          <EmptyState
-            icon={<ContactIcon className="h-6 w-6" />}
-            title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
-            description={
-              hasActiveFilters(filters)
-                ? "Try a broader search or clear the filters to see everyone."
-                : "Import a CSV or add your first customer to start reactivating."
-            }
-            action={
-              hasActiveFilters(filters) ? (
-                <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", attributes: {} })}>
-                  Clear filters
-                </Button>
-              ) : canImport ? (
-                // First run: the Design Book's own call to action (B3.1 "Empty").
-                <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
-                  Import your contacts
-                </Button>
-              ) : undefined
-            }
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="mr-auto text-sm text-[#6e6e6e] dark:text-text-secondary">
+            {page?.total != null ? `${page.total.toLocaleString("en-IN")} contacts` : "Contacts"}
+          </p>
+          {canBroadcast ? (
+            <Link to="/broadcasts" className={MANAGE_OUTLINE_BUTTON}>
+              <Megaphone aria-hidden className="h-4 w-4" /> Broadcast
+            </Link>
+          ) : null}
+          {canCreate ? (
+            <button type="button" onClick={() => { setCreated(false); setCreating(true); }} className={MANAGE_OUTLINE_BUTTON}>
+              <Plus aria-hidden className="h-4 w-4" /> Add Contact
+            </button>
+          ) : null}
+          {canImport ? (
+            <button type="button" onClick={() => setImporting(true)} className={MANAGE_PRIMARY_ACTION}>
+              <Upload aria-hidden className="mr-1 h-4 w-4" /> Import
+            </button>
+          ) : null}
+          <ContactsActions rules={rules} />
         </div>
-      ) : (
-        <>
-          <ContactsTable
-            contacts={rows}
-            selectedIds={selectedIds}
-            onToggle={toggle}
-            onToggleAll={toggleAll}
-            reactivationKey={reactivationKey}
+
+        {created ? <p role="status" className="mb-4 text-sm text-text-secondary">Contact created. Your current filters are preserved; clear them if the new contact is not visible.</p> : null}
+        {creating ? <CreateContactDialog onClose={() => setCreating(false)} onCreated={() => { setCreating(false); setCreated(true); }} /> : null}
+        {importing ? (
+          <ImportWizard
+            onClose={() => {
+              setImporting(false);
+              void contacts.refetch();
+            }}
           />
-          <nav aria-label="Pagination" className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!page?.prev_cursor}
-              onClick={() => {
+        ) : null}
+
+        <div className="mb-4 space-y-3">
+          <ContactsToolbar
+            filters={filters}
+            onChange={applyFilters}
+            tags={tags.data ?? []}
+            enumAttributes={enumAttributes}
+          />
+          <div role="group" aria-label="Sale status" className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {SALE_FILTERS.map((choice) => {
+              const active = (filters.sale ?? "") === choice.value;
+              return (
+                <button
+                  key={choice.label}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => applyFilters({ ...filters, sale: choice.value })}
+                  className={`h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors ${
+                    active ? "bg-[var(--color-nav-bg)] text-white" : `${choice.pill} hover:opacity-80`
+                  }`}
+                >
+                  {choice.label}
+                </button>
+              );
+            })}
+          </div>
+          <ContactSavedViews filters={filters} onApply={applyFilters} />
+        </div>
+
+        <BulkActionsBar
+          selectedIds={selectedIds}
+          onClear={() => setSelectedIds(new Set())}
+          rules={rules}
+          onDockedHeightChange={setDockedSpace}
+        />
+
+        {contacts.isLoading ? (
+          <LoadingRows />
+        ) : contacts.isError ? (
+          <ErrorState message={apiErrorMessage(contacts.error)} onRetry={() => void contacts.refetch()} />
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-border bg-surface shadow-sm">
+            <EmptyState
+              icon={<ContactIcon className="h-6 w-6" />}
+              title={hasActiveFilters(filters) ? "No contacts match your filters" : "No contacts yet"}
+              description={
+                hasActiveFilters(filters)
+                  ? "Try a broader search or clear the filters to see everyone."
+                  : "Import a CSV or add your first customer to start reactivating."
+              }
+              action={
+                hasActiveFilters(filters) ? (
+                  <Button variant="secondary" onClick={() => applyFilters({ search: "", tagId: "", sale: "", attributes: {} })}>
+                    Clear filters
+                  </Button>
+                ) : canImport ? (
+                  <Button leftIcon={<Upload className="h-4 w-4" />} onClick={() => setImporting(true)}>
+                    Import your contacts
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            <ContactsTable
+              contacts={rows}
+              selectedIds={selectedIds}
+              onToggle={toggle}
+              onToggleAll={toggleAll}
+              reactivationKey={reactivationKey}
+            />
+            <Pagination
+              label="Contact pagination"
+              hasPrevious={Boolean(page?.prev_cursor)}
+              hasNext={Boolean(page?.next_cursor)}
+              onPrevious={() => {
                 if (page?.prev_cursor) goToCursor(page.prev_cursor);
               }}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!page?.next_cursor}
-              onClick={() => {
+              onNext={() => {
                 if (page?.next_cursor) goToCursor(page.next_cursor);
               }}
-            >
-              Next
-            </Button>
-          </nav>
-        </>
-      )}
+              summary={page?.total != null ? `${PAGE_SIZE} per page · ${page.total.toLocaleString("en-IN")} contacts` : undefined}
+            />
+          </>
+        )}
       </div>
-    </PageContainer>
+    </div>
   );
 }

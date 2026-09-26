@@ -8,13 +8,23 @@
  */
 :root,
 :root[data-theme="light"] {
-  --color-bg-canvas: #f6f7fb;
+  --color-bg-canvas: #f7f7f7;
   --color-bg-surface: #ffffff;
   --color-bg-surface-2: #f3f4f8;
   --color-bg-hover: #f1f2f7;
   --color-text-primary: #101426;
   --color-text-secondary: #5b6478;
-  --color-text-disabled: #99a1b3;
+  /* Named for inactive controls but used throughout for readable tertiary content —
+     timestamps, hints, column labels, the sub-line on a selected card. At its previous
+     #99a1b3 that content measured 2.3-2.6:1.
+     Cleared against every background the tone actually lands on, which is the four surfaces
+     *and* the five `-soft` tints: a first pass covering only the surfaces still failed on the
+     dark accent tint (3.83:1) and on the light danger and info tints, and only the first of
+     those three was rendered at the time, so two sat latent waiting for the right state.
+     The cost is a narrow gap to `--color-text-secondary` — the two now differ by about two
+     points of luminance. Legible beats subtly ranked, and a step in a three-step scale that
+     fails DS-10 is not a step worth keeping. */
+  --color-text-disabled: #606b81;
   --color-border-default: #e7e9f0;
   --color-border-strong: #d3d7e2;
   --color-accent: #0f766e;
@@ -32,19 +42,28 @@
   --color-success-soft: #e7f6ee;
   --color-warning: #d98207;
   --color-warning-soft: #fdf1e0;
-  --color-danger: #e0364e;
+  /* Darkened so white on the destructive button clears 4.5:1 (it sat at 4.37:1). Safe to
+     move now that `text-danger` resolves to the on-soft tone: this value is only a fill,
+     a border and a mark, where the bar is 3:1. */
+  --color-danger: #cf1934;
+  /* The label on that fill. White clears 4.5:1 over the darkened light red; in dark the
+     fill stays light — so borders and marks keep their 3:1 — and the label goes dark
+     instead, which is the ordinary dark-theme arrangement. */
+  --color-danger-fg: #ffffff;
   --color-danger-soft: #fce9ec;
   --color-info: #1f7fd6;
   --color-info-soft: #e7f1fc;
   --color-focus-ring: #14a89c;
-  --color-nav-bg: #0a3a36;
-  --color-nav-subtle: #0d443f;
-  --color-nav-hover: #12534c;
-  --color-nav-active-bg: #176158;
+  --color-nav-bg: #0a474c;
+  --color-nav-subtle: #0d5358;
+  --color-nav-hover: #125c62;
+  --color-nav-active-bg: #fbfbfb;
+  --color-nav-active-fg: #0a474c;
   --color-nav-border: rgba(214, 247, 239, 0.14);
-  --color-nav-text: #f3fcf9;
-  --color-nav-muted: #9ac8bf;
+  --color-nav-text: #fbfbfb;
+  --color-nav-muted: #fbfbfb;
   --color-nav-indicator: #69e0c3;
+  --shadow-card: 0 0 11px #e6e6e6;
   --shadow-sm: 0 1px 2px rgba(16, 20, 38, 0.04), 0 1px 3px rgba(16, 20, 38, 0.06);
   --shadow-md: 0 2px 4px rgba(16, 20, 38, 0.04), 0 8px 20px rgba(16, 20, 38, 0.08);
   --shadow-lg: 0 12px 32px rgba(16, 20, 38, 0.12);
@@ -60,13 +79,17 @@
   --color-bg-hover: #1e2540;
   --color-text-primary: #eef1f8;
   --color-text-secondary: #99a2ba;
-  --color-text-disabled: #5a6486;
+  --color-text-disabled: #949cb7;
   --color-border-default: #232c44;
   --color-border-strong: #33405f;
   --color-accent: #2dd4bf;
   --color-accent-strong: #5eead4;
   --color-accent-soft: #123a38;
-  --color-accent-fg: #ffffff;
+  /* The dark theme's accent is a bright teal, so a white label on it measured 1.86:1 —
+     every primary button and every avatar in the dark theme. A deep teal ink keeps the
+     brand hue and reads at 9.15:1 on the accent, 11.51:1 on its hover tone. Light keeps
+     white: its accent is the dark green, where white is already 5.47:1. */
+  --color-accent-fg: #06201e;
   --color-accent-on-soft: #5eead4;
   --color-success-on-soft: #4fd98a;
   --color-warning-on-soft: #f5b769;
@@ -77,6 +100,7 @@
   --color-warning: #f0a13a;
   --color-warning-soft: #2a2012;
   --color-danger: #f2586e;
+  --color-danger-fg: #101426;
   --color-danger-soft: #2a1620;
   --color-info: #45a6f5;
   --color-info-soft: #10233a;
@@ -89,6 +113,8 @@
   --color-nav-text: #f0fbf8;
   --color-nav-muted: #8ab6b0;
   --color-nav-indicator: #5eead4;
+  --color-nav-active-fg: #f0fbf8;
+  --shadow-card: 0 0 11px rgba(0, 0, 0, 0.35);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
@@ -105,13 +131,13 @@
     --color-bg-hover: #1e2540;
     --color-text-primary: #eef1f8;
     --color-text-secondary: #99a2ba;
-    --color-text-disabled: #5a6486;
+    --color-text-disabled: #949cb7;
     --color-border-default: #232c44;
     --color-border-strong: #33405f;
     --color-accent: #2dd4bf;
     --color-accent-strong: #5eead4;
     --color-accent-soft: #123a38;
-    --color-accent-fg: #ffffff;
+    --color-accent-fg: #06201e;
     --color-accent-on-soft: #5eead4;
     --color-success-on-soft: #4fd98a;
     --color-warning-on-soft: #f5b769;
@@ -122,6 +148,7 @@
     --color-warning: #f0a13a;
     --color-warning-soft: #2a2012;
     --color-danger: #f2586e;
+    --color-danger-fg: #101426;
     --color-danger-soft: #2a1620;
     --color-info: #45a6f5;
     --color-info-soft: #10233a;
@@ -134,6 +161,8 @@
     --color-nav-text: #f0fbf8;
     --color-nav-muted: #8ab6b0;
     --color-nav-indicator: #5eead4;
+  --color-nav-active-fg: #f0fbf8;
+  --shadow-card: 0 0 11px rgba(0, 0, 0, 0.35);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
@@ -154,6 +183,33 @@
     @apply bg-canvas text-text-primary antialiased;
     font-family: theme("fontFamily.sans");
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* The reference's (Material) body tracking. */
+    letter-spacing: 0.00938em;
+  }
+
+  h1,
+  h2 {
+    font-family: theme("fontFamily.heading");
+    letter-spacing: normal;
+  }
+
+  /* Smooth, consistent feedback on every control: colour changes ease in, and a press gives a
+     slight push — the reference's controls feel the same way. */
+  button,
+  a,
+  [role="tab"],
+  [role="menuitem"],
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
   }
 
   :focus-visible {
@@ -193,8 +249,66 @@
 }
 
 @layer components {
+  /* A new page fades up into place instead of snapping in. */
+  .page-enter {
+    animation: page-enter 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Dialogs: the backdrop fades in and the panel grows slightly into place. */
+  .modal-backdrop-enter {
+    animation: modal-fade 180ms ease-out both;
+  }
+  .modal-panel-enter {
+    animation: modal-pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes modal-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes modal-pop {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   /* The WhatsApp brand mark gradient, reused by the sidebar logo and dashboard accents. */
   .brand-gradient {
     background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  }
+}
+
+/* Live Chat wallpaper: warm beige with a faint dotted weave (own pattern, reference palette). */
+.chat-wallpaper {
+  background-color: #f5efdf;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(10, 71, 76, 0.06) 1.2px, transparent 1.6px),
+    radial-gradient(circle at 75% 75%, rgba(10, 71, 76, 0.045) 1px, transparent 1.4px);
+  background-size: 28px 28px;
+}
+:root[data-theme="dark"] .chat-wallpaper {
+  background-color: #10181c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .chat-wallpaper {
+    background-color: #10181c;
   }
 }

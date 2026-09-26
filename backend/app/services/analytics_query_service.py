@@ -29,6 +29,7 @@ from app.models.analytics import (
     AnalyticsCampaignRollup,
     AnalyticsContactRollup,
     AnalyticsConversationRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsFailureRollup,
     AnalyticsMessageRollup,
     AnalyticsTaskRollup,
@@ -96,6 +97,10 @@ DIMENSIONS: dict[str, AnalyticsFactModel] = {
     "direction": AnalyticsMessageRollup,
     "message_type": AnalyticsMessageRollup,
     "phone_number_id": AnalyticsMessageRollup,
+    "domain": AnalyticsDomainOutcomeRollup,
+    "outcome": AnalyticsDomainOutcomeRollup,
+    "source": AnalyticsDomainOutcomeRollup,
+    "actor_user_id": AnalyticsDomainOutcomeRollup,
 }
 #: A breakdown is a leaderboard, not a dump — drill-down goes to the operational list endpoints.
 MAX_BREAKDOWN_ROWS = 200
@@ -221,6 +226,157 @@ METRICS: dict[str, MetricSpec] = {
         _metric("campaign_skipped", "Skipped", AnalyticsCampaignRollup, "skipped_count"),
         _metric("campaign_clicks", "Clicks", AnalyticsCampaignRollup, "click_count"),
         _metric("campaign_cost_micros", "Campaign spend (micros)", AnalyticsCampaignRollup, "cost_micros"),
+        # Vi CRM domain outcomes (GROW-05 / PAR-REP-03)
+        _metric(
+            "reactivation_cases_created",
+            "Reactivation cases created",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_case_created_count",
+        ),
+        _metric(
+            "reactivation_stage_transitions",
+            "Reactivation stage transitions",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_transition_count",
+        ),
+        _metric(
+            "reactivation_completed",
+            "Reactivation completed",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_completed_count",
+        ),
+        _metric(
+            "reactivation_not_required",
+            "Reactivation not required",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_not_required_count",
+        ),
+        _metric(
+            "reactivation_turnaround_seconds_sum",
+            "Reactivation turnaround Σ (s)",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_turnaround_seconds_sum",
+        ),
+        _metric(
+            "reactivation_turnaround_count",
+            "Reactivation turnaround n",
+            AnalyticsDomainOutcomeRollup,
+            "reactivation_turnaround_count",
+        ),
+        _metric(
+            "eligibility_decisions",
+            "Eligibility decisions",
+            AnalyticsDomainOutcomeRollup,
+            "eligibility_decision_count",
+        ),
+        _metric(
+            "eligibility_eligible",
+            "Eligible",
+            AnalyticsDomainOutcomeRollup,
+            "eligibility_eligible_count",
+        ),
+        _metric(
+            "eligibility_not_eligible",
+            "Not eligible",
+            AnalyticsDomainOutcomeRollup,
+            "eligibility_not_eligible_count",
+        ),
+        _metric(
+            "eligibility_review_required",
+            "Eligibility review required",
+            AnalyticsDomainOutcomeRollup,
+            "eligibility_review_required_count",
+        ),
+        _metric(
+            "kyc_decisions",
+            "KYC decisions",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_decision_count",
+        ),
+        _metric(
+            "kyc_approved",
+            "KYC approved",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_approved_count",
+        ),
+        _metric(
+            "kyc_rejected",
+            "KYC rejected",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_rejected_count",
+        ),
+        _metric(
+            "kyc_needs_information",
+            "KYC needs information",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_needs_information_count",
+        ),
+        _metric(
+            "kyc_turnaround_seconds_sum",
+            "KYC turnaround Σ (s)",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_turnaround_seconds_sum",
+        ),
+        _metric(
+            "kyc_turnaround_count",
+            "KYC turnaround n",
+            AnalyticsDomainOutcomeRollup,
+            "kyc_turnaround_count",
+        ),
+        _metric(
+            "sim_transitions",
+            "SIM transitions",
+            AnalyticsDomainOutcomeRollup,
+            "sim_transition_count",
+        ),
+        _metric(
+            "sim_delivered",
+            "SIM delivered",
+            AnalyticsDomainOutcomeRollup,
+            "sim_delivered_count",
+        ),
+        _metric(
+            "sim_failed",
+            "SIM failed",
+            AnalyticsDomainOutcomeRollup,
+            "sim_failed_count",
+        ),
+        _metric(
+            "activation_transitions",
+            "Activation transitions",
+            AnalyticsDomainOutcomeRollup,
+            "activation_transition_count",
+        ),
+        _metric(
+            "activations_completed",
+            "Activations completed",
+            AnalyticsDomainOutcomeRollup,
+            "activation_completed_count",
+        ),
+        _metric(
+            "activations_rejected",
+            "Activations rejected",
+            AnalyticsDomainOutcomeRollup,
+            "activation_rejected_count",
+        ),
+        _metric(
+            "sla_started",
+            "SLA started",
+            AnalyticsDomainOutcomeRollup,
+            "sla_started_count",
+        ),
+        _metric(
+            "sla_breached",
+            "SLA breached",
+            AnalyticsDomainOutcomeRollup,
+            "sla_breached_count",
+        ),
+        _metric(
+            "sla_resolved",
+            "SLA resolved",
+            AnalyticsDomainOutcomeRollup,
+            "sla_resolved_count",
+        ),
     )
 }
 
@@ -272,6 +428,23 @@ def derive_kpis(totals: dict[str, int]) -> dict[str, float | None]:
         "campaign_delivery_rate": _ratio(get("campaign_delivered"), get("campaign_sent")),
         "campaign_click_through_rate": _ratio(get("campaign_clicks"), get("campaign_delivered")),
         "cost_per_delivered_micros": _mean(get("cost_micros"), get("messages_delivered")),
+        # GROW-05 business outcomes. Denominators are event-defined and never inferred.
+        "reactivation_conversion_rate": _ratio(
+            get("reactivation_completed"), get("reactivation_cases_created")
+        ),
+        "reactivation_drop_off_rate": _ratio(
+            get("reactivation_not_required"), get("reactivation_cases_created")
+        ),
+        "avg_reactivation_turnaround_seconds": _mean(
+            get("reactivation_turnaround_seconds_sum"), get("reactivation_turnaround_count")
+        ),
+        "eligibility_rate": _ratio(get("eligibility_eligible"), get("eligibility_decisions")),
+        "kyc_approval_rate": _ratio(get("kyc_approved"), get("kyc_decisions")),
+        "avg_kyc_turnaround_seconds": _mean(
+            get("kyc_turnaround_seconds_sum"), get("kyc_turnaround_count")
+        ),
+        "sla_breach_rate": _ratio(get("sla_breached"), get("sla_started")),
+        "sla_resolution_rate": _ratio(get("sla_resolved"), get("sla_started")),
     }
 
 
@@ -643,7 +816,8 @@ class AnalyticsQueryService:
                 bucket[key] += int(getattr(row, METRICS[key].column) or 0)
 
         sort_key = sort_by if sort_by in keys else keys[0]
-        ordered = sorted(grouped.items(), key=lambda item: item[1][sort_key], reverse=True)[:limit]
+        nonzero = [item for item in grouped.items() if any(item[1].values())]
+        ordered = sorted(nonzero, key=lambda item: item[1][sort_key], reverse=True)[:limit]
         labels = await self._resolve_labels(dimension, [value for value, _ in ordered])
 
         totals = dict.fromkeys(keys, 0)
@@ -675,10 +849,16 @@ class AnalyticsQueryService:
         Only the entity dimensions need a lookup; ``error_code``, ``task_type``, ``direction`` and
         ``message_type`` are already human-readable.
         """
+        if dimension in {"domain", "outcome", "source"}:
+            return {
+                value: str(value).replace(".", " · ").replace("_", " ").title()
+                for value in values
+                if isinstance(value, str)
+            }
         ids = [value for value in values if isinstance(value, int)]
         if not ids:
             return {}
-        if dimension in ("assigned_user_id", "assigned_agent_id"):
+        if dimension in ("assigned_user_id", "assigned_agent_id", "actor_user_id"):
             stmt = select(User.id, User.full_name).where(User.id.in_(ids))
         elif dimension == "campaign_id":
             stmt = select(Campaign.id, Campaign.name).where(Campaign.id.in_(ids))

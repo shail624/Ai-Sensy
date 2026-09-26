@@ -16,6 +16,34 @@ interface ComponentLike {
   type?: unknown;
   format?: unknown;
   text?: unknown;
+  buttons?: unknown;
+}
+
+interface ButtonLike {
+  type?: unknown;
+  text?: unknown;
+  url?: unknown;
+  phone_number?: unknown;
+  example?: unknown;
+}
+
+/** Button kinds whose value the sender supplies; the rest are settled at approval time. */
+const VARIABLE_BUTTONS = new Set(["URL", "QUICK_REPLY", "COPY_CODE"]);
+
+/**
+ * The buttons a send must supply a value for: a variable-capable kind whose destination actually
+ * carries a placeholder. A URL button holds its variable inside the link, so this is the only
+ * place the count is visible from the template alone.
+ */
+export function variableButtons(template: Template | undefined): ButtonLike[] {
+  if (!template) return [];
+  const component = componentOf(template, "BUTTONS");
+  const buttons = Array.isArray(component?.buttons) ? (component.buttons as ButtonLike[]) : [];
+  return buttons.filter((button) => {
+    const kind = String(button.type ?? "").toUpperCase();
+    const target = button.url ?? button.phone_number ?? button.example ?? "";
+    return VARIABLE_BUTTONS.has(kind) && placeholderIndices(target).length > 0;
+  });
 }
 
 function componentOf(template: Template, type: string): ComponentLike | undefined {
@@ -39,6 +67,10 @@ export interface TemplateShape {
   /** How many header variables a send must supply — zero unless the header is a text header. */
   headerCount: number;
   bodyCount: number;
+  /** How many buttons carry a variable in their destination and therefore need a mapping. */
+  buttonCount: number;
+  /** Those buttons' labels, so the control can say which button it is asking about. */
+  buttonLabels: string[];
   headerText: string;
   bodyText: string;
   footerText: string;
@@ -51,6 +83,8 @@ export function templateShape(template: Template | undefined): TemplateShape {
     return {
       headerCount: 0,
       bodyCount: 0,
+      buttonCount: 0,
+      buttonLabels: [],
       headerText: "",
       bodyText: "",
       footerText: "",
@@ -58,6 +92,7 @@ export function templateShape(template: Template | undefined): TemplateShape {
     };
   }
 
+  const buttons = variableButtons(template);
   const header = componentOf(template, "HEADER");
   const body = componentOf(template, "BODY");
   const footer = componentOf(template, "FOOTER");
@@ -67,6 +102,8 @@ export function templateShape(template: Template | undefined): TemplateShape {
   return {
     headerCount: header && isTextHeader ? placeholderIndices(header.text).length : 0,
     bodyCount: placeholderIndices(body?.text).length,
+    buttonCount: buttons.length,
+    buttonLabels: buttons.map((button) => String(button.text ?? "Button")),
     headerText: typeof header?.text === "string" ? header.text : "",
     bodyText: typeof body?.text === "string" ? body.text : "",
     footerText: typeof footer?.text === "string" ? footer.text : "",

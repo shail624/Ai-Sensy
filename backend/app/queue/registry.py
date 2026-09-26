@@ -96,7 +96,7 @@ QUEUES: tuple[QueueSpec, ...] = (
               Priority.P2, Pool.AI, 3, 60, 180, DEST_PARK),
     QueueSpec(IMPORTS, "Chunked contact import: parse, validate, dedup, upsert.",
               Priority.P3, Pool.JOBS, 3, 300, 600, DEST_JOB_FAILED),
-    QueueSpec(EXPORTS, "Generate CSV/Excel/JSON exports (streamed).",
+    QueueSpec(EXPORTS, "Generate CSV/Excel/JSON/PDF exports (streamed).",
               Priority.P3, Pool.JOBS, 3, 300, 600, DEST_JOB_FAILED),
     QueueSpec(MEDIA, "Download/upload media, thumbnails, media-id refresh.",
               Priority.P2, Pool.JOBS, 5, 60, 120, DEST_DLQ),

@@ -181,6 +181,13 @@ async def test_a_retryable_failure_is_scheduled_with_the_engines_backoff(
     client, make_user, session_factory, monkeypatch, campaign_channel, tasks
 ) -> None:
     """The retry engine classifies and times it; this only records what it decided."""
+    # Full jitter legitimately includes a near-zero delay, which can expire while this async test
+    # crosses session boundaries. Pin the engine output so the assertion verifies persistence,
+    # not scheduler speed or random timing.
+    monkeypatch.setattr(
+        "app.services.campaign_retry_service.backoff_seconds",
+        lambda failure, attempt: 30.0,
+    )
     headers, created, campaign_pk = await _started(client, make_user, session_factory, monkeypatch)
     # 131048 is a Meta throttle code in the platform's own error map.
     campaign_channel["handler"] = lambda request: (

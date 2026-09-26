@@ -366,9 +366,21 @@ class ContactDocumentService:
         self,
         *,
         organization_id: int,
+        actor: User,
         document_public_id: uuidlib.UUID,
         version_public_id: uuidlib.UUID,
     ) -> tuple[str, int]:
+        """Mint a signed preview URL for one version, and record that somebody read it.
+
+        Every *change* to a document was audited and every *read* was not, which is the wrong way
+        round for a file that is somebody's Aadhaar or PAN: "who altered this record" is rarely the
+        question a compliance review opens with, and "who looked at this customer's identity
+        document, from where, and when" was unanswerable. It follows the audited-read precedent
+        `channel_secret.accessed` already set.
+
+        The URL is not recorded. A signed URL is itself a credential for the bytes, so writing one
+        into the audit trail would turn the trail into a second copy of the thing it protects.
+        """
         document = await self._require_document(organization_id, document_public_id)
         version = await self._repo.get_version(
             organization_id, document.id, version_public_id.bytes
@@ -378,7 +390,25 @@ class ContactDocumentService:
         media = (await self._repo.media_map({version.media_asset_id})).get(version.media_asset_id)
         if media is None or media.deleted_at is not None:
             raise NotFoundError("Document content is unavailable.")
-        return await self._media.signed_url(organization_id, uuidlib.UUID(bytes=media.uuid))
+        url, ttl = await self._media.signed_url(
+            organization_id, uuidlib.UUID(bytes=media.uuid)
+        )
+        await self._audit.record(
+            AuditAction.DOCUMENT_ACCESSED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="contact_document",
+            entity_id=document.id,
+            metadata={
+                "document_type": document.document_type,
+                "version_no": version.version_no,
+                "file_name": media.file_name,
+            },
+        )
+        # A read does not otherwise write, so nothing else would carry this to disk. The origin on
+        # the row comes from the request context (AUDIT-01), so the trail answers *where* too.
+        await self._session.commit()
+        return url, ttl
 
     async def _transition(
         self,

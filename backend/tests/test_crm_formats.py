@@ -276,6 +276,32 @@ def test_writers_accept_report_columns() -> None:
     assert b'"messages_sent": 10' in json_writer.finish()
 
 
+def test_pdf_report_writer_is_paginated_and_idempotent() -> None:
+    """A long analytics table produces a real, multi-page PDF without holding external assets."""
+    from app.crm.formats import PdfExportWriter, export_writer
+
+    assert PdfExportWriter._label("campaign_cost_micros") == "Campaign Cost (micros)"
+
+    columns = ("period", "messages_sent", "messages_delivered", "messages_read")
+    writer = export_writer("pdf", columns, title="Messages report")
+    writer.add(
+        [
+            {
+                "period": f"2026-07-{(index % 28) + 1:02d}",
+                "messages_sent": 1_000 + index,
+                "messages_delivered": 900 + index,
+                "messages_read": 800 + index,
+            }
+            for index in range(60)
+        ]
+    )
+
+    body = writer.finish()
+    assert body.startswith(b"%PDF-")
+    assert body.count(b"/Type /Page") >= 2
+    assert writer.finish() == body
+
+
 def test_contact_export_columns_are_unchanged_by_default() -> None:
     """The default writer still produces the frozen contact shape."""
     from app.crm.csv_io import EXPORT_COLUMNS

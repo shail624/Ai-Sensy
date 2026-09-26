@@ -1,25 +1,33 @@
 import {
   BookmarkPlus,
   Inbox,
-  MessageCircleQuestion,
-  MessagesSquare,
+  ListFilter,
+  MessageSquarePlus,
   Radio,
   Search,
-  SlidersHorizontal,
   Trash2,
-  UserRound,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { TagChip } from "@/components/ui";
-import { useAssignableUsers } from "@/features/inbox/api";
+import { Button, Field, Input, Modal, Select, TagChip } from "@/components/ui";
+import { useAssignableUsers, useConversationCounts } from "@/features/inbox/api";
 import type { SavedInboxView } from "@/features/inbox/preferences";
-import type { InboxFilters, TagSummary } from "@/features/inbox/types";
+import { SALE_STATUS_OPTIONS } from "@/features/inbox/saleStatus";
+import type { InboxChannel, InboxFilters, TagSummary } from "@/features/inbox/types";
 import { CONVERSATION_STATUSES, STATUS_LABELS } from "@/features/inbox/types";
 
-const FIELD_CLASS =
-  "min-h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text-primary outline-none transition focus:border-accent focus:ring-2 focus:ring-focus/20";
+const SALE_FILTERS: { label: string; value: string; pill: string }[] = [
+  { label: "All status", value: "", pill: "bg-[#f0f0f0] text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+  ...SALE_STATUS_OPTIONS.map((option) => ({ label: option.label, value: option.value, pill: option.pill })),
+  { label: "Not marked", value: "none", pill: "bg-[#f0f0f0] text-[#4a4a4a] dark:bg-surface-2 dark:text-text-secondary" },
+];
+
+const CHANNEL_CHOICES: { label: string; value: InboxChannel | undefined; description: string }[] = [
+  { label: "All chats", value: undefined, description: "Chats from every WhatsApp number" },
+  { label: "WhatsApp API", value: "official", description: "Only chats on the official WhatsApp Business API number" },
+  { label: "WhatsApp QR", value: "qr", description: "Only chats on the phone connected by QR scan" },
+];
 
 interface Props {
   filters: InboxFilters;
@@ -29,6 +37,8 @@ interface Props {
   onSaveView: (name: string) => void;
   onDeleteView: (id: string) => void;
   currentUserId?: string;
+  /** Opens the new-chat dialog; the button is hidden when omitted (no send permission). */
+  onNewChat?: () => void;
 }
 
 /** Simple triage first; the complete filter and saved-view toolkit remains one click away. */
@@ -40,15 +50,24 @@ export function ConversationFilters({
   onSaveView,
   onDeleteView,
   currentUserId,
+  onNewChat,
 }: Props): JSX.Element {
   const users = useAssignableUsers();
   const [viewName, setViewName] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filters apply live; Discard restores what was in force when the dialog opened.
+  const [openedWith, setOpenedWith] = useState<InboxFilters>(filters);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function focusSearch(event: KeyboardEvent): void {
-      if (event.key !== "/" || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (
+        event.key !== "/" ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
       event.preventDefault();
       searchRef.current?.focus();
     }
@@ -56,110 +75,231 @@ export function ConversationFilters({
     return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
+  // Counted under the search alone — the only filter a chip carries across — so each badge equals
+  // the number of rows its own click produces. While the read is in flight the badge is omitted
+  // rather than shown as zero, which would read as an emptiness the inbox has not established.
+  const counts = useConversationCounts(filters.q);
+
   const quickInboxes = [
-    {
-      label: "Requests",
-      description: "Open and unassigned",
-      icon: MessageCircleQuestion,
-      next: { status: "open", assignee: "unassigned" } satisfies InboxFilters,
-    },
     {
       label: "Active",
       description: "All open chats",
-      icon: MessagesSquare,
+      count: counts.data?.active,
       next: { status: "open" } satisfies InboxFilters,
     },
+    {
+      label: "Requesting",
+      description: "Open chats without an assigned agent",
+      count: counts.data?.requesting,
+      next: { status: "open", assignee: "unassigned" } satisfies InboxFilters,
+    },
     ...(currentUserId
-      ? [{
-          label: "My chats",
-          description: "Assigned to me",
-          icon: UserRound,
-          next: { assignee: currentUserId } satisfies InboxFilters,
-        }]
+      ? [
+          {
+            label: "Intervened",
+            description: "Chats currently assigned to me",
+            count: counts.data?.intervened,
+            next: { assignee: currentUserId } satisfies InboxFilters,
+          },
+        ]
       : []),
   ];
 
   const isQuickInboxActive = (next: InboxFilters): boolean =>
     filters.status === next.status && filters.assignee === next.assignee && !filters.tag;
 
-  const advancedFilterCount = Number(Boolean(filters.status)) + Number(Boolean(filters.assignee)) + Number(Boolean(filters.tag));
+  const activeIndex = quickInboxes.findIndex((quickInbox) => isQuickInboxActive(quickInbox.next));
+
+  const advancedFilterCount =
+    Number(Boolean(filters.status)) + Number(Boolean(filters.assignee)) + Number(Boolean(filters.tag));
   const hasListFilter = advancedFilterCount > 0 || Boolean(filters.q);
 
   function applyQuickInbox(next: InboxFilters): void {
-    onChange(filters.q ? { ...next, q: filters.q } : next);
+    // Search and the WhatsApp choice survive a view switch; the view only swaps status/assignee.
+    onChange({
+      ...next,
+      ...(filters.q ? { q: filters.q } : {}),
+      ...(filters.channel ? { channel: filters.channel } : {}),
+      ...(filters.sale ? { sale: filters.sale } : {}),
+    });
   }
 
   return (
-    <div className="space-y-3 border-b border-border bg-surface p-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex shrink-0 flex-col">
+      <div className="sr-only">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-text-primary">Live Chat</p>
+          <h1 className="truncate text-sm font-bold text-text-primary">Live Chat</h1>
           <p className="text-[11px] text-text-secondary">One shared team inbox</p>
         </div>
-        <span title="Conversation list refreshes every 10 seconds" className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success-soft px-2 py-1 text-[11px] font-semibold text-success">
-          <Radio aria-hidden className="h-3 w-3" /> Auto-refresh · 10s
+        <span
+          title="Conversation list refreshes every 2 seconds"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success-soft px-2 py-1 text-[11px] font-semibold text-success-on-soft"
+        >
+          <Radio aria-hidden className="h-3 w-3" /> Auto-refresh · 2s
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5" aria-label="Live Chat views">
-        {quickInboxes.map((quickInbox) => {
-          const active = isQuickInboxActive(quickInbox.next);
-          const Icon = quickInbox.icon;
-          return (
-            <button
-              key={quickInbox.label}
-              type="button"
-              aria-pressed={active}
-              onClick={() => applyQuickInbox(quickInbox.next)}
-              className={`group min-w-0 rounded-xl border px-2 py-2.5 text-left transition ${active ? "border-accent bg-accent-soft shadow-sm" : "border-border bg-surface hover:border-accent/40 hover:bg-hover"}`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Icon aria-hidden className={`h-4 w-4 shrink-0 ${active ? "text-accent" : "text-text-disabled group-hover:text-accent"}`} />
-                <span className={`truncate text-xs font-semibold ${active ? "text-accent" : "text-text-primary"}`}>{quickInbox.label}</span>
-              </span>
-              <span className="mt-1 block truncate text-[10px] text-text-disabled">{quickInbox.description}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2">
-        <div className="relative min-w-0 flex-1">
-          <label htmlFor="inbox-search" className="sr-only">Search conversations</label>
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-text-disabled" />
+      <div className="flex h-[60px] items-center gap-2 bg-[#fdfffc] pl-4 pr-2 dark:bg-surface">
+        <div className="flex h-[34px] min-w-0 flex-1 items-center rounded-lg bg-[#f0f0f0] pl-[15px] pr-1.5 dark:bg-surface-2">
           <input
             ref={searchRef}
             id="inbox-search"
             type="search"
             value={filters.q ?? ""}
             onChange={(event) => onChange({ ...filters, q: event.target.value || undefined })}
-            placeholder="Search chats…"
-            className={`${FIELD_CLASS} pl-9 pr-8`}
+            placeholder="Search name or mobile number"
+            aria-label="Search conversations"
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#4a4a4a] placeholder:text-[#9e9e9e] focus:outline-none dark:text-text-primary [&::-webkit-search-cancel-button]:hidden"
           />
           {filters.q ? (
-            <button type="button" aria-label="Clear search" onClick={() => onChange({ ...filters, q: undefined })} className="absolute right-2 top-2 rounded-lg p-1.5 text-text-disabled hover:bg-hover hover:text-text-primary">
-              <X aria-hidden className="h-3.5 w-3.5" />
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => onChange({ ...filters, q: undefined })}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-black/50 hover:bg-black/5"
+            >
+              <X aria-hidden className="h-4 w-4" />
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              aria-label="Search conversations"
+              onClick={() => searchRef.current?.focus()}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-black/50 hover:bg-black/5 dark:text-text-secondary"
+            >
+              <Search aria-hidden className="h-4 w-4" />
+            </button>
+          )}
         </div>
+        {onNewChat ? (
+          <button
+            type="button"
+            aria-label="New chat"
+            title="New chat"
+            onClick={onNewChat}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-black/55 transition-colors duration-150 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-text-secondary"
+          >
+            <MessageSquarePlus aria-hidden className="h-[22px] w-[22px]" />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-expanded={filtersOpen}
-          onClick={() => setFiltersOpen((open) => !open)}
-          className={`relative inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition ${filtersOpen || advancedFilterCount > 0 ? "border-accent bg-accent-soft text-accent" : "border-border text-text-secondary hover:bg-hover"}`}
+          aria-controls="advanced-inbox-filters"
+          onClick={() => {
+            setOpenedWith(filters);
+            setFiltersOpen((open) => !open);
+          }}
+          aria-label={advancedFilterCount > 0 ? `Filters, ${advancedFilterCount} active` : "Filters"}
+          title="Filters"
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-black/55 transition-colors duration-150 hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus dark:text-text-secondary"
         >
-          <SlidersHorizontal aria-hidden className="h-4 w-4" /> Filters
-          {advancedFilterCount > 0 ? <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-accent-fg">{advancedFilterCount}</span> : null}
+          <ListFilter aria-hidden className="h-6 w-6" />
+          {advancedFilterCount > 0 ? (
+            <span
+              aria-hidden
+              className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-nav-bg)] px-1 text-[9px] font-bold text-white"
+            >
+              {advancedFilterCount > 9 ? "9+" : advancedFilterCount}
+            </span>
+          ) : null}
         </button>
       </div>
 
+      <div className="relative flex h-[50px] items-stretch bg-[var(--color-nav-bg)] text-white" aria-label="Live Chat views">
+        {quickInboxes.map((quickInbox) => {
+          const active = isQuickInboxActive(quickInbox.next);
+          return (
+            <button
+              key={quickInbox.label}
+              type="button"
+              aria-pressed={active}
+              title={quickInbox.description}
+              onClick={() => applyQuickInbox(quickInbox.next)}
+              className={`min-w-0 flex-1 px-[3px] text-[11px] font-medium uppercase tracking-[0.03em] transition-opacity duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 ${active ? "opacity-100" : "opacity-70 hover:opacity-100"}`}
+            >
+              {quickInbox.label}
+              {quickInbox.count === undefined ? null : (
+                <span aria-label={`${quickInbox.count} in ${quickInbox.label}`} className="ml-1 tabular-nums">
+                  ({quickInbox.count})
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {activeIndex >= 0 ? (
+          <span
+            aria-hidden
+            className="absolute bottom-0 h-[3px] bg-white transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            style={{ width: `${100 / quickInboxes.length}%`, left: `${(100 / quickInboxes.length) * activeIndex}%` }}
+          />
+        ) : null}
+      </div>
+
+      <div role="group" aria-label="Which WhatsApp" className="flex items-center gap-1.5 border-b border-border bg-[#fdfffc] px-3 py-2 dark:bg-surface">
+        {CHANNEL_CHOICES.map((choice) => {
+          const active = filters.channel === choice.value;
+          return (
+            <button
+              key={choice.label}
+              type="button"
+              aria-pressed={active}
+              title={choice.description}
+              onClick={() => onChange({ ...filters, channel: choice.value })}
+              className={`h-7 rounded-full px-3 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                active
+                  ? "bg-[var(--color-nav-bg)] text-white"
+                  : "bg-[#f0f0f0] text-[#4a4a4a] hover:bg-[#e4e4e4] dark:bg-surface-2 dark:text-text-secondary"
+              }`}
+            >
+              {choice.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div role="group" aria-label="Sale status" className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-[#fdfffc] px-3 pb-2 dark:bg-surface">
+        {SALE_FILTERS.map((choice) => {
+          const active = (filters.sale ?? "") === choice.value;
+          return (
+            <button
+              key={choice.label}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange({ ...filters, sale: choice.value || undefined })}
+              className={`h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                active ? "bg-[var(--color-nav-bg)] text-white" : `${choice.pill} hover:opacity-80`
+              }`}
+            >
+              {choice.label}
+            </button>
+          );
+        })}
+      </div>
+
       {savedViews.length > 0 ? (
-        <div aria-label="Saved inboxes" className="flex items-center gap-1 overflow-x-auto pb-0.5">
-          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-disabled">Saved</span>
+        <div aria-label="Saved inboxes" className="order-2 flex items-center gap-1 overflow-x-auto px-3 py-2">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-disabled">
+            Saved
+          </span>
           {savedViews.map((view) => (
-            <span key={view.id} className="inline-flex shrink-0 items-center rounded-full border border-border bg-surface-subtle">
-              <button type="button" onClick={() => onChange(view.filters)} className="px-2.5 py-1 text-xs font-medium text-text-primary">{view.name}</button>
-              <button type="button" aria-label={`Delete ${view.name} view`} onClick={() => onDeleteView(view.id)} className="mr-1 rounded-full p-1 text-text-disabled hover:text-danger">
+            <span
+              key={view.id}
+              className="inline-flex shrink-0 items-center rounded-full border border-border bg-surface-2"
+            >
+              <button
+                type="button"
+                onClick={() => onChange(view.filters)}
+                className="px-2.5 py-1 text-xs font-medium text-text-primary"
+              >
+                {view.name}
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${view.name} view`}
+                onClick={() => onDeleteView(view.id)}
+                className="mr-1 rounded-full p-1 text-text-disabled hover:text-danger"
+              >
                 <Trash2 aria-hidden className="h-3 w-3" />
               </button>
             </span>
@@ -168,31 +308,63 @@ export function ConversationFilters({
       ) : null}
 
       {filtersOpen ? (
-        <section aria-label="Advanced inbox filters" className="space-y-3 rounded-2xl border border-border bg-surface-subtle p-3">
+        <Modal title="Filters" onClose={() => setFiltersOpen(false)} panelClassName="!max-w-[860px] !rounded-md">
+        <p className="mb-3 text-sm text-text-secondary">Refine the live chat list by adding one or more filters.</p>
+        <section
+          id="advanced-inbox-filters"
+          aria-label="Advanced inbox filters"
+          className="space-y-3"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Inbox aria-hidden className="h-4 w-4 text-accent" />
               <p className="text-xs font-bold text-text-primary">Advanced filters</p>
             </div>
-            {hasListFilter ? <button type="button" onClick={() => onChange({})} className="text-xs font-semibold text-accent hover:underline">Show all</button> : null}
+            {hasListFilter ? (
+              <button
+                type="button"
+                onClick={() => onChange({})}
+                className="text-xs font-semibold text-accent hover:underline"
+              >
+                Show all
+              </button>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="inbox-status" className="mb-1 block text-xs font-medium text-text-secondary">Status</label>
-              <select id="inbox-status" value={filters.status ?? ""} onChange={(event) => onChange({ ...filters, status: event.target.value || undefined })} className={FIELD_CLASS}>
+            <Field htmlFor="inbox-status" label="Status">
+              <Select
+                id="inbox-status"
+                value={filters.status ?? ""}
+                onChange={(event) =>
+                  onChange({ ...filters, status: event.target.value || undefined })
+                }
+              >
                 <option value="">All statuses</option>
-                {CONVERSATION_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="inbox-assignee" className="mb-1 block text-xs font-medium text-text-secondary">Assignee</label>
-              <select id="inbox-assignee" value={filters.assignee ?? ""} onChange={(event) => onChange({ ...filters, assignee: event.target.value || undefined })} className={FIELD_CLASS}>
+                {CONVERSATION_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field htmlFor="inbox-assignee" label="Assignee">
+              <Select
+                id="inbox-assignee"
+                value={filters.assignee ?? ""}
+                onChange={(event) =>
+                  onChange({ ...filters, assignee: event.target.value || undefined })
+                }
+              >
                 <option value="">Anyone</option>
                 <option value="unassigned">Unassigned</option>
-                {(users.data ?? []).map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-              </select>
-            </div>
+                {(users.data ?? []).map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </div>
 
           {tags.length > 0 ? (
@@ -201,26 +373,60 @@ export function ConversationFilters({
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => {
                   const active = filters.tag === tag.id;
-                  return <button key={tag.id} type="button" aria-pressed={active} onClick={() => onChange({ ...filters, tag: active ? undefined : tag.id })} className={`rounded-full ${active ? "ring-2 ring-focus" : ""}`}><TagChip name={tag.name} color={tag.color} /></button>;
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onChange({ ...filters, tag: active ? undefined : tag.id })}
+                      className={`rounded-full ${active ? "ring-2 ring-focus" : ""}`}
+                    >
+                      <TagChip name={tag.name} color={tag.color} />
+                    </button>
+                  );
                 })}
               </div>
             </div>
           ) : null}
 
-          <form className="flex gap-2" onSubmit={(event) => {
-            event.preventDefault();
-            const name = viewName.trim();
-            if (!name) return;
-            onSaveView(name);
-            setViewName("");
-          }}>
-            <label htmlFor="saved-view-name" className="sr-only">Saved inbox name</label>
-            <input id="saved-view-name" value={viewName} onChange={(event) => setViewName(event.target.value)} placeholder="Save these filters" maxLength={40} className={FIELD_CLASS} />
-            <button type="submit" disabled={!viewName.trim()} className="rounded-xl border border-border p-2.5 text-text-secondary hover:bg-hover disabled:opacity-40" aria-label="Save current filters">
-              <BookmarkPlus aria-hidden className="h-4 w-4" />
-            </button>
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = viewName.trim();
+              if (!name) return;
+              onSaveView(name);
+              setViewName("");
+            }}
+          >
+            <Input
+              id="saved-view-name"
+              value={viewName}
+              onChange={(event) => setViewName(event.target.value)}
+              placeholder="Save these filters"
+              maxLength={40}
+              aria-label="Saved inbox name"
+              containerClassName="min-w-0 flex-1"
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={!viewName.trim()}
+              aria-label="Save current filters"
+              leftIcon={<BookmarkPlus aria-hidden className="h-4 w-4" />}
+              className="px-3"
+            />
           </form>
         </section>
+        <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
+          <button type="button" onClick={() => { onChange(openedWith); setFiltersOpen(false); }} className="h-9 rounded-md px-4 text-sm font-medium text-[#4a4a4a] hover:bg-hover dark:text-text-secondary">
+            Discard
+          </button>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="h-9 rounded-md bg-[var(--color-nav-bg)] px-4 text-sm font-medium text-white hover:bg-[#08393d]">
+            Apply Filters
+          </button>
+        </div>
+        </Modal>
       ) : null}
     </div>
   );

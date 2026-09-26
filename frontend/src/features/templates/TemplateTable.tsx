@@ -9,13 +9,15 @@ import {
   TemplateStatusChip,
 } from "@/features/templates/TemplateBadges";
 import { TemplateActions } from "@/features/templates/TemplateActions";
-import type { Template } from "@/features/templates/types";
+import type { Template, TemplateUsage } from "@/features/templates/types";
 import { formatDate } from "@/lib/format";
 
 interface Props {
   templates: Template[];
   favoritePaths?: string[];
   onToggleFavorite?: (path: string) => void;
+  /** Send history per template id. Absent while it loads, which the column shows as a dash. */
+  usage?: Map<string, TemplateUsage>;
 }
 
 /**
@@ -25,7 +27,7 @@ interface Props {
  * Secondary columns drop away below `md` rather than being squeezed: name, approval status and
  * actions are what the list is for, and the rest is one tap away on the detail page.
  */
-export function TemplateTable({ templates, favoritePaths = [], onToggleFavorite = () => undefined }: Props): JSX.Element {
+export function TemplateTable({ templates, favoritePaths = [], onToggleFavorite = () => undefined, usage }: Props): JSX.Element {
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-left text-sm">
@@ -37,6 +39,8 @@ export function TemplateTable({ templates, favoritePaths = [], onToggleFavorite 
             <th scope="col" className="hidden px-3 py-2 md:table-cell">Language</th>
             <th scope="col" className="hidden px-3 py-2 lg:table-cell">Variables</th>
             <th scope="col" className="hidden px-3 py-2 xl:table-cell">Quality</th>
+            <th scope="col" className="hidden px-3 py-2 lg:table-cell">Sent to</th>
+            <th scope="col" className="hidden px-3 py-2 lg:table-cell">Delivered</th>
             <th scope="col" className="hidden px-3 py-2 xl:table-cell">Created</th>
             <th scope="col" className="px-3 py-2 text-right">Actions</th>
           </tr>
@@ -94,6 +98,12 @@ export function TemplateTable({ templates, favoritePaths = [], onToggleFavorite 
                 <td className="hidden px-3 py-2 xl:table-cell">
                   <QualityChip value={template.quality_score} />
                 </td>
+                <td className="hidden px-3 py-2 text-text-secondary lg:table-cell">
+                  {usage ? (usage.get(template.id)?.recipients ?? 0).toLocaleString() : "—"}
+                </td>
+                <td className="hidden px-3 py-2 text-text-secondary lg:table-cell">
+                  {usage ? deliveryRateLabel(usage.get(template.id)) : "—"}
+                </td>
                 <td className="hidden px-3 py-2 text-text-secondary xl:table-cell">
                   {formatDate(template.created_at)}
                 </td>
@@ -107,4 +117,17 @@ export function TemplateTable({ templates, favoritePaths = [], onToggleFavorite 
       </table>
     </div>
   );
+}
+
+/**
+ * A delivery rate, or why there isn't one.
+ *
+ * "Never sent" rather than 0%, because zero reads as "everything failed" when the truth is that
+ * nothing was tried -- and those call for opposite actions.
+ */
+function deliveryRateLabel(row: TemplateUsage | undefined): string {
+  if (!row || row.recipients === 0) return "Never sent";
+  return row.delivery_rate === null || row.delivery_rate === undefined
+    ? "—"
+    : `${Math.round(row.delivery_rate * 100)}%`;
 }

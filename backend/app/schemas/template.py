@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.models.template import MessageTemplate, TemplateVersion
+from app.repositories.template_usage import TemplateUsage
 
 CategoryName = Literal["marketing", "utility", "authentication"]
 
@@ -82,10 +83,50 @@ class TemplateListResponse(BaseModel):
     data: list[TemplateResponse]
 
 
+class PreviewExpects(BaseModel):
+    """How many sample values each part of this template takes.
+
+    Returned so the screen can offer exactly that many boxes. Counting placeholders in the browser
+    would mean a second implementation of the numbering rules, and the one that drifted would be
+    the one nobody compared against a send.
+    """
+
+    header: int
+    body: int
+    buttons: int
+
+
+class RenderedButton(BaseModel):
+    """One button as the customer will meet it.
+
+    ``target`` is what a tap acts on — the link opened, the number dialled, the code copied — and
+    is empty for a quick reply, whose tap sends the label back instead. It is returned separately
+    from ``text`` because a wrong label is obvious on any screen and a wrong destination is
+    invisible on all of them until a customer taps it.
+    """
+
+    index: int
+    type: str
+    text: str
+    target: str
+    takes_value: bool = Field(
+        description="Whether this button's destination carries a variable the send supplies."
+    )
+
+
 class TemplatePreviewResponse(BaseModel):
+    """The template as one customer will receive it (FR-TPL-08).
+
+    Buttons are rendered alongside the text. A URL button carries its variable inside the link, so
+    a preview that stopped at the message body could not show a mis-mapped link at all — and the
+    send that follows goes to every customer at once.
+    """
+
     header: str
     body: str
     footer: str
+    buttons: list[RenderedButton] = Field(default_factory=list)
+    expects: PreviewExpects
 
 
 class TemplateVersionEntry(BaseModel):
@@ -108,3 +149,56 @@ class TemplateVersionEntry(BaseModel):
 
 class TemplateVersionsResponse(BaseModel):
     data: list[TemplateVersionEntry]
+
+
+class TemplateUsageResponse(BaseModel):
+    """One template's send history.
+
+    ``delivery_rate`` is ``None`` rather than ``0`` for a template nobody has sent: zero reads as
+    "everything failed" when the truth is that nothing was tried, and the two call for opposite
+    actions — fix it, or try it.
+    """
+
+    template_id: uuidlib.UUID
+    name: str
+    language: str
+    category: str
+    status: str
+    campaigns: int = Field(
+        description="Campaigns that were actually dispatched; a draft using the template is not one."
+    )
+    recipients: int = Field(
+        description=(
+            "Recipients a send was attempted for — not the size of the roster. A campaign "
+            "materialises its whole roster while it is still a draft, and those rows were never "
+            "tried."
+        )
+    )
+    delivered: int
+    failed: int
+    delivery_rate: float | None = Field(
+        description="Delivered as a share of attempted; null when the template has never been sent."
+    )
+    last_used_at: datetime | None = Field(
+        description="When the template was last sent, not when a campaign using it was drafted."
+    )
+
+    @classmethod
+    def from_usage(cls, usage: TemplateUsage) -> TemplateUsageResponse:
+        return cls(
+            template_id=uuidlib.UUID(usage.template.public_id),
+            name=usage.template.name,
+            language=usage.template.language,
+            category=usage.template.category,
+            status=usage.template.status,
+            campaigns=usage.campaigns,
+            recipients=usage.recipients,
+            delivered=usage.delivered,
+            failed=usage.failed,
+            delivery_rate=usage.delivery_rate,
+            last_used_at=usage.last_used_at,
+        )
+
+
+class TemplateUsageListResponse(BaseModel):
+    data: list[TemplateUsageResponse]

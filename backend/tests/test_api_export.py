@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
+from datetime import UTC, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pytest
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.crm.csv_io import EXPORT_COLUMNS
 from app.db.mixins import utcnow
-from app.models.job_records import STATUS_READY
+from app.models.job_records import STATUS_READY, ExportJob
 from app.services.export_service import ExportService
 from app.storage.base import get_provider
 
@@ -78,6 +80,22 @@ async def test_export_returns_202_with_job_and_poll_url(client, make_user) -> No
     progress = (await client.get(job["poll_url"], headers=h)).json()
     assert progress["status"] == "pending"
     assert progress["download_url"] is None
+
+
+async def test_google_sheet_export_requires_and_records_a_destination(client, make_user) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+
+    missing = await client.post(
+        "/api/v1/contacts/export", headers=h, json={"format": "google_sheet"}
+    )
+    assert missing.status_code == 422
+
+    export_id = await _start(
+        client, h, format="google_sheet", spreadsheet_id="safe-sheet-id"
+    )
+    progress = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()
+    assert progress["format"] == "google_sheet"
 
 
 async def test_export_validation_422_and_unknown_job_404(client, make_user) -> None:
@@ -181,6 +199,39 @@ async def test_export_streams_in_batches_without_materialising(
     assert len(calls) == 2 and calls[0] is None and calls[1] is not None
 
 
+async def test_google_sheet_export_creates_one_retry_safe_tab_and_streams_rows(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(
+        client, h, format="google_sheet", spreadsheet_id="safe-sheet-id"
+    )
+    calls: list[tuple] = []
+
+    class FakeSheets:
+        async def ensure_export_tab(self, spreadsheet_id, tab, *, resume=False):
+            calls.append(("tab", spreadsheet_id, tab, resume))
+
+        async def write_rows(self, spreadsheet_id, tab, start_row, rows):
+            calls.append(("rows", spreadsheet_id, tab, start_row, rows))
+
+    monkeypatch.setattr("app.services.export_service.GoogleSheetsClient", FakeSheets)
+    async with session_factory() as session:
+        job = await ExportService(session).run(export_id)
+    async with session_factory() as session:
+        retried = await ExportService(session).run(export_id)
+
+    assert job.status == STATUS_READY and job.row_count == 3
+    assert retried.status == STATUS_READY and retried.row_count == 3
+    assert job.storage_key is None and job.expires_at is None
+    assert calls[0][0] == "tab" and calls[0][3] is False
+    assert calls[1][3] == 1 and calls[1][4][0] == list(EXPORT_COLUMNS)
+    assert calls[2][3] == 2 and len(calls[2][4]) == 3
+    assert [call[3] for call in calls if call[0] == "tab"] == [False, True]
+
+
 async def test_expired_export_hides_download_url(client, make_user, session_factory) -> None:
     await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
     h = await _headers(client, "owner@vi.co")
@@ -193,6 +244,26 @@ async def test_expired_export_hides_download_url(client, make_user, session_fact
         assert await service.download_url(job) is not None
         job.expires_at = utcnow() - timedelta(seconds=1)
         assert await service.download_url(job) is None
+
+
+async def test_signed_link_is_capped_by_artifact_retention(
+    client, make_user, session_factory, monkeypatch
+) -> None:
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    monkeypatch.setattr(settings, "storage_signed_url_ttl_seconds", 300)
+
+    async with session_factory() as session:
+        service = ExportService(session)
+        job = await service.run(export_id)
+        job.expires_at = utcnow() + timedelta(seconds=10)
+        retention_epoch = int(job.expires_at.replace(tzinfo=UTC).timestamp())
+        url = await service.download_url(job)
+
+    signed_expiry = int(parse_qs(urlparse(url or "").query)["expires"][0])
+    assert signed_expiry <= retention_epoch
 
 
 async def test_export_is_retry_safe(client, make_user, session_factory) -> None:
@@ -277,3 +348,30 @@ async def test_export_download_url_expires(client, make_user, session_factory, m
     resp = await client.get(url)
     assert resp.status_code == 410, resp.text
     assert resp.json()["code"] == "gone"
+
+
+async def test_export_retention_revokes_an_already_signed_link(
+    client, make_user, session_factory
+) -> None:
+    """Artifact retention remains authoritative after a short-lived link has been issued."""
+    await make_user(email="owner@vi.co", password=PASSWORD, is_superuser=True)
+    h = await _headers(client, "owner@vi.co")
+    await _seed_contacts(client, h)
+    export_id = await _start(client, h)
+    async with session_factory() as session:
+        await ExportService(session).run(export_id)
+
+    url = (await client.get(f"/api/v1/contacts/export/{export_id}", headers=h)).json()["download_url"]
+    # Resolve directly because the public download route is intentionally signature-authenticated.
+    async with session_factory() as session:
+        row = (
+            await session.scalars(
+                select(ExportJob).where(ExportJob.uuid == uuid.UUID(export_id).bytes)
+            )
+        ).one()
+        row.expires_at = utcnow() - timedelta(seconds=1)
+        await session.commit()
+
+    response = await client.get(url)
+    assert response.status_code == 410, response.text
+    assert response.json()["code"] == "gone"

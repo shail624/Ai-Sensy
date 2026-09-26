@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.models.job_records import DEDUP_SKIP, ImportJob
 
@@ -86,3 +87,37 @@ class ImportProgressResponse(BaseModel):
             created_at=job.created_at,
             completed_at=job.completed_at,
         )
+
+
+class GoogleSheetStageRequest(BaseModel):
+    """``POST /contacts/import/google-sheet`` — pull a tab in, import nothing yet."""
+
+    #: Google's own id alphabet. Constrained here because this string is interpolated into the
+    #: Sheets URL: a mangled paste that still contains a slash would address a different endpoint
+    #: and come back as "no sheet with that id was found", which sends the operator to check the
+    #: sheet instead of their clipboard. Named as a field error, it says which box is wrong.
+    spreadsheet_id: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_-]+$"
+        ),
+    ]
+    #: Deliberately unconstrained beyond a length: a tab may be called anything a person can type,
+    #: including spaces, slashes and other scripts. Correct URL encoding is the reader's job.
+    tab: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
+
+class GoogleSheetStageResponse(BaseModel):
+    """The staged sheet, as an upload the normal import flow already understands.
+
+    ``upload_id`` is the same identifier ``/contacts/import/inspect`` and ``/contacts/import``
+    take, which is the point: a sheet reaches contacts through the one import pipeline, with the
+    same mapping step, dedup strategy, per-row error report and audit trail as a CSV. The row and
+    column counts are returned so the operator can tell at a glance whether they pulled the tab
+    they meant to.
+    """
+
+    type: str = "google_sheet_staged"
+    upload_id: uuidlib.UUID
+    rows: int
+    columns: int

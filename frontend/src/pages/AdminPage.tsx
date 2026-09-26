@@ -29,6 +29,7 @@ export function AdminPage(): JSX.Element {
   const sections = ADMIN_SECTIONS.filter((section) => hasPermission(section.permission));
 
   const active = sections.find((section) => location.pathname.startsWith(section.path));
+  const isTeamWorkspace = active?.key === "users";
 
   return (
     <PageContainer>
@@ -40,7 +41,7 @@ export function AdminPage(): JSX.Element {
         ]}
       />
       <PageHeader
-        title="Administration"
+        title={isTeamWorkspace ? "Team Members" : "Administration"}
         description={active?.description ?? "Accounts, access and the record of what was done."}
       />
 

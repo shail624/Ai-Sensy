@@ -29,6 +29,7 @@ from app.api.v1.endpoints.media import GoneError
 from app.core.config import settings
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.crm.formats import CONTENT_TYPES
+from app.db.mixins import utcnow
 from app.repositories.bulk_job import BulkJobRepository
 from app.repositories.export_job import ExportRepository
 from app.repositories.import_job import ImportRepository
@@ -51,6 +52,8 @@ async def _export(
     job = await ExportRepository(session).get_by_uuid(public_id)
     if job is None or not job.storage_key:
         return None
+    if job.expires_at is not None and job.expires_at <= utcnow():
+        raise GoneError("This artifact has expired.")
     return job.storage_key, CONTENT_TYPES.get(job.format, _CSV), f"export-{public_id}.{job.format}"
 
 

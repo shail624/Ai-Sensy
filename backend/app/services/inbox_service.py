@@ -22,16 +22,28 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError, ValidationError
+from app.channels.capabilities import Capability
+from app.channels.errors import ChannelError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
-from app.models.conversation import CONV_STATUSES, Conversation
+from app.models.conversation import (
+    CONV_OPEN,
+    CONV_PENDING,
+    CONV_RESOLVED,
+    CONV_STATUSES,
+    Conversation,
+)
 from app.models.internal_note import InternalNote
 from app.models.user import User
 from app.repositories.conversation import ConversationRepository
 from app.repositories.internal_note import InternalNoteRepository
+from app.repositories.message import MessageRepository
 from app.repositories.user import UserRepository
+from app.repositories.waba import PhoneNumberRepository, WabaRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.inbox_operations_service import InboxOperationsService
+from app.services.waba_service import WabaService
 
 logger = get_logger(__name__)
 
@@ -48,6 +60,13 @@ class ConversationStatusInvalid(ValidationError):
 
     code = "conversation_status_invalid"
     title = "Invalid Conversation Status"
+
+
+class InterventionConflict(ConflictError):
+    """The requested/intervened ownership contract cannot be satisfied safely."""
+
+    code = "intervention_conflict"
+    title = "Intervention Conflict"
 
 
 @dataclass(slots=True)
@@ -91,6 +110,9 @@ class InboxService:
         self._session = session
         self._conversations = ConversationRepository(session)
         self._notes = InternalNoteRepository(session)
+        self._messages = MessageRepository(session)
+        self._numbers = PhoneNumberRepository(session)
+        self._wabas = WabaRepository(session)
         self._users = UserRepository(session)
         self._audit = AuditService(session)
 
@@ -143,6 +165,92 @@ class InboxService:
             raise AssigneeInvalid("The assignee is not an active user of this organization.")
         return user
 
+    # --- Intervention -------------------------------------------------------
+    async def intervene(
+        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID
+    ) -> ConversationState:
+        """Atomically claim one requested chat for the current agent.
+
+        ``pending`` is the existing durable request state and ``open`` plus an assignee is the
+        existing intervened state. The row lock makes two simultaneous claims deterministic: one
+        agent wins, the other receives a conflict instead of silently stealing the conversation.
+        Retrying the winning agent's completed request is idempotent.
+        """
+        conversation = await self._conversation(organization_id, public_id)
+        conversation = (
+            await self._conversations.lock_by_id(organization_id, conversation.id) or conversation
+        )
+
+        if conversation.status == CONV_OPEN and conversation.assigned_user_id == actor.id:
+            return await self._state(conversation)
+        if conversation.status != CONV_PENDING:
+            raise InterventionConflict("Only a requested chat can be intervened.")
+        if conversation.assigned_user_id not in (None, actor.id):
+            raise InterventionConflict("This requested chat is already owned by another agent.")
+
+        previous_status = conversation.status
+        previous_assignee = conversation.assigned_user_id
+        conversation.status = CONV_OPEN
+        conversation.assigned_user_id = actor.id
+        conversation.row_version += 1
+        await self._conversations.flush()
+
+        if previous_assignee != actor.id:
+            await self._audit.record(
+                AuditAction.CONVERSATION_ASSIGNED,
+                actor_user_id=actor.id,
+                organization_id=organization_id,
+                entity_type="conversation",
+                entity_id=conversation.id,
+                before={"assigned_user_id": previous_assignee},
+                after={"assigned_user_id": actor.id},
+                metadata={"source": "agent_intervention"},
+            )
+        await self._audit.record(
+            AuditAction.CONVERSATION_STATUS_CHANGED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="conversation",
+            entity_id=conversation.id,
+            before={"status": previous_status},
+            after={"status": CONV_OPEN},
+            metadata={"source": "agent_intervention"},
+        )
+        await self._session.commit()
+        return await self._state(conversation)
+
+    async def resolve_intervention(
+        self, *, organization_id: int, actor: User, public_id: uuidlib.UUID
+    ) -> ConversationState:
+        """Resolve an intervened chat without allowing another agent to close it."""
+        conversation = await self._conversation(organization_id, public_id)
+        conversation = (
+            await self._conversations.lock_by_id(organization_id, conversation.id) or conversation
+        )
+
+        if conversation.status == CONV_RESOLVED and conversation.assigned_user_id == actor.id:
+            return await self._state(conversation)
+        if conversation.assigned_user_id != actor.id:
+            raise InterventionConflict("Only the intervening agent can resolve this chat.")
+        if conversation.status != CONV_OPEN:
+            raise InterventionConflict("Only an active intervention can be resolved.")
+
+        conversation.status = CONV_RESOLVED
+        conversation.row_version += 1
+        await self._conversations.flush()
+        await self._audit.record(
+            AuditAction.CONVERSATION_STATUS_CHANGED,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="conversation",
+            entity_id=conversation.id,
+            before={"status": CONV_OPEN},
+            after={"status": CONV_RESOLVED},
+            metadata={"source": "agent_intervention_resolution"},
+        )
+        await self._session.commit()
+        return await self._state(conversation)
+
     # --- Status --------------------------------------------------------------
     async def set_status(
         self, *, organization_id: int, actor: User, public_id: uuidlib.UUID, status: str
@@ -157,6 +265,19 @@ class InboxService:
                 f"{status!r} is not a conversation status; use one of {', '.join(CONV_STATUSES)}."
             )
         conversation = await self._conversation(organization_id, public_id)
+        conversation = (
+            await self._conversations.lock_by_id(organization_id, conversation.id) or conversation
+        )
+
+        # The generic status route predates the explicit intervention actions. Keep it for the
+        # other supported states, but do not let it become a back door for resolving a chat that
+        # another agent currently owns.
+        if (
+            status == CONV_RESOLVED
+            and conversation.assigned_user_id is not None
+            and conversation.assigned_user_id != actor.id
+        ):
+            raise InterventionConflict("Only the intervening agent can resolve this chat.")
 
         before = conversation.status
         conversation.status = status
@@ -184,18 +305,39 @@ class InboxService:
     async def mark_read(
         self, *, organization_id: int, public_id: uuidlib.UUID
     ) -> ConversationReadState:
-        """Reset a conversation's shared unread counter (Doc 04 §18.1 — "mark read").
+        """Acknowledge supported providers, then reset the shared unread counter.
 
         Read state in the frozen schema is the single denormalized ``unread_count`` on the thread
         (Doc 03 §9.1): one team-shared counter, not a per-agent last-read marker (the schema defines
         none). "Mark read" is therefore a reset to zero. **Idempotent** — an already-read thread is a
-        no-op, so repeatedly opening the inbox's hottest write never churns ``row_version`` or
-        ``updated_at``. The *increment* side lives on the inbound path
+        no-op, so repeatedly opening the inbox's hottest write never churns ``row_version``,
+        ``updated_at`` or provider traffic. When policy permits and the channel declares the
+        capability, the newest inbound provider message is acknowledged before the local commit;
+        provider failure therefore cannot create a false local success. The *increment* side lives on the inbound path
         (:class:`~app.services.conversation_service.ConversationService`) and is untouched here. Not
         audited: a read is high-frequency and carries none of the accountability of assign/status.
         """
         conversation = await self._conversation(organization_id, public_id)
         if conversation.unread_count != 0:
+            policy = await InboxOperationsService(self._session).get(organization_id)
+            inbound = await self._messages.latest_receiptable_inbound(conversation.id)
+            if (
+                policy.send_read_receipts
+                and inbound is not None
+                and conversation.phone_number_id is not None
+            ):
+                number = await self._numbers.get_by_id(conversation.phone_number_id)
+                if number is not None and number.organization_id == organization_id:
+                    waba = await self._wabas.get_by_id(number.waba_id)
+                    if waba is not None and waba.organization_id == organization_id:
+                        adapter = WabaService(self._session).adapter_for(
+                            waba, phone_number_id=number.phone_number_id
+                        )
+                        try:
+                            if adapter.supports(Capability.READ_RECEIPTS):
+                                await adapter.mark_read(inbound.wamid or "")
+                        finally:
+                            await adapter.close()
             conversation.unread_count = 0
             conversation.row_version += 1
             await self._conversations.flush()
@@ -206,6 +348,42 @@ class InboxService:
             row_version=conversation.row_version,
             updated_at=conversation.updated_at,
         )
+
+    async def show_typing(self, *, organization_id: int, public_id: uuidlib.UUID) -> bool:
+        """Best-effort "typing…" to the customer while an agent composes a reply.
+
+        Returns whether the signal was sent. It is skipped — never an error — when the policy has it
+        off, when read receipts are off (Meta pairs it with a read status, so sending it would reveal
+        a read the organization hides), when there is no inbound provider message to attach it to,
+        when the channel lacks the capability, or when the provider refuses it. Nothing is stored.
+        """
+        conversation = await self._conversation(organization_id, public_id)
+        policy = await InboxOperationsService(self._session).get(organization_id)
+        if not (policy.show_typing_indicators and policy.send_read_receipts):
+            return False
+        inbound = await self._messages.latest_receiptable_inbound(conversation.id)
+        if inbound is None or not inbound.wamid or conversation.phone_number_id is None:
+            return False
+        number = await self._numbers.get_by_id(conversation.phone_number_id)
+        if number is None or number.organization_id != organization_id:
+            return False
+        waba = await self._wabas.get_by_id(number.waba_id)
+        if waba is None or waba.organization_id != organization_id:
+            return False
+        adapter = WabaService(self._session).adapter_for(waba, phone_number_id=number.phone_number_id)
+        try:
+            if not adapter.supports(Capability.TYPING_INDICATOR):
+                return False
+            await adapter.show_typing(inbound.wamid)
+        except ChannelError as exc:
+            logger.info(
+                "typing_indicator_skipped",
+                extra={"conversation": conversation.id, "reason": str(exc)},
+            )
+            return False
+        finally:
+            await adapter.close()
+        return True
 
     # --- Notes ---------------------------------------------------------------
     async def add_note(
@@ -295,6 +473,15 @@ class InboxService:
             return None
         user = await self._users.get_by_id(conversation.assigned_user_id)
         return user.public_id if user is not None else None
+
+    async def _state(self, conversation: Conversation) -> ConversationState:
+        return ConversationState(
+            public_id=conversation.public_id,
+            status=conversation.status,
+            assigned_to=await self._assignee_public_id(conversation),
+            row_version=conversation.row_version,
+            updated_at=conversation.updated_at,
+        )
 
     async def _conversation(
         self, organization_id: int, public_id: uuidlib.UUID

@@ -1,14 +1,14 @@
-import { Clock3, ExternalLink, Merge, Pin, PinOff, UserRound, X } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ExternalLink, Merge, Pin, PinOff, X } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { Badge, EmptyState } from "@/components/ui";
-import { AiFoundationPanel } from "@/features/ai";
+import { EmptyState } from "@/components/ui";
 import { ConversationTags } from "@/features/inbox/ConversationControls";
+import { CustomerAvatar } from "@/features/inbox/CustomerAvatar";
 import { NotesPanel } from "@/features/inbox/NotesPanel";
+import { formatDay, saleStatusOption } from "@/features/inbox/saleStatus";
 import type { Conversation, TagSummary } from "@/features/inbox/types";
-
-type ContextTab = "customer" | "notes" | "ai";
+import { connectorLabel, STATUS_LABELS, type ConversationStatus } from "@/features/inbox/types";
 
 interface Props {
   conversation: Conversation;
@@ -18,81 +18,102 @@ interface Props {
   onClose?: () => void;
 }
 
-/** Customer context stays fully available without permanently narrowing the message thread. */
+function formatWhen(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  return `${date.toLocaleDateString("en-GB")}, ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+/** One white 48px accordion row from the reference profile column. */
+function Section({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }): JSX.Element {
+  const [open, setOpen] = useState(defaultOpen);
+  const id = useId();
+  return (
+    <div className="rounded-md bg-surface">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-12 w-full items-center justify-between px-4 text-left text-base text-[#4a4a4a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus dark:text-text-primary"
+      >
+        {title}
+        <ChevronDown aria-hidden className={`h-6 w-6 text-black/55 transition-transform duration-200 dark:text-text-secondary ${open ? "rotate-180" : ""}`} />
+      </button>
+      <div id={id} className={`grid transition-[grid-template-rows] duration-200 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className={`min-h-0 overflow-hidden ${open ? "visible" : "invisible"}`}>
+          <div className="px-4 pb-4">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The reference "Chat Profile" column: identity, a facts card, then collapsible sections. */
 export function InboxContextPanel({ conversation, tags = [], pinned, onTogglePinned, onClose = () => undefined }: Props): JSX.Element {
-  const [tab, setTab] = useState<ContextTab>("customer");
   const contact = conversation.contact;
   const name = contact?.name ?? contact?.phone ?? "Unknown customer";
+  const status = STATUS_LABELS[conversation.status as ConversationStatus] ?? conversation.status;
+  const facts: [string, ReactNode][] = [
+    ["Status", status],
+    ["Last Active", formatWhen(conversation.last_message_at)],
+    ["Unread Messages", conversation.unread_count],
+    ["Assigned To", conversation.assigned_to ?? "Unassigned"],
+    ["WA Conversation", conversation.window.is_open ? "Active" : "Inactive"],
+    ["Channel", connectorLabel(conversation)],
+    ["Sale Status", saleStatusOption(contact?.sale_status)?.label ?? "Not marked"],
+    ["Release Date", contact?.release_date ? formatDay(contact.release_date) : "—"],
+  ];
 
   return (
-    <aside aria-label="Conversation details" className="absolute inset-y-0 right-0 z-30 flex w-full shrink-0 flex-col overflow-hidden border-l border-border bg-surface shadow-2xl sm:w-80 lg:relative lg:inset-auto lg:shadow-none">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div>
-          <p className="text-sm font-bold text-text-primary">Customer details</p>
-          <p className="text-[11px] text-text-secondary">Context, notes and assistance</p>
-        </div>
-        <button type="button" aria-label="Close details" onClick={onClose} className="rounded-lg p-2 text-text-secondary hover:bg-hover hover:text-text-primary">
-          <X aria-hidden className="h-4 w-4" />
+    <aside aria-label="Conversation details" className="absolute inset-y-0 right-0 z-30 flex w-full shrink-0 flex-col overflow-hidden bg-[#f8f8f8] shadow-2xl dark:bg-surface sm:w-[340px] lg:relative lg:inset-auto lg:shadow-none">
+      <div className="relative flex h-[50px] shrink-0 items-center justify-center bg-[var(--color-nav-bg)] text-white">
+        <h2 className="text-base font-normal">Chat Profile</h2>
+        <button type="button" aria-label="Close details" onClick={onClose} className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white xl:hidden">
+          <X aria-hidden className="h-5 w-5" />
         </button>
       </div>
 
-      <nav aria-label="Conversation context" role="tablist" className="flex gap-1 border-b border-border p-2">
-        {(["customer", "notes", "ai"] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`min-h-9 flex-1 rounded-lg px-2 text-xs font-semibold capitalize ${tab === key ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-hover"}`}
-          >
-            {key}
-          </button>
-        ))}
-      </nav>
-
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {tab === "customer" ? (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-border bg-surface-subtle p-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent"><UserRound aria-hidden className="h-5 w-5" /></span>
-              <h3 className="mt-3 text-sm font-semibold text-text-primary">{name}</h3>
-              <p className="mt-0.5 text-xs text-text-secondary">{contact?.phone ?? "No phone available"}</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <Badge tone={conversation.window.is_open ? "success" : "neutral"} dot>{conversation.window.is_open ? "Reply window open" : "Template required"}</Badge>
-                <Badge tone={conversation.unread_count > 0 ? "accent" : "neutral"}>{conversation.unread_count > 0 ? `${conversation.unread_count} unread` : "Read"}</Badge>
-              </div>
-            </div>
-
-            <ConversationTags conversation={conversation} tags={tags} />
-
-            <dl className="divide-y divide-border rounded-xl border border-border px-3">
-              <div className="flex items-center justify-between gap-3 py-2.5 text-xs"><dt className="text-text-secondary">Assignment</dt><dd className="truncate font-medium text-text-primary">{conversation.assigned_to ?? "Unassigned"}</dd></div>
-              <div className="flex items-center justify-between gap-3 py-2.5 text-xs"><dt className="text-text-secondary">Lifecycle</dt><dd className="font-medium capitalize text-text-primary">{conversation.status}</dd></div>
-              <div className="flex items-center justify-between gap-3 py-2.5 text-xs"><dt className="text-text-secondary">Last interaction</dt><dd className="text-right font-medium text-text-primary">{conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleString() : "No messages"}</dd></div>
-            </dl>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={onTogglePinned} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border text-xs font-semibold text-text-primary hover:bg-hover">
-                {pinned ? <PinOff aria-hidden className="h-4 w-4" /> : <Pin aria-hidden className="h-4 w-4" />}
-                {pinned ? "Unpin" : "Pin"}
-              </button>
-              <button type="button" disabled title="Conversation merge requires an additive audited domain contract" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border text-xs font-semibold text-text-disabled disabled:cursor-not-allowed">
-                <Merge aria-hidden className="h-4 w-4" /> Merge
-              </button>
-            </div>
-            <p className="flex gap-2 text-[11px] leading-relaxed text-text-disabled"><Clock3 aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" />Snooze is available through conversation status. Timed wake-up needs a server-owned timer.</p>
-
-            {contact ? (
-              <Link to={`/contacts/${contact.id}`} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 text-xs font-semibold text-accent-fg">
-                Open Customer 360 <ExternalLink aria-hidden className="h-3.5 w-3.5" />
-              </Link>
-            ) : <EmptyState compact title="No linked contact" />}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-6">
+        <div className="flex items-center justify-center gap-6">
+          <CustomerAvatar conversation={conversation} className="h-[55px] w-[55px] bg-[#ffa500] text-[30px] text-white" />
+          <div className="min-w-0">
+            <h3 className="truncate px-2 py-1 text-xl font-normal text-black dark:text-text-primary">{name}</h3>
+            <p className="px-2 text-sm text-black dark:text-text-secondary">{contact?.phone ?? "No phone available"}</p>
           </div>
-        ) : null}
+        </div>
 
-        {tab === "notes" ? <NotesPanel conversationId={conversation.id} /> : null}
-        {tab === "ai" ? <AiFoundationPanel compact capabilities={["reply", "summary"]} context={`conversation with ${name}`} /> : null}
+        <dl className="grid grid-cols-2 gap-x-2 gap-y-1 rounded-[8px] bg-[#ebf5f3] p-4 text-xs dark:bg-accent-soft">
+          {facts.map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-[#4a4a4a] dark:text-text-secondary">{label}</dt>
+              <dd className="truncate text-black dark:text-text-primary">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <Section title="Tags" defaultOpen>
+          <ConversationTags conversation={conversation} tags={tags} />
+        </Section>
+        <Section title="Notes" defaultOpen>
+          <NotesPanel conversationId={conversation.id} />
+        </Section>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onTogglePinned} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-surface text-sm text-[#4a4a4a] transition-colors hover:bg-hover dark:text-text-primary">
+            {pinned ? <PinOff aria-hidden className="h-4 w-4" /> : <Pin aria-hidden className="h-4 w-4" />}
+            {pinned ? "Unpin" : "Pin"}
+          </button>
+          <button type="button" disabled title="Merging chats is not available yet" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-surface text-sm text-text-disabled disabled:cursor-not-allowed">
+            <Merge aria-hidden className="h-4 w-4" /> Merge
+          </button>
+        </div>
+
+        {contact ? (
+          <Link to={`/contacts/${contact.id}`} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[var(--color-nav-bg)] px-3 text-sm font-medium text-white transition-colors hover:bg-[#08393d]">
+            Open Customer 360 <ExternalLink aria-hidden className="h-3.5 w-3.5" />
+          </Link>
+        ) : <EmptyState compact title="No linked contact" />}
       </div>
     </aside>
   );

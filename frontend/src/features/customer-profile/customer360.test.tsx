@@ -100,7 +100,7 @@ describe("CORE-07 Customer 360 convergence", () => {
     withProviders(<CustomerProfile contactId={contact.id} />);
 
     expect(await screen.findByRole("heading", { name: "Asha Mehta" })).toBeInTheDocument();
-    expect(screen.getByText("Single customer identity")).toBeInTheDocument();
+    expect(screen.getByText(/Customer since/)).toBeInTheDocument();
     expect(screen.getByText("Delhi")).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(8);
     expect(screen.queryByRole("tab", { name: /AI Assistant/i })).not.toBeInTheDocument();

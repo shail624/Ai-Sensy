@@ -13,12 +13,15 @@ from __future__ import annotations
 
 import uuid as uuidlib
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.deps import SessionDep, require_permissions
 from app.core import idempotency
+from app.core.exceptions import NotFoundError
 from app.core.redis import get_redis_client
+from app.models.media import MediaAsset
 from app.models.user import User
 from app.schemas.message import (
     MessageAcceptedResponse,
@@ -31,6 +34,7 @@ from app.schemas.message import (
 from app.services.message_service import MessageService
 from app.services.phone_number_service import PhoneNumberService
 from app.services.send_service import SendService
+from app.storage.base import StorageError, get_provider
 
 router = APIRouter()
 
@@ -62,17 +66,29 @@ async def send_message(
         return MessageAcceptedResponse(**replayed)
 
     try:
-        number = await PhoneNumberService(session).get_number(
-            actor.organization_id, payload.phone_number_id
-        )
-        message = await SendService(session).accept(
-            organization_id=actor.organization_id,
-            actor=actor,
-            number=number,
-            to=payload.to,
-            message_type=payload.message_type(),
-            content=payload.content(),
-        )
+        if payload.conversation_id is not None:
+            # A reply to an existing thread — the provider is the conversation's own, never a
+            # field on this request (QR-08; see `MessageSendRequest`'s docstring).
+            message = await SendService(session).accept_for_conversation(
+                organization_id=actor.organization_id,
+                actor=actor,
+                conversation_public_id=payload.conversation_id,
+                message_type=payload.message_type(),
+                content=payload.content(),
+            )
+        else:
+            assert payload.phone_number_id is not None and payload.to is not None
+            number = await PhoneNumberService(session).get_number(
+                actor.organization_id, payload.phone_number_id
+            )
+            message = await SendService(session).accept(
+                organization_id=actor.organization_id,
+                actor=actor,
+                number=number,
+                to=payload.to,
+                message_type=payload.message_type(),
+                content=payload.content(),
+            )
     except Exception:
         # Nothing was accepted, so the key must not answer for a send that never happened.
         await idempotency.release(redis, key)
@@ -141,6 +157,42 @@ async def get_message(
     message = await service.get_message(actor.organization_id, message_id)
     return MessageResponse.from_message(
         message, conversation_id=await service.conversation_public_id(message)
+    )
+
+
+@router.get(
+    "/messages/{message_id}/media",
+    summary="The file attached to a message (photo, video, audio or document)",
+    responses={200: {"content": {"application/octet-stream": {}}}, 404: {}},
+)
+async def message_media(
+    message_id: uuidlib.UUID, session: SessionDep, actor: InboxReader
+) -> Response:
+    """Stream a message's stored attachment so Live Chat can show it inline.
+
+    Tenant-scoped through the message; ``404`` while an inbound file is still being fetched.
+    """
+    message = await MessageService(session).get_message(actor.organization_id, message_id)
+    asset = (
+        await session.get(MediaAsset, message.media_asset_id)
+        if message.media_asset_id is not None
+        else None
+    )
+    if asset is None or asset.organization_id != actor.organization_id:
+        raise NotFoundError("This message has no file yet.")
+    try:
+        data = await get_provider(asset.storage_backend).get(asset.storage_key)
+    except StorageError as exc:
+        raise NotFoundError("The file is no longer available.") from exc
+    filename = quote(asset.file_name or f"{asset.media_type}")
+    return Response(
+        content=data,
+        media_type=asset.mime_type,
+        headers={
+            "Cache-Control": "private, max-age=86400",
+            "Content-Disposition": f"inline; filename*=UTF-8''{filename}",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

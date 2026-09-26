@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { useNewMessageAlerts, useReminderAlerts } from "@/features/inbox/messageAlerts";
 import { useAuth } from "@/lib/auth";
 import { useWorkspacePreferences } from "@/lib/workspace";
 
@@ -8,13 +9,38 @@ import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { navItems, primaryNavItems, secondaryNavGroups } from "./navigation";
 
-const COLLAPSE_KEY = "wa.sidebar.compact.v2";
+/**
+ * Screens that carry their own reference-style top bar, so the app header steps aside on desktop:
+ * all of Live Chat, and each Manage list page once it renders `ManagePageHeader`.
+ */
+const MANAGE_HEADER_PAGES = new Set([
+  "/contacts",
+  "/campaigns",
+  "/campaigns/new",
+  "/automation",
+  "/chat-history",
+  "/templates",
+  "/opt-in",
+  "/live-chat-settings",
+  "/user-attributes",
+  "/canned-messages",
+  "/team",
+  "/tags",
+  "/chat-analytics",
+  "/notification-preferences",
+]);
+
+export function isImmersive(pathname: string): boolean {
+  return pathname === "/inbox" || pathname.startsWith("/inbox/") || MANAGE_HEADER_PAGES.has(pathname);
+}
+
+const COLLAPSE_KEY = "wa.sidebar.compact.v4";
 const FOCUSABLE =
   'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** New workspaces open on the task rail; an explicit user choice always wins afterwards. */
+/** The reference-aligned rail keeps captions visible even in compact mode. */
 export function resolveCollapsedPreference(stored: string | null): boolean {
-  return stored === null ? true : stored === "1";
+  return stored !== "0";
 }
 
 function readCollapsed(): boolean {
@@ -33,6 +59,9 @@ export function AppLayout(): JSX.Element {
   const { recordRecent } = workspace;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Sound/desktop alerts for new customer messages, wherever the agent is in the app.
+  useNewMessageAlerts(hasPermission("inbox:read"));
+  useReminderAlerts(true);
   const mobileDialogRef = useRef<HTMLDivElement>(null);
   const mobileInvokerRef = useRef<HTMLElement | null>(null);
 
@@ -165,10 +194,13 @@ export function AppLayout(): JSX.Element {
           mobileNavOpen={mobileOpen}
           onOpenMobileNav={openMobileNavigation}
           onToggleCollapse={() => setCollapsed((value) => !value)}
+          immersive={isImmersive(location.pathname)}
         />
         <main id="main-content" className="relative flex-1 overflow-auto pb-16 lg:pb-0">
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--color-accent)_8%,transparent),transparent_62%)]" />
-          <Outlet />
+          {/* Keyed by page so each new page fades in; query changes within a page do not replay it. */}
+          <div key={location.pathname} className="page-enter h-full">
+            <Outlet />
+          </div>
         </main>
         <nav aria-label="Mobile primary" className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-center justify-around border-t border-border bg-[color-mix(in_srgb,var(--color-bg-surface)_94%,transparent)] px-2 backdrop-blur-xl lg:hidden">
           {mobileItems.map((item) => {

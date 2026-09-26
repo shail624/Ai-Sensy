@@ -14,36 +14,69 @@ is explicit that the data layer is the ultimate guard.
 
 from __future__ import annotations
 
+import asyncio
 import uuid as uuidlib
+from datetime import datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.channels.base import ChannelAdapter, get_adapter
-from app.channels.capabilities import CONNECTOR_META_CLOUD
-from app.channels.models import InboundMessage, StatusUpdate
+from app.channels.capabilities import CONNECTOR_META_CLOUD, CONNECTOR_WAHA
+from app.channels.models import InboundEventType, InboundMessage, StatusUpdate
+from app.channels.waha.identity import (
+    normalize_direct_jid,
+    optional_direct_jid,
+    phone_wa_id,
+    route_identity_namespace,
+)
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
+from app.models.contact import OPT_IN_OPTED_OUT, Contact
+from app.models.conversation import Conversation
 from app.models.message import (
     DIRECTION_INBOUND,
+    DIRECTION_OUTBOUND,
     MSG_ACCEPTED,
+    MSG_SENT,
     STATUS_TIMESTAMP_COLUMN,
     Message,
     MessageStatusHistory,
     advances,
 )
+from app.repositories.campaign import (
+    CampaignRecipientRepository,
+    CampaignRepository,
+)
+from app.repositories.channel_connection import (
+    ChannelConnectionRepository,
+    ChannelEndpointRepository,
+)
+from app.repositories.contact import ContactRepository
 from app.repositories.conversation import ConversationRepository
 from app.repositories.message import MessageRepository, MessageStatusHistoryRepository
 from app.repositories.waba import PhoneNumberRepository
 from app.repositories.webhook import WebhookEventRepository
+from app.schemas.settings import InboxOperationsResponse
+from app.services.business_event_service import BusinessEventService
 from app.services.conversation_service import ConversationService
+from app.services.inbox_operations_service import InboxOperationsService
 from app.services.media_ingest_service import media_reference
+from app.services.send_service import SendService
 
 logger = get_logger(__name__)
 
 # Application outcomes — returned rather than raised, because none of them is a failure.
 APPLIED = "applied"
+#: A phone-sent echo that cannot be tied to a one-to-one customer chat (group, status, unknown LID).
+IGNORED_ECHO = "ignored_echo"
+#: How long our own just-sent message may still be waiting for its provider id, and how often
+#: an echo re-checks for it before being treated as sent from the phone.
+_OWN_SEND_WINDOW = timedelta(minutes=2)
+_OWN_SEND_CHECKS = 4
+_OWN_SEND_PAUSE_SECONDS = 2.0
 DUPLICATE = "duplicate"
 #: A status that does not move the message forward (D16) — the whole point of monotonicity.
 IGNORED_STALE = "ignored_stale"
@@ -73,8 +106,16 @@ class MessageService:
         self._history = MessageStatusHistoryRepository(session)
         self._conversation_repo = ConversationRepository(session)
         self._numbers = PhoneNumberRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
+        self._connections = ChannelConnectionRepository(session)
+        self._contacts = ContactRepository(session)
         self._events = WebhookEventRepository(session)
         self._conversations = ConversationService(session)
+        self._recipients = CampaignRecipientRepository(session)
+        self._campaigns = CampaignRepository(session)
+        self._operations = InboxOperationsService(session)
+        self._business_events = BusinessEventService(session)
+        self._send = SendService(session)
 
     def adapter(self) -> ChannelAdapter:
         return get_adapter(self._connector_type)
@@ -94,16 +135,55 @@ class MessageService:
         return conversation.public_id if conversation else ""
 
     # --- Inbound (Doc 06 §2.3 ``inbound.process``) --------------------------
+    async def _note_campaign_reply(self, contact: Contact, occurred_at: datetime) -> None:
+        """Mark that this contact answered the campaign that last reached them.
+
+        ``campaigns.replied_count`` has been on the model, in the API and on the campaign screen
+        since the schema was written, and nothing ever wrote it -- so every campaign reported
+        "Replies: 0 (0% of delivered)" for its whole life, on the one number a reactivation
+        campaign exists to produce.
+
+        Recorded here rather than counted later because the alternative is a self-join across the
+        message ledger on every progress refresh, and that refresh runs after every send. One
+        indexed lookup per *inbound* message is the cheaper side of that trade by a wide margin:
+        inbound volume is a fraction of outbound, and ``ix_crecip_contact`` already exists.
+
+        Deliberately not fatal. A reply is recorded in the ledger whatever happens here, and losing
+        an inbound customer message because a counter could not be updated would be the wrong way
+        round.
+        """
+        try:
+            campaign_id = await self._recipients.mark_replied(contact.id, occurred_at)
+            if campaign_id is not None:
+                await self._campaigns.refresh_replied(campaign_id)
+        except Exception:  # noqa: BLE001 - a counter must never cost an inbound message
+            logger.warning(
+                "campaign_reply_not_recorded", extra={"contact": contact.id}, exc_info=True
+            )
+
     async def apply_inbound(self, event_pk: int) -> dict[str, Any]:
         """Turn a persisted inbound event into contact + thread + ledger row (FR-WA-06).
 
         Commits: this is the top of its own task, and the contact, the thread, the window and the
         message are one fact about one moment — a partial application would be worse than none.
+
+        Routes on the event's own persisted ownership (``phone_number_id`` vs
+        ``channel_endpoint_id``), not on how this service was constructed: the dispatching task
+        (``process_inbound_message``) has no reason to know which provider owns any given event
+        before reading its row, so the row itself is the single source of truth for which path runs.
         """
         row = await self._events.get_by_id(event_pk)
         if row is None:
             logger.warning("inbound_event_missing", extra={"event_pk": event_pk})
             return {"status": "missing", "event_pk": event_pk}
+        if row.channel_endpoint_id is not None:
+            if row.object_type == InboundEventType.ECHOES.value:
+                return await self._apply_phone_echo(
+                    event_pk, row.channel_endpoint_id, row.payload_json
+                )
+            return await self._apply_inbound_endpoint(
+                event_pk, row.channel_endpoint_id, row.payload_json
+            )
         if row.phone_number_id is None:
             raise LedgerError("inbound event is not routed to a phone number")
 
@@ -111,20 +191,15 @@ class MessageService:
         if number is None:
             raise LedgerError(f"phone number {row.phone_number_id} no longer exists")
 
-        message = self._to_inbound_message(row.payload_json)
-        # Redelivery lands here as a second task for the same `wamid` (Doc 06 §2.3 idempotency
-        # key): the thread must not gain a second copy or a second unread.
-        existing = await self._messages.get_by_wamid(message.channel_message_id)
+        message = self._to_inbound_message(row.payload_json, connector_type=CONNECTOR_META_CLOUD)
+        # Redelivery lands here as a second task for the same provider message id (Doc 06 §2.3
+        # idempotency key): the thread must not gain a second copy or a second unread. Scoped to
+        # the receiving endpoint — a provider message id is only unique inside it (ADR-0020).
+        existing = await self._messages.get_by_provider_message_id(
+            message.channel_message_id, phone_number_id=number.id
+        )
         if existing is not None:
-            return {
-                "status": DUPLICATE,
-                "event_pk": event_pk,
-                "message_id": existing.public_id,
-                "message_pk": existing.id,
-                # A redelivery still reports pending media: the first attempt may have stored the
-                # message and died before the download was queued (Doc 07 §17.2).
-                "media_pending": self._media_pending(existing),
-            }
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
 
         occurred_at = message.occurred_at or utcnow()
         contact = await self._conversations.resolve_contact(
@@ -133,9 +208,28 @@ class MessageService:
             profile_name=message.profile_name,
             occurred_at=occurred_at,
         )
-        conversation = await self._conversations.open_for_inbound(
+        policy = await self._operations.get(contact.organization_id)
+        consent_change = await self._operations.apply_consent_keyword(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            occurred_at=occurred_at,
+            policy=policy,
+        )
+        (
+            conversation,
+            opened_new_window,
+            is_first_inbound,
+        ) = await self._conversations.open_for_inbound_with_window(
             number=number, contact=contact, occurred_at=occurred_at
         )
+        # The conversation lock closes the race between the optimistic lookup above and another
+        # worker committing the same provider delivery. Refresh under that lock before appending.
+        existing = await self._messages.get_by_provider_message_id(
+            message.channel_message_id, phone_number_id=number.id
+        )
+        if existing is not None:
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
 
         stored = Message(
             organization_id=number.organization_id,
@@ -151,9 +245,158 @@ class MessageService:
             created_at=occurred_at,
         )
         await self._messages.add(stored)
+        await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
         await self._conversations.record_inbound_message(
             conversation,
             preview=ConversationService.preview_of(message.message_type, message.content),
+            occurred_at=occurred_at,
+        )
+        await self._note_campaign_reply(contact, occurred_at)
+        _, automation_receipts = await self._business_events.record_message_received(
+            message=stored,
+            conversation=conversation,
+            contact=contact,
+            occurred_at=occurred_at,
+            source=CONNECTOR_META_CLOUD,
+        )
+        auto_reply_message_pk = await self._accept_automatic_reply(
+            policy=policy,
+            conversation=conversation,
+            contact=contact,
+            source_message=stored,
+            occurred_at=occurred_at,
+            opened_new_window=opened_new_window,
+            consent_change=consent_change,
+        )
+        await self._session.commit()
+        result = {
+            "status": APPLIED,
+            "event_pk": event_pk,
+            "message_id": stored.public_id,
+            "message_pk": stored.id,
+            "conversation_id": conversation.public_id,
+            "contact_id": contact.public_id,
+            # The bytes are fetched on the `media` lane, not here: an attachment must never hold
+            # up the message it came with (Doc 07 §17.2/§17.4). The caller owns the dispatch.
+            "media_pending": self._media_pending(stored),
+            "automation_receipts": self._automation_dispatch_payload(automation_receipts),
+        }
+        if auto_reply_message_pk is not None:
+            result["auto_reply_message_pk"] = auto_reply_message_pk
+        return result
+
+    async def _apply_phone_echo(
+        self, event_pk: int, channel_endpoint_id: int, payload: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """Store a message the business sent from the QR-connected phone itself (UI-AIS-09).
+
+        WAHA echoes every message the account sends. Ours are already in the ledger under the same
+        provider id and are skipped; the rest were typed on the phone and are stored as outbound
+        messages so Live Chat shows the whole conversation. No unread, window, tag, automation or
+        auto-reply effect: the business said this, the customer did not. Anything that is not a
+        one-to-one customer chat (a group, a status post, an unlinkable address) is ignored rather
+        than dead-lettered or turned into a new contact.
+        """
+        message = self._to_inbound_message(payload, connector_type=CONNECTOR_WAHA)
+        if message.message_type == "unsupported":
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        occurred_at = message.occurred_at or utcnow()
+        try:
+            provider_address = normalize_direct_jid(message.from_id)
+            alternate_address = optional_direct_jid(message.alternate_from_id)
+            route_namespace = route_identity_namespace(provider_address)
+            contact_phone_wa_id = phone_wa_id(provider_address, alternate_address)
+        except Exception:  # noqa: BLE001 - not a one-to-one customer chat
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        if contact_phone_wa_id is not None and len(contact_phone_wa_id) < 8:
+            # Too short to be anyone's phone number; never mint a contact for it.
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+
+        # Our own send is echoed too. Its provider id is written right after the provider answers,
+        # so give a just-sent message a moment to receive it before deciding who sent this. Each
+        # re-check ends the transaction so it sees the other worker's commit; nothing is loaded
+        # into the session before this loop, so nothing goes stale.
+        for attempt in range(_OWN_SEND_CHECKS):
+            existing = await self._messages.get_by_provider_message_id_for_endpoint(
+                message.channel_message_id, channel_endpoint_id=channel_endpoint_id
+            )
+            if existing is not None:
+                return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+            if attempt == _OWN_SEND_CHECKS - 1 or not await self._own_send_in_flight(
+                channel_endpoint_id
+            ):
+                break
+            await self._session.rollback()
+            await asyncio.sleep(_OWN_SEND_PAUSE_SECONDS)
+
+        endpoint = await self._endpoints.get_by_id(channel_endpoint_id)
+        if endpoint is None:
+            raise LedgerError(f"channel endpoint {channel_endpoint_id} no longer exists")
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None or connection.connector_type != CONNECTOR_WAHA:
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+
+        try:
+            contact = await self._conversations.resolve_endpoint_contact_identity(
+                endpoint=endpoint,
+                connection=connection,
+                provider_address=provider_address,
+                route_namespace=route_namespace,
+                phone_wa_id=contact_phone_wa_id,
+                # The echo carries the business's own name, never the customer's.
+                profile_name=None,
+                occurred_at=occurred_at,
+            )
+        except ValueError:
+            await self._session.rollback()
+            return {"status": IGNORED_ECHO, "event_pk": event_pk}
+        conversation = await self._conversations.thread_for_endpoint(
+            endpoint=endpoint, contact=contact
+        )
+        conversation = (
+            await self._conversation_repo.lock_by_id(endpoint.organization_id, conversation.id)
+            or conversation
+        )
+        existing = await self._messages.get_by_provider_message_id_for_endpoint(
+            message.channel_message_id, channel_endpoint_id=endpoint.id
+        )
+        if existing is not None:
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+
+        content = dict(message.content)
+        content["sent_from_phone"] = True
+        stored = Message(
+            organization_id=endpoint.organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            wamid=message.channel_message_id,
+            message_type=message.message_type,
+            content_json=content,
+            status=MSG_SENT,
+            sent_at=occurred_at,
+            created_at=occurred_at,
+        )
+        await self._messages.add(stored)
+        await self._messages.flush()
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(message.message_type, content),
             occurred_at=occurred_at,
         )
         await self._session.commit()
@@ -164,31 +407,341 @@ class MessageService:
             "message_pk": stored.id,
             "conversation_id": conversation.public_id,
             "contact_id": contact.public_id,
-            # The bytes are fetched on the `media` lane, not here: an attachment must never hold
-            # up the message it came with (Doc 07 §17.2/§17.4). The caller owns the dispatch.
             "media_pending": self._media_pending(stored),
+            "automation_receipts": [],
         }
+
+    async def _own_send_in_flight(self, channel_endpoint_id: int) -> bool:
+        """Whether one of our sends on this endpoint is still waiting for its provider id."""
+        stmt = (
+            select(Message.id)
+            .where(
+                Message.channel_endpoint_id == channel_endpoint_id,
+                Message.direction == DIRECTION_OUTBOUND,
+                Message.wamid.is_(None),
+                Message.status == MSG_ACCEPTED,
+                Message.created_at >= utcnow() - _OWN_SEND_WINDOW,
+            )
+            .limit(1)
+        )
+        return (await self._session.scalar(stmt)) is not None
+
+    async def _apply_inbound_endpoint(
+        self, event_pk: int, channel_endpoint_id: int, payload: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """The channel-endpoint-owned analogue of the body of :meth:`apply_inbound` (QR-08).
+
+        Same contract, same idempotency guarantee, same commit boundary — kept as its own
+        straight-line method (see :mod:`app.services.conversation_service`'s equivalent note) so a
+        WAHA event can never resolve against a Meta number or vice versa.
+        """
+        endpoint = await self._endpoints.get_by_id(channel_endpoint_id)
+        if endpoint is None:
+            raise LedgerError(f"channel endpoint {channel_endpoint_id} no longer exists")
+        connector_type = await self._endpoints.connector_type_for_id(endpoint.id)
+        if connector_type is None:
+            raise LedgerError(f"channel connection for endpoint {endpoint.id} no longer exists")
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None:
+            raise LedgerError(f"channel connection {endpoint.connection_id} no longer exists")
+
+        message = self._to_inbound_message(payload, connector_type=connector_type)
+        occurred_at = message.occurred_at or utcnow()
+        provider_address: str | None = None
+        route_namespace: str | None = None
+        contact_phone_wa_id: str | None = None
+        if connector_type == CONNECTOR_WAHA:
+            try:
+                provider_address = normalize_direct_jid(message.from_id)
+                alternate_address = optional_direct_jid(message.alternate_from_id)
+                route_namespace = route_identity_namespace(provider_address)
+                contact_phone_wa_id = phone_wa_id(provider_address, alternate_address)
+            except Exception as exc:  # noqa: BLE001 - invalid provider identity is poison
+                raise LedgerError(f"WAHA sender identity cannot be resolved: {exc}") from exc
+        existing = await self._messages.get_by_provider_message_id_for_endpoint(
+            message.channel_message_id, channel_endpoint_id=endpoint.id
+        )
+        if existing is not None:
+            # A historical message can predate provider-identity persistence. Re-applying it stays
+            # a message no-op but durably repairs the routing alias through the normal service path.
+            if provider_address is not None and route_namespace is not None:
+                contact = await self._contacts.get_by_id(existing.contact_id)
+                if contact is None:
+                    raise LedgerError(f"message {existing.id} has no recipient Contact")
+                try:
+                    await self._conversations.remember_endpoint_contact_identity(
+                        endpoint=endpoint,
+                        connection=connection,
+                        contact=contact,
+                        provider_address=provider_address,
+                        route_namespace=route_namespace,
+                        phone_wa_id=contact_phone_wa_id,
+                        occurred_at=occurred_at,
+                    )
+                except ValueError as exc:
+                    raise LedgerError(f"WAHA sender identity cannot be linked: {exc}") from exc
+                await self._session.commit()
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+
+        # Provider routing identity and Contact telephone identity stay separate: a LID may use
+        # digits, but only a provider-supplied phone JID can establish the canonical phone alias.
+        if provider_address is None or route_namespace is None:
+            raise LedgerError(
+                f"endpoint connector {connector_type!r} has no recipient identity resolver"
+            )
+        try:
+            contact = await self._conversations.resolve_endpoint_contact_identity(
+                endpoint=endpoint,
+                connection=connection,
+                provider_address=provider_address,
+                route_namespace=route_namespace,
+                phone_wa_id=contact_phone_wa_id,
+                profile_name=message.profile_name,
+                occurred_at=occurred_at,
+            )
+        except ValueError as exc:
+            raise LedgerError(f"WAHA sender identity cannot be resolved: {exc}") from exc
+        policy = await self._operations.get(contact.organization_id)
+        consent_change = await self._operations.apply_consent_keyword(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            occurred_at=occurred_at,
+            policy=policy,
+        )
+        (
+            conversation,
+            opened_new_window,
+            is_first_inbound,
+        ) = await self._conversations.open_for_inbound_endpoint_with_window(
+            endpoint=endpoint, contact=contact, occurred_at=occurred_at
+        )
+        existing = await self._messages.get_by_provider_message_id_for_endpoint(
+            message.channel_message_id, channel_endpoint_id=endpoint.id
+        )
+        if existing is not None:
+            return await self._duplicate_inbound_result(event_pk=event_pk, existing=existing)
+
+        stored = Message(
+            organization_id=endpoint.organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_INBOUND,
+            wamid=message.channel_message_id,
+            message_type=message.message_type,
+            content_json=message.content,
+            status=MSG_ACCEPTED,
+            created_at=occurred_at,
+        )
+        await self._messages.add(stored)
+        await self._messages.flush()
+        applied_tags = await self._operations.apply_first_message_tag_rules(
+            contact=contact,
+            message_type=message.message_type,
+            content=message.content,
+            is_first_inbound=is_first_inbound,
+        )
+        for tag in applied_tags:
+            await self._business_events.record_first_message_tag_applied(
+                message=stored,
+                contact=contact,
+                tag_public_id=tag.public_id,
+                occurred_at=occurred_at,
+            )
+        await self._conversations.record_inbound_message(
+            conversation,
+            preview=ConversationService.preview_of(message.message_type, message.content),
+            occurred_at=occurred_at,
+        )
+        await self._note_campaign_reply(contact, occurred_at)
+        _, automation_receipts = await self._business_events.record_message_received(
+            message=stored,
+            conversation=conversation,
+            contact=contact,
+            occurred_at=occurred_at,
+            source=connector_type,
+        )
+        auto_reply_message_pk = await self._accept_automatic_reply(
+            policy=policy,
+            conversation=conversation,
+            contact=contact,
+            source_message=stored,
+            occurred_at=occurred_at,
+            opened_new_window=opened_new_window,
+            consent_change=consent_change,
+        )
+        await self._session.commit()
+        result = {
+            "status": APPLIED,
+            "event_pk": event_pk,
+            "message_id": stored.public_id,
+            "message_pk": stored.id,
+            "conversation_id": conversation.public_id,
+            "contact_id": contact.public_id,
+            "media_pending": self._media_pending(stored),
+            "automation_receipts": self._automation_dispatch_payload(automation_receipts),
+        }
+        if auto_reply_message_pk is not None:
+            result["auto_reply_message_pk"] = auto_reply_message_pk
+        return result
+
+    async def _duplicate_inbound_result(
+        self, *, event_pk: int, existing: Message
+    ) -> dict[str, Any]:
+        automation_receipts = await self._business_events.receipt_dispatches_for_message(existing)
+        result = {
+            "status": DUPLICATE,
+            "event_pk": event_pk,
+            "message_id": existing.public_id,
+            "message_pk": existing.id,
+            # A redelivery still reports pending effects: the first attempt may have committed the
+            # durable rows and died before their post-commit tasks were queued.
+            "media_pending": self._media_pending(existing),
+            "automation_receipts": self._automation_dispatch_payload(automation_receipts),
+        }
+        auto_reply_pk = await self._automatic_reply_for_existing_source(existing)
+        if auto_reply_pk is not None:
+            result["auto_reply_message_pk"] = auto_reply_pk
+        return result
+
+    async def _automatic_reply_for_existing_source(self, source: Message) -> int | None:
+        event = await self._business_events.automatic_reply_for_source(
+            organization_id=source.organization_id,
+            conversation_id=source.conversation_id,
+            source_message_id=source.id,
+        )
+        reply_id = (event.payload_json or {}).get("reply_message_id") if event else None
+        return (
+            int(reply_id) if isinstance(reply_id, (int, str)) and str(reply_id).isdigit() else None
+        )
+
+    async def _accept_automatic_reply(
+        self,
+        *,
+        policy: InboxOperationsResponse,
+        conversation: Conversation,
+        contact: Contact,
+        source_message: Message,
+        occurred_at: datetime,
+        opened_new_window: bool,
+        consent_change: str | None,
+    ) -> int | None:
+        now = utcnow()
+        decision = self._operations.consent_reply_decision(
+            policy=policy,
+            consent_status=consent_change,
+            occurred_at=occurred_at,
+            now=now,
+        )
+        if decision is None:
+            if contact.opt_in_status == OPT_IN_OPTED_OUT:
+                return None
+            decision = self._operations.automatic_reply_decision(
+                policy=policy,
+                occurred_at=occurred_at,
+                opened_new_window=opened_new_window,
+                has_recent_off_hours_reply=False,
+                now=now,
+            )
+        if decision is None:
+            return None
+        if decision.kind == "off_hours" and await self._business_events.has_recent_automatic_reply(
+            organization_id=conversation.organization_id,
+            conversation_id=conversation.id,
+            kind="off_hours",
+            since=now - timedelta(hours=24),
+        ):
+            return None
+        existing = await self._business_events.automatic_reply_for_source(
+            organization_id=conversation.organization_id,
+            conversation_id=conversation.id,
+            source_message_id=source_message.id,
+        )
+        if existing is not None:
+            reply_id = (existing.payload_json or {}).get("reply_message_id")
+            return (
+                int(reply_id)
+                if isinstance(reply_id, (int, str)) and str(reply_id).isdigit()
+                else None
+            )
+
+        reply = await self._send.accept_system_text_for_conversation(
+            conversation=conversation,
+            contact=contact,
+            body=decision.body,
+            kind=decision.kind,
+            source_message_id=source_message.id,
+            allow_opted_out=decision.kind == "consent_opt_out",
+        )
+        await self._business_events.record_automatic_reply(
+            organization_id=conversation.organization_id,
+            conversation_id=conversation.id,
+            contact_id=contact.id,
+            source_message_id=source_message.id,
+            reply_message_id=reply.id,
+            kind=decision.kind,
+            occurred_at=reply.created_at,
+        )
+        return reply.id
 
     @staticmethod
     def _media_pending(message: Message) -> bool:
         return message.media_asset_id is None and media_reference(message) is not None
 
-    def _to_inbound_message(self, payload: dict[str, Any] | None) -> InboundMessage:
+    @staticmethod
+    def _automation_dispatch_payload(receipts: list[Any]) -> list[dict[str, Any]]:
+        return [
+            {"receipt_pk": receipt.receipt_pk, "task_id": receipt.task_id}
+            for receipt in receipts
+        ]
+
+    def _to_inbound_message(
+        self, payload: dict[str, Any] | None, *, connector_type: str
+    ) -> InboundMessage:
         try:
-            return self.adapter().to_inbound_message(payload or {})
+            return get_adapter(connector_type).to_inbound_message(payload or {})
         except Exception as exc:  # noqa: BLE001 - any translation failure is the same verdict
             raise LedgerError(f"inbound payload cannot be read: {exc}") from exc
 
     # --- Status callbacks (Doc 06 §11.3/§11.4) ------------------------------
-    async def apply_status(self, update: StatusUpdate) -> str:
+    async def apply_status(
+        self,
+        update: StatusUpdate,
+        *,
+        phone_number_id: int | None = None,
+        channel_endpoint_id: int | None = None,
+    ) -> str:
         """Advance a message's delivery state (FR-WA-06/07).
 
         Does **not** commit: the caller settles the webhook event in the same transaction, so an
         applied status and the event that carried it can never disagree.
+
+        Exactly one of ``phone_number_id``/``channel_endpoint_id`` — the endpoint the callback
+        arrived on — must be given. Required, not optional, so a delivery receipt can only ever
+        advance a message belonging to that one endpoint — reconciliation must not cross an
+        endpoint or tenant boundary (ADR-0020; Doc 33 §6.1 "Message identity").
         """
-        message = await self._messages.get_by_wamid(update.channel_message_id)
+        if (phone_number_id is None) == (channel_endpoint_id is None):
+            raise LedgerError(
+                "apply_status requires exactly one of phone_number_id/channel_endpoint_id"
+            )
+        if channel_endpoint_id is not None:
+            message = await self._messages.get_by_provider_message_id_for_endpoint(
+                update.channel_message_id, channel_endpoint_id=channel_endpoint_id
+            )
+            endpoint_label = f"channel endpoint {channel_endpoint_id}"
+        else:
+            assert phone_number_id is not None
+            message = await self._messages.get_by_provider_message_id(
+                update.channel_message_id, phone_number_id=phone_number_id
+            )
+            endpoint_label = f"endpoint {phone_number_id}"
         if message is None:
-            raise MessageNotFound(f"no message for wamid {update.channel_message_id!r}")
+            raise MessageNotFound(
+                f"no message for provider message id {update.channel_message_id!r} "
+                f"on {endpoint_label}"
+            )
 
         # Append first: the log is the record of what the channel *told* us, which is true even
         # when the transition it describes is stale (Doc 03 §9.3 — append-only).

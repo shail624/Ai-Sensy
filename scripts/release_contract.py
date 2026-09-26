@@ -42,8 +42,17 @@ REQUIRED_SECRETS = {
 }
 
 
+# A full-line YAML comment. Stripped before scanning for required variables: a marker written
+# inside a comment is prose, not a declaration, and counting it invents a variable name that no
+# environment can ever provide -- which fails the deployed-stack gate and feeds a bogus entry into
+# `synthetic_environment`. Only whole-line comments are removed, so a `#` inside a quoted value is
+# left alone.
+_COMMENT_LINE = re.compile(r"^[ \t]*#.*$", re.MULTILINE)
+
+
 def required_variables(compose_text: str) -> set[str]:
-    return set(re.findall(r"\$\{([A-Z][A-Z0-9_]*):\?", compose_text))
+    declarations = _COMMENT_LINE.sub("", compose_text)
+    return set(re.findall(r"\$\{([A-Z][A-Z0-9_]*):\?", declarations))
 
 
 def synthetic_environment(compose_text: str) -> dict[str, str]:

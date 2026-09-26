@@ -11,6 +11,8 @@ function tagFixture(): Tag {
     color: null,
     description: null,
     usage_count: 0,
+    first_message_enabled: false,
+    first_message_keywords: [],
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   };
@@ -26,6 +28,8 @@ function attrFixture(): AttributeDefinition {
     enum_values: ["pending", "done"],
     is_indexed: false,
     is_pii: false,
+    is_required: false,
+    is_active: true,
     created_at: "2026-07-18T00:00:00Z",
     updated_at: "2026-07-18T00:00:00Z",
   };
@@ -77,5 +81,15 @@ describe("buildRules", () => {
 
   it("ignores an unknown attribute key", () => {
     expect(buildRules({ ...emptyFilters, attributes: { unknown: "x" } }, tags, defs)).toEqual([]);
+  });
+});
+
+describe("sale status filter", () => {
+  it("adds a sale_status rule set from Live Chat", () => {
+    const rules = buildRules({ search: "", tagId: "", attributes: {}, sale: "sale_done" }, [], []);
+    expect(rules).toEqual([
+      { group_index: 0, field_source: "contact", field_key: "sale_status", operator: "eq", value: "sale_done" },
+    ]);
+    expect(hasActiveFilters({ search: "", tagId: "", attributes: {}, sale: "sale_done" })).toBe(true);
   });
 });

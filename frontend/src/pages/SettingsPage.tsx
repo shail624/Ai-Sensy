@@ -40,7 +40,9 @@ export function SettingsPage(): JSX.Element {
         ]}
       />
       <PageHeader
-        title="Settings"
+        title={location.hash === "#consent" && active?.key === "application" ? "Opt-in Management"
+          : location.hash === "#inbox-policy" && active?.key === "application" ? "Live Chat Settings"
+          : active?.label ?? "Settings"}
         description={active?.description ?? "Organization, configuration and your own preferences."}
       />
 
@@ -51,7 +53,7 @@ export function SettingsPage(): JSX.Element {
         />
       ) : (
         <>
-          <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2">
+          <nav aria-label="Settings sections" className="mb-4 flex flex-wrap gap-2 lg:hidden">
             {sections.map((section) => (
               <NavLink
                 key={section.key}

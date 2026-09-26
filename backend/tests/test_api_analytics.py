@@ -17,8 +17,11 @@ from app.models.analytics import (
     GRAIN_HOUR,
     AnalyticsCampaignRollup,
     AnalyticsContactRollup,
+    AnalyticsConversationRollup,
+    AnalyticsDomainOutcomeRollup,
     AnalyticsFailureRollup,
     AnalyticsMessageRollup,
+    AnalyticsTaskRollup,
 )
 from app.models.message import DIRECTION_OUTBOUND
 from app.models.organization import Organization
@@ -87,6 +90,55 @@ async def seeded(session_factory, organization):
                 organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
                 created_count=12, opted_in_count=9, opted_out_count=3, active_count=40,
             ),
+            AnalyticsConversationRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                assigned_user_id=701, opened_count=5, resolved_count=4,
+                outbound_message_count=10, handled_count=5,
+                first_response_seconds_sum=600, first_response_count=5,
+            ),
+            AnalyticsTaskRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                assigned_agent_id=702, task_type="custom", created_count=6,
+                completed_count=5, completed_on_time_count=4, overdue_entered_count=1,
+                time_to_complete_seconds_sum=3_600, time_to_complete_count=5,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="reactivation", outcome="reactivation.created", source="referral",
+                reactivation_case_created_count=10,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="reactivation", outcome="reactivation.stage.completed", source="referral",
+                reactivation_completed_count=6, reactivation_transition_count=6,
+                reactivation_turnaround_seconds_sum=21_600, reactivation_turnaround_count=6,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="eligibility", outcome="eligibility.eligible", source="rules",
+                eligibility_decision_count=8, eligibility_eligible_count=8,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="kyc", outcome="kyc.manager_approval.approved", source="vi_domain",
+                kyc_decision_count=4, kyc_approved_count=4,
+                kyc_turnaround_seconds_sum=14_400, kyc_turnaround_count=4,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="sla", outcome="sla.reactivation_case.started", source="vi_domain",
+                sla_started_count=10,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="sla", outcome="sla.reactivation_case.breached", source="vi_domain",
+                sla_breached_count=2,
+            ),
+            AnalyticsDomainOutcomeRollup(
+                organization_id=organization.id, grain=GRAIN_HOUR, bucket_start=BUCKET,
+                domain="sla", outcome="sla.reactivation_case.resolved", source="vi_domain",
+                sla_resolved_count=7,
+            ),
         ])
         await session.commit()
     return organization.id
@@ -137,6 +189,9 @@ async def test_summary_returns_totals_kpis_and_freshness(client, make_user, seed
     body = resp.json()
     assert body["totals"]["messages_sent"] == 140
     assert body["kpis"]["delivery_rate"] == pytest.approx(128 / 140, abs=1e-6)
+    assert body["kpis"]["reactivation_conversion_rate"] == pytest.approx(0.6)
+    assert body["kpis"]["kyc_approval_rate"] == pytest.approx(1.0)
+    assert body["kpis"]["sla_breach_rate"] == pytest.approx(0.2)
     assert "from" in body and "grain" in body and "data_as_of" in body
 
 
@@ -252,6 +307,39 @@ async def test_generic_breakdown_accepts_any_declared_dimension(client, make_use
     )).json()
 
     assert {row["key"] for row in body["data"]} == {"text", "template"}
+
+
+async def test_domain_outcome_endpoints_publish_factual_funnels(client, make_user, seeded):
+    owner = await _owner(client, make_user)
+
+    reactivation = (
+        await client.get(f"{BASE}/reactivation-outcomes", headers=owner, params=RANGE)
+    ).json()
+    kyc = (await client.get(f"{BASE}/kyc-outcomes", headers=owner, params=RANGE)).json()
+    service = (await client.get(f"{BASE}/service-levels", headers=owner, params=RANGE)).json()
+
+    assert reactivation["totals"]["reactivation_cases_created"] == 10
+    assert reactivation["totals"]["reactivation_completed"] == 6
+    assert {row["key"] for row in reactivation["data"]} >= {
+        "reactivation.created",
+        "reactivation.stage.completed",
+    }
+    assert kyc["totals"]["kyc_approved"] == 4
+    assert service["totals"]["sla_breached"] == 2
+    assert all(any(row["totals"].values()) for row in service["data"])
+
+
+async def test_task_productivity_endpoint_uses_task_event_rollups(client, make_user, seeded):
+    owner = await _owner(client, make_user)
+
+    body = (
+        await client.get(f"{BASE}/task-productivity", headers=owner, params=RANGE)
+    ).json()
+
+    assert body["dimension"] == "assigned_agent_id"
+    assert body["totals"]["tasks_created"] == 6
+    assert body["totals"]["tasks_completed"] == 5
+    assert body["data"][0]["kpis"]["task_completion_rate"] == pytest.approx(5 / 6)
 
 
 async def test_unknown_dimension_is_a_problem(client, make_user, seeded):
@@ -456,7 +544,7 @@ async def test_export_rejects_an_unknown_report_and_format(client, make_user, se
     _assert_problem(
         await client.post(
             f"{BASE}/reports/export", headers=owner,
-            json={"report": "messages", "format": "pdf", "filters": {"preset": "today"}},
+            json={"report": "messages", "format": "xml", "filters": {"preset": "today"}},
         ),
         422,
     )
@@ -493,6 +581,52 @@ async def test_export_generates_rows_from_the_rollups(client, make_user, seeded,
     async with session_factory() as session:
         stored = (await session.scalars(select(ExportJob))).first()
     assert stored.entity == "report:messages"
+
+
+async def test_pdf_report_is_downloadable_and_visible_in_the_download_center(
+    client, make_user, seeded, session_factory
+):
+    """PDF uses the same governed job, signed artifact and personal history as other reports."""
+    import app.analytics.tasks as tasks
+    from app.models.job_records import STATUS_READY
+    from app.services.export_service import ExportService
+
+    owner = await _owner(client, make_user)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(tasks.run_report_export, "apply_async", lambda args, task_id=None: None)
+        created = await client.post(
+            f"{BASE}/reports/export",
+            headers=owner,
+            json={
+                "report": "messages",
+                "format": "pdf",
+                "filters": {**RANGE, "granularity": "hour"},
+            },
+        )
+    assert created.status_code == 202, created.text
+    export_id = created.json()["job"]["id"]
+
+    async with session_factory() as session:
+        job = await ExportService(session).run(export_id)
+
+    assert job.status == STATUS_READY
+    assert job.row_count == 3
+    assert job.storage_key and job.storage_key.endswith(".pdf")
+
+    progress = await client.get(f"{BASE}/reports/{export_id}", headers=owner)
+    url = progress.json()["download_url"]
+    download = await client.get(url)
+    assert download.status_code == 200, download.text
+    assert download.headers["content-type"].startswith("application/pdf")
+    assert f"export-{export_id}.pdf" in download.headers["content-disposition"]
+    assert download.content.startswith(b"%PDF-")
+
+    center = await client.get("/api/v1/downloads", headers=owner)
+    row = next(item for item in center.json()["data"] if item["id"] == export_id)
+    assert (row["category"], row["format"], row["status"]) == (
+        "analytics", "pdf", "ready"
+    )
+    assert row["download_url"] is not None
 
 
 async def test_export_progress_is_readable(client, make_user, seeded, monkeypatch):
@@ -533,6 +667,10 @@ def test_every_analytics_route_is_mounted() -> None:
         "/api/v1/analytics/costs", "/api/v1/analytics/executive", "/api/v1/analytics/metrics",
         "/api/v1/analytics/dimensions", "/api/v1/analytics/freshness",
         "/api/v1/analytics/reports/export", "/api/v1/analytics/reports/{export_id}",
+        "/api/v1/analytics/report-schedules",
+        "/api/v1/analytics/report-schedules/{schedule_id}",
+        "/api/v1/analytics/reactivation-outcomes", "/api/v1/analytics/kyc-outcomes",
+        "/api/v1/analytics/service-levels", "/api/v1/analytics/task-productivity",
     }
     assert expected <= set(paths)
 
@@ -561,8 +699,8 @@ async def test_report_artifact_contains_the_rollup_rows(client, make_user, seede
     captured: dict[str, bytes] = {}
     real_writer = export_writer
 
-    def capturing_writer(fmt: str, columns=None):
-        writer = real_writer(fmt, columns) if columns else real_writer(fmt)
+    def capturing_writer(fmt: str, columns=None, *, title=None):
+        writer = real_writer(fmt, columns, title=title) if columns else real_writer(fmt)
         original_finish = writer.finish
 
         def finish() -> bytes:

@@ -10,10 +10,13 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ValidationError
 from app.models.settings import FeatureFlag, Setting
 from app.models.user import User
 from app.repositories.settings import FeatureFlagRepository, SettingRepository
 from app.services.audit_service import AuditAction, AuditService
+from app.services.inbox_operations_service import INBOX_OPERATIONS_KEY
+from app.services.notification_service import NOTIFICATION_SETTINGS_KEY
 
 
 def _infer_value_type(value: Any) -> str:
@@ -40,6 +43,17 @@ class SettingsService:
     async def update_settings(
         self, *, organization_id: int, actor: User, values: dict[str, Any]
     ) -> list[Setting]:
+        if INBOX_OPERATIONS_KEY in values:
+            raise ValidationError(
+                "The inbox operations policy must be updated through its validated endpoint.",
+                errors=[
+                    {
+                        "field": f"values.{INBOX_OPERATIONS_KEY}",
+                        "code": "reserved_setting",
+                        "message": "use PUT /settings/inbox-operations",
+                    }
+                ],
+            )
         for key, value in values.items():
             await self._settings.upsert_org(
                 organization_id=organization_id,
@@ -66,6 +80,20 @@ class SettingsService:
     async def update_preferences(
         self, *, user: User, preferences: dict[str, Any]
     ) -> dict[str, Any]:
+        if NOTIFICATION_SETTINGS_KEY in preferences:
+            # Reserved for the same reason INBOX_OPERATIONS_KEY is: this endpoint takes a free-form
+            # dict, so writing the key here would store a shape the typed endpoint would never
+            # accept, and the notification list would then be filtered by something unvalidated.
+            raise ValidationError(
+                "Notification settings must be updated through their validated endpoint.",
+                errors=[
+                    {
+                        "field": f"preferences.{NOTIFICATION_SETTINGS_KEY}",
+                        "code": "reserved_setting",
+                        "message": "use PUT /notifications/settings",
+                    }
+                ],
+            )
         for key, value in preferences.items():
             await self._settings.upsert_user(
                 user_id=user.id,

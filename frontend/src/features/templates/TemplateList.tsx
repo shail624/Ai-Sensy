@@ -1,11 +1,13 @@
+import { RefreshCw } from "lucide-react";
 import { useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { EmptyState, ErrorState, Spinner } from "@/components/ui";
 import {
   apiErrorMessage,
   useHasPermission,
   useSyncTemplates,
+  useTemplateUsage,
   useTemplates,
 } from "@/features/templates/api";
 import { TemplateFilters } from "@/features/templates/TemplateFilters";
@@ -17,7 +19,7 @@ import {
   selectTemplatePage,
 } from "@/features/templates/selectors";
 import type { TemplateListQuery, TemplateSort } from "@/features/templates/types";
-import { CATEGORIES, DEFAULT_LIST_QUERY, STATUSES } from "@/features/templates/types";
+import { ACTION_REQUIRED, CATEGORIES, DEFAULT_LIST_QUERY, STATUSES } from "@/features/templates/types";
 import { formatCount } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { useWorkspacePreferences } from "@/lib/workspace";
@@ -36,7 +38,7 @@ function readQuery(params: URLSearchParams): TemplateListQuery {
   return {
     q: params.get("q") ?? DEFAULT_LIST_QUERY.q,
     // Anything outside the known vocabulary is ignored rather than filtering everything out.
-    status: STATUSES.includes(status) ? status : DEFAULT_LIST_QUERY.status,
+    status: STATUSES.includes(status) || status === ACTION_REQUIRED ? status : DEFAULT_LIST_QUERY.status,
     category: (CATEGORIES as string[]).includes(category) ? category : DEFAULT_LIST_QUERY.category,
     language: params.get("language") ?? DEFAULT_LIST_QUERY.language,
     sort: SORTS.includes(sort as TemplateSort) ? (sort as TemplateSort) : DEFAULT_LIST_QUERY.sort,
@@ -73,6 +75,13 @@ export function TemplateList(): JSX.Element {
 
   const templates = useTemplates();
   const sync = useSyncTemplates();
+  // Loaded beside the list rather than inside it: the registry renders fine without send
+  // history, and a slower aggregate should not hold up the screen someone opens to write.
+  const usage = useTemplateUsage();
+  const usageById = useMemo(
+    () => new Map((usage.data ?? []).map((row) => [row.template_id, row])),
+    [usage.data],
+  );
 
   const rows = useMemo(() => templates.data ?? [], [templates.data]);
   const page = useMemo(() => selectTemplatePage(rows, query), [rows, query]);
@@ -111,28 +120,26 @@ export function TemplateList(): JSX.Element {
         </p>
       ) : null}
 
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <TemplateFilters filters={query} languages={languages} onChange={apply} />
-        <div className="flex flex-wrap items-center gap-2">
-          {canSync ? (
-            <button
-              type="button"
-              className={BUTTON_CLASS}
-              disabled={sync.isPending}
-              onClick={() => sync.mutate(undefined)}
-            >
-              {sync.isPending ? "Starting sync…" : "Sync from Meta"}
-            </button>
-          ) : null}
-          {canWrite ? (
-            <Link
-              to="/templates/new"
-              className="rounded-md bg-accent px-3 py-1.5 text-sm text-accent-fg hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            >
-              New template
-            </Link>
-          ) : null}
-        </div>
+      <div className="mb-4">
+        <TemplateFilters
+          filters={query}
+          languages={languages}
+          onChange={apply}
+          actions={
+            canSync ? (
+              <button
+                type="button"
+                disabled={sync.isPending}
+                onClick={() => sync.mutate(undefined)}
+                title="Pull the latest approval statuses from Meta"
+                className="inline-flex h-[37px] items-center gap-2 rounded-md bg-[var(--color-nav-bg)] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#08393d] disabled:opacity-60"
+              >
+                <RefreshCw aria-hidden className={`h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+                {sync.isPending ? "Starting sync…" : "Sync Status"}
+              </button>
+            ) : null
+          }
+        />
       </div>
 
       {sync.isSuccess ? (
@@ -169,6 +176,7 @@ export function TemplateList(): JSX.Element {
             templates={page.rows}
             favoritePaths={workspace.favorites}
             onToggleFavorite={workspace.toggleFavorite}
+            usage={usage.isSuccess ? usageById : undefined}
           />
 
           <nav

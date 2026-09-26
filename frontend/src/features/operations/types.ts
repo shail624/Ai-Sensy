@@ -100,3 +100,8 @@ export const DEFAULT_JOB_QUERY: JobListQuery = {
   sort: "-created_at",
   page: 1,
 };
+
+export type WebhookEvent = components["schemas"]["WebhookEventResponse"];
+export type WebhookEventsPage = components["schemas"]["WebhookEventsPage"];
+export type WebhookDeadLetter = components["schemas"]["WebhookDeadLetterResponse"];
+export type WebhookDeadLetterPage = components["schemas"]["WebhookDeadLetterPage"];

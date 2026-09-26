@@ -6,6 +6,8 @@ export type KycOperationsResponse = components["schemas"]["KycOperationsResponse
 export type KycDecision = components["schemas"]["KycDecisionResponse"];
 export type KycDocumentReference = components["schemas"]["KycDocumentReferenceResponse"];
 export type KycAppointment = components["schemas"]["KycAppointmentResponse"];
+export type KycView = components["schemas"]["KycViewResponse"];
+export type KycViewCreate = components["schemas"]["KycViewCreate"];
 export type KycStatus = KycCase["status"];
 export type KycReasonCode = NonNullable<KycDecision["reason_code"]>;
 export type KycDocumentPurpose = KycDocumentReference["purpose"];
@@ -27,6 +29,8 @@ export const KYC_STATUS_LABELS: Record<KycStatus, string> = {
   approved: "Approved",
   rejected: "Rejected",
 };
+
+export const KYC_STATUSES = Object.keys(KYC_STATUS_LABELS) as KycStatus[];
 
 export const KYC_REASON_LABELS: Record<KycReasonCode, string> = {
   holder_mismatch: "Original holder mismatch",

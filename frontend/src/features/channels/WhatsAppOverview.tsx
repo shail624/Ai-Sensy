@@ -13,8 +13,8 @@ import { Badge, Button, Card, CardHeader, ErrorState, Skeleton } from "@/compone
 import { apiErrorMessage, useNumbers, useWabas } from "@/features/channels/api";
 import type { PhoneNumber, Waba } from "@/features/channels/types";
 import {
+  isNumberConnected,
   isNumberHealthy,
-  NUMBER_STATUS_CONNECTED,
   tokenState,
   WABA_STATUS_LABELS,
 } from "@/features/channels/types";
@@ -40,11 +40,11 @@ export function buildWhatsAppOverview(
     : numbers;
   const number =
     accountNumbers.find((row) => row.is_default) ??
-    accountNumbers.find((row) => row.status === NUMBER_STATUS_CONNECTED) ??
+    accountNumbers.find((row) => isNumberConnected(row)) ??
     accountNumbers[0] ??
     null;
   const accountReady = Boolean(account?.status === "active" && tokenState(account) === "ok");
-  const numberReady = number?.status === NUMBER_STATUS_CONNECTED;
+  const numberReady = number ? isNumberConnected(number) : false;
   const channelReady = Boolean(accountReady && number && isNumberHealthy(number));
   const qualityLabel =
     number?.quality_rating === "GREEN"
@@ -53,7 +53,9 @@ export function buildWhatsAppOverview(
         ? "Watch"
         : number?.quality_rating === "RED"
           ? "Low"
-          : "Not rated";
+          : number?.quality_rating === "UNKNOWN"
+            ? "Scoring"
+            : "Not rated";
 
   return {
     account,

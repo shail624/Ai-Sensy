@@ -1,6 +1,6 @@
 import type { Campaign, CampaignListQuery, CampaignSort } from "@/features/campaigns/types";
 
-/** Rows per page for the client-side list (see `useCampaigns` for why paging lives here). */
+/** Existing local page size; server pagination is outside MAINT-02. */
 export const PAGE_SIZE = 25;
 
 function byName(a: Campaign, b: Campaign): number {
@@ -19,21 +19,6 @@ const COMPARATORS: Record<CampaignSort, (a: Campaign, b: Campaign) => number> = 
   "-total_recipients": (a, b) => b.total_recipients - a.total_recipients,
 };
 
-/** Case-insensitive name match — the same field the server's `q` filters on (`Campaign.name`). */
-export function matchesSearch(campaign: Campaign, q: string): boolean {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return true;
-  return campaign.name.toLowerCase().includes(needle);
-}
-
-export function filterCampaigns(campaigns: Campaign[], query: CampaignListQuery): Campaign[] {
-  return campaigns.filter(
-    (campaign) =>
-      matchesSearch(campaign, query.q) &&
-      (query.status === "" || campaign.status === query.status),
-  );
-}
-
 export function sortCampaigns(campaigns: Campaign[], sort: CampaignSort): Campaign[] {
   return [...campaigns].sort(COMPARATORS[sort]);
 }
@@ -46,17 +31,18 @@ export interface CampaignPage {
   page: number;
 }
 
-/** Filter → sort → slice, in that order, so the page numbers describe the filtered set. */
+/** Sort and slice the server-filtered set without applying a second filtering policy. */
 export function selectCampaignPage(
   campaigns: Campaign[],
   query: CampaignListQuery,
+  pageSize: number = PAGE_SIZE,
 ): CampaignPage {
-  const matched = sortCampaigns(filterCampaigns(campaigns, query), query.sort);
-  const totalPages = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
+  const matched = sortCampaigns(campaigns, query.sort);
+  const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const page = Math.min(Math.max(1, query.page), totalPages);
-  const start = (page - 1) * PAGE_SIZE;
+  const start = (page - 1) * pageSize;
   return {
-    rows: matched.slice(start, start + PAGE_SIZE),
+    rows: matched.slice(start, start + pageSize),
     total: matched.length,
     totalPages,
     page,

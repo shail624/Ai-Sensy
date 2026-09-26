@@ -23,14 +23,16 @@ marketing: waiting cannot fix that, so it fails the message (§5.4).
 from __future__ import annotations
 
 import uuid as uuidlib
+from dataclasses import replace
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channels.base import ChannelAdapter
+from app.channels.base import ChannelAdapter, get_adapter
 from app.channels.errors import ChannelError
 from app.channels.models import (
     InteractiveContent,
+    LocationContent,
     MediaContent,
     MediaKind,
     MessageType,
@@ -40,10 +42,14 @@ from app.channels.models import (
     TemplateContent,
     TextContent,
 )
+from app.channels.runtime import PairingState
+from app.channels.session import SessionState
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
 from app.db.mixins import utcnow
-from app.models.contact import OPT_IN_OPTED_OUT
+from app.models.audit import ACTOR_SYSTEM
+from app.models.channel_connection import ChannelEndpoint
+from app.models.contact import OPT_IN_OPTED_OUT, Contact
 from app.models.conversation import Conversation
 from app.models.media import MediaAsset
 from app.models.message import (
@@ -57,7 +63,13 @@ from app.models.template import MessageTemplate
 from app.models.user import User
 from app.models.waba import PhoneNumber
 from app.queue.retry import FailureClass, register_error_map
+from app.repositories.channel_connection import (
+    ChannelConnectionRepository,
+    ChannelEndpointRepository,
+)
+from app.repositories.channel_session import ChannelSessionRepository
 from app.repositories.contact import ContactRepository
+from app.repositories.conversation import ConversationRepository
 from app.repositories.media import MediaRepository
 from app.repositories.message import MessageRepository, MessageStatusHistoryRepository
 from app.repositories.template import TemplateRepository
@@ -67,8 +79,14 @@ from app.services.contact_service import wa_id_from_e164
 from app.services.conversation_service import ConversationService
 from app.services.media_ingest_service import MediaIngestService
 from app.services.rate_gate import RateGate, is_paused
-from app.services.template_validation import VARIABLE_BUTTONS, expected_variables, render
+from app.services.template_validation import (
+    VARIABLE_BUTTONS,
+    expected_button_variables,
+    expected_variables,
+    render,
+)
 from app.services.waba_service import WabaService
+from app.storage.base import get_provider
 
 logger = get_logger(__name__)
 
@@ -81,7 +99,13 @@ SOURCE_API = "api"
 
 #: Free-form types need an open window; a template is the only type that may cross a closed one
 #: (Doc 04 §18.2, FR-WA-12). A reaction is free-form too (Doc 04 §18.2 v1.4).
-FREE_FORM = (MessageType.TEXT, MessageType.MEDIA, MessageType.INTERACTIVE, MessageType.REACTION)
+FREE_FORM = (
+    MessageType.TEXT,
+    MessageType.MEDIA,
+    MessageType.INTERACTIVE,
+    MessageType.REACTION,
+    MessageType.LOCATION,
+)
 
 
 class WindowClosedError(ValidationError):
@@ -127,6 +151,31 @@ def _classify_send(exc: BaseException) -> FailureClass | None:
 
 
 register_error_map("sends", _classify_send)
+
+
+class ChannelNotConnectedError(ValidationError):
+    """The channel endpoint has no currently active, paired session (QR-08).
+
+    A truthful refusal, not an attempted send left to fail later at delivery: provider outage or a
+    re-authentication requirement must never be silently accepted and only discovered downstream —
+    the same "composer truthfully refuses" rule QR-07's Inbox-adjacent UI already follows for
+    session state applies here to the send path itself.
+    """
+
+    code = "channel_not_connected"
+    title = "Channel Not Connected"
+
+
+class ChannelCapabilityNotSupportedError(ValidationError):
+    """The owning connector does not declare a capability this send needs (QR-08; ADR-0020).
+
+    WAHA declares text only — permanently, not "not yet" — so media/interactive/template/reaction
+    against a channel-endpoint-owned conversation land here rather than reaching the adapter and
+    failing less legibly.
+    """
+
+    code = "capability_not_supported"
+    title = "Capability Not Supported"
 
 
 class TemplateNotSendableError(ValidationError):
@@ -210,6 +259,10 @@ class SendService:
         self._templates = TemplateRepository(session)
         self._numbers = PhoneNumberRepository(session)
         self._wabas = WabaRepository(session)
+        self._conversation_repo = ConversationRepository(session)
+        self._connections = ChannelConnectionRepository(session)
+        self._endpoints = ChannelEndpointRepository(session)
+        self._sessions = ChannelSessionRepository(session)
         self._conversations = ConversationService(session)
         self._audit = AuditService(session)
 
@@ -243,9 +296,7 @@ class SendService:
             organization_id=organization_id, wa_id=wa_id, source=SOURCE_API
         )
         if contact.opt_in_status == OPT_IN_OPTED_OUT:
-            raise OptedOutError(
-                "This contact has opted out of messages and cannot be contacted."
-            )
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
 
         conversation = await self._conversations.thread_for(number=number, contact=contact)
         self._require_window(conversation, message_type)
@@ -308,9 +359,220 @@ class SendService:
         await self._session.commit()
         return message
 
-    async def _asset_for(
-        self, organization_id: int, content: dict[str, Any]
-    ) -> MediaAsset | None:
+    # --- Conversation-scoped reply (request path, QR-08) ---------------------
+    async def accept_for_conversation(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        conversation_public_id: uuidlib.UUID,
+        message_type: MessageType,
+        content: dict[str, Any],
+    ) -> Message:
+        """A reply to an existing thread. The provider is the thread's own, never the caller's.
+
+        This is the routing decision QR-08 exists to make server-side: the conversation's durable
+        ownership (``phone_number_id`` xor ``channel_endpoint_id``, ``ck_conv_endpoint_owner``)
+        decides whether this reply goes to Meta or WAHA. A caller cannot express a different
+        provider through this path — there is no provider field to forge, because the recipient and
+        the connector are both derived from the conversation row, not accepted from the request.
+        """
+        conversation = await self._conversation_repo.get_active_by_uuid(
+            organization_id, conversation_public_id.bytes
+        )
+        if conversation is None:
+            raise NotFoundError("Conversation not found.")
+        contact = await self._contacts.get_by_id(conversation.contact_id)
+        if contact is None:
+            raise NotFoundError("Conversation not found.")
+
+        if conversation.phone_number_id is not None:
+            number = await self._numbers.get_by_id(conversation.phone_number_id)
+            if number is None:
+                raise NotFoundError("Conversation not found.")
+            return await self.accept(
+                organization_id=organization_id,
+                actor=actor,
+                number=number,
+                to=contact.phone_e164,
+                message_type=message_type,
+                content=content,
+            )
+
+        # `ck_conv_endpoint_owner` guarantees exactly one of the two is set.
+        assert conversation.channel_endpoint_id is not None
+        if message_type not in (MessageType.TEXT, MessageType.MEDIA, MessageType.LOCATION):
+            raise ChannelCapabilityNotSupportedError(
+                "This WhatsApp number can send text, files and locations only."
+            )
+        endpoint = await self._endpoints.get_by_id(conversation.channel_endpoint_id)
+        if endpoint is None:
+            raise NotFoundError("Conversation not found.")
+        return await self.accept_endpoint(
+            organization_id=organization_id,
+            actor=actor,
+            endpoint=endpoint,
+            conversation=conversation,
+            contact=contact,
+            body=content.get("body", ""),
+            media=content.get("media") if message_type is MessageType.MEDIA else None,
+            location=content.get("location") if message_type is MessageType.LOCATION else None,
+        )
+
+    async def accept_endpoint(
+        self,
+        *,
+        organization_id: int,
+        actor: User,
+        endpoint: ChannelEndpoint,
+        conversation: Conversation,
+        contact: Contact,
+        body: str,
+        media: dict[str, Any] | None = None,
+        location: dict[str, Any] | None = None,
+    ) -> Message:
+        """Accept a text (or, with ``media``, a file) reply on a channel-endpoint-owned (WAHA) thread (QR-08).
+
+        The provider-neutral analogue of :meth:`accept`, deliberately not the same method: it skips
+        every Meta-only compliance rule this text send does not carry — the 24-hour window (a Meta
+        Business Platform obligation, not a WhatsApp protocol restriction WAHA is subject to), the
+        per-number rate gate and quality-rating pause (WABA-specific), and template/media resolution
+        (WAHA has neither capability). Opt-out is **not** skipped: it is a Contact-level preference
+        (ADR-0020 "One Contact authority"), not a Meta rule, so it is honored across both providers.
+        """
+        if contact.opt_in_status == OPT_IN_OPTED_OUT:
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
+        asset: MediaAsset | None = None
+        if media is not None:
+            # WAHA sends the file itself, so only a file stored here can go — not a link or an id
+            # that belongs to another provider.
+            if not media.get("media_asset_id"):
+                raise ValidationError(
+                    "Attach a file uploaded to this app to send it on this number."
+                )
+            asset = await self._asset_for(organization_id, {"media": media})
+        elif location is None and not body.strip():
+            raise ValidationError("A text message requires a non-empty body.")
+        session_row = await self._sessions.get_current_for_connection(
+            organization_id, endpoint.connection_id
+        )
+        connected = (
+            session_row is not None
+            and SessionState(session_row.state) is SessionState.ACTIVE
+            and PairingState(session_row.pairing_state) is PairingState.PAIRED
+        )
+        if not connected:
+            # Refused honestly, at accept time — not silently queued to fail later at delivery.
+            # This is the same "provider outage/re-auth is not unpaired" truth QR-07's status read
+            # already tells the operator; the send path must not accept what the composer would
+            # have refused to offer.
+            raise ChannelNotConnectedError(
+                "WhatsApp is not currently connected; reconnect before sending."
+            )
+
+        now = utcnow()
+        content: dict[str, Any]
+        if media is not None:
+            content, message_type = {"media": media}, str(media["kind"])
+        elif location is not None:
+            content, message_type = {"location": location}, MessageType.LOCATION.value
+        else:
+            content, message_type = {"body": body}, MessageType.TEXT.value
+        if asset is not None:
+            # What keeps an asset a message depends on from being deleted (Doc 04 §16 → 409).
+            asset.usage_count += 1
+        message = Message(
+            organization_id=organization_id,
+            conversation_id=conversation.id,
+            channel_endpoint_id=endpoint.id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            message_type=message_type,
+            content_json=content,
+            media_asset_id=asset.id if asset is not None else None,
+            status=MSG_ACCEPTED,
+            created_at=now,
+        )
+        await self._messages.add(message)
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(message_type, content),
+            occurred_at=now,
+        )
+        await self._audit.record(
+            AuditAction.MESSAGE_SENT,
+            actor_user_id=actor.id,
+            organization_id=organization_id,
+            entity_type="message",
+            entity_id=message.id,
+            after={"type": message.message_type, "conversation_id": conversation.public_id},
+        )
+        await self._session.commit()
+        return message
+
+    async def accept_system_text_for_conversation(
+        self,
+        *,
+        conversation: Conversation,
+        contact: Contact,
+        body: str,
+        kind: str,
+        source_message_id: int,
+        allow_opted_out: bool = False,
+    ) -> Message:
+        """Persist one policy-selected text reply inside the caller's inbound transaction.
+
+        The inbound message has already established the conversation/provider and opened Meta's
+        customer-service window. This method deliberately does not commit or dispatch: the inbound
+        service owns atomicity, and the task adapter dispatches only after that commit succeeds.
+        """
+        withdrawal_acknowledgement = allow_opted_out and kind == "consent_opt_out"
+        if contact.opt_in_status == OPT_IN_OPTED_OUT and not withdrawal_acknowledgement:
+            raise OptedOutError("This contact has opted out of messages and cannot be contacted.")
+        text = body.strip()
+        if not text:
+            raise ValidationError("An automatic text reply requires a non-empty body.")
+        if (conversation.phone_number_id is None) == (conversation.channel_endpoint_id is None):
+            raise ValidationError("The conversation has no unambiguous channel owner.")
+
+        now = utcnow()
+        content = {"body": text}
+        message = Message(
+            organization_id=conversation.organization_id,
+            conversation_id=conversation.id,
+            phone_number_id=conversation.phone_number_id,
+            channel_endpoint_id=conversation.channel_endpoint_id,
+            contact_id=contact.id,
+            direction=DIRECTION_OUTBOUND,
+            message_type=MessageType.TEXT.value,
+            content_json=content,
+            status=MSG_ACCEPTED,
+            created_at=now,
+        )
+        await self._messages.add(message)
+        await self._conversations.record_outbound_message(
+            conversation,
+            contact=contact,
+            preview=ConversationService.preview_of(MessageType.TEXT.value, content),
+            occurred_at=now,
+        )
+        await self._audit.record(
+            AuditAction.MESSAGE_SENT,
+            actor_type=ACTOR_SYSTEM,
+            organization_id=conversation.organization_id,
+            entity_type="message",
+            entity_id=message.id,
+            after={"type": message.message_type, "conversation_id": conversation.public_id},
+            metadata={
+                "source": "inbox_operations",
+                "kind": kind,
+                "source_message_id": source_message_id,
+            },
+        )
+        return message
+
+    async def _asset_for(self, organization_id: int, content: dict[str, Any]) -> MediaAsset | None:
         """Resolve a `media_asset_id` reference to the asset, or fail before anything is queued.
 
         Checked on the request path so a caller learns immediately that the asset is unknown,
@@ -328,9 +590,7 @@ class SendService:
             raise NotFoundError("Media asset not found.")
         return asset
 
-    async def _template_for(
-        self, organization_id: int, content: dict[str, Any]
-    ) -> MessageTemplate:
+    async def _template_for(self, organization_id: int, content: dict[str, Any]) -> MessageTemplate:
         """Resolve and vet the template a send names (FR-TPL-03/04).
 
         Both checks happen here, on the request path, because both have an answer the caller can
@@ -370,7 +630,29 @@ class SendService:
                         }
                     ],
                 )
-        for index, button in enumerate(spec.get("buttons") or []):
+        supplied_buttons = list(spec.get("buttons") or [])
+        button_vars = expected_button_variables(template.components_json or [])
+        if len(supplied_buttons) < button_vars:
+            # A minimum, not an equality, and deliberately so. Too *few* is a proven failure: a
+            # button whose destination carries `{{1}}` and gets no value makes Meta reject the
+            # message, once per recipient, after the window the campaign was scheduled for has
+            # opened. Too *many* is a different question -- a quick reply takes a tap payload with
+            # no placeholder to count, and this repository's own send tests have always supplied a
+            # value for a fixed URL button. Whether Meta accepts that is not something this
+            # container can ask it, so the check enforces what is known and leaves the rest alone
+            # rather than tightening on a guess and breaking sends that work today.
+            raise TemplateVariablesError(
+                f"Template {template.name!r} needs {button_vars} button variable(s); "
+                f"{len(supplied_buttons)} supplied.",
+                errors=[
+                    {
+                        "field": "template.buttons",
+                        "code": "count_mismatch",
+                        "message": f"expected {button_vars}, got {len(supplied_buttons)}",
+                    }
+                ],
+            )
+        for index, button in enumerate(supplied_buttons):
             if str(button.get("type")) not in VARIABLE_BUTTONS:
                 raise TemplateVariablesError(
                     f"Button values can only be bound to {', '.join(VARIABLE_BUTTONS)} buttons.",
@@ -444,6 +726,9 @@ class SendService:
             raise NotReactableError(
                 "This message has not been acknowledged by the channel yet and cannot be reacted to."
             )
+        if target.phone_number_id is None:
+            # REACTION is a Meta-only capability (QR-08); WAHA never gains it.
+            raise NotReactableError("Reactions are not supported on this message's channel.")
         number = await self._numbers.get_by_id(target.phone_number_id)
         contact = await self._contacts.get_by_id(target.contact_id)
         if number is None or contact is None:
@@ -465,7 +750,10 @@ class SendService:
         Idempotent by `wamid` (Doc 06 §8): a redelivered task finds the id the channel already
         gave us and stops, because at-least-once delivery must not become at-least-once *sending*.
         """
-        message = await self._messages.get_by_id(message_pk)
+        # Duplicate webhook/task delivery may enqueue the same durable reply more than once. Hold
+        # this row through provider acceptance and commit so a concurrent worker waits, refreshes,
+        # then observes ``wamid`` instead of making a second provider call.
+        message = await self._messages.lock_by_id(message_pk)
         if message is None:
             logger.warning("send_message_missing", extra={"message_pk": message_pk})
             return {"status": "missing", "message_pk": message_pk}
@@ -473,6 +761,10 @@ class SendService:
             return {"status": "already_sent", "message_pk": message_pk, "wamid": message.wamid}
         if message.status == MSG_FAILED:
             return {"status": MSG_FAILED, "message_pk": message_pk}
+        if message.channel_endpoint_id is not None:
+            return await self._deliver_endpoint(message)
+        if message.phone_number_id is None:
+            raise ChannelError("the sending number is no longer connected")
 
         number = await self._numbers.get_by_id(message.phone_number_id)
         waba = await self._wabas.get_by_id(number.waba_id) if number else None
@@ -482,9 +774,7 @@ class SendService:
         contact = await self._contacts.get_by_id(message.contact_id)
         recipient = contact.wa_id if contact else ""
         # Before the adapter, not after: the gate exists to stop the call, not to measure it.
-        decision = await RateGate().acquire(
-            number, recipient=recipient, category=message.category
-        )
+        decision = await RateGate().acquire(number, recipient=recipient, category=message.category)
         if not decision.allowed:
             if decision.terminal:
                 return await self.fail(
@@ -505,9 +795,7 @@ class SendService:
             # A stored asset becomes a channel id here, at the last moment: the id expires, so
             # resolving it at accept time would let it lapse in the queue (Doc 07 §17.3).
             media_id = await self._resolve_media(message, adapter)
-            result = await adapter.send(
-                self._outbound(message, to=recipient, media_id=media_id)
-            )
+            result = await adapter.send(self._outbound(message, to=recipient, media_id=media_id))
         finally:
             await adapter.close()
 
@@ -518,9 +806,84 @@ class SendService:
         await self._session.commit()
         return {"status": "sent", "message_pk": message_pk, "wamid": message.wamid}
 
-    async def _resolve_media(
-        self, message: Message, adapter: ChannelAdapter
-    ) -> str | None:
+    async def _deliver_endpoint(self, message: Message) -> dict[str, Any]:
+        """The channel-endpoint-owned (WAHA) analogue of the body of :meth:`deliver` (QR-08).
+
+        No rate gate, no quality pause, no media/template resolution — none apply to a text-only
+        WAHA send. The one thing that must differ from Meta's path: **no automatic retry**. A send
+        failure is caught and resolved to :meth:`fail` *here*, inside this method, rather than
+        raised for ``send_message``'s retry-classification handler to see — so whether a WAHA send
+        is ever retried does not depend on how ``classify()`` happens to categorize the exception
+        today or after some unrelated future change to the shared ``sends`` error map. The outcome
+        is recorded honestly as indeterminate (a transport failure does not prove the message never
+        arrived), never silently resent.
+        """
+        assert message.channel_endpoint_id is not None
+        endpoint = await self._endpoints.get_by_id(message.channel_endpoint_id)
+        if endpoint is None:
+            raise ChannelError("the sending channel endpoint is no longer connected")
+        connection = await self._connections.get_by_id(endpoint.connection_id)
+        if connection is None:
+            raise ChannelError("the sending channel connection is no longer connected")
+        contact = await self._contacts.get_by_id(message.contact_id)
+        if contact is None:
+            raise ChannelError("the recipient contact no longer exists")
+        recipient = await self._conversations.endpoint_reply_address(
+            endpoint=endpoint,
+            connection=connection,
+            contact=contact,
+        )
+        if recipient is None:
+            return await self.fail(
+                message.id,
+                error="No provider-observed reply address exists for this endpoint.",
+                code="recipient_route_missing",
+            )
+
+        adapter = get_adapter(connection.connector_type)
+        try:
+            outbound = self._outbound(message, to=recipient)
+            if message.media_asset_id is not None:
+                outbound = await self._with_file_bytes(outbound, message)
+            result = await adapter.send(outbound)
+        except ChannelError as exc:
+            # Deliberately not re-raised through `sends`'s classifier: an unclassified exception is
+            # `FailureClass.UNKNOWN` (`max_attempts=0`), so the task fails this attempt once and
+            # `send_message`'s own handler marks the message failed — it does not retry.
+            return await self.fail(
+                message.id,
+                error=f"Send outcome could not be confirmed: {exc}",
+                code="indeterminate",
+            )
+        finally:
+            await adapter.close()
+
+        message.wamid = result.channel_message_id
+        await self._messages.flush()
+        await self._session.commit()
+        return {"status": "sent", "message_pk": message.id, "wamid": message.wamid}
+
+    async def _with_file_bytes(
+        self, outbound: OutboundMessage, message: Message
+    ) -> OutboundMessage:
+        """Attach the stored file itself, for a connector that sends bytes inline (WAHA)."""
+        asset = await self._assets.get_by_id(message.media_asset_id or 0)
+        if asset is None:
+            raise ChannelError(f"media asset {message.media_asset_id} no longer exists")
+        data = await get_provider(asset.storage_backend).get(asset.storage_key)
+        media = outbound.content
+        assert isinstance(media, MediaContent)
+        return replace(
+            outbound,
+            content=replace(
+                media,
+                data=data,
+                mime_type=asset.mime_type,
+                filename=media.filename or asset.file_name,
+            ),
+        )
+
+    async def _resolve_media(self, message: Message, adapter: ChannelAdapter) -> str | None:
         """Upload the referenced asset to the channel and return its id (Doc 07 §17.3)."""
         if message.media_asset_id is None:
             return None
@@ -563,14 +926,24 @@ class SendService:
                 type=MessageType.INTERACTIVE,
                 content=InteractiveContent(payload=content["interactive"]),
             )
+        if "location" in content:
+            pin = content["location"]
+            return OutboundMessage(
+                to=to,
+                type=MessageType.LOCATION,
+                content=LocationContent(
+                    latitude=float(pin["latitude"]),
+                    longitude=float(pin["longitude"]),
+                    name=pin.get("name"),
+                    address=pin.get("address"),
+                ),
+            )
         if "reaction" in content:
             reaction = content["reaction"]
             return OutboundMessage(
                 to=to,
                 type=MessageType.REACTION,
-                content=ReactionContent(
-                    message_id=reaction["message_id"], emoji=reaction["emoji"]
-                ),
+                content=ReactionContent(message_id=reaction["message_id"], emoji=reaction["emoji"]),
             )
         if "template" in content:
             spec = content["template"]

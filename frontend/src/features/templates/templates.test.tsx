@@ -30,7 +30,7 @@ import { TemplateFilters } from "@/features/templates/TemplateFilters";
 import { TemplateTable } from "@/features/templates/TemplateTable";
 import { toCreateRequest, toUpdateRequest, validateDraft } from "@/features/templates/templateForm";
 import type { Template, TemplateListQuery } from "@/features/templates/types";
-import { DEFAULT_LIST_QUERY } from "@/features/templates/types";
+import { ACTION_REQUIRED, DEFAULT_LIST_QUERY } from "@/features/templates/types";
 import { VariableInspector } from "@/features/templates/VariableInspector";
 import { formatAge, formatCount, formatDateTime, UNKNOWN } from "@/lib/format";
 
@@ -425,12 +425,43 @@ describe("TemplateBubble", () => {
         body="Hi {{1}}"
         footer="Reply STOP"
         mediaFormat={null}
-        buttons={[{ type: "url", text: "Track order", url: "https://x", phone_number: "" }]}
+        buttons={[{ type: "url", text: "Track order", target: "https://x" }]}
       />,
     );
     expect(screen.getByText("Order {{1}}")).toBeInTheDocument();
     expect(screen.getByText("Reply STOP")).toBeInTheDocument();
     expect(screen.getByText("Track order")).toBeInTheDocument();
+  });
+
+  it("shows where a button will send the customer, not only its label", () => {
+    // A label is readable from the template list; a link is readable nowhere else, and a URL
+    // button carries its variable inside that link.
+    withProviders(
+      <TemplateBubble
+        header=""
+        body="Your bill is due"
+        footer=""
+        mediaFormat={null}
+        buttons={[{ type: "url", text: "Recharge now", target: "https://vi.co/pay/TXN9931" }]}
+      />,
+    );
+    expect(screen.getByText("https://vi.co/pay/TXN9931")).toBeInTheDocument();
+  });
+
+  it("shows no destination for a quick reply, which has none", () => {
+    // Its tap sends the label back rather than going anywhere, and printing an empty line under it
+    // would suggest a destination somebody had failed to fill in.
+    withProviders(
+      <TemplateBubble
+        header=""
+        body="Interested?"
+        footer=""
+        mediaFormat={null}
+        buttons={[{ type: "quick_reply", text: "Not now", target: "" }]}
+      />,
+    );
+    expect(screen.getByText("Not now")).toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
   it("shows a media header as a placeholder supplied per send", () => {
@@ -493,8 +524,16 @@ describe("TemplateFilters", () => {
     withProviders(
       <TemplateFilters filters={query({ page: 4 })} languages={["en_US"]} onChange={onChange} />,
     );
-    fireEvent.change(screen.getByLabelText("Approval status"), { target: { value: "approved" } });
+    fireEvent.click(within(screen.getByRole("tablist", { name: "Approval status" })).getByRole("tab", { name: "Approved" }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: "approved", page: 1 }));
+  });
+
+  it("groups rejected, paused and disabled templates under Action Required", () => {
+    const rows = ["approved", "rejected", "paused", "disabled", "draft"].map((status, index) =>
+      templateFixture({ id: `t${index}`, name: `t${index}`, status }),
+    );
+    const page = selectTemplatePage(rows, query({ status: ACTION_REQUIRED }));
+    expect(page.rows.map((row) => row.status).sort()).toEqual(["disabled", "paused", "rejected"]);
   });
 
   it("offers only the languages present in the registry", () => {

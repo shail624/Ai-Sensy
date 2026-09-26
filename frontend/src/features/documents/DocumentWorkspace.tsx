@@ -85,7 +85,7 @@ export function DocumentWorkspace({ contactId, compact = false }: Props): JSX.El
         <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-2"><FolderLock aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-text-primary">Customer documents</h2></div>
-            <p className="mt-1 text-xs text-text-secondary">Immutable versions, reviewer decisions, expiry, and signed previews in one governed record.</p>
+            <p className="mt-1 text-xs text-text-secondary">Every version, the reviewer&apos;s decision, the expiry date and a safe preview — all in one place.</p>
           </div>
           {canWrite ? <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>Add document</Button> : null}
         </div>

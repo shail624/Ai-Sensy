@@ -12,7 +12,14 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from app.channels.capabilities import Capability
+from app.channels.errors import ChannelTransportError
+from app.models.contact import Contact
 from app.models.conversation import Conversation
+from app.models.message import DIRECTION_INBOUND, MSG_ACCEPTED, Message
+from app.schemas.settings import InboxOperationsSettings
+from app.services.inbox_operations_service import InboxOperationsService
+from app.services.waba_service import WabaService
 from tests.test_api_inbox_reads import _add_conv, _base
 from tests.test_api_messages import _headers
 
@@ -34,6 +41,26 @@ async def _state(session_factory) -> tuple[int, int]:
         return conv.unread_count, conv.row_version
 
 
+async def _add_inbound_message(session_factory, *, wamid: str) -> None:
+    async with session_factory() as session:
+        conv = (await session.scalars(select(Conversation))).first()
+        contact = (await session.scalars(select(Contact))).first()
+        session.add(
+            Message(
+                organization_id=conv.organization_id,
+                conversation_id=conv.id,
+                phone_number_id=conv.phone_number_id,
+                contact_id=contact.id,
+                direction=DIRECTION_INBOUND,
+                wamid=wamid,
+                message_type="text",
+                content_json={"body": "hello"},
+                status=MSG_ACCEPTED,
+            )
+        )
+        await session.commit()
+
+
 # --- Reset -------------------------------------------------------------------
 @pytest.mark.anyio
 async def test_read_resets_unread(client, make_user, session_factory, monkeypatch, dispatched):
@@ -49,6 +76,62 @@ async def test_read_resets_unread(client, make_user, session_factory, monkeypatc
     assert body["unread_count"] == 0
     assert body["row_version"] == 1  # a real reset bumps the optimistic-lock counter (was 0)
     assert await _state(session_factory) == (0, 1)
+
+
+@pytest.mark.anyio
+async def test_read_emits_provider_receipt_before_reset(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Receipt", phone="+1911010")
+    await _add_inbound_message(session_factory, wamid="wamid.latest")
+    await _set_unread(session_factory, 2)
+    calls: list[str] = []
+
+    class Adapter:
+        def supports(self, capability):
+            return capability is Capability.READ_RECEIPTS
+
+        async def mark_read(self, channel_message_id: str) -> None:
+            calls.append(channel_message_id)
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *args, **kwargs: Adapter())
+
+    resp = await client.post(f"{CONVERSATIONS_URL}/{conv_id}/read", headers=agent)
+
+    assert resp.status_code == 200, resp.text
+    assert calls == ["wamid.latest"]
+    assert await _state(session_factory) == (0, 1)
+
+
+@pytest.mark.anyio
+async def test_provider_receipt_failure_preserves_local_unread(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Failure", phone="+1911011")
+    await _add_inbound_message(session_factory, wamid="wamid.failure")
+    await _set_unread(session_factory, 4)
+
+    class Adapter:
+        def supports(self, capability):
+            return capability is Capability.READ_RECEIPTS
+
+        async def mark_read(self, channel_message_id: str) -> None:
+            raise RuntimeError("provider unavailable")
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *args, **kwargs: Adapter())
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        await client.post(f"{CONVERSATIONS_URL}/{conv_id}/read", headers=agent)
+
+    assert await _state(session_factory) == (4, 0)
 
 
 @pytest.mark.anyio
@@ -115,3 +198,107 @@ def test_read_endpoint_is_mounted() -> None:
     paths = create_app().openapi()["paths"]
     assert "/api/v1/conversations/{conversation_id}/read" in paths
     assert "post" in paths["/api/v1/conversations/{conversation_id}/read"]
+
+
+# --- Typing indicator ----------------------------------------------------------
+class _TypingAdapter:
+    def __init__(self, calls: list[str], fail: bool = False) -> None:
+        self.calls = calls
+        self.fail = fail
+
+    def supports(self, capability):
+        return capability is Capability.TYPING_INDICATOR
+
+    async def show_typing(self, channel_message_id: str) -> None:
+        if self.fail:
+            raise ChannelTransportError("provider unavailable")
+        self.calls.append(channel_message_id)
+
+    async def close(self) -> None:
+        return None
+
+
+def _policy(monkeypatch, **overrides) -> None:
+    async def get(self, organization_id):
+        return InboxOperationsSettings(**overrides)
+
+    monkeypatch.setattr(InboxOperationsService, "get", get)
+
+
+@pytest.mark.anyio
+async def test_typing_is_sent_against_the_latest_inbound_message_when_enabled(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Typing", phone="+1911020")
+    await _add_inbound_message(session_factory, wamid="wamid.typing")
+    calls: list[str] = []
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *a, **k: _TypingAdapter(calls))
+    _policy(monkeypatch, show_typing_indicators=True, send_read_receipts=True)
+
+    resp = await client.post(f"{CONVERSATIONS_URL}/{conv_id}/typing", headers=agent)
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"sent": True}
+    assert calls == ["wamid.typing"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"show_typing_indicators": False, "send_read_receipts": True},
+        # Meta pairs typing with a read status, so it must never reveal a hidden read.
+        {"show_typing_indicators": True, "send_read_receipts": False},
+    ],
+)
+async def test_typing_is_skipped_unless_both_typing_and_read_receipts_are_on(
+    client, make_user, session_factory, monkeypatch, dispatched, overrides
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Off", phone="+1911021")
+    await _add_inbound_message(session_factory, wamid="wamid.off")
+    calls: list[str] = []
+    monkeypatch.setattr(WabaService, "adapter_for", lambda *a, **k: _TypingAdapter(calls))
+    _policy(monkeypatch, **overrides)
+
+    resp = await client.post(f"{CONVERSATIONS_URL}/{conv_id}/typing", headers=agent)
+
+    assert resp.json() == {"sent": False}
+    assert calls == []
+
+
+@pytest.mark.anyio
+async def test_typing_provider_failure_is_swallowed_and_changes_nothing(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    agent, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Fail", phone="+1911022")
+    await _add_inbound_message(session_factory, wamid="wamid.fail")
+    await _set_unread(session_factory, 3)
+    monkeypatch.setattr(
+        WabaService, "adapter_for", lambda *a, **k: _TypingAdapter([], fail=True)
+    )
+    _policy(monkeypatch, show_typing_indicators=True, send_read_receipts=True)
+
+    resp = await client.post(f"{CONVERSATIONS_URL}/{conv_id}/typing", headers=agent)
+
+    assert resp.status_code == 200
+    assert resp.json() == {"sent": False}
+    assert await _state(session_factory) == (3, 0)
+
+
+@pytest.mark.anyio
+async def test_typing_requires_inbox_write_and_a_real_conversation(
+    client, make_user, session_factory, monkeypatch, dispatched
+):
+    _, org, number = await _base(client, make_user, session_factory, monkeypatch)
+    conv_id = await _add_conv(session_factory, org, number, name="Perm", phone="+1911023")
+    viewer = await _headers(client, make_user, email="viewer@vi.co", roles=("viewer",))
+    assert (
+        await client.post(f"{CONVERSATIONS_URL}/{conv_id}/typing", headers=viewer)
+    ).status_code == 403
+    agent = await _headers(client, make_user, email="agent2@vi.co", roles=("agent",))
+    assert (
+        await client.post(f"{CONVERSATIONS_URL}/{uuid.uuid4()}/typing", headers=agent)
+    ).status_code == 404

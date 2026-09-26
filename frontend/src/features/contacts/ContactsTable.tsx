@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Avatar, Badge, TagChip } from "@/components/ui";
 import type { BadgeTone } from "@/components/ui";
 import type { Contact } from "@/features/contacts/types";
+import { formatDay, saleStatusOption } from "@/features/inbox/saleStatus";
 import { useIsCompact } from "@/lib/useMediaQuery";
 
 function displayName(contact: Contact): string {
@@ -19,11 +20,26 @@ function reactivationValue(contact: Contact, key: string | null): string {
 
 /** Opt-in status → a status pill. The API vocabulary is the source; unknown values render neutrally. */
 const OPT_IN: Record<string, { tone: BadgeTone; label: string }> = {
-  opted_in: { tone: "success", label: "Opted in" },
-  opted_out: { tone: "danger", label: "Opted out" },
+  opted_in: { tone: "success", label: "Yes" },
+  opted_out: { tone: "danger", label: "No" },
   pending: { tone: "warning", label: "Pending" },
   unknown: { tone: "neutral", label: "Unknown" },
 };
+
+/** Where the sale stands, as the same coloured pill Live Chat shows. */
+function SalePill({ value }: { value: string | null | undefined }): JSX.Element {
+  const option = saleStatusOption(value);
+  if (!option) return <span className="text-text-disabled">—</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${option.pill}`}>{option.label}</span>;
+}
+
+/** "01:09, 23 Sep 2026", the reference's timestamp format. */
+function formatStamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${time}, ${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`;
+}
 
 function statusFor(contact: Contact): { tone: BadgeTone; label: string } {
   return OPT_IN[contact.opt_in_status] ?? { tone: "neutral", label: contact.opt_in_status };
@@ -54,8 +70,8 @@ interface Props {
   reactivationKey: string | null;
 }
 
-const TH = "px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-disabled";
-const TD = "px-4 py-3 align-middle";
+const TH = "whitespace-nowrap px-4 py-3 text-left text-[13px] font-normal text-[var(--color-nav-bg)] dark:text-accent";
+const TD = "whitespace-nowrap px-4 py-3 align-middle";
 const CHECKBOX = "h-4 w-4 accent-[var(--color-accent)]";
 /** Slightly larger on the phone cards, where the control is a touch target rather than a click target. */
 const TOUCH_CHECKBOX = "h-5 w-5 accent-[var(--color-accent)]";
@@ -121,10 +137,10 @@ function ContactRows({
   const navigate = useNavigate();
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+    <div className="overflow-x-auto rounded-[8px] bg-surface">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-border bg-surface-2">
+          <tr className="border-b border-[#f0f0f0] bg-surface dark:border-border">
             <th scope="col" className="w-11 px-4 py-2.5">
               <input
                 type="checkbox"
@@ -135,11 +151,15 @@ function ContactRows({
               />
             </th>
             <th scope="col" className={TH}>Name</th>
-            <th scope="col" className={TH}>Phone</th>
+            <th scope="col" className={TH}>Mobile Number</th>
             <th scope="col" className={TH}>Tags</th>
-            <th scope="col" className={TH}>Status</th>
+            <th scope="col" className={TH}>Source</th>
+            <th scope="col" className={TH}>Sale Status</th>
+            <th scope="col" className={TH}>Release Date</th>
+            <th scope="col" className={TH}>Opted In</th>
             {reactivationKey ? <th scope="col" className={TH}>Reactivation status</th> : null}
-            <th scope="col" className={TH}>Last active</th>
+            <th scope="col" className={TH}>Last Active</th>
+            <th scope="col" className={TH}>Created At</th>
             <th scope="col" className="w-10 px-4 py-2.5" aria-label="Actions" />
           </tr>
         </thead>
@@ -176,7 +196,7 @@ function ContactRows({
                     </Link>
                   </div>
                 </td>
-                <td className={`${TD} tabular-nums text-text-secondary`}>{contact.phone_e164}</td>
+                <td className={`${TD} tabular-nums text-text-secondary`}>{contact.phone_e164.replace(/^\+/, "")}</td>
                 <td className={TD}>
                   <div className="flex flex-wrap gap-1">
                     {contact.tags.length === 0 ? (
@@ -186,6 +206,11 @@ function ContactRows({
                     )}
                   </div>
                 </td>
+                <td className={`${TD} text-xs uppercase text-text-secondary`}>{contact.source ?? "—"}</td>
+                <td className={TD}>
+                  <SalePill value={contact.sale_status} />
+                </td>
+                <td className={`${TD} text-text-secondary`}>{contact.release_date ? formatDay(contact.release_date) : "—"}</td>
                 <td className={TD}>
                   <Badge tone={status.tone} dot>
                     {status.label}
@@ -195,6 +220,7 @@ function ContactRows({
                   <td className={`${TD} text-text-secondary`}>{reactivationValue(contact, reactivationKey)}</td>
                 ) : null}
                 <td className={`${TD} text-text-secondary`}>{lastActive(contact)}</td>
+                <td className={`${TD} text-text-secondary`}>{formatStamp(contact.created_at)}</td>
                 <td className={TD}>
                   <ChevronRight
                     aria-hidden
@@ -364,8 +390,9 @@ function ContactCard({
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-7">
         <Badge tone={status.tone} dot>
-          {status.label}
+          Opted in: {status.label}
         </Badge>
+        {contact.sale_status ? <SalePill value={contact.sale_status} /> : null}
         {contact.tags.map((tag) => (
           <TagChip key={tag.id} name={tag.name} color={tag.color} />
         ))}

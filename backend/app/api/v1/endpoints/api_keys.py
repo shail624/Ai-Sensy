@@ -48,6 +48,27 @@ async def create_api_key(
     return ApiKeyCreateResponse(**base.model_dump(), secret=created.secret)
 
 
+@router.post(
+    "/api-keys/{key_id}/rotate",
+    response_model=ApiKeyCreateResponse,
+    summary="Rotate an API key (new secret shown once)",
+)
+async def rotate_api_key(
+    key_id: uuidlib.UUID, session: SessionDep, actor: ApiKeysActor
+) -> ApiKeyCreateResponse:
+    """Replace a key's secret while keeping its name, scopes and audit history.
+
+    The previous secret stops authenticating immediately, so update the consumer first. Revoked
+    keys are not rotatable: reviving one would hand back a working secret for a credential
+    somebody deliberately retired.
+    """
+    rotated = await ApiKeyService(session).rotate_key(
+        organization_id=actor.organization_id, actor=actor, public_id=key_id
+    )
+    base = ApiKeyResponse.from_api_key(rotated.api_key)
+    return ApiKeyCreateResponse(**base.model_dump(), secret=rotated.secret)
+
+
 @router.delete(
     "/api-keys/{key_id}",
     status_code=status.HTTP_204_NO_CONTENT,

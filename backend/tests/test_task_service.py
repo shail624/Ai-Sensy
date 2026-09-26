@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.core.exceptions import BadRequestError, NotFoundError, VersionConflictError
 from app.db.mixins import utcnow
+from app.models.business_event import BUSINESS_EVENT_TASK_COMPLETED, BusinessEvent
 from app.models.contact import Contact
 from app.models.contact_event import (
     EVENT_TASK_ASSIGNED,
@@ -47,6 +48,7 @@ from app.models.task_event import (
     TASK_EVENT_SKIPPED,
     TaskEvent,
 )
+from app.services.business_event_service import BusinessEventService
 from app.services.task_service import TaskService, TaskStateError
 
 
@@ -434,6 +436,78 @@ async def test_completion_note_surfaces_only_when_requested(
     assert rows[1].payload_json["note"] == "shared"
 
 
+async def test_completion_records_one_privacy_safe_business_fact_per_cycle(
+    db_session, organization, actor, contact
+):
+    view = await _create(db_session, organization, actor, contact, title="Private task title")
+    first = await _svc(db_session).complete(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuidlib.UUID(view.public_id),
+        expected_row_version=None,
+        completion_notes="Private completion note",
+        create_timeline_note=False,
+    )
+
+    events = list(
+        (
+            await db_session.scalars(
+                select(BusinessEvent)
+                .where(BusinessEvent.event_type == BUSINESS_EVENT_TASK_COMPLETED)
+                .order_by(BusinessEvent.id)
+            )
+        ).all()
+    )
+    assert len(events) == 1
+    event = events[0]
+    assert event.contact_id == contact.id
+    assert event.subject_type == "task"
+    assert event.actor_id == actor.id and event.actor_type == "user"
+    assert event.source == "tasks"
+    assert event.payload_json == {
+        "task_id": view.public_id,
+        "task_type": TASK_TYPE_COLLECT_DOCUMENTS,
+        "priority": "medium",
+        "status": TASK_STATUS_COMPLETED,
+        "completion_revision": first.row_version,
+    }
+    assert "title" not in event.payload_json and "note" not in event.payload_json
+    assert event.uuid == BusinessEventService.task_completed_event_id(
+        organization_id=organization.id,
+        task_id=view.public_id,
+        completion_revision=first.row_version,
+    ).bytes
+
+    reopened = await _svc(db_session).reopen(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuidlib.UUID(view.public_id),
+        expected_row_version=None,
+    )
+    second = await _svc(db_session).complete(
+        organization_id=organization.id,
+        actor=actor,
+        public_id=uuidlib.UUID(view.public_id),
+        expected_row_version=reopened.row_version,
+        completion_notes=None,
+        create_timeline_note=False,
+    )
+    events = list(
+        (
+            await db_session.scalars(
+                select(BusinessEvent)
+                .where(BusinessEvent.event_type == BUSINESS_EVENT_TASK_COMPLETED)
+                .order_by(BusinessEvent.id)
+            )
+        ).all()
+    )
+    assert [row.payload_json["completion_revision"] for row in events] == [
+        first.row_version,
+        second.row_version,
+    ]
+    assert events[0].uuid != events[1].uuid
+
+
 # --- Optimistic concurrency (TA-INV 7) ----------------------------------------------------------
 async def test_stale_row_version_conflicts(db_session, organization, actor, contact):
     view = await _create(db_session, organization, actor, contact)
@@ -729,6 +803,16 @@ async def test_bulk_update_reports_illegal_transitions_as_failures(
     await db_session.refresh(rows["blocked"])
     assert rows["ok"].status == TASK_STATUS_COMPLETED
     assert rows["blocked"].status == TASK_STATUS_CANCELLED  # untouched
+    facts = list(
+        (
+            await db_session.scalars(
+                select(BusinessEvent).where(
+                    BusinessEvent.event_type == BUSINESS_EVENT_TASK_COMPLETED
+                )
+            )
+        ).all()
+    )
+    assert len(facts) == 1 and facts[0].subject_id == rows["ok"].id
 
 
 async def test_bulk_rejected_item_is_not_partially_applied(

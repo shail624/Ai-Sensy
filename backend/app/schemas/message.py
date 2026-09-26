@@ -43,6 +43,15 @@ class MediaPayload(BaseModel):
         return self
 
 
+class LocationPayload(BaseModel):
+    """A map pin to send."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    name: str | None = Field(default=None, max_length=200)
+    address: str | None = Field(default=None, max_length=300)
+
+
 class TemplateButtonPayload(BaseModel):
     """A value bound to one of the template's buttons (Doc 04 §18.2 `buttons[]`)."""
 
@@ -87,23 +96,45 @@ class MessageSendRequest(BaseModel):
     ``type`` selects which payload is read; the others must be absent. Sending is deliberately not
     a discriminated union of free-form JSON: the ledger stores canonical content, so what a client
     may say is the same shape the adapter is handed.
+
+    Exactly one of ``phone_number_id``/``conversation_id`` routes the send (QR-08). The first is
+    the original "send to any number" contract, unchanged. The second is a reply to an existing
+    thread: the server resolves *which* provider owns it from the conversation's own durable
+    ownership and ignores this request's opinion — a client cannot supply, forge, or override that
+    choice through this field, which is exactly why replying by conversation exists as its own path
+    rather than accepting a client-declared provider/endpoint. ``to`` is required only for the
+    number-addressed form; a conversation reply derives its recipient from the thread's own contact.
     """
 
-    phone_number_id: uuidlib.UUID
-    to: str = Field(min_length=5, max_length=24, examples=["+14155552671"])
-    type: Literal["text", "media", "interactive", "template"]
+    phone_number_id: uuidlib.UUID | None = None
+    #: Reply to an existing thread; the server — not this request — decides which provider carries
+    #: it (QR-08).
+    conversation_id: uuidlib.UUID | None = None
+    to: str | None = Field(default=None, min_length=5, max_length=24, examples=["+14155552671"])
+    type: Literal["text", "media", "interactive", "template", "location"]
     text: TextPayload | None = None
     media: MediaPayload | None = None
+    location: LocationPayload | None = None
     interactive: dict[str, Any] | None = None
     template: TemplatePayload | None = None
 
     @model_validator(mode="after")
     def _payload_matches_type(self) -> MessageSendRequest:
         supplied = {
-            name for name in ("text", "media", "interactive", "template") if getattr(self, name)
+            name
+            for name in ("text", "media", "interactive", "template", "location")
+            if getattr(self, name)
         }
         if supplied != {self.type}:
             raise ValueError(f"type {self.type!r} requires exactly the {self.type!r} payload")
+        return self
+
+    @model_validator(mode="after")
+    def _routing_is_unambiguous(self) -> MessageSendRequest:
+        if (self.phone_number_id is None) == (self.conversation_id is None):
+            raise ValueError("provide exactly one of phone_number_id or conversation_id")
+        if self.phone_number_id is not None and not self.to:
+            raise ValueError("to is required when sending by phone_number_id")
         return self
 
     def message_type(self) -> MessageType:
@@ -130,6 +161,8 @@ class MessageSendRequest(BaseModel):
             }
         if self.template is not None:
             return {"template": self._template_content()}
+        if self.location is not None:
+            return {"location": self.location.model_dump()}
         return {"interactive": self.interactive or {}}
 
     def _template_content(self) -> dict[str, Any]:

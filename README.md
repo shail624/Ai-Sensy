@@ -1,8 +1,33 @@
 # Self-Hosted WhatsApp Business Platform
 
+## UI-REF-03 — manual contact creation (2026-09-13)
+
+Added permission-gated Add Contact and a responsive Create Contact form using the existing
+POST /api/v1/contacts endpoint. Name, international mobile number and source are supported;
+consent remains unknown. Pending submission is guarded; server errors remain visible and
+successful creation refreshes contact search without changing active filters.
+
+PASS: 48 files / 887 frontend tests (8.22s), ESLint, TypeScript and production build.
+PASS: local preview created one explicitly named test contact in the isolated preview database;
+desktop/mobile form screenshots saved under output/previews/ui-ref-03-create-contact-*.png.
+No production data, backend contracts, migrations, GitHub or deployment changed.
+
+Still pending: reference-equivalent DOB/tag entry, country picker, Contacts/Segments secondary
+navigation, full action/filter menus and cumulative production acceptance. No completion
+percentage increase or claim of full AiSensy parity. See design document 74.
+
 Internal enterprise platform for the **Vi Reactivation Team** — built on the Official
 Meta WhatsApp Cloud API (Channel 1) and a vendor-neutral Support Connector (Channel 2).
 Single-tenant, self-hosted, not SaaS.
+
+Latest UI checkpoint: **UI-REF-02 — Live Chat shell alignment**. Reference-order views/search,
+empty desktop columns and mobile filters verified; frontend **883/883**, types/build/lint pass.
+Full feature/visual parity remains pending. [Evidence and limitations](docs/design/73-UI-REF-02-LIVE-CHAT-SHELL.md).
+
+Previous local UI update: **UI-REF-01 — screenshot-aligned navigation**. Compact labelled rail,
+persistent Manage and real settings deep links implemented; frontend **882/882**, types/lint/build
+and bounded desktop/mobile preview pass. Full AiSensy screen/feature parity and production
+readiness are **not** certified. See [the comparison and gaps](docs/design/72-UI-REF-01-SCREENSHOT-ALIGNED-NAVIGATION.md).
 
 The permanent product target is an original, premium enterprise experience for the Vi Reactivation
 Team, with approved workflow depth, usability, reliability, and visual quality comparable to or
@@ -83,6 +108,75 @@ provider-neutral quality, security, image, and deployed-stack gates.
 - Backend lint and type gate: `cd backend && ruff check app tests scripts && mypy app`
 - Frontend: `cd frontend && npm test`
 
+### Running the live-MySQL tests
+
+`backend/tests/test_migrations_mysql.py` proves the migration chain against a *real* MySQL 8 rather
+than SQLite, and skips cleanly when no server answers. Docker is the convenience, not the
+requirement — any MySQL 8 works, including one installed directly:
+
+```bash
+apt-get install -y mysql-server                 # or: docker compose up -d
+mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'root'"
+./scripts/local_services.sh                     # starts MySQL + Redis if they are not already up
+cd backend && DB_HOST=127.0.0.1 MYSQL_ROOT_PASSWORD=root pytest
+```
+
+With a server reachable the full backend suite runs with **zero skips**. Without one it still
+passes; the skipped tests simply do not run, which is why they are easy to leave unproven — and
+why `scripts/local_services.sh` exists. A machine that restarted turns a zero-skip run back into
+six skips with no failure to notice, so the script is idempotent and safe to run before every
+suite.
+
+### Sweeping the read surface against a real database
+
+The hermetic suite runs on SQLite, so a query that is only wrong for MySQL passes every test and
+fails the first time an operator opens the page. `scripts/live_api_read_sweep.py` closes that gap by
+asking a running server for every read the contract declares:
+
+```bash
+python scripts/live_api_read_sweep.py --base-url http://127.0.0.1:8000 \
+    --email <owner> --password <password> --output output/evidence/live-api-read-sweep.json
+```
+
+It fails only on a 5xx or a transport error, and reports separately any path it could not exercise
+because the contract does not enumerate that parameter's accepted values.
+
+### Running the browser gates without Docker
+
+`e2e/tests/` holds the release-gate owner journey and the WCAG 2.1 AA sweep — 24 authenticated
+routes in both themes, the same 24 at phone width, and the signed-out screen. The `deployed`
+quality profile runs them in containers, which is right for CI and an obstacle anywhere Docker is
+not available: without it these never run, and an accessibility gate nobody can run is a gate that
+stops being true.
+
+`scripts/local_stack.sh` starts what they need on top of `local_services.sh` — the API, a Celery
+worker, and the **production build** behind the same-origin `/api` proxy. It is idempotent, starts
+each process in its own session so it returns instead of hanging, and cold-starts in about 25
+seconds:
+
+```bash
+./scripts/local_services.sh          # MySQL 8 + Redis
+./scripts/local_stack.sh             # API :8000, worker, built frontend :4173
+cd backend && OWNER_PASSWORD='<password>' \
+    .venv/bin/python -m app.cli create-owner --email owner@example.com --name Owner
+cd ../e2e && npm ci && E2E_BASE_URL=http://127.0.0.1:4173 \
+    E2E_OWNER_EMAIL=owner@example.com E2E_OWNER_PASSWORD='<password>' \
+    E2E_ARTIFACTS_DIR=/tmp/wa-artifacts npx playwright test
+```
+
+Three things are easy to lose an hour to, so they are handled or called out:
+
+- **The worker is not optional.** Without one, the journey reaches "Start import" and waits until it
+  times out, which reads as a broken import rather than a missing process.
+- **Sign-in is rate limited** to 10 attempts per 5 minutes, and every browser test signs in. The
+  script disables the limiter for this local stack, exactly as `backend/tests/conftest.py` does;
+  production keeps it on. Left enabled, the tests fail on a blank page and look like broken screens.
+- **The owner address must be one the login form accepts** — a `.local` TLD is refused by the CLI,
+  deliberately, so an account cannot be created that could never sign in.
+
+Add `E2E_CHROMIUM_PATH=/path/to/chromium` when a browser is already provisioned for a different
+Playwright version, and `E2E_ARTIFACTS_DIR` anywhere the container's `/artifacts` does not exist.
+
 The provider-neutral Module 11 gate is the automation entry point for local and CI execution:
 
 ```bash
@@ -110,12 +204,23 @@ is in [`deploy/DEPLOYMENT.md`](deploy/DEPLOYMENT.md).
 
 ## Implementation status
 
-`v1.0.0-rc1` contains the complete backend through Analytics & Reporting, the production
-deployment topology, and the frontend application across the principal product areas. FR-CON-04
-Excel import inspection is preserved at `baseline/fr-con-04-release-ready`. Current unreleased work
-is Module 11 hardening: strict backend typing, security/release automation, and the isolated
-deployed-stack E2E/performance canary plus defensive observability contracts are complete;
-environment monitoring and commissioning evidence are next.
+`v1.0.0-rc1` contains the production deployment topology and the implemented frontend/backend
+workflows across the principal product areas. PAR-AUTO-22 remains the last complete `release`
+quality profile at **23/23**: 1521 backend tests with zero skips, 832 frontend tests, and security/
+dependency/image/SBOM/runtime gates. The current source tree passes **1,735 backend tests with zero
+skips** — VAL-01 stood up a real MySQL 8 and cleared the six live-migration tests that every prior
+run reported as skipped — plus 1,001 frontend tests across 61 files, the synchronized 247-path
+contract, production build, and a live read sweep of 210 requests over 73 contract-declared GET
+paths against MySQL with no 5xx. Read latency at 200,000 campaign recipients is in FIX-01: the
+ordinary reads are all under 32ms, and three aggregate reads (`/scan/reachability` filtered by
+verdict, `/scan/reachability/counts`, `/templates/usage`) sit at 267–347ms, at or over the 300ms
+budget and recorded rather than hidden. Its Docker/security release rerun is pending. The prior cumulative `deployed` proof remains preserved
+at **25/25**, including its disposable ten-service browser/performance/failure exercise.
+This certifies the repository and local production topology; it does not mean the entire approved
+feature roadmap is complete or that a target host has been commissioned. The canonical
+31-module table currently averages **87.0%** unweighted (recalculated median **88%**), with exact remaining work
+tracked in `MODULE_STATUS.md` and `ROADMAP.md`. FR-CON-04 Excel import inspection is preserved at
+`baseline/fr-con-04-release-ready`.
 
 See `IMPLEMENTATION_TRACKER.md` for the verified current state and `CHANGELOG.md` for delivered
 changes. The frozen design documents remain the authority for product behavior and contracts.

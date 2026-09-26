@@ -1,15 +1,13 @@
-import { Sparkles } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import { Breadcrumbs, PageContainer, PageHeader } from "@/components/layout";
+import { ManagePageHeader } from "@/components/layout";
+import { CampaignWizard } from "@/features/campaigns/CampaignWizard";
 import {
-  CampaignWizard,
   contactsToForm,
   duplicateToForm,
   followUpToForm,
-} from "@/features/campaigns";
-import { AiFoundationPanel } from "@/features/ai";
-import type { Campaign } from "@/features/campaigns";
+} from "@/features/campaigns/campaignForm";
+import type { Campaign } from "@/features/campaigns/types";
 
 /**
  * Route page for creating a campaign — and for duplicating one.
@@ -31,46 +29,27 @@ export function CampaignCreatePage(): JSX.Element {
   const contactIds = state?.contactIds;
 
   return (
-    <PageContainer>
-      <Breadcrumbs
-        items={[
-          { label: "Campaigns", to: "/campaigns" },
-          { label: followUp ? "Follow-up campaign" : source ? "Duplicate campaign" : "New campaign" },
-        ]}
-      />
-      <PageHeader
-        eyebrow="Campaign builder"
+    <div className="min-h-full bg-[#f9f9f9] dark:bg-canvas">
+      <ManagePageHeader
         title={
           followUp
             ? `Follow up "${source?.name ?? "campaign"}"`
             : source
               ? `Duplicate "${source.name}"`
-              : "New campaign"
+              : "Create Campaign"
         }
-        description={
-          followUp
-            ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
-            : "Choose the message, the audience and when it goes out. Nothing is sent until you say so."
+        actions={
+          <Link to="/campaigns" className="text-sm font-medium text-[var(--color-nav-bg)] hover:underline dark:text-accent">
+            Back to campaigns
+          </Link>
         }
       />
-      <details className="group mx-auto mb-4 max-w-5xl rounded-xl border border-border bg-surface">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-          <span className="flex items-center gap-2">
-            <Sparkles aria-hidden className="h-4 w-4 text-accent" />
-            AI planning assistant
-            <span className="font-normal text-text-disabled">Optional</span>
-          </span>
-          <span className="text-xs font-medium text-accent group-open:hidden">Show</span>
-          <span className="hidden text-xs font-medium text-accent group-open:inline">Hide</span>
-        </summary>
-        <div className="border-t border-border p-2">
-          <AiFoundationPanel
-            compact
-            capabilities={["campaign", "audience"]}
-            context="the campaign objective and selected audience"
-          />
-        </div>
-      </details>
+      <div className="px-4 py-6 sm:px-[30px]">
+      <p className="mx-auto mb-4 max-w-5xl text-sm text-[#6e6e6e] dark:text-text-secondary">
+        {followUp
+          ? "The original definition is ready to review as a new draft. You can change its audience, message and timing before approval."
+          : "Choose who gets it, pick an approved template, then send now or schedule it. Nothing is sent until you confirm."}
+      </p>
       <CampaignWizard
         initialValues={
           source
@@ -82,6 +61,7 @@ export function CampaignCreatePage(): JSX.Element {
               : undefined
         }
       />
-    </PageContainer>
+      </div>
+    </div>
   );
 }

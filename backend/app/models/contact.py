@@ -8,10 +8,10 @@ are separate sub-resources added in later steps; this model is the core contact 
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import CHAR, JSON, Boolean, CheckConstraint, ForeignKey, Index, String
+from sqlalchemy import CHAR, JSON, Boolean, CheckConstraint, Date, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -31,6 +31,17 @@ OPT_IN_UNKNOWN = "unknown"
 OPT_IN_OPTED_IN = "opted_in"
 OPT_IN_OPTED_OUT = "opted_out"
 OPT_IN_STATUSES = (OPT_IN_UNKNOWN, OPT_IN_OPTED_IN, OPT_IN_OPTED_OUT)
+
+#: Where the sale stands with this customer, set by agents from Live Chat (UI-AIS-06).
+SALE_STATUSES: tuple[str, ...] = (
+    "follow_up",
+    "sale_reminder",
+    "sale_in_field",
+    "sale_confirmed",
+    "sale_done",
+    "activated_elsewhere",
+    "not_interested",
+)
 
 
 class Contact(
@@ -54,6 +65,13 @@ class Contact(
         Index("ix_contacts_name", "organization_id", "full_name"),
         CheckConstraint(
             "opt_in_status IN ('unknown','opted_in','opted_out')", name="ck_contacts_optin"
+        ),
+        Index("ix_contacts_org_sale_status", "organization_id", "sale_status"),
+        CheckConstraint(
+            "sale_status IS NULL OR sale_status IN ("
+            + ",".join(f"'{value}'" for value in SALE_STATUSES)
+            + ")",
+            name="ck_contacts_sale_status",
         ),
         MYSQL_TABLE_ARGS,
     )
@@ -83,6 +101,12 @@ class Contact(
     last_contacted_at: Mapped[datetime | None] = mapped_column(datetime6(), nullable=True)
     source: Mapped[str | None] = mapped_column(String(40), nullable=True)
     attributes_cache: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    #: One of :data:`SALE_STATUSES`, or ``None`` when no one has marked the customer yet.
+    sale_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    #: The date the customer's number is released; a reminder task fires on it.
+    release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    #: The reminder task that tracks :attr:`release_date`, so a new date moves it, not duplicates it.
+    release_task_id: Mapped[int | None] = mapped_column(big_id(), nullable=True)
 
     # Eager-loaded so a fetched/listed contact always carries its tags (Doc 04 §14 schema);
     # selectin issues one extra query per page, avoiding N+1. Writes go through contact_tags.

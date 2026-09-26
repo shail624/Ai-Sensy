@@ -10,6 +10,7 @@ import { CampaignTable } from "@/features/campaigns/CampaignTable";
 import { CampaignTimeline } from "@/features/campaigns/CampaignTimeline";
 import { CampaignWizardProgress } from "@/features/campaigns/CampaignWizardProgress";
 import {
+  blankCampaign,
   campaignToForm,
   duplicateToForm,
   followUpToForm,
@@ -26,7 +27,6 @@ import {
 import {
   completionRatio,
   deliveryStats,
-  filterCampaigns,
   PAGE_SIZE,
   rate,
   selectCampaignPage,
@@ -97,6 +97,7 @@ beforeEach(() => {
     "campaigns:write",
     "campaigns:send",
     "campaigns:manage",
+    "campaigns:export",
   ];
 });
 
@@ -107,16 +108,13 @@ describe("selectors — filtering, sorting, pagination", () => {
     campaignFixture({ id: "c", name: "Charlie", status: "draft", created_at: "2026-07-03T00:00:00Z", total_recipients: 30 }),
   ];
 
-  it("matches search case-insensitively on the name", () => {
-    expect(filterCampaigns(rows, query({ q: "brav" })).map((row) => row.id)).toEqual(["b"]);
-    expect(filterCampaigns(rows, query({ q: "  " })).length).toBe(3);
+  it("does not reinterpret the server's search results", () => {
+    expect(selectCampaignPage(rows, query({ q: "brav" })).total).toBe(3);
+    expect(selectCampaignPage(rows, query({ q: "  " })).total).toBe(3);
   });
 
-  it("filters by exact status", () => {
-    expect(filterCampaigns(rows, query({ status: "draft" })).map((row) => row.id)).toEqual([
-      "a",
-      "c",
-    ]);
+  it("does not apply a second status filter to server results", () => {
+    expect(selectCampaignPage(rows, query({ status: "draft" })).rows.map((row) => row.id)).toEqual(["c", "b", "a"]);
   });
 
   it("sorts by each supported key without mutating the input", () => {
@@ -129,7 +127,7 @@ describe("selectors — filtering, sorting, pagination", () => {
   });
 
   it("reports page counts over the filtered set, not the whole list", () => {
-    const page = selectCampaignPage(rows, query({ status: "draft" }));
+    const page = selectCampaignPage([rows[0]!, rows[2]!], query({ status: "draft" }));
     expect(page.total).toBe(2);
     expect(page.totalPages).toBe(1);
     expect(page.rows.map((row) => row.id)).toEqual(["c", "a"]);
@@ -254,9 +252,109 @@ describe("templateShape", () => {
   it("has an empty shape when no template is chosen", () => {
     expect(templateShape(undefined).bodyCount).toBe(0);
   });
+
+  it("counts a button whose link carries a variable", () => {
+    // The Vi reactivation shape: one personalised recharge link per customer. Nothing counted it,
+    // so the wizard drew no control, the campaign was built with no value for it, and Meta
+    // rejected the send once per recipient.
+    const shape = templateShape(
+      template({
+        components: [
+          { type: "BODY", text: "Hi {{1}}" },
+          {
+            type: "BUTTONS",
+            buttons: [{ type: "URL", text: "Recharge now", url: "https://vi.co/pay/{{1}}" }],
+          },
+        ],
+      }),
+    );
+    expect(shape.buttonCount).toBe(1);
+    expect(shape.buttonLabels).toEqual(["Recharge now"]);
+  });
+
+  it("does not ask for a value a fixed button will never take", () => {
+    // A settled link, a phone number and a quick reply are all decided at approval time. Drawing
+    // a control for them would invite a value the send has nowhere to put.
+    const shape = templateShape(
+      template({
+        components: [
+          { type: "BODY", text: "Hi {{1}}" },
+          {
+            type: "BUTTONS",
+            buttons: [
+              { type: "URL", text: "Track", url: "https://vi.co/track" },
+              { type: "PHONE_NUMBER", text: "Call", phone_number: "+911234567890" },
+              { type: "QUICK_REPLY", text: "Not now" },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(shape.buttonCount).toBe(0);
+  });
 });
 
 describe("campaignForm", () => {
+  it("sends the chosen header file through to the request", () => {
+    // A media-header template could not name a file at all, so the campaign was accepted and then
+    // rejected once per recipient by Meta.
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Offer",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+      header_media_id: "asset-1",
+    });
+
+    expect(request.variable_map?.header_media).toEqual({ media_asset_id: "asset-1" });
+  });
+
+  it("omits the header file entirely when none is chosen", () => {
+    // An empty choice is not a choice: the server refuses a file for a text-header template, and
+    // sending an empty one would turn "nothing selected" into "this template takes an image".
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Offer",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+    });
+
+    expect(request.variable_map).not.toHaveProperty("header_media");
+  });
+
+  it("reads a stored header file back into the form", () => {
+    const values = campaignToForm(
+      campaignFixture({
+        variable_map: { header: [], body: [], header_media: { media_asset_id: "asset-9" } },
+      }),
+    );
+
+    expect(values.header_media_id).toBe("asset-9");
+  });
+
+  it("sends a button mapping through to the request", () => {
+    // Every layer below this dropped it silently until now, so the one thing worth pinning is that
+    // the form does not become the next layer that does.
+    const request = toCreateRequest({
+      ...blankCampaign(),
+      name: "Vi Reactivation",
+      phone_number_id: "n1",
+      template_id: "t1",
+      audience_type: "list",
+      contact_ids: ["c1"],
+      body: [{ source: "field", key: "full_name", value: "", fallback: "there" }],
+      buttons: [{ source: "field", key: "wa_id", value: "", fallback: "0" }],
+    });
+
+    expect(request.variable_map?.buttons).toEqual([
+      { source: "field", key: "wa_id", value: null, fallback: "0" },
+    ]);
+  });
+
   it("reads an existing campaign back into form values", () => {
     const values = campaignToForm(
       campaignFixture({
@@ -504,6 +602,15 @@ describe("CampaignActions — permission gating", () => {
     expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Retry/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duplicate" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export results" })).not.toBeInTheDocument();
+  });
+
+  it("offers governed result export only with its entitlement on the detail surface", () => {
+    const onExport = vi.fn();
+    withProviders(<CampaignActions campaign={campaignFixture()} onExport={onExport} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Export results" }));
+    expect(onExport).toHaveBeenCalledOnce();
   });
 
   it("offers send but not lifecycle control to a sender without manage", () => {
@@ -547,6 +654,18 @@ describe("CampaignActions — confirmation", () => {
     expect(
       within(screen.getByRole("dialog")).getByText(/Reactivation July/),
     ).toBeInTheDocument();
+  });
+
+  it("confirms the failed-recipient boundary before retrying", () => {
+    withProviders(
+      <CampaignActions campaign={campaignFixture({ status: "running", failed_count: 2 })} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry 2 failed" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Retry failed recipients?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Successful recipients are not sent again/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Retry 2 failed" })).toBeInTheDocument();
   });
 });
 

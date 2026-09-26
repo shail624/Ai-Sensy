@@ -5,18 +5,21 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
+import { createIdempotencyKey } from "@/lib/idempotency";
+import type { SaleStatus } from "@/features/inbox/saleStatus";
 import type {
   Conversation,
+  ConversationCategoryCounts,
   ConversationsPage,
   ConversationState,
   ConversationStatus,
   InboxFilters,
   MessagesPage,
   Note,
-  PhoneNumber,
   QuickReply,
   TagSummary,
   UserSummary,
@@ -34,15 +37,25 @@ export const inboxKeys = {
   notes: (id: string) => ["inbox", "conversation", id, "notes"] as const,
   quickReplies: ["quick-replies"] as const,
   assignees: ["users", "assignable"] as const,
-  numbers: ["phone-numbers"] as const,
+  // Keyed on the search alone, because that is the only filter a chip carries across when it is
+  // activated. Keying on the whole filter set would cache a badge under a query it never describes.
+  counts: (q: string | undefined) => ["inbox", "counts", q ?? ""] as const,
 };
 
 /**
- * How often the inbox re-reads itself. The platform ships no realtime transport (the conversations
- * endpoint documents that explicitly), so freshness is polling: cheap, cursor-stable, and honest
- * about its latency. Swapping this for a socket later touches only this constant and the hooks.
+ * The platform ships no realtime transport. Poll the active Live Chat every two seconds, while
+ * background surfaces and category counts retain their existing ten-second refresh.
  */
 export const POLL_INTERVAL_MS = 10_000;
+export const LIVE_INBOX_POLL_INTERVAL_MS = 2_000;
+
+function utcDayBoundary(value: string | undefined, through: boolean): string | null {
+  if (!value) return null;
+  const boundary = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(boundary.getTime())) return null;
+  if (through) boundary.setDate(boundary.getDate() + 1);
+  return boundary.toISOString();
+}
 
 /** The inbox list filters, as the contract now declares them. */
 export function toListQuery(filters: InboxFilters, cursor: string | null, limit: number) {
@@ -50,11 +63,37 @@ export function toListQuery(filters: InboxFilters, cursor: string | null, limit:
     contact: filters.contact || null,
     status: filters.status || null,
     assignee: filters.assignee || null,
+    number: filters.number || null,
     tag: filters.tag ? [filters.tag] : null,
     q: filters.q || null,
+    from: utcDayBoundary(filters.dateFrom, false),
+    to: utcDayBoundary(filters.dateTo, true),
+    campaign: filters.campaign || null,
+    has_media: Boolean(filters.hasMedia),
+    has_audit: Boolean(filters.hasAudit),
+    channel: filters.channel || null,
+    sale_status: filters.sale || null,
     cursor: cursor || null,
     limit,
   };
+}
+
+/**
+ * Totals for the three category chips.
+ *
+ * Only the search term is sent. Activating a chip replaces status, assignee and tag, so a count
+ * computed with the current ones applied would advertise a list the click never produces — and a
+ * contradictory status would pin two of the three badges to a permanent zero.
+ */
+export function useConversationCounts(q: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: inboxKeys.counts(q),
+    queryFn: async (): Promise<ConversationCategoryCounts> =>
+      unwrap(await api.GET("/api/v1/conversations/counts", { params: { query: { q: q || null } } })),
+    placeholderData: keepPreviousData,
+    refetchInterval: POLL_INTERVAL_MS,
+    enabled,
+  });
 }
 
 export function useConversations(
@@ -72,12 +111,19 @@ export function useConversations(
         }),
       ),
     placeholderData: keepPreviousData,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: LIVE_INBOX_POLL_INTERVAL_MS,
     enabled,
   });
 }
 
-export function useConversation(conversationId: string | null) {
+/**
+ * `refetchInterval` defaults to the existing ten-second poll for non-inbox callers. Live Chat
+ * passes its shorter interval explicitly; Chat History passes `false` to read once per selection.
+ */
+export function useConversation(
+  conversationId: string | null,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useQuery({
     queryKey: inboxKeys.detail(conversationId ?? ""),
     queryFn: async (): Promise<Conversation> =>
@@ -87,15 +133,20 @@ export function useConversation(conversationId: string | null) {
         }),
       ),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
 /**
- * Message history, newest-first, one cursor page at a time. The first page polls for new messages;
- * older pages are fetched on demand by the thread's "Load older messages" control and stay put.
+ * Message history, newest-first, one cursor page at a time. The first page polls for new messages
+ * by default; older pages are fetched on demand by the thread's "Load older messages" control and
+ * stay put. `refetchInterval` follows the same override convention as {@link useConversation}.
  */
-export function useMessages(conversationId: string | null, limit = 50) {
+export function useMessages(
+  conversationId: string | null,
+  limit = 50,
+  refetchInterval: number | false = POLL_INTERVAL_MS,
+) {
   return useInfiniteQuery({
     queryKey: inboxKeys.messages(conversationId ?? ""),
     initialPageParam: null as string | null,
@@ -110,7 +161,7 @@ export function useMessages(conversationId: string | null, limit = 50) {
       ),
     getNextPageParam: (last) => (last.page.has_more ? (last.page.next_cursor ?? null) : null),
     enabled: Boolean(conversationId),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval,
   });
 }
 
@@ -136,7 +187,7 @@ export function useQuickReplies() {
 }
 
 /** Candidate assignees — the org's users (Doc 04 §12). */
-export function useAssignableUsers() {
+export function useAssignableUsers(enabled = true) {
   return useQuery({
     queryKey: inboxKeys.assignees,
     queryFn: async (): Promise<UserSummary[]> => {
@@ -149,18 +200,7 @@ export function useAssignableUsers() {
       }));
     },
     staleTime: 5 * 60_000,
-  });
-}
-
-/** The sending number — the composer needs one to post an outbound message. */
-export function useDefaultPhoneNumber() {
-  return useQuery({
-    queryKey: inboxKeys.numbers,
-    queryFn: async (): Promise<PhoneNumber | null> => {
-      const list = unwrap(await api.GET("/api/v1/phone-numbers")).data;
-      return list.find((number) => number.is_default) ?? list[0] ?? null;
-    },
-    staleTime: 5 * 60_000,
+    enabled,
   });
 }
 
@@ -187,6 +227,30 @@ export function useAssignConversation(conversationId: string) {
         await api.POST("/api/v1/conversations/{conversation_id}/assign", {
           params: { path: { conversation_id: conversationId } },
           body: { assignee_id: assigneeId },
+        }),
+      ),
+  );
+}
+
+export function useInterveneConversation(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async (): Promise<ConversationState> =>
+      unwrap(
+        await api.POST("/api/v1/conversations/{conversation_id}/intervene", {
+          params: { path: { conversation_id: conversationId } },
+        }),
+      ),
+  );
+}
+
+export function useResolveIntervention(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async (): Promise<ConversationState> =>
+      unwrap(
+        await api.POST("/api/v1/conversations/{conversation_id}/resolve-intervention", {
+          params: { path: { conversation_id: conversationId } },
         }),
       ),
   );
@@ -307,23 +371,22 @@ export function useRemoveConversationTag(conversationId: string) {
   });
 }
 
+/**
+ * A reply to an open thread (QR-08). Conversation-scoped, not number-scoped: the provider is the
+ * conversation's own durable ownership, decided entirely server-side — this request carries no
+ * `phone_number_id`/provider field for a caller to set, forge, or need to get right.
+ */
 export function useSendMessage(conversationId: string) {
   return useConversationMutation(
     conversationId,
-    async ({
-      phoneNumberId,
-      to,
-      body,
-    }: {
-      phoneNumberId: string;
-      to: string;
-      body: string;
-    }) =>
+    async ({ body }: { body: string }) =>
       unwrap(
         await api.POST("/api/v1/messages/send", {
+          // Not a declared OpenAPI header parameter (the endpoint reads it off the raw request,
+          // Doc 04 §8) — set via the fetch-level `headers` option rather than `params.header`.
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: {
-            phone_number_id: phoneNumberId,
-            to,
+            conversation_id: conversationId,
             type: "text",
             text: { body, preview_url: false },
           },
@@ -343,4 +406,182 @@ export function useSendReaction(conversationId: string) {
         }),
       ),
   );
+}
+
+/** WhatsApp shows "typing…" for up to 25s, so one signal per 20s keeps it continuous. */
+export const TYPING_SIGNAL_INTERVAL_MS = 20_000;
+
+/**
+ * A throttled "agent is typing" notifier. The server decides whether anything is actually sent
+ * (policy, read receipts, channel capability) and never fails the call for provider reasons, so
+ * this is fire-and-forget: a lost signal only means a missing "typing…" line.
+ */
+export function useTypingSignal(conversationId: string, enabled: boolean): () => void {
+  const lastSent = useRef(0);
+  return useCallback(() => {
+    if (!enabled) return;
+    const now = Date.now();
+    if (now - lastSent.current < TYPING_SIGNAL_INTERVAL_MS) return;
+    lastSent.current = now;
+    void api
+      .POST("/api/v1/conversations/{conversation_id}/typing", {
+        params: { path: { conversation_id: conversationId } },
+      })
+      .catch(() => undefined);
+  }, [conversationId, enabled]);
+}
+
+/** Open (or reuse) a QR chat with a number that has not messaged us yet; returns its id. */
+export function useStartChat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (phone: string): Promise<string> =>
+      unwrap(await api.POST("/api/v1/channels/whatsapp-qr/chats", { body: { phone } }))
+        .conversation_id,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
+/**
+ * The customer's WhatsApp profile photo as an object URL, or `null`. Only QR conversations can
+ * have one (Meta's API exposes no photos). Fetched through the API with the session's token and
+ * held for an hour, so the strict image policy stays intact and scrolling never refetches.
+ */
+export function useConversationPhoto(conversationId: string, enabled: boolean): string | null {
+  const photo = useQuery({
+    // Outside `inboxKeys.all` on purpose: inbox writes invalidate that tree, and a photo must not
+    // be re-downloaded every time a message is sent.
+    queryKey: ["contact-photo", conversationId],
+    queryFn: async (): Promise<Blob | null> => {
+      const { data, response } = await api.GET(
+        "/api/v1/channels/whatsapp-qr/conversations/{conversation_id}/photo",
+        { params: { path: { conversation_id: conversationId } }, parseAs: "blob" },
+      );
+      return response.status === 200 && data instanceof Blob && data.size > 0 ? data : null;
+    },
+    enabled: enabled && Boolean(conversationId),
+    staleTime: 60 * 60_000,
+    gcTime: 60 * 60_000,
+    retry: false,
+  });
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!photo.data) {
+      setUrl(null);
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(photo.data);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [photo.data]);
+  return url;
+}
+
+/** Set the customer's sale status and/or number release date; only the fields given change. */
+export function useUpdateSaleDetails(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { sale_status?: SaleStatus | null; release_date?: string | null }) =>
+      unwrap(
+        await api.PATCH("/api/v1/conversations/{conversation_id}/sale-details", {
+          params: { path: { conversation_id: conversationId } },
+          body,
+        }),
+      ),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
+export type AttachmentKind = "image" | "video" | "audio" | "document";
+
+/**
+ * Upload a file to the media library, then send it in this chat. The server picks the provider:
+ * the official API uploads it to Meta; a QR chat sends the file itself.
+ */
+export function useSendAttachment(conversationId: string) {
+  return useConversationMutation(
+    conversationId,
+    async ({ file, kind, caption }: { file: File; kind: AttachmentKind; caption: string }) => {
+      const asset = unwrap(
+        await api.POST("/api/v1/media/upload", {
+          body: { file: file as unknown as string, media_type: kind },
+          bodySerializer(body) {
+            const form = new FormData();
+            form.append("file", body.file as unknown as File);
+            form.append("media_type", body.media_type);
+            return form;
+          },
+        }),
+      );
+      return unwrap(
+        await api.POST("/api/v1/messages/send", {
+          headers: { "Idempotency-Key": createIdempotencyKey() },
+          body: {
+            conversation_id: conversationId,
+            type: "media",
+            media: {
+              kind,
+              media_asset_id: asset.id,
+              caption: caption.trim() || null,
+              filename: kind === "document" || kind === "audio" ? file.name : null,
+            },
+          },
+        }),
+      );
+    },
+  );
+}
+
+export interface LocationPin {
+  latitude: number;
+  longitude: number;
+  name?: string | null;
+  address?: string | null;
+}
+
+/** Send a map pin in this chat. */
+export function useSendLocation(conversationId: string) {
+  return useConversationMutation(conversationId, async (location: LocationPin) =>
+    unwrap(
+      await api.POST("/api/v1/messages/send", {
+        headers: { "Idempotency-Key": createIdempotencyKey() },
+        body: { conversation_id: conversationId, type: "location", location },
+      }),
+    ),
+  );
+}
+
+/**
+ * A message's attached file as a local object URL, for showing it inside the chat. An inbound
+ * file is fetched in the background after the message arrives, so a "not yet" answer is retried
+ * for a minute before giving up.
+ */
+/** Object URLs for message files already downloaded this page load, by message id. */
+const mediaUrls = new Map<string, string>();
+
+export function useMessageMedia(messageId: string, enabled: boolean): { url: string | null; loading: boolean; failed: boolean } {
+  const media = useQuery({
+    // Outside `inboxKeys.all`: a file never changes, so sending a reply must not re-download it.
+    queryKey: ["message-media", messageId],
+    queryFn: async (): Promise<string> => {
+      const cached = mediaUrls.get(messageId);
+      if (cached) return cached;
+      const { data, response } = await api.GET("/api/v1/messages/{message_id}/media", {
+        params: { path: { message_id: messageId } },
+        parseAs: "blob",
+      });
+      if (response.status !== 200 || !(data instanceof Blob)) throw new Error(`media ${response.status}`);
+      // One object URL per message for the life of the page. Revoking it when a component
+      // re-renders broke voice notes and videos, which the browser only reads when played.
+      const url = URL.createObjectURL(data);
+      mediaUrls.set(messageId, url);
+      return url;
+    },
+    enabled: enabled && Boolean(messageId),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 12,
+    retryDelay: 5_000,
+  });
+  return { url: media.data ?? null, loading: media.isLoading || media.isFetching, failed: media.isError };
 }

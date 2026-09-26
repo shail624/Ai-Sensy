@@ -12,6 +12,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from redis import Redis as SyncRedis
 from redis.asyncio import Redis
 
 from app.core.config import settings
@@ -34,6 +35,27 @@ class WorkerStatus:
     last_seen_at: datetime | None
 
 
+def _payload(
+    *,
+    worker_id: str,
+    pool: str,
+    queues: list[str],
+    active_tasks: int,
+    started_at: datetime | None,
+) -> str:
+    """The single definition of a heartbeat record, shared by both writers below."""
+    return json.dumps(
+        {
+            "worker_id": worker_id,
+            "pool": pool,
+            "queues": queues,
+            "active_tasks": active_tasks,
+            "started_at": (started_at or utcnow()).isoformat(),
+            "last_seen_at": utcnow().isoformat(),
+        }
+    )
+
+
 async def beat(
     redis: Redis,
     *,
@@ -44,19 +66,53 @@ async def beat(
     started_at: datetime | None = None,
 ) -> None:
     """Publish/refresh this worker's heartbeat with a TTL (Doc 06 §3.4)."""
-    payload = {
-        "worker_id": worker_id,
-        "pool": pool,
-        "queues": queues,
-        "active_tasks": active_tasks,
-        "started_at": (started_at or utcnow()).isoformat(),
-        "last_seen_at": utcnow().isoformat(),
-    }
     await redis.set(
         heartbeat_key(worker_id),
-        json.dumps(payload),
+        _payload(
+            worker_id=worker_id,
+            pool=pool,
+            queues=queues,
+            active_tasks=active_tasks,
+            started_at=started_at,
+        ),
         ex=settings.worker_heartbeat_ttl_seconds,
     )
+
+
+def beat_sync(
+    redis: SyncRedis,
+    *,
+    worker_id: str,
+    pool: str,
+    queues: list[str],
+    active_tasks: int = 0,
+    started_at: datetime | None = None,
+) -> None:
+    """The same record, written with a synchronous client.
+
+    A Celery worker publishes its own heartbeat from a background thread (see
+    ``app.queue.worker_heartbeat``), and that thread must not touch the shared async client:
+    ``app.core.redis`` caches it in a module-level global keyed only by the *running loop*, so a
+    second thread calling ``get_redis_client()`` replaces the client a running task is using --
+    and the rate gate reaches for that client on every send. A private synchronous client keeps
+    the two entirely apart.
+    """
+    redis.set(
+        heartbeat_key(worker_id),
+        _payload(
+            worker_id=worker_id,
+            pool=pool,
+            queues=queues,
+            active_tasks=active_tasks,
+            started_at=started_at,
+        ),
+        ex=settings.worker_heartbeat_ttl_seconds,
+    )
+
+
+def deregister_sync(redis: SyncRedis, worker_id: str) -> None:
+    """Remove a heartbeat on a clean shutdown, rather than waiting out its TTL."""
+    redis.delete(heartbeat_key(worker_id))
 
 
 async def deregister(redis: Redis, worker_id: str) -> None:
